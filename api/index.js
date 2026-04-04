@@ -59,7 +59,7 @@ export default async function handler(req, res) {
 
       const response = await client.messages.create({
         model: 'claude-sonnet-4-5',
-        max_tokens: 512,
+        max_tokens: 2048,
         messages: [{ role: 'user', content: `Please summarize the following text:\n\n${text}` }],
       });
 
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
 
       const response = await client.messages.create({
         model: 'claude-sonnet-4-5',
-        max_tokens: 1024,
+        max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
       });
 
