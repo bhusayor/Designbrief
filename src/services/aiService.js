@@ -1,27 +1,32 @@
 /**
- * AI Service - Handles all API calls to Claude
- * Uses streaming so results appear word-by-word instantly
+ * AI Service - Handles all API calls to Claude/OpenAI
+ * Includes rate limiting and usage tracking for $5 budget
+ * Never expose API keys in frontend - use backend proxy instead
  */
 
 // In production (Vercel), API calls go to the same domain via relative URLs.
 // In local dev, Vite proxies /api → localhost:3001 (see vite.config.js).
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+// Claude 3.5 Sonnet pricing (as of 2024)
 const PRICING = {
-  INPUT_PER_1M_TOKENS: 3,
-  OUTPUT_PER_1M_TOKENS: 15,
-  BUDGET_CENTS: 500,
+  INPUT_PER_1M_TOKENS: 3,      // $3 per 1M input tokens
+  OUTPUT_PER_1M_TOKENS: 15,    // $15 per 1M output tokens
+  BUDGET_CENTS: 500,           // $5.00
 };
 
+// Rate limiting settings
 const RATE_LIMITS = {
   MAX_REQUESTS_PER_MINUTE: 10,
   MAX_REQUESTS_PER_HOUR: 100,
+  DEBOUNCE_MS: 1000,
 };
 
 class UsageTracker {
   constructor() {
     this.loadUsage();
     this.requestTimestamps = [];
+    this.lastRequestTime = {};
   }
 
   loadUsage() {
@@ -44,10 +49,12 @@ class UsageTracker {
     localStorage.setItem('aiServiceUsage', JSON.stringify(this.usage));
   }
 
+  // Estimate tokens (rough calculation: ~4 chars per token)
   estimateTokens(text) {
-    return Math.ceil((text || '').length / 4);
+    return Math.ceil(text.length / 4);
   }
 
+  // Calculate cost in cents
   calculateCost(inputTokens, outputTokens) {
     const inputCost = (inputTokens / 1_000_000) * PRICING.INPUT_PER_1M_TOKENS * 100;
     const outputCost = (outputTokens / 1_000_000) * PRICING.OUTPUT_PER_1M_TOKENS * 100;
@@ -58,11 +65,13 @@ class UsageTracker {
     const inputTokens = this.estimateTokens(inputText);
     const outputTokens = this.estimateTokens(outputText);
     const costCents = this.calculateCost(inputTokens, outputTokens);
+
     this.usage.totalTokensInput += inputTokens;
     this.usage.totalTokensOutput += outputTokens;
     this.usage.totalCostCents += costCents;
     this.usage.requestCount += 1;
     this.saveUsage();
+
     return { inputTokens, outputTokens, costCents };
   }
 
@@ -78,21 +87,31 @@ class UsageTracker {
     const now = Date.now();
     const oneMinuteAgo = now - 60 * 1000;
     const oneHourAgo = now - 60 * 60 * 1000;
+
+    // Clean up old timestamps
     this.requestTimestamps = this.requestTimestamps.filter(ts => ts > oneHourAgo);
+
     const recentMin = this.requestTimestamps.filter(ts => ts > oneMinuteAgo).length;
     const recentHour = this.requestTimestamps.length;
+
     if (recentMin >= RATE_LIMITS.MAX_REQUESTS_PER_MINUTE) {
       throw new Error(`Rate limit exceeded: Max ${RATE_LIMITS.MAX_REQUESTS_PER_MINUTE} requests per minute`);
     }
+
     if (recentHour >= RATE_LIMITS.MAX_REQUESTS_PER_HOUR) {
       throw new Error(`Rate limit exceeded: Max ${RATE_LIMITS.MAX_REQUESTS_PER_HOUR} requests per hour`);
     }
+
     this.requestTimestamps.push(now);
   }
 
   checkBudget() {
-    if (this.getRemainingBudget() <= 0) {
+    const remaining = this.getRemainingBudget();
+    if (remaining <= 0) {
       throw new Error('Budget exceeded: $5.00 credit limit reached');
+    }
+    if (remaining < 50) {
+      console.warn(`⚠️ Low budget warning: Only $${(remaining / 100).toFixed(2)} remaining`);
     }
   }
 
@@ -121,116 +140,131 @@ class UsageTracker {
 
 const tracker = new UsageTracker();
 
-// ── Streaming helper ──────────────────────────────────────────────────────────
-// onChunk(newText, fullTextSoFar) — called as each piece arrives
-// onDone(fullText) — called when stream completes
-async function streamRequest(url, body, onChunk, onDone) {
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || `API error: ${response.status}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n');
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      try {
-        const parsed = JSON.parse(line.slice(6));
-        if (parsed.error) throw new Error(parsed.error);
-        if (parsed.done) { onDone?.(fullText); return; }
-        if (parsed.text) {
-          fullText += parsed.text;
-          onChunk?.(parsed.text, fullText);
-        }
-      } catch (e) {
-        // skip malformed lines
-      }
-    }
-  }
-
-  onDone?.(fullText);
+// Debounce helper for preventing rapid repeated calls
+function debounce(fn, delay) {
+  let timeoutId = null;
+  return function(...args) {
+    clearTimeout(timeoutId);
+    return new Promise((resolve) => {
+      timeoutId = setTimeout(() => {
+        resolve(fn(...args));
+      }, delay);
+    });
+  };
 }
 
 export const aiService = {
-  // Streaming chat
-  // Usage: aiService.chat(msg, [], { onChunk: (chunk, full) => ..., onDone: (data) => ... })
-  async chat(message, conversationHistory = [], { onChunk, onDone } = {}) {
+  async chat(message, conversationHistory = []) {
     try {
+      // Check rate limits and budget
       tracker.exceedsRateLimit();
       tracker.checkBudget();
-      await streamRequest(
-        '/api/chat',
-        { message, history: conversationHistory },
-        onChunk,
-        (fullText) => {
-          tracker.addRequest(message, fullText);
-          onDone?.({ message: fullText, role: 'assistant', _stats: tracker.getStats() });
-        }
-      );
+
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message,
+          history: conversationHistory,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || `API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Track usage
+      tracker.addRequest(message, data.message);
+
+      return {
+        ...data,
+        _stats: tracker.getStats(),
+      };
     } catch (error) {
       console.error('Chat API error:', error);
       throw error;
     }
   },
 
-  // Streaming summarize
-  async summarize(text, { onChunk, onDone } = {}) {
+  async summarize(text) {
     try {
       tracker.exceedsRateLimit();
       tracker.checkBudget();
-      await streamRequest(
-        '/api/summarize',
-        { text },
-        onChunk,
-        (fullText) => {
-          tracker.addRequest(text, fullText);
-          onDone?.({ summary: fullText, _stats: tracker.getStats() });
-        }
-      );
+
+      const response = await fetch(`${API_BASE_URL}/api/summarize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to summarize: ${response.status}`);
+      }
+
+      const data = await response.json();
+      tracker.addRequest(text, data.summary);
+
+      return {
+        ...data,
+        _stats: tracker.getStats(),
+      };
     } catch (error) {
       console.error('Summarize API error:', error);
       throw error;
     }
   },
 
-  // Streaming generateText
-  async generateText(prompt, { onChunk, onDone } = {}) {
+  async generateText(prompt) {
     try {
       tracker.exceedsRateLimit();
       tracker.checkBudget();
-      await streamRequest(
-        '/api/generate',
-        { prompt },
-        onChunk,
-        (fullText) => {
-          tracker.addRequest(prompt, fullText);
-          onDone?.({ generated: fullText, _stats: tracker.getStats() });
-        }
-      );
+
+      const response = await fetch(`${API_BASE_URL}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate text: ${response.status}`);
+      }
+
+      const data = await response.json();
+      tracker.addRequest(prompt, data.generated);
+
+      return {
+        ...data,
+        _stats: tracker.getStats(),
+      };
     } catch (error) {
       console.error('Generate API error:', error);
       throw error;
     }
   },
 
-  getStats() { return tracker.getStats(); },
-  resetUsage() { tracker.reset(); },
-  isBudgetExceeded() { return tracker.getRemainingBudget() <= 0; },
+  // Get usage statistics
+  getStats() {
+    return tracker.getStats();
+  },
+
+  // Reset usage (admin only)
+  resetUsage() {
+    tracker.reset();
+  },
+
+  // Check if budget exceeded
+  isBudgetExceeded() {
+    return tracker.getRemainingBudget() <= 0;
+  },
 };
 
 export default aiService;
