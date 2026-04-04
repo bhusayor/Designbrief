@@ -1,138 +1,99 @@
-/**
- * Vercel Serverless Function - Backend API
- * This runs your Express server on Vercel
- */
-
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
 
-dotenv.config();
-
-const app = express();
-
-// Initialize Anthropic client
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'AI API Server is running' });
-});
+export default async function handler(req, res) {
+  setCors(res);
 
-// Chat endpoint
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message, system = '', maxTokens = 1500 } = req.body;
-
-    if (!message) {
-      return res.status(400).json({ error: 'Message is required' });
-    }
-
-    const messages = [
-      { role: 'user', content: message }
-    ];
-
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: Math.min(maxTokens, 4096),
-      ...(system && { system }),
-      messages,
-    });
-
-    const reply = response.content[0].type === 'text' ? response.content[0].text : '';
-
-    res.json({
-      message: reply,
-      role: 'assistant',
-    });
-  } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({
-      error: 'Failed to process chat message',
-      message: error.message,
-    });
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
-});
 
-// Summarize endpoint
-app.post('/api/summarize', async (req, res) => {
-  try {
-    const { text } = req.body;
+  const path = req.url?.split('?')[0];
 
-    if (!text) {
-      return res.status(400).json({ error: 'Text is required' });
-    }
-
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 512,
-      messages: [
-        {
-          role: 'user',
-          content: `Please summarize the following text:\n\n${text}`,
-        },
-      ],
-    });
-
-    const summary = response.content[0].type === 'text' ? response.content[0].text : '';
-
-    res.json({ summary });
-  } catch (error) {
-    console.error('Summarize error:', error);
-    res.status(500).json({
-      error: 'Failed to summarize text',
-      message: error.message,
-    });
+  // ── GET /api/health ──────────────────────────────────────────────
+  if (req.method === 'GET' && path === '/api/health') {
+    return res.json({ status: 'OK', message: 'AI API Server is running' });
   }
-});
 
-// Generate text endpoint
-app.post('/api/generate', async (req, res) => {
-  try {
-    const { prompt } = req.body;
+  // ── POST /api/chat ───────────────────────────────────────────────
+  if (req.method === 'POST' && path === '/api/chat') {
+    try {
+      const { message, system = '', maxTokens = 1500 } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+      if (!message) {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-5',
+        max_tokens: Math.min(maxTokens, 4096),
+        ...(system && { system }),
+        messages: [{ role: 'user', content: message }],
+      });
+
+      const reply = response.content[0].type === 'text' ? response.content[0].text : '';
+      return res.json({ message: reply, role: 'assistant' });
+    } catch (error) {
+      console.error('Chat error:', error);
+      return res.status(500).json({ error: 'Failed to process chat message', message: error.message });
     }
-
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
-
-    const generated = response.content[0].type === 'text' ? response.content[0].text : '';
-
-    res.json({ generated });
-  } catch (error) {
-    console.error('Generate error:', error);
-    res.status(500).json({
-      error: 'Failed to generate text',
-      message: error.message,
-    });
   }
-});
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({
-    error: 'Internal server error',
-    message: err.message,
-  });
-});
+  // ── POST /api/summarize ──────────────────────────────────────────
+  if (req.method === 'POST' && path === '/api/summarize') {
+    try {
+      const { text } = req.body;
 
-// Export for Vercel
-export default app;
+      if (!text) {
+        return res.status(400).json({ error: 'Text is required' });
+      }
+
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 512,
+        messages: [{ role: 'user', content: `Please summarize the following text:\n\n${text}` }],
+      });
+
+      const summary = response.content[0].type === 'text' ? response.content[0].text : '';
+      return res.json({ summary });
+    } catch (error) {
+      console.error('Summarize error:', error);
+      return res.status(500).json({ error: 'Failed to summarize text', message: error.message });
+    }
+  }
+
+  // ── POST /api/generate ───────────────────────────────────────────
+  if (req.method === 'POST' && path === '/api/generate') {
+    try {
+      const { prompt } = req.body;
+
+      if (!prompt) {
+        return res.status(400).json({ error: 'Prompt is required' });
+      }
+
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const generated = response.content[0].type === 'text' ? response.content[0].text : '';
+      return res.json({ generated });
+    } catch (error) {
+      console.error('Generate error:', error);
+      return res.status(500).json({ error: 'Failed to generate text', message: error.message });
+    }
+  }
+
+  // ── 404 fallback ─────────────────────────────────────────────────
+  return res.status(404).json({ error: 'Not found' });
+}

@@ -4,7 +4,9 @@
  * Never expose API keys in frontend - use backend proxy instead
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+// In production (Vercel), API calls go to the same domain via relative URLs.
+// In local dev, Vite proxies /api → localhost:3001 (see vite.config.js).
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // Claude 3.5 Sonnet pricing (as of 2024)
 const PRICING = {

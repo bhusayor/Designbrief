@@ -46,7 +46,7 @@ app.post('/api/chat', async (req, res) => {
     ];
 
     const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5',
       max_tokens: Math.min(maxTokens, 4096),
       ...(system && { system }),
       messages,
@@ -77,7 +77,7 @@ app.post('/api/summarize', async (req, res) => {
     }
 
     const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5',
       max_tokens: 512,
       messages: [
         {
@@ -109,7 +109,7 @@ app.post('/api/generate', async (req, res) => {
     }
 
     const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5',
       max_tokens: 1024,
       messages: [
         {
