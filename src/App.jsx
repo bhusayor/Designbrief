@@ -107,14 +107,13 @@ async function streamChat(system, user, maxTokens, onChunk) {
     const chunk = decoder.decode(value, { stream: true });
     for (const line of chunk.split("\n")) {
       if (!line.startsWith("data: ")) continue;
-      try {
-        const parsed = JSON.parse(line.slice(6));
-        if (parsed.error) throw new Error(parsed.error);
-        if (parsed.text) {
-          fullText += parsed.text;
-          onChunk?.(fullText);
-        }
-      } catch(e) { /* skip malformed */ }
+      let parsed;
+      try { parsed = JSON.parse(line.slice(6)); } catch(e) { continue; }
+      if (parsed.error) throw new Error(parsed.error);
+      if (parsed.text) {
+        fullText += parsed.text;
+        onChunk?.(fullText);
+      }
     }
   }
   return fullText;
@@ -774,6 +773,7 @@ function TranslatorView({ existing, saveHistory, showToast, isMobile }) {
     if (!briefText.trim() && !fileContent.trim()) return;
     setPhase("loading");
     setLoadMsg("Analysing brief...");
+    try {
 
     // Combine brief text with file content for context (but don't show file content to user)
     let fullContext = briefText.trim();
@@ -934,6 +934,10 @@ function TranslatorView({ existing, saveHistory, showToast, isMobile }) {
       data: { brief: briefText, projectName, scoring: scoreData, result: finalResult },
     };
     saveHistory(item);
+    } catch (error) {
+      console.error("Translate error:", error);
+      setPhase("brief");
+    }
   }
   function downloadBrief() {
     if (!result) return;
@@ -1820,10 +1824,12 @@ function TeamView({ existing, saveHistory, showToast, isMobile }) {
       setBriefText(txt);
       setLoading(true);
 
-      // Check if chaotic
-      const analysis = await callJSON(
-        "You are a design team strategist. Respond ONLY with raw JSON.",
-        `Analyse this brief and suggest team roles.
+      let analysis = null;
+      try {
+        // Check if chaotic
+        analysis = await callJSON(
+          "You are a design team strategist. Respond ONLY with raw JSON.",
+          `Analyse this brief and suggest team roles.
 Brief: """${txt}"""
 Return JSON:
 {
@@ -1834,7 +1840,11 @@ Return JSON:
   "roleReasoning":"why these roles are needed"
 }
 Roles must be from: ${ROLES.join(", ")}`
-      );
+        );
+      } catch(e) {
+        console.error("Brief analysis error:", e);
+        addMsg("ai", "Sorry, something went wrong. Please try again.");
+      }
 
       setLoading(false);
       if (analysis) {
