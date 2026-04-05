@@ -87,45 +87,51 @@ textarea,input,button{outline:none;font-family:'Syne',sans-serif}
 ═══════════════════════════════════════════════ */
 const uid = () => Math.random().toString(36).slice(2,9);
 
-async function callClaude(system, user, maxTokens = 1500) {
-  try {
-    const r = await fetch("http://localhost:3001/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: user,
-        system,
-        maxTokens,
-      }),
-    });
-    if (!r.ok) {
-      const error = await r.json();
-      throw new Error(error.message || `API error: ${r.status}`);
+// Shared streaming fetch — reads SSE stream and returns full text
+async function streamChat(system, user, maxTokens, onChunk) {
+  const r = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: user, system, maxTokens }),
+  });
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({}));
+    throw new Error(error.message || `API error: ${r.status}`);
+  }
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split("\n")) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        const parsed = JSON.parse(line.slice(6));
+        if (parsed.error) throw new Error(parsed.error);
+        if (parsed.text) {
+          fullText += parsed.text;
+          onChunk?.(fullText);
+        }
+      } catch(e) { /* skip malformed */ }
     }
-    const d = await r.json();
-    return d.message || "";
+  }
+  return fullText;
+}
+
+async function callClaude(system, user, maxTokens = 4096) {
+  try {
+    return await streamChat(system, user, maxTokens);
   } catch (error) {
     console.error("API call failed:", error);
     throw error;
   }
 }
 
-async function callClaudeWithSearch(system, user, maxTokens = 2000) {
+async function callClaudeWithSearch(system, user, maxTokens = 4096) {
   try {
-    const r = await fetch("http://localhost:3001/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: user,
-        system,
-        maxTokens,
-      }),
-    });
-    if (!r.ok) {
-      throw new Error(`API error: ${r.status}`);
-    }
-    const d = await r.json();
-    return d.message || "";
+    return await streamChat(system, user, maxTokens);
   } catch (error) {
     console.error("Search API call failed:", error);
     throw error;
@@ -1879,21 +1885,11 @@ Roles must be from: ${ROLES.join(", ")}`
 
       let displayReply = "Sorry, I couldn't process that.";
       try {
-        const res = await fetch("http://localhost:3001/api/chat", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({
-            message: historyToSend[historyToSend.length - 1]?.content || "",
-            system: systemPrompt,
-            maxTokens: 1200,
-          })
-        });
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.message || `API error: ${res.status}`);
-        }
-        const data = await res.json();
-        const rawReply = data.message || "I couldn't process that.";
+        const rawReply = await streamChat(
+          systemPrompt,
+          historyToSend[historyToSend.length - 1]?.content || "",
+          1200
+        ) || "I couldn't process that.";
 
         const updateMatch = rawReply.match(/BOARD_UPDATE:(\{[\s\S]*?\})\s*$/m);
         displayReply = rawReply.replace(/BOARD_UPDATE:\{[\s\S]*?\}\s*$/m, "").trim();
@@ -2797,6 +2793,3 @@ function Toast({ msg, type }) {
     </div>
   );
 }
-
-
-

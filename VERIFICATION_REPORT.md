@@ -22,7 +22,7 @@
   - Line 70: `callClaude()` function ✓
   - Line 93: `callClaudeWithSearch()` function ✓
   - Line 1491: Kanban board AI endpoint ✓
-- **Endpoint URL**: All point to `http://localhost:3001/api/chat` ✓
+- **Endpoint URL**: All point to `api/chat` ✓
 - **Error Handling**: Each call checks `if (!r.ok)` before parsing ✓
 - **Parameters**: Correctly passing `message`, `system`, `maxTokens` ✓
 - **Response Parsing**: Correctly extracting `data.message` from API responses ✓
@@ -115,7 +115,7 @@ Local: http://localhost:5173
 ```
 User Input (Frontend)
     ↓
-http://fetch() to http://localhost:3001/api/chat
+http://fetch() to /api/chat
     ↓
 Backend Server (Node.js + Express)
     ↓
@@ -143,7 +143,7 @@ curl http://localhost:3001/health
 
 ### Test API Call:
 ```bash
-curl -X POST http://localhost:3001/api/chat \
+curl -X POST /api/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"Hello!","system":"You are helpful","maxTokens":1500}'
 ```
