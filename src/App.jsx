@@ -900,7 +900,7 @@ function TranslatorView({ existing, saveHistory, showToast, isMobile }) {
       callJSON(
         "You are a senior brand strategist and design director. Respond ONLY with a valid JSON object. No explanation, no markdown, no code fences. Every single field must be populated with real values specific to this brief — never leave anything as the example placeholder. For rolesNeeded: ONLY include roles that are directly and specifically required by the brief — not generic nice-to-haves. A simple landing page needs only a UI Designer and maybe a Frontend Dev. For budgetRange: always use mid-level freelance rates ($80-120/hr for designers, $100-130/hr for developers). Scale the total to the project scope — a landing page is $5k-$12k, a mobile app is $25k-$60k, a full SaaS product is $40k-$100k. Breakdown must only include roles listed in rolesNeeded.",
         `Translate this client brief into a full structured design document.\n\nBrief:\n${brief}\n\nReturn a JSON object that follows this exact shape. Replace EVERY value with real content specific to this brief. The palette must have exactly 3 hex colors:\n${translateSchema}`,
-        4000
+        8000
       ),
 
     ]);
@@ -912,7 +912,7 @@ function TranslatorView({ existing, saveHistory, showToast, isMobile }) {
     const deepData = await callJSON(
       "You are a senior product architect and UX lead. Respond ONLY with a valid JSON object. No explanation, no markdown, no code fences. Replace every placeholder with real values specific to this project.",
       `Analyse this project and return a product architecture document.\n\nProject: ${title}\nBrief: ${brief}\n\nReturn a JSON object following this exact shape (5-8 features, 7-10 user flow steps, all specific to this project):\n${deepSchema}`,
-      4000
+      8000
     );
 
     const finalResult = Object.assign({}, translated, {
