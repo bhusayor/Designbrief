@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { callJSON } from './api'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const token = () =>
@@ -176,8 +177,6 @@ export async function cancelInvite(inviteId) {
 // ── Auto-assign tasks to new member ───────────
 export async function autoAssignToNewMember(kanban, newMember) {
   if (!kanban?.tasks?.length) return kanban
-
-  const { callJSON } = await import('./api')
 
   const unassigned = kanban.tasks
     .filter(t => !t.assignedName || t.assignedName === '')

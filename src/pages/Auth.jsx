@@ -219,6 +219,7 @@ export default function Auth() {
           </button>
 
           {/* Divider */}
+          {false && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
             <span style={{
@@ -227,8 +228,10 @@ export default function Auth() {
             }}>or continue with</span>
             <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
           </div>
+          )}
 
           {/* Google OAuth */}
+          {false && (
           <button
             onClick={handleGoogleAuth}
             style={{
@@ -248,6 +251,7 @@ export default function Auth() {
             }}>G</span>
             Continue with Google
           </button>
+          )}
 
           {/* Tab switch */}
           <div style={{
