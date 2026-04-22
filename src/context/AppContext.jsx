@@ -240,17 +240,18 @@ export function AppProvider({ children }) {
 
   async function signOut() {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (e) {
       console.error('[AppContext] signOut error:', e);
     }
-    setAuthUser(null);
-    setProjects([]);
-    setHistory([]);
-    // Do NOT navigate('auth') here — activeSection staying on 'dashboard'
-    // while authUser is null causes App.jsx line 75 to render <Auth /> standalone.
-    // Calling navigate('auth') puts 'auth' in publicSections, bypassing the guard,
-    // and Auth ends up rendered inside AppShell with the sidebar showing.
+    // Manually purge every sb-* key so a background token refresh
+    // cannot silently re-authenticate the user before the reload.
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-')) localStorage.removeItem(key);
+    });
+    // Hard reload guarantees clean React state and a fresh getSession() call
+    // that will find no session and land on the Auth page.
+    window.location.reload();
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
