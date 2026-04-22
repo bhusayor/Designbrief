@@ -1,115 +1,140 @@
+/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Theme-independent tokens ─────────────────────────────────────────────── */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --font-display: 'Urbanist', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* ── DARK THEME (default) ─────────────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --color-bg:           #161616;
+  --color-sidebar:      #111111;
+  --color-surface:      #1E1E1E;
+  --color-card:         #242424;
+  --color-card-hover:   #2C2C2C;
+  --color-border:       #303030;
+  --color-border-hover: #424242;
+  --color-accent:       #F0F0F0;
+  --color-accent-bg:    rgba(240,240,240,0.08);
+  --color-accent-border:rgba(240,240,240,0.20);
+  --color-accent-text:  #111111;
+  --color-text:         #F0F0F0;
+  --color-text-soft:    #ABABAB;
+  --color-text-muted:   #636363;
+  --color-red:          #F87171;
+  --color-amber:        #FBBF24;
+  --color-green:        #4ADE80;
+  --color-blue:         #60A5FA;
+  --color-purple:       #A78BFA;
+  --color-pink:         #F472B6;
+  --color-teal:         #2DD4BF;
+  --shadow-card:        0 1px 3px rgba(0,0,0,0.4);
+  --shadow-modal:       0 24px 80px rgba(0,0,0,0.7);
+  --shadow-dropdown:    0 8px 24px rgba(0,0,0,0.5);
+}
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+/* ── LIGHT THEME ─────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --color-bg:           #F8F8F8;
+  --color-sidebar:      #EFEFEF;
+  --color-surface:      #EBEBEB;
+  --color-card:         #FFFFFF;
+  --color-card-hover:   #F3F3F3;
+  --color-border:       #DCDCDC;
+  --color-border-hover: #C6C6C6;
+  --color-accent:       #0F0F0F;
+  --color-accent-bg:    rgba(15,15,15,0.06);
+  --color-accent-border:rgba(15,15,15,0.20);
+  --color-accent-text:  #FFFFFF;
+  --color-text:         #0F0F0F;
+  --color-text-soft:    #383838;
+  --color-text-muted:   #767676;
+  --color-red:          #C41A1A;
+  --color-amber:        #B45309;
+  --color-green:        #15652A;
+  --color-blue:         #1D4ED8;
+  --color-purple:       #6D28D9;
+  --color-pink:         #BE185D;
+  --color-teal:         #0D9488;
+  --shadow-card:        0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-modal:       0 20px 60px rgba(0,0,0,0.15);
+  --shadow-dropdown:    0 8px 24px rgba(0,0,0,0.10);
+}
+
+/* ─── Global Base ──────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Urbanist', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+/* ─── Root override for app shell ─────────────────────────────────────────── */
 #root {
-  width: 100%;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  border-inline: none;
+  text-align: left;
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* ─── Keyframe animations ──────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes slideRight {
+  from { transform: translateX(-12px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes barGrow {
+  from { width: 0; }
+  to   { width: var(--bar-w); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
-}
+.fade { animation: fadeUp 0.35s ease both; }
+.spin { animation: spin 0.8s linear infinite; }
