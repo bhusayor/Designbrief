@@ -247,7 +247,10 @@ export function AppProvider({ children }) {
     setAuthUser(null);
     setProjects([]);
     setHistory([]);
-    navigate('auth');
+    // Do NOT navigate('auth') here — activeSection staying on 'dashboard'
+    // while authUser is null causes App.jsx line 75 to render <Auth /> standalone.
+    // Calling navigate('auth') puts 'auth' in publicSections, bypassing the guard,
+    // and Auth ends up rendered inside AppShell with the sidebar showing.
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
