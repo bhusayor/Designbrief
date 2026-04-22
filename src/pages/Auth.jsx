@@ -115,7 +115,7 @@ export default function Auth() {
             color: 'var(--color-text)', letterSpacing: '-0.02em',
           }}>DesignBrief AI</div>
           <div style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 11,
+            fontFamily: "'Urbanist', sans-serif", fontSize: 11,
             color: 'var(--color-text-muted)', marginTop: 4,
           }}>The only briefing platform that thinks</div>
         </div>
@@ -184,7 +184,7 @@ export default function Auth() {
               background: 'color-mix(in srgb, var(--color-red) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--color-red) 30%, transparent)',
               borderRadius: 8, padding: '10px 14px',
-              fontFamily: "'DM Mono', monospace", fontSize: 12,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 12,
               color: 'var(--color-red)', lineHeight: 1.5,
             }}>{error}</div>
           )}
@@ -195,7 +195,7 @@ export default function Auth() {
               background: 'color-mix(in srgb, var(--color-green) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--color-green) 30%, transparent)',
               borderRadius: 8, padding: '10px 14px',
-              fontFamily: "'DM Mono', monospace", fontSize: 12,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 12,
               color: 'var(--color-green)', lineHeight: 1.5,
             }}>{success}</div>
           )}
@@ -223,7 +223,7 @@ export default function Auth() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
             <span style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 11,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 11,
               color: 'var(--color-text-muted)',
             }}>or continue with</span>
             <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
@@ -255,7 +255,7 @@ export default function Auth() {
 
           {/* Tab switch */}
           <div style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 12,
+            fontFamily: "'Urbanist', sans-serif", fontSize: 12,
             color: 'var(--color-text-muted)', textAlign: 'center',
           }}>
             {tab === 'login' ? (
@@ -264,7 +264,7 @@ export default function Auth() {
                   onClick={() => { setTab('signup'); setError(null); setSuccess(null) }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--color-accent)', fontFamily: "'DM Mono', monospace",
+                    color: 'var(--color-accent)', fontFamily: "'Urbanist', sans-serif",
                     fontSize: 12, padding: 0, fontWeight: 600,
                   }}
                 >Sign up free</button>
@@ -275,7 +275,7 @@ export default function Auth() {
                   onClick={() => { setTab('login'); setError(null); setSuccess(null) }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--color-accent)', fontFamily: "'DM Mono', monospace",
+                    color: 'var(--color-accent)', fontFamily: "'Urbanist', sans-serif",
                     fontSize: 12, padding: 0, fontWeight: 600,
                   }}
                 >Sign in</button>

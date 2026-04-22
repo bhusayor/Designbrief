@@ -38,7 +38,7 @@ export default function Input({
 
   const fieldStyle = {
     ...baseStyle,
-    fontFamily: multiline ? "'DM Mono', monospace" : "'Urbanist', sans-serif",
+    fontFamily: multiline ? "'Urbanist', sans-serif" : "'Urbanist', sans-serif",
     border: `1px solid ${borderColor}`,
     paddingLeft: icon ? '38px' : '14px',
     width: full || multiline ? '100%' : undefined,
@@ -105,7 +105,7 @@ export default function Input({
         </span>
       )}
       {hint && !error && (
-        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace" }}>
+        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: "'Urbanist', sans-serif" }}>
           {hint}
         </span>
       )}
