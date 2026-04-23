@@ -1,8 +1,56 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Button, Badge, Input } from '../components/ui';
 import { INTAKE_SECTIONS, PROJECT_TYPES } from '../lib/constants';
 import { supabase } from '../lib/supabase';
+import {
+  ArrowRightIcon,
+  ArrowLeftIcon,
+  CheckCircleIcon,
+  LinkIcon,
+  ClipboardDocumentIcon,
+  SparklesIcon,
+  UserIcon,
+  FolderIcon,
+  SwatchIcon,
+  ComputerDesktopIcon,
+  DevicePhoneMobileIcon,
+  PhotoIcon,
+  FilmIcon,
+  DocumentTextIcon,
+  PaintBrushIcon,
+  CameraIcon,
+  Bars3Icon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  GlobeAltIcon,
+  UsersIcon,
+  CurrencyDollarIcon,
+  MegaphoneIcon,
+  RectangleStackIcon,
+  PaperClipIcon,
+} from '@heroicons/react/24/outline';
+
+// ─── Icon maps ────────────────────────────────────────────────────────────────
+
+const PROJECT_TYPE_ICONS = {
+  'brand-identity': SwatchIcon,
+  'website':        ComputerDesktopIcon,
+  'mobile-app':     DevicePhoneMobileIcon,
+  'saas-product':   RectangleStackIcon,
+  'campaign':       MegaphoneIcon,
+  'logo':           PaintBrushIcon,
+  'motion':         FilmIcon,
+  'illustration':   PaintBrushIcon,
+};
+
+const SECTION_ICONS = {
+  'overview':    DocumentTextIcon,
+  'audience':    UsersIcon,
+  'competitors': GlobeAltIcon,
+  'moodboard':   PhotoIcon,
+  'budget':      CurrencyDollarIcon,
+  'assets':      PaperClipIcon,
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -15,263 +63,189 @@ function initSections() {
   }));
 }
 
-// ─── Toggle Switch ────────────────────────────────────────────────────────────
+// ─── Toggle ───────────────────────────────────────────────────────────────────
 
 function Toggle({ enabled, onChange }) {
   return (
     <div
       onClick={e => { e.stopPropagation(); onChange(!enabled); }}
       style={{
-        width: '36px', height: '20px', borderRadius: '10px', flexShrink: 0,
+        width: 32, height: 18, borderRadius: 9, flexShrink: 0,
         background: enabled ? 'var(--color-accent)' : 'var(--color-border)',
         position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
+        border: 'none',
       }}
     >
       <div style={{
-        position: 'absolute', top: '3px',
-        left: enabled ? '18px' : '3px',
-        width: '14px', height: '14px', borderRadius: '50%',
-        background: enabled ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
+        position: 'absolute', top: 3,
+        left: enabled ? 17 : 3,
+        width: 12, height: 12, borderRadius: '50%',
+        background: 'white',
         transition: 'left 0.2s',
       }} />
     </div>
   );
 }
 
-// ─── Phase: Setup ─────────────────────────────────────────────────────────────
+// ─── Screen 1: Project Setup ──────────────────────────────────────────────────
 
-function SetupPhase({ projectName, setProjectName, projectType, setProjectType, onContinue }) {
+function Screen1({ projectName, setProjectName, projectType, setProjectType, onContinue }) {
+  const [nameFocused, setNameFocused] = useState(false);
+
   return (
     <div style={{
-      height: '100%', overflowY: 'auto', background: 'var(--color-bg)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      padding: '48px 24px 80px', overflowY: 'auto', height: '100%',
+      background: 'var(--color-bg)', boxSizing: 'border-box',
     }}>
-      <div style={{ maxWidth: '560px', margin: '0 auto', padding: '48px 32px' }}>
 
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: '6px',
-          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-          borderRadius: '6px', padding: '4px 10px', marginBottom: '20px',
-          fontFamily: "'DM Mono', monospace", fontSize: '10px',
-          color: 'var(--color-text-muted)', letterSpacing: '0.08em',
-        }}>
-          ◎ CLIENT INTAKE
-        </div>
-
-        <h1 style={{
-          fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '32px',
-          color: 'var(--color-text)', letterSpacing: '-0.02em', margin: '0 0 10px',
-        }}>
-          What kind of project is this?
-        </h1>
-
-        <p style={{
-          fontFamily: "'DM Mono', monospace", fontSize: '13px',
-          color: 'var(--color-text-soft)', lineHeight: 1.7, marginBottom: '32px',
-        }}>
-          Choose a project type and we'll suggest the right questions to send your client.
-        </p>
-
-        <div style={{ marginBottom: '24px' }}>
-          <Input
-            label="Project Name"
-            placeholder="e.g. Bloom Skincare Brand Identity"
-            value={projectName}
-            onChange={e => setProjectName(e.target.value)}
-            full
-          />
-        </div>
-
-        <div style={{ marginBottom: '28px' }}>
-          <div style={{
-            fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '12px',
-            color: 'var(--color-text-soft)', marginBottom: '12px',
-          }}>
-            Project Type
-          </div>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-            gap: '10px',
-          }}>
-            {PROJECT_TYPES.map(pt => {
-              const selected = projectType?.id === pt.id;
-              return (
-                <div
-                  key={pt.id}
-                  onClick={() => setProjectType(pt)}
-                  onMouseEnter={e => {
-                    if (!selected) {
-                      e.currentTarget.style.borderColor = 'var(--color-border-hover)';
-                      e.currentTarget.style.background = 'var(--color-card-hover)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!selected) {
-                      e.currentTarget.style.borderColor = 'var(--color-border)';
-                      e.currentTarget.style.background = 'var(--color-card)';
-                    }
-                  }}
-                  style={{
-                    background: selected ? 'var(--color-accent-bg)' : 'var(--color-card)',
-                    border: selected
-                      ? '2px solid var(--color-accent)'
-                      : '1px solid var(--color-border)',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ fontSize: '22px', marginBottom: '10px' }}>{pt.icon}</div>
-                  <div style={{
-                    fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '13px',
-                    color: 'var(--color-text)', marginBottom: '4px',
-                  }}>
-                    {pt.label}
-                  </div>
-                  <div style={{
-                    fontFamily: "'DM Mono', monospace", fontSize: '11px',
-                    color: 'var(--color-text-muted)', lineHeight: 1.5,
-                  }}>
-                    {pt.description}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <Button
-          variant="primary"
-          full
-          disabled={!projectName.trim() || !projectType}
-          onClick={onContinue}
-        >
-          Continue →
-        </Button>
+      {/* Step pill */}
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+        borderRadius: 100, padding: '4px 14px', marginBottom: 28,
+        fontFamily: "'DM Mono', monospace", fontSize: 11,
+        color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase',
+      }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-accent)' }} />
+        Step 1 of 2
       </div>
-    </div>
-  );
-}
 
-// ─── Section Card ─────────────────────────────────────────────────────────────
+      {/* Heading */}
+      <h1 style={{
+        fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 36,
+        letterSpacing: '-0.03em', color: 'var(--color-text)',
+        textAlign: 'center', marginBottom: 8, maxWidth: 500, lineHeight: 1.1, margin: '0 0 8px',
+      }}>
+        Set up your intake form
+      </h1>
+      <div style={{
+        fontFamily: "'DM Mono', monospace", fontSize: 13,
+        color: 'var(--color-text-muted)', textAlign: 'center', marginBottom: 40,
+      }}>
+        Tell us about the project to get started
+      </div>
 
-function SectionCard({ section, index, total, onToggle, onExpand, onQuestionChange, onQuestionDelete, onAddQuestion, dragIdx, onDragStart, onDragOver, onDrop, onDragEnd }) {
-  const isDragging = dragIdx === index;
+      {/* Project name input */}
+      <div style={{ width: '100%', maxWidth: 520, marginBottom: 28 }}>
+        <div style={{
+          fontFamily: "'DM Mono', monospace", fontSize: 11,
+          color: 'var(--color-text-muted)', letterSpacing: '0.06em',
+          textTransform: 'uppercase', marginBottom: 8,
+        }}>
+          Project name
+        </div>
+        <input
+          value={projectName}
+          onChange={e => setProjectName(e.target.value)}
+          onFocus={() => setNameFocused(true)}
+          onBlur={() => setNameFocused(false)}
+          placeholder="e.g. Bloom Skincare Rebrand"
+          style={{
+            width: '100%', background: 'var(--color-card)',
+            border: `1.5px solid ${nameFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
+            borderRadius: 12, padding: '14px 16px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: 15,
+            color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
+            boxShadow: nameFocused ? '0 0 0 3px var(--color-accent-bg)' : 'none',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+        />
+      </div>
 
-  return (
-    <div
-      draggable
-      onDragStart={() => onDragStart(index)}
-      onDragOver={e => { e.preventDefault(); onDragOver(index); }}
-      onDrop={() => onDrop(index)}
-      onDragEnd={onDragEnd}
-      style={{
-        background: 'var(--color-card)',
-        border: '1px solid var(--color-border)',
-        borderRadius: '14px',
-        marginBottom: '10px',
-        overflow: 'hidden',
-        opacity: isDragging ? 0.4 : 1,
-        transition: 'opacity 0.15s',
-      }}
-    >
-      {/* Header */}
-      <div
-        onClick={() => onExpand(index)}
+      {/* Project type grid */}
+      <div style={{ width: '100%', maxWidth: 520, marginBottom: 36 }}>
+        <div style={{
+          fontFamily: "'DM Mono', monospace", fontSize: 11,
+          color: 'var(--color-text-muted)', textTransform: 'uppercase',
+          letterSpacing: '0.06em', marginBottom: 12,
+        }}>
+          Project type
+        </div>
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10,
+        }}>
+          {PROJECT_TYPES.map(pt => {
+            const selected = projectType?.id === pt.id;
+            const TypeIcon = PROJECT_TYPE_ICONS[pt.id] || SwatchIcon;
+            return (
+              <div
+                key={pt.id}
+                onClick={() => setProjectType(pt)}
+                onMouseEnter={e => {
+                  if (!selected) {
+                    e.currentTarget.style.borderColor = 'var(--color-border-hover)';
+                    e.currentTarget.style.background = 'var(--color-card-hover)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!selected) {
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                    e.currentTarget.style.background = 'var(--color-card)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+                style={{
+                  background: selected ? 'var(--color-accent-bg)' : 'var(--color-card)',
+                  border: `1.5px solid ${selected ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                  borderRadius: 12, padding: '16px 14px', cursor: 'pointer',
+                  transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', gap: 8, textAlign: 'center',
+                }}
+              >
+                <div style={{
+                  width: 36, height: 36, borderRadius: 9,
+                  background: selected ? 'var(--color-accent)' + '18' : 'var(--color-surface)',
+                  border: selected ? '1px solid var(--color-accent)' + '30' : 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 4,
+                }}>
+                  <TypeIcon style={{
+                    width: 18, height: 18,
+                    color: selected ? 'var(--color-accent)' : 'var(--color-text-soft)',
+                  }} />
+                </div>
+                <div style={{
+                  fontFamily: "'Urbanist', sans-serif",
+                  fontWeight: selected ? 700 : 600,
+                  fontSize: 12,
+                  color: selected ? 'var(--color-accent)' : 'var(--color-text)',
+                }}>
+                  {pt.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Continue button */}
+      <button
+        onClick={() => { if (projectName.trim() && projectType) onContinue(); }}
+        disabled={!projectName.trim() || !projectType}
         style={{
-          padding: '14px 16px', display: 'flex', alignItems: 'center',
-          gap: '12px', cursor: 'pointer',
+          width: '100%', maxWidth: 520,
+          background: 'var(--color-text)', color: 'var(--color-bg)',
+          border: 'none', borderRadius: 12, padding: '14px 0',
+          fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 15,
+          cursor: (!projectName.trim() || !projectType) ? 'not-allowed' : 'pointer',
+          opacity: (!projectName.trim() || !projectType) ? 0.35 : 1,
+          transition: 'opacity 0.15s',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}
       >
-        <span style={{
-          fontSize: '14px', color: 'var(--color-text-muted)',
-          cursor: 'grab', flexShrink: 0,
-        }}>
-          ⠿
-        </span>
+        Continue
+        <ArrowRightIcon style={{ width: 16, height: 16 }} />
+      </button>
 
-        <Toggle enabled={section.enabled} onChange={v => onToggle(index, v)} />
-
-        <span style={{ fontSize: '16px', flexShrink: 0 }}>{section.icon}</span>
-
-        <span style={{
-          fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px',
-          color: 'var(--color-text)', flex: 1,
-        }}>
-          {section.label}
-        </span>
-
-        <span style={{
-          fontFamily: "'DM Mono', monospace", fontSize: '10px',
-          color: 'var(--color-text-muted)', marginRight: '8px',
-        }}>
-          {section.questions.length} questions
-        </span>
-
-        <span style={{ color: 'var(--color-text-muted)', fontSize: '12px' }}>
-          {section.expanded ? '▾' : '▸'}
-        </span>
-      </div>
-
-      {/* Body */}
-      {section.expanded && (
-        <div style={{
-          padding: '0 16px 16px',
-          borderTop: '1px solid var(--color-border)',
-          paddingTop: '14px',
-        }}>
-          {section.questions.map((q, qi) => (
-            <div key={qi} style={{
-              display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px',
-            }}>
-              <span style={{
-                color: 'var(--color-text-muted)', fontSize: '10px',
-                cursor: 'grab', flexShrink: 0,
-              }}>
-                ⠿
-              </span>
-              <Input
-                value={q}
-                onChange={e => onQuestionChange(index, qi, e.target.value)}
-                full
-                style={{ fontSize: '12px', fontFamily: "'DM Mono', monospace" }}
-              />
-              <button
-                onClick={() => onQuestionDelete(index, qi)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--color-text-muted)', fontSize: '16px',
-                  padding: '0 4px', flexShrink: 0, lineHeight: 1,
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-red)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-
-          <button
-            onClick={() => onAddQuestion(index)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--color-accent)', fontFamily: "'DM Mono', monospace",
-              fontSize: '12px', padding: '6px 0', marginTop: '4px',
-            }}
-          >
-            + Add question
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
-// ─── Phase: Builder ───────────────────────────────────────────────────────────
+// ─── Screen 2: Form Builder ───────────────────────────────────────────────────
 
-function BuilderPhase({ projectName, projectType, sections, setSections, onBack, onGenerate }) {
+function Screen2({ projectName, projectType, sections, setSections, onBack, onGenerate }) {
   const [dragIdx, setDragIdx] = useState(null);
 
   const enabledSections = sections.filter(s => s.enabled);
@@ -318,214 +292,325 @@ function BuilderPhase({ projectName, projectType, sections, setSections, onBack,
   }
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 40px 80px' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--color-bg)' }}>
 
-        {/* Page header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          marginBottom: '32px',
-        }}>
-          <Button variant="ghost" size="sm" onClick={onBack}>← Back</Button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{
-              fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '14px',
-              color: 'var(--color-text)',
+      {/* Top bar */}
+      <div style={{
+        height: 52, flexShrink: 0,
+        borderBottom: '1px solid var(--color-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 24px', background: 'var(--color-bg)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <button
+            onClick={onBack}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-soft)')}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 13,
+              color: 'var(--color-text-soft)', padding: '6px 0', transition: 'color 0.15s',
+            }}
+          >
+            <ArrowLeftIcon style={{ width: 16, height: 16 }} />
+            Back
+          </button>
+          <div style={{ width: 1, height: 16, background: 'var(--color-border)', margin: '0 12px' }} />
+          <span style={{
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 14,
+            color: 'var(--color-text)',
+          }}>
+            {projectName}
+          </span>
+          {projectType && (
+            <div style={{
+              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+              borderRadius: 100, padding: '3px 10px', marginLeft: 8,
+              fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
             }}>
-              {projectName}
-            </span>
-            <Badge>{projectType.label}</Badge>
+              {projectType.label}
+            </div>
+          )}
+        </div>
+        <div style={{
+          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+          borderRadius: 8, padding: '5px 12px',
+          fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
+        }}>
+          {totalQuestions} questions
+        </div>
+      </div>
+
+      {/* Two-column body */}
+      <div style={{
+        flex: 1, overflow: 'hidden', display: 'grid', gridTemplateColumns: '1fr 1fr',
+      }}>
+
+        {/* Left: sections list */}
+        <div style={{
+          padding: 24, overflowY: 'auto',
+          borderRight: '1px solid var(--color-border)',
+        }}>
+          <div style={{
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 15,
+            color: 'var(--color-text)', marginBottom: 4,
+          }}>
+            Form Sections
           </div>
+          <div style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 11,
+            color: 'var(--color-text-muted)', marginBottom: 20,
+          }}>
+            Toggle sections on or off
+          </div>
+
+          {sections.map((section, i) => {
+            const SectionIcon = SECTION_ICONS[section.id] || DocumentTextIcon;
+            const isDragging = dragIdx === i;
+            return (
+              <div
+                key={section.id}
+                draggable
+                onDragStart={() => setDragIdx(i)}
+                onDragOver={e => e.preventDefault()}
+                onDrop={() => handleDrop(i)}
+                onDragEnd={() => setDragIdx(null)}
+                style={{
+                  background: 'var(--color-card)', border: '1px solid var(--color-border)',
+                  borderRadius: 12, marginBottom: 8, overflow: 'hidden',
+                  opacity: isDragging ? 0.4 : 1, transition: 'opacity 0.15s',
+                }}
+              >
+                {/* Section header row */}
+                <div
+                  onClick={() => expandSection(i)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '12px 14px', cursor: 'pointer',
+                  }}
+                >
+                  <Bars3Icon style={{
+                    width: 16, height: 16, color: 'var(--color-text-muted)',
+                    cursor: 'grab', flexShrink: 0,
+                  }} />
+
+                  <Toggle enabled={section.enabled} onChange={v => toggleSection(i, v)} />
+
+                  <div style={{
+                    width: 30, height: 30, borderRadius: 7, background: 'var(--color-surface)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <SectionIcon style={{ width: 15, height: 15, color: 'var(--color-text-soft)' }} />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 13,
+                      color: 'var(--color-text)',
+                    }}>
+                      {section.label}
+                    </div>
+                    <div style={{
+                      fontFamily: "'DM Mono', monospace", fontSize: 10,
+                      color: 'var(--color-text-muted)',
+                    }}>
+                      {section.questions.length} questions
+                    </div>
+                  </div>
+
+                  <ChevronDownIcon style={{
+                    width: 16, height: 16, color: 'var(--color-text-muted)',
+                    transform: section.expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s', flexShrink: 0,
+                  }} />
+                </div>
+
+                {/* Expanded questions */}
+                {section.expanded && (
+                  <div style={{
+                    padding: '0 14px 12px',
+                    borderTop: '1px solid var(--color-border)',
+                    paddingTop: 12,
+                  }}>
+                    {section.questions.map((q, qi) => (
+                      <div key={qi} style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
+                        borderBottom: qi < section.questions.length - 1 ? '1px solid var(--color-border)' : 'none',
+                      }}>
+                        <div style={{
+                          width: 4, height: 4, borderRadius: '50%',
+                          background: 'var(--color-text-muted)', flexShrink: 0,
+                        }} />
+                        <div style={{
+                          fontFamily: "'Urbanist', sans-serif", fontSize: 13,
+                          color: 'var(--color-text-soft)', lineHeight: 1.5, flex: 1,
+                        }}>
+                          {q}
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); deleteQuestion(i, qi); }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-red, #dc2626)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            color: 'var(--color-text-muted)', fontSize: 16, padding: '0 4px',
+                            flexShrink: 0, lineHeight: 1,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={e => { e.stopPropagation(); addQuestion(i); }}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--color-accent)', fontFamily: "'DM Mono', monospace",
+                        fontSize: 12, padding: '6px 0', marginTop: 4,
+                      }}
+                    >
+                      + Add question
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}>
-
-          {/* Left: section editor */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ marginBottom: '20px' }}>
+        {/* Right: client preview */}
+        <div style={{ padding: 24, overflowY: 'auto', background: 'var(--color-surface)' }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 14,
+          }}>
+            <div style={{
+              fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+            }}>
+              Client Preview
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.2)',
+              borderRadius: 100, padding: '3px 9px',
+            }}>
               <div style={{
-                fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '14px',
-                color: 'var(--color-text)', marginBottom: '4px',
+                width: 6, height: 6, borderRadius: '50%', background: '#16a34a',
+                animation: 'pulse 2s infinite',
+              }} />
+              <span style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 10,
+                color: '#16a34a', fontWeight: 700,
               }}>
-                Form Sections
-              </div>
-              <div style={{
-                fontFamily: "'DM Mono', monospace", fontSize: '11px',
+                Live
+              </span>
+            </div>
+          </div>
+
+          <div style={{
+            background: 'var(--color-card)', border: '1px solid var(--color-border)',
+            borderRadius: 14, padding: 20,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              <SparklesIcon style={{ width: 14, height: 14, color: 'var(--color-accent)' }} />
+              <span style={{
+                fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 13,
                 color: 'var(--color-text-muted)',
               }}>
-                Toggle sections on or off. Drag to reorder.
-              </div>
-            </div>
-
-            {sections.map((section, i) => (
-              <SectionCard
-                key={section.id}
-                section={section}
-                index={i}
-                total={sections.length}
-                onToggle={toggleSection}
-                onExpand={expandSection}
-                onQuestionChange={changeQuestion}
-                onQuestionDelete={deleteQuestion}
-                onAddQuestion={addQuestion}
-                dragIdx={dragIdx}
-                onDragStart={setDragIdx}
-                onDragOver={() => {}}
-                onDrop={handleDrop}
-                onDragEnd={() => setDragIdx(null)}
-              />
-            ))}
-
-            {/* Send bar */}
-            <div style={{
-              padding: '20px 0 0',
-              borderTop: '1px solid var(--color-border)',
-              display: 'flex', gap: '12px', alignItems: 'center',
-              marginTop: '8px',
-            }}>
-              <span style={{
-                fontFamily: "'DM Mono', monospace", fontSize: '12px',
-                color: 'var(--color-text-muted)', flex: 1,
-              }}>
-                {totalQuestions} question{totalQuestions !== 1 ? 's' : ''} across {enabledSections.length} section{enabledSections.length !== 1 ? 's' : ''}
+                DesignBrief AI
               </span>
-              <Button
-                variant="primary"
-                disabled={enabledSections.length === 0}
-                onClick={onGenerate}
-              >
-                Generate Intake Link →
-              </Button>
-            </div>
-          </div>
-
-          {/* Right: live preview */}
-          <div style={{ width: '380px', flexShrink: 0, position: 'sticky', top: '32px' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginBottom: '16px',
-            }}>
-              <span style={{
-                fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '13px',
-                color: 'var(--color-text)',
-              }}>
-                Client Preview
-              </span>
-              <Badge color="var(--color-green)" dot pulse>Live</Badge>
             </div>
 
             <div style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '16px',
-              padding: '20px',
-              maxHeight: '600px',
-              overflowY: 'auto',
+              fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 18,
+              letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: 4,
             }}>
-              {/* Mini header */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                marginBottom: '16px',
-              }}>
-                <span style={{ color: 'var(--color-accent)', fontSize: '12px' }}>✦</span>
-                <span style={{
-                  fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '11px',
-                  color: 'var(--color-text-muted)',
-                }}>
-                  DesignBrief AI
-                </span>
-              </div>
-              <div style={{
-                fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '16px',
-                color: 'var(--color-text)', marginBottom: '6px',
-              }}>
-                {projectName || 'Your Project'}
-              </div>
-              <Badge size="sm">{projectType.label}</Badge>
+              {projectName || 'Your Project'}
+            </div>
 
-              {enabledSections.length === 0 && (
+            {projectType && (
+              <div style={{
+                display: 'inline-block',
+                background: 'var(--color-accent-bg)', color: 'var(--color-accent)',
+                fontFamily: "'DM Mono', monospace", fontSize: 11,
+                borderRadius: 100, padding: '3px 10px', marginBottom: 16,
+              }}>
+                {projectType.label}
+              </div>
+            )}
+
+            {enabledSections.length === 0 && (
+              <div style={{
+                marginTop: 20, fontFamily: "'DM Mono', monospace", fontSize: 11,
+                color: 'var(--color-text-muted)', textAlign: 'center', padding: '20px 0',
+              }}>
+                Enable at least one section
+              </div>
+            )}
+
+            {enabledSections.map(section => (
+              <div key={section.id} style={{ marginBottom: 16 }}>
                 <div style={{
-                  marginTop: '20px', fontFamily: "'DM Mono', monospace", fontSize: '11px',
-                  color: 'var(--color-text-muted)', textAlign: 'center', padding: '20px 0',
+                  fontFamily: "'DM Mono', monospace", fontSize: 10,
+                  color: 'var(--color-text-muted)', textTransform: 'uppercase',
+                  letterSpacing: '0.08em', marginBottom: 8,
                 }}>
-                  Enable at least one section
+                  {section.label}
                 </div>
-              )}
-
-              {enabledSections.map(section => (
-                <div key={section.id} style={{ marginTop: '16px' }}>
-                  <div style={{
-                    fontFamily: "'DM Mono', monospace", fontSize: '11px',
-                    color: 'var(--color-text-muted)', letterSpacing: '0.08em',
-                    textTransform: 'uppercase', marginBottom: '8px',
+                {section.questions.map((q, qi) => (
+                  <div key={qi} style={{
+                    background: 'var(--color-surface)', borderRadius: 7,
+                    padding: '8px 12px', marginBottom: 4,
+                    fontFamily: "'Urbanist', sans-serif", fontSize: 13,
+                    color: 'var(--color-text-soft)', lineHeight: 1.4,
                   }}>
-                    {section.icon} {section.label}
+                    {q || '(empty question)'}
                   </div>
-                  {section.questions.map((q, qi) => (
-                    <div key={qi} style={{
-                      background: 'var(--color-card)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      fontFamily: "'DM Mono', monospace",
-                      fontSize: '11px',
-                      color: 'var(--color-text-muted)',
-                      marginBottom: '6px',
-                      pointerEvents: 'none',
-                    }}>
-                      {q || '(empty question)'}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Footer bar */}
+      <div style={{
+        height: 60, flexShrink: 0, background: 'var(--color-bg)',
+        borderTop: '1px solid var(--color-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 24px',
+      }}>
+        <span style={{
+          fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--color-text-muted)',
+        }}>
+          {enabledSections.length} sections · {totalQuestions} questions
+        </span>
+        <button
+          onClick={onGenerate}
+          disabled={enabledSections.length === 0}
+          style={{
+            background: enabledSections.length === 0 ? 'var(--color-border)' : 'var(--color-text)',
+            color: enabledSections.length === 0 ? 'var(--color-text-muted)' : 'var(--color-bg)',
+            border: 'none', borderRadius: 10, padding: '10px 22px',
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
+            cursor: enabledSections.length === 0 ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s',
+          }}
+        >
+          <LinkIcon style={{ width: 16, height: 16 }} />
+          Generate Intake Link
+        </button>
+      </div>
+
     </div>
   );
 }
 
-// ─── Info Card (Sent phase) ───────────────────────────────────────────────────
+// ─── Screen 3: Success ────────────────────────────────────────────────────────
 
-function InfoCard({ icon, color, title, text }) {
-  return (
-    <div style={{
-      flex: 1,
-      background: 'var(--color-card)',
-      border: '1px solid var(--color-border)',
-      borderRadius: '12px',
-      padding: '14px',
-      textAlign: 'left',
-    }}>
-      <div style={{
-        width: '28px', height: '28px', borderRadius: '7px',
-        background: `${color}26`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '14px', color,
-        marginBottom: '10px',
-      }}>
-        {icon}
-      </div>
-      <div style={{
-        fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '12px',
-        color: 'var(--color-text)', marginBottom: '4px',
-      }}>
-        {title}
-      </div>
-      <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: '11px',
-        color: 'var(--color-text-soft)', lineHeight: 1.6,
-      }}>
-        {text}
-      </div>
-    </div>
-  );
-}
-
-// ─── Phase: Sent ──────────────────────────────────────────────────────────────
-
-function SentPhase({ shareLink, onReset, onViewProjects }) {
+function Screen3({ shareLink, onReset, onViewProjects }) {
   const [copied, setCopied] = useState(false);
 
   function copyLink() {
@@ -535,98 +620,159 @@ function SentPhase({ shareLink, onReset, onViewProjects }) {
     });
   }
 
+  const featureCards = [
+    {
+      Icon: UserIcon,
+      bg: 'rgba(22,163,74,0.1)',
+      color: '#16a34a',
+      title: 'No account needed',
+      desc: 'Client opens the link and fills it in',
+    },
+    {
+      Icon: SparklesIcon,
+      bg: 'var(--color-accent-bg)',
+      color: 'var(--color-accent)',
+      title: 'Auto-translated',
+      desc: 'AI turns responses into a full design brief',
+    },
+    {
+      Icon: FolderIcon,
+      bg: 'rgba(59,130,246,0.1)',
+      color: '#3B82F6',
+      title: 'Saved to projects',
+      desc: 'Completed brief saved to your library',
+    },
+  ];
+
   return (
     <div style={{
-      height: '100%', overflowY: 'auto', background: 'var(--color-bg)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', height: '100%', padding: '40px 24px',
+      textAlign: 'center', overflowY: 'auto', background: 'var(--color-bg)',
+      boxSizing: 'border-box',
     }}>
+
+      {/* Success icon */}
       <div style={{
-        maxWidth: '520px', margin: '0 auto',
-        padding: '80px 32px', textAlign: 'center',
+        width: 64, height: 64, borderRadius: '50%',
+        background: 'rgba(22,163,74,0.1)', border: '2px solid rgba(22,163,74,0.3)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 24px',
       }}>
-        <div style={{
-          width: '64px', height: '64px', borderRadius: '20px',
-          background: 'var(--color-accent-bg)',
-          border: '1px solid var(--color-accent-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '28px', color: 'var(--color-accent)',
-          margin: '0 auto 24px',
-        }}>
-          ✦
-        </div>
-
-        <h2 style={{
-          fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '26px',
-          color: 'var(--color-text)', letterSpacing: '-0.02em',
-          margin: '0 0 12px',
-        }}>
-          Your intake form is ready
-        </h2>
-
-        <p style={{
-          fontFamily: "'DM Mono', monospace", fontSize: '13px',
-          color: 'var(--color-text-soft)', lineHeight: 1.7,
-          marginBottom: '32px',
-        }}>
-          Send this link to your client. They can fill it in without creating an
-          account. Once submitted, DesignBrief AI will automatically translate it
-          into a full brief.
-        </p>
-
-        {/* Link box */}
-        <div style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '12px',
-          padding: '14px 16px',
-          display: 'flex', alignItems: 'center', gap: '12px',
-          marginBottom: '16px', textAlign: 'left',
-        }}>
-          <span style={{
-            flex: 1, fontFamily: "'DM Mono', monospace", fontSize: '12px',
-            color: 'var(--color-text)', overflow: 'hidden',
-            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {shareLink}
-          </span>
-          <Button variant="secondary" size="sm" onClick={copyLink}>
-            {copied ? '✓ Copied!' : 'Copy Link'}
-          </Button>
-        </div>
-
-        {/* Info cards */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '32px' }}>
-          <InfoCard
-            icon="◎" color="var(--color-blue)"
-            title="No account needed"
-            text="Your client opens the link and fills it in — no sign up required."
-          />
-          <InfoCard
-            icon="◈" color="var(--color-purple)"
-            title="Auto-translated"
-            text="When submitted, AI instantly translates the responses into a full design brief."
-          />
-          <InfoCard
-            icon="▦" color="var(--color-green)"
-            title="Saved to projects"
-            text="The completed brief is automatically saved to your project library."
-          />
-        </div>
-
-        {/* Bottom buttons */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-          <Button variant="ghost" onClick={onReset}>← Build Another Form</Button>
-          <Button variant="secondary" onClick={onViewProjects}>View Projects →</Button>
-        </div>
+        <CheckCircleIcon style={{ width: 32, height: 32, color: '#16a34a' }} />
       </div>
+
+      {/* Heading */}
+      <h2 style={{
+        fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 28,
+        letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: 8, margin: '0 0 8px',
+      }}>
+        Your intake form is ready
+      </h2>
+      <p style={{
+        fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--color-text-muted)',
+        maxWidth: 480, lineHeight: 1.7, marginBottom: 32,
+      }}>
+        Send this link to your client. They can fill it out without creating an account — DesignBrief AI will automatically translate it into a full design brief.
+      </p>
+
+      {/* Link box */}
+      <div style={{
+        width: '100%', maxWidth: 520, display: 'flex', gap: 0,
+        background: 'var(--color-card)', border: '1px solid var(--color-border)',
+        borderRadius: 12, overflow: 'hidden', marginBottom: 32,
+      }}>
+        <input
+          readOnly
+          value={shareLink || ''}
+          style={{
+            flex: 1, background: 'transparent', border: 'none', outline: 'none',
+            padding: '14px 16px', fontFamily: "'DM Mono', monospace", fontSize: 12,
+            color: 'var(--color-text-soft)',
+          }}
+        />
+        <button
+          onClick={copyLink}
+          style={{
+            background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none',
+            padding: '0 20px', fontFamily: "'Urbanist', sans-serif", fontWeight: 700,
+            fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center',
+            gap: 7, flexShrink: 0, transition: 'opacity 0.15s',
+          }}
+        >
+          <ClipboardDocumentIcon style={{ width: 15, height: 15 }} />
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+
+      {/* Feature cards */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12,
+        width: '100%', maxWidth: 520, marginBottom: 32,
+      }}>
+        {featureCards.map(({ Icon, bg, color, title, desc }) => (
+          <div key={title} style={{
+            background: 'var(--color-card)', border: '1px solid var(--color-border)',
+            borderRadius: 12, padding: 16, textAlign: 'center',
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 9, background: bg,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 10px',
+            }}>
+              <Icon style={{ width: 18, height: 18, color }} />
+            </div>
+            <div style={{
+              fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 13,
+              color: 'var(--color-text)', marginBottom: 4,
+            }}>
+              {title}
+            </div>
+            <div style={{
+              fontFamily: "'DM Mono', monospace", fontSize: 11,
+              color: 'var(--color-text-muted)', lineHeight: 1.5,
+            }}>
+              {desc}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button
+          onClick={onReset}
+          style={{
+            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+            borderRadius: 10, padding: '10px 20px',
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 14,
+            color: 'var(--color-text)', cursor: 'pointer',
+          }}
+        >
+          Build Another Form
+        </button>
+        <button
+          onClick={onViewProjects}
+          style={{
+            background: 'var(--color-text)', color: 'var(--color-bg)',
+            border: 'none', borderRadius: 10, padding: '10px 20px',
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
+            cursor: 'pointer',
+          }}
+        >
+          View Projects
+        </button>
+      </div>
+
     </div>
   );
 }
 
-// ─── IntakeBuilder ─────────────────────────────────────────────────────────────
+// ─── IntakeBuilder ────────────────────────────────────────────────────────────
 
 export default function IntakeBuilder() {
   const { navigate, authUser } = useApp();
-  const [phase, setPhase] = useState('setup');
+  const [screen, setScreen] = useState(1);
   const [projectType, setProjectType] = useState(null);
   const [projectName, setProjectName] = useState('');
   const [sections, setSections] = useState(initSections);
@@ -634,7 +780,7 @@ export default function IntakeBuilder() {
 
   function handleContinue() {
     setSections(initSections());
-    setPhase('builder');
+    setScreen(2);
   }
 
   async function handleGenerateLink() {
@@ -649,13 +795,11 @@ export default function IntakeBuilder() {
       createdAt: new Date().toISOString(),
       status: 'pending',
     };
-    // Always save to localStorage so the public client page can read it
     localStorage.setItem('intake-' + intakeId, JSON.stringify(data));
     const link = window.location.origin + '/intake/' + intakeId;
     setShareLink(link);
-    setPhase('sent');
+    setScreen(3);
 
-    // Also persist to Supabase if logged in
     if (authUser) {
       try {
         await supabase.from('intake_forms').insert({
@@ -676,12 +820,12 @@ export default function IntakeBuilder() {
     setProjectName('');
     setSections(initSections());
     setShareLink(null);
-    setPhase('setup');
+    setScreen(1);
   }
 
-  if (phase === 'setup') {
+  if (screen === 1) {
     return (
-      <SetupPhase
+      <Screen1
         projectName={projectName}
         setProjectName={setProjectName}
         projectType={projectType}
@@ -691,21 +835,21 @@ export default function IntakeBuilder() {
     );
   }
 
-  if (phase === 'builder') {
+  if (screen === 2) {
     return (
-      <BuilderPhase
+      <Screen2
         projectName={projectName}
         projectType={projectType}
         sections={sections}
         setSections={setSections}
-        onBack={() => setPhase('setup')}
+        onBack={() => setScreen(1)}
         onGenerate={handleGenerateLink}
       />
     );
   }
 
   return (
-    <SentPhase
+    <Screen3
       shareLink={shareLink}
       onReset={handleReset}
       onViewProjects={() => navigate('library')}

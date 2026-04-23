@@ -192,6 +192,76 @@ If the brief is vague, chaotic, or incomplete:
 - Never return an incomplete or truncated JSON
 - A chaotic brief still needs design direction — provide it based on what CAN be inferred
 
+DISCIPLINE DETECTION RULES — follow strictly:
+Analyse the brief and detect the creative discipline.
+
+digital-product: brief mentions app, website, SaaS, dashboard, mobile, platform, UX, UI, screens, flows, wireframes, prototype
+brand: brief mentions logo, identity, branding, visual identity, brand guidelines, brand book, rebrand, naming, brand strategy
+campaign: brief mentions campaign, advertising, ad, commercial, promotion, launch, awareness, OOH, billboard, print ad, media
+photography: brief mentions photoshoot, photos, photography, images, shots, editorial, lookbook, product photography, portrait
+video: brief mentions video, film, production, shooting, footage, commercial, documentary, YouTube, reel, cinematic
+motion: brief mentions animation, motion graphics, After Effects, animated, transitions, micro-interactions, motion design, GIF, Lottie
+social-media: brief mentions social media, Instagram, TikTok, content, posts, stories, reels, content strategy, content calendar
+illustration: brief mentions illustration, illustrations, artwork, drawing, vector art, character design, icons
+print: brief mentions print, poster, flyer, brochure, packaging, magazine, book cover, business card, stationery
+game: brief mentions game, gaming, UI for game, game design, levels, characters, game assets
+hybrid: brief spans multiple disciplines above
+
+For primaryCreative — detect from context:
+  digital-product → UI/UX Designer
+  brand → Brand Designer
+  campaign → Art Director
+  photography → Photographer
+  video → Videographer/Director
+  motion → Motion Designer
+  social-media → Social Media Designer
+  illustration → Illustrator
+  print → Graphic Designer
+  game → Game Designer
+
+For platform:
+  If mentions app/mobile/iOS/Android → mobile
+  If mentions website/web/SaaS/desktop → web
+  If mentions both → both
+  If mentions print/physical → print
+  If mentions video/film → video
+  If mentions social → social
+  If mentions packaging/product → physical
+
+Use the detected discipline to adapt all other output sections:
+
+ROLES: Only suggest roles relevant to the discipline. A photography brief needs Photographer, Photo Editor, Art Director, Stylist — NOT a Frontend Developer.
+
+BUDGET: Line items must match the discipline.
+Photography → equipment, location, talent, editing, licensing.
+Brand → strategy, logo design, guidelines, asset creation.
+Video → pre-production, filming, editing, sound, colour grade.
+Social media → content creation, copywriting, scheduling, community management.
+
+TECH STACK:
+For non-digital disciplines rename this section:
+- Brand/Print → 'Production Tools' (Figma, Illustrator, InDesign, Photoshop)
+- Photography → 'Production Setup' (Camera, Lightroom, Photoshop, delivery format)
+- Video/Motion → 'Production Tools' (Premiere, After Effects, DaVinci, Lottie)
+- Social Media → 'Tools & Platforms' (Figma, CapCut, Canva, scheduling tools)
+- Game → 'Game Stack' (Unity/Unreal, Figma, asset tools)
+
+USER FLOW:
+For non-digital disciplines adapt the flow:
+- Brand → Brand Application Journey (brief → research → concept → refinement → delivery → guidelines)
+- Campaign → Campaign Journey (strategy → concept → production → launch → measure)
+- Photography/Video → Production Flow (brief → mood board → pre-production → shoot/film → edit → deliver)
+- Social Media → Content Journey (strategy → content pillars → creation → schedule → publish → analyse)
+- Print → Print Production Flow (brief → concept → design → proof → print → deliver)
+
+FEATURE ANALYSIS:
+For non-digital disciplines rename and reframe:
+- Brand → 'Brand Elements Priority' (what brand assets to create first)
+- Campaign → 'Campaign Elements' (hero assets vs supporting assets)
+- Photography/Video → 'Shot/Scene Priority' (essential shots vs nice to have)
+- Social Media → 'Content Priority' (hero content vs regular vs experimental)
+- Print → 'Design Elements Priority'
+
 Respond ONLY with valid JSON.`;
   const user = `Translate this design brief into a structured strategy document.
 Return JSON with these exact keys:
@@ -247,7 +317,40 @@ Return JSON with these exact keys:
     "total": "<total weeks>",
     "taskDays": { "<task name>": <days> }
   },
-  "rolesNeeded": ["<role 1>", "<role 2>"]
+  "rolesNeeded": ["<role 1>", "<role 2>"],
+  "discipline": {
+    "type": "<digital-product | brand | campaign | photography | video | motion | social-media | illustration | print | game | hybrid>",
+    "platform": "<web | mobile | both | print | video | social | physical>",
+    "primaryCreative": "<main creative role — e.g. UI Designer, Brand Designer, Photographer>",
+    "secondaryCreatives": ["<other creative roles involved>"]
+  },
+  "creativeConceptStatement": "<single sharp creative concept sentence that unifies all creative decisions — specific to this project, not generic. Example: 'A premium Nigerian food brand that feels like a Michelin-starred restaurant brought to your kitchen — elevated, warm, and culturally proud.'>",
+  "copyVoice": {
+    "personality": "<3 words describing the brand voice e.g. Bold, Direct, Warm>",
+    "doSay": [
+      "<example sentence showing correct brand voice>",
+      "<another example sentence>",
+      "<third example>"
+    ],
+    "doNotSay": [
+      "<example of wrong tone to avoid>",
+      "<another example to avoid>"
+    ],
+    "writingPrinciples": [
+      "<principle 1>",
+      "<principle 2>",
+      "<principle 3>"
+    ]
+  },
+  "deliverables": [
+    {
+      "item": "<specific deliverable name>",
+      "format": "<file format or specs>",
+      "quantity": "<how many>",
+      "discipline": "<which creative produces this>",
+      "priority": "<ESSENTIAL | IMPORTANT | OPTIONAL>"
+    }
+  ]
 }
 
 CRITICAL colorPalette rules:
@@ -287,10 +390,26 @@ CRITICAL typography platform rules:
 - Scale values should be appropriate for the platform and brand — luxury brands use larger sizes, dense tools use smaller sizes
 - All scale values are strings
 
+CRITICAL discipline rules:
+- discipline.type must be exactly one of the 11 values listed — no other values allowed
+- discipline.platform must reflect what was detected from the brief keywords
+- creativeConceptStatement must be a single sentence, specific to THIS project — never generic filler
+- copyVoice applies to ALL disciplines — every brand needs a voice, not just copywriting projects
+- copyVoice.doSay must be actual example sentences in the brand voice, not descriptions of the voice
+- copyVoice.doNotSay must be actual example sentences of the wrong tone, not generic advice
+
+CRITICAL deliverables rules:
+- Generate 5-8 deliverables specific to the detected discipline and project scope
+- Deliverable items must be concrete and named (e.g. 'Primary logo' not 'Logo work')
+- format must specify real file formats or specs appropriate to the discipline
+- quantity must be a specific number or range (e.g. '3 variants', '20 selects', '1 document')
+- discipline field must match the role who produces that deliverable
+- ESSENTIAL = project cannot be delivered without it; IMPORTANT = strongly recommended; OPTIONAL = adds value
+
 Brief:
 ${briefText}`;
 
-  return callJSON(system, user, 6000);
+  return callJSON(system, user, 7000);
 }
 
 /**

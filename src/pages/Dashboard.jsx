@@ -145,6 +145,43 @@ function extractColors(result) {
   return [{ hex: '#1E1E1E', name: 'Dark', usage: '' }, { hex: '#FFFFFF', name: 'Light', usage: '' }]
 }
 
+// ─── getSectionLabel ──────────────────────────────────────────────────────────
+
+function getSectionLabel(defaultLabel, result) {
+  const discipline = result?.discipline?.type
+  const map = {
+    'Tech Stack': {
+      'brand':        'Production Tools',
+      'photography':  'Production Setup',
+      'video':        'Production Tools',
+      'motion':       'Production Tools',
+      'social-media': 'Tools & Platforms',
+      'print':        'Production Tools',
+      'illustration': 'Creative Tools',
+      'game':         'Game Stack',
+    },
+    'User Flow': {
+      'brand':        'Brand Journey',
+      'campaign':     'Campaign Journey',
+      'photography':  'Production Flow',
+      'video':        'Production Flow',
+      'motion':       'Production Flow',
+      'social-media': 'Content Journey',
+      'print':        'Production Flow',
+    },
+    'Feature Analysis': {
+      'brand':        'Brand Elements',
+      'campaign':     'Campaign Elements',
+      'photography':  'Shot Priority',
+      'video':        'Scene Priority',
+      'social-media': 'Content Priority',
+      'print':        'Design Elements',
+      'illustration': 'Artwork Priority',
+    },
+  }
+  return map[defaultLabel]?.[discipline] || defaultLabel
+}
+
 // ─── Dashboard (main) ─────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -641,27 +678,143 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
 
       {/* Sections — priority order */}
       <HeroSection r={r} s={s} />
+      {r.creativeConceptStatement && <CreativeConceptSection statement={r.creativeConceptStatement} />}
       <IssuesBannerSection r={r} scoring={s} />
       <DesignDirectionSection r={r} showToast={showToast} />
       <TypographyMoodboardSection r={r} />
       <TypographySection typography={r.typography} />
+      {r.copyVoice && <BrandVoiceSection copyVoice={r.copyVoice} />}
       {phases.length > 0 && <GanttSection phases={phases} timeframe={r.timeframe} projectTitle={r.projectTitle} />}
       {r.budgetRange && <BudgetSection budgetRange={r.budgetRange} />}
       {r.rolesNeeded?.length > 0 && <RolesSection rolesNeeded={r.rolesNeeded} />}
-      {r.features?.length > 0 && <FeaturesSection features={r.features} />}
-      {r.techStack && <TechStackSection techStack={r.techStack} />}
+      {r.deliverables?.length > 0 && <DeliverablesSection deliverables={r.deliverables} />}
+      {r.features?.length > 0 && <FeaturesSection features={r.features} discipline={r.discipline} />}
+      {r.techStack && <TechStackSection techStack={r.techStack} discipline={r.discipline} />}
       {(() => {
         const uf = r.userFlow
         let steps = Array.isArray(uf) ? uf
           : uf?.steps ? uf.steps
           : uf && typeof uf === 'object' ? Object.values(uf) : []
         steps = steps.filter(s => s && typeof s === 'object')
-        return <UserFlowSection userFlow={steps} />
+        return <UserFlowSection userFlow={steps} discipline={r.discipline} />
       })()}
       <CompetitorsSection result={r} loadingCompetitors={loadingCompetitors} onLoad={onLoadCompetitors} />
       <ClarityFlagsSection r={r} />
       <InspirationsSection r={r} inspirations={inspirations} loadingInspi={loadingInspi} onFetch={onFetchInspirations} inspiSearched={inspiSearched} />
     </div>
+  )
+}
+
+// ─── Creative Concept Section ─────────────────────────────────────────────────
+
+function CreativeConceptSection({ statement }) {
+  return (
+    <section style={{ padding: '28px 48px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 64, lineHeight: 0.8, color: 'var(--color-border)', marginBottom: 8, fontWeight: 900 }}>"</div>
+        <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 22, color: 'var(--color-text)', lineHeight: 1.5, letterSpacing: '-0.01em', marginBottom: 14 }}>
+          {statement}
+        </div>
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          Creative Concept
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Brand Voice Section ──────────────────────────────────────────────────────
+
+function BrandVoiceSection({ copyVoice }) {
+  return (
+    <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
+      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>Brand Voice</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
+
+        {/* Personality + Principles */}
+        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 }}>
+          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Voice Personality</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            {(copyVoice.personality || '').split(',').map(p => p.trim()).filter(Boolean).map((trait, i) => (
+              <div key={i} style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '5px 14px', fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{trait}</div>
+            ))}
+          </div>
+          {copyVoice.writingPrinciples?.length > 0 && (
+            <div>
+              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.06em', marginBottom: 8, textTransform: 'uppercase' }}>Principles</div>
+              {copyVoice.writingPrinciples.map((p, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-text)', flexShrink: 0, marginTop: 6 }} />
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-soft)', lineHeight: 1.6 }}>{p}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Say this */}
+        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} />
+            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: '#16a34a', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>Say this</div>
+          </div>
+          {copyVoice.doSay?.map((ex, i) => (
+            <div key={i} style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.15)', borderLeft: '3px solid #16a34a', borderRadius: '0 8px 8px 0', padding: '8px 12px', marginBottom: 8, fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)', lineHeight: 1.55 }}>{ex}</div>
+          ))}
+        </div>
+
+        {/* Avoid this */}
+        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#dc2626' }} />
+            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: '#dc2626', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>Avoid this</div>
+          </div>
+          {copyVoice.doNotSay?.map((ex, i) => (
+            <div key={i} style={{ background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.15)', borderLeft: '3px solid #dc2626', borderRadius: '0 8px 8px 0', padding: '8px 12px', marginBottom: 8, fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)', lineHeight: 1.55 }}>{ex}</div>
+          ))}
+        </div>
+
+      </div>
+    </section>
+  )
+}
+
+// ─── Deliverables Section ─────────────────────────────────────────────────────
+
+function DeliverablesSection({ deliverables }) {
+  return (
+    <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24 }}>
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Deliverables</div>
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>{deliverables.length} items</div>
+      </div>
+
+      {/* Table header */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 120px 100px', gap: 12, padding: '8px 16px', background: 'var(--color-surface)', borderRadius: 8, marginBottom: 8 }}>
+        {['Deliverable', 'Format', 'Qty', 'Who', 'Priority'].map(h => (
+          <div key={h} style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{h}</div>
+        ))}
+      </div>
+
+      {deliverables.map((d, i) => {
+        const priorityColor =
+          d.priority === 'ESSENTIAL' ? '#dc2626'
+          : d.priority === 'IMPORTANT' ? '#d97706'
+          : '#6b7280'
+        return (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 120px 100px', gap: 12, padding: '12px 16px', background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, marginBottom: 6, alignItems: 'center' }}>
+            <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{d.item}</div>
+            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>{d.format}</div>
+            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-soft)' }}>{d.quantity}</div>
+            <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{d.discipline}</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: priorityColor + '10', border: '1px solid ' + priorityColor + '25', borderRadius: 5, padding: '3px 9px' }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: priorityColor }} />
+              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: priorityColor, letterSpacing: '0.04em' }}>{d.priority}</span>
+            </div>
+          </div>
+        )
+      })}
+    </section>
   )
 }
 
@@ -682,6 +835,23 @@ function HeroSection({ r, s }) {
         <h1 style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '42px', letterSpacing: '-0.03em', color: 'var(--color-text)', marginBottom: '16px', lineHeight: 1.1 }}>
           {r.projectTitle ?? 'Untitled Project'}
         </h1>
+        {r.discipline && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div style={{ background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 100, padding: '4px 14px', fontFamily: "'DM Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              {r.discipline.type?.replace(/-/g, ' ')}
+            </div>
+            {r.discipline.platform && (
+              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
+                {r.discipline.platform}
+              </div>
+            )}
+            {r.discipline.primaryCreative && (
+              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 500, color: 'var(--color-text-soft)' }}>
+                {r.discipline.primaryCreative}
+              </div>
+            )}
+          </div>
+        )}
         {r.projectUnderstanding && (
           <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '17px', lineHeight: 1.8, color: 'var(--color-text-soft)', maxWidth: '600px', margin: 0 }}>
             {r.projectUnderstanding}
@@ -1811,7 +1981,7 @@ function RolesSection({ rolesNeeded }) {
 
 // ─── Section 8: Tech Stack ────────────────────────────────────────────────────
 
-function TechStackSection({ techStack }) {
+function TechStackSection({ techStack, discipline }) {
   if (!techStack) return null
 
   // Normalise all possible shapes into canonical keys
@@ -1861,7 +2031,7 @@ function TechStackSection({ techStack }) {
 
   return (
     <div style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
-      <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '20px', color: 'var(--color-text)', marginBottom: '24px' }}>Tech Stack</div>
+      <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '20px', color: 'var(--color-text)', marginBottom: '24px' }}>{getSectionLabel('Tech Stack', { discipline })}</div>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, overflowX: 'auto', paddingBottom: 8 }}>
         {LAYERS.map((layer, i) => {
           const tools = normalised[layer.key] || []
@@ -1899,7 +2069,7 @@ function TechStackSection({ techStack }) {
 
 // ─── Section 9: Features ──────────────────────────────────────────────────────
 
-function FeaturesSection({ features }) {
+function FeaturesSection({ features, discipline }) {
   const [hoveredFeature, setHoveredFeature] = useState(null)
 
   const W = 600, H = 400
@@ -1942,7 +2112,7 @@ function FeaturesSection({ features }) {
 
   return (
     <div style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
-      <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '20px', color: 'var(--color-text)', marginBottom: '24px' }}>Feature Analysis</div>
+      <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '20px', color: 'var(--color-text)', marginBottom: '24px' }}>{getSectionLabel('Feature Analysis', { discipline })}</div>
 
       {features.length > 0 && (
         <div style={{ marginBottom: 32 }}>
@@ -2064,7 +2234,7 @@ const FC = {
   BRANCH_DROP: 90, // how far below center the branch label sits
 }
 
-function UserFlowSection({ userFlow }) {
+function UserFlowSection({ userFlow, discipline }) {
   const steps = (userFlow || []).filter(Boolean)
 
   const [viewScale, setViewScale] = useState(0.8)
@@ -2101,7 +2271,7 @@ function UserFlowSection({ userFlow }) {
   if (!steps.length) {
     return (
       <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>User Flow</div>
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>{getSectionLabel('User Flow', { discipline })}</div>
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '32px', textAlign: 'center' }}>
           <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 14, color: 'var(--color-text-muted)' }}>User flow not generated for this brief</div>
         </div>
@@ -2152,7 +2322,7 @@ function UserFlowSection({ userFlow }) {
     <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>User Flow</div>
+          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>{getSectionLabel('User Flow', { discipline })}</div>
           <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>{steps.length} steps · drag to pan · scroll to zoom</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
