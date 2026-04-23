@@ -74,7 +74,7 @@ function Toggle({ enabled, onChange }) {
       onClick={e => { e.stopPropagation(); onChange(!enabled); }}
       style={{
         width: 32, height: 18, borderRadius: 9, flexShrink: 0,
-        background: enabled ? 'var(--color-accent)' : 'var(--color-border)',
+        background: enabled ? 'var(--color-text)' : 'var(--color-border)',
         position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
         border: 'none',
       }}
@@ -116,7 +116,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
 
       {/* Heading */}
       <h1 style={{
-        fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 36,
+        fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 40,
         letterSpacing: '-0.03em', color: 'var(--color-text)',
         textAlign: 'center', marginBottom: 8, maxWidth: 500, lineHeight: 1.1, margin: '0 0 8px',
       }}>
@@ -147,7 +147,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
           style={{
             width: '100%', background: 'var(--color-card)',
             border: `1.5px solid ${nameFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
-            borderRadius: 12, padding: '14px 16px',
+            borderRadius: 14, padding: '16px 18px',
             fontFamily: "'Urbanist', sans-serif", fontSize: 15,
             color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
             boxShadow: nameFocused ? '0 0 0 3px var(--color-accent-bg)' : 'none',
@@ -180,6 +180,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
                     e.currentTarget.style.borderColor = 'var(--color-border-hover)';
                     e.currentTarget.style.background = 'var(--color-card-hover)';
                     e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
                   }
                 }}
                 onMouseLeave={e => {
@@ -187,26 +188,28 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
                     e.currentTarget.style.borderColor = 'var(--color-border)';
                     e.currentTarget.style.background = 'var(--color-card)';
                     e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }
                 }}
                 style={{
-                  background: selected ? 'var(--color-accent-bg)' : 'var(--color-card)',
-                  border: `1.5px solid ${selected ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                  borderRadius: 12, padding: '20px 18px', cursor: 'pointer',
+                  background: 'var(--color-card)',
+                  border: `${selected ? '2px' : '1.5px'} solid ${selected ? 'var(--color-text)' : 'var(--color-border)'}`,
+                  borderRadius: 16, padding: '20px 18px', cursor: 'pointer',
+                  boxShadow: selected ? '0 4px 16px rgba(0,0,0,0.12)' : 'none',
                   transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
                   alignItems: 'flex-start', textAlign: 'left',
                 }}
               >
                 <div style={{
                   width: 40, height: 40, borderRadius: 10,
-                  background: selected ? 'var(--color-accent)' + '18' : 'var(--color-surface)',
-                  border: selected ? '1px solid var(--color-accent)' + '30' : 'none',
+                  background: selected ? 'var(--color-text)' : 'var(--color-surface)',
+                  border: `1px solid ${selected ? 'var(--color-text)' : 'var(--color-border)'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   marginBottom: 14, flexShrink: 0,
                 }}>
                   <Icon style={{
                     width: 20, height: 20,
-                    color: selected ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                    color: selected ? 'var(--color-bg)' : 'var(--color-text-muted)',
                   }} />
                 </div>
                 <div style={{
@@ -214,7 +217,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
                   fontWeight: 700,
                   fontSize: 15,
                   letterSpacing: '-0.01em',
-                  color: selected ? 'var(--color-accent)' : 'var(--color-text)',
+                  color: 'var(--color-text)',
                   marginBottom: 5,
                 }}>
                   {pt.label}
@@ -241,11 +244,12 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
         style={{
           width: '100%', maxWidth: 520,
           background: 'var(--color-text)', color: 'var(--color-bg)',
-          border: 'none', borderRadius: 12, padding: '14px 0',
+          border: 'none', borderRadius: 14, padding: '15px 0',
           fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 15,
           cursor: (!projectName.trim() || !projectType) ? 'not-allowed' : 'pointer',
           opacity: (!projectName.trim() || !projectType) ? 0.35 : 1,
-          transition: 'opacity 0.15s',
+          boxShadow: (!projectName.trim() || !projectType) ? 'none' : '0 4px 14px rgba(0,0,0,0.2)',
+          transition: 'opacity 0.15s, box-shadow 0.15s',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}
       >
@@ -310,7 +314,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
 
       {/* Top bar */}
       <div style={{
-        height: 52, flexShrink: 0,
+        height: 56, flexShrink: 0,
         borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px', background: 'var(--color-bg)',
@@ -390,10 +394,12 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
                 onDragOver={e => e.preventDefault()}
                 onDrop={() => handleDrop(i)}
                 onDragEnd={() => setDragIdx(null)}
+                onMouseEnter={e => { if (!isDragging) { e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'; e.currentTarget.style.borderColor = 'var(--color-border-hover)'; } }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
                 style={{
                   background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                  borderRadius: 12, marginBottom: 8, overflow: 'hidden',
-                  opacity: isDragging ? 0.4 : 1, transition: 'opacity 0.15s',
+                  borderRadius: 14, marginBottom: 8, overflow: 'hidden',
+                  opacity: isDragging ? 0.4 : 1, transition: 'all 0.15s',
                 }}
               >
                 {/* Section header row */}
@@ -412,7 +418,8 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
                   <Toggle enabled={section.enabled} onChange={v => toggleSection(i, v)} />
 
                   <div style={{
-                    width: 30, height: 30, borderRadius: 7, background: 'var(--color-surface)',
+                    width: 32, height: 32, borderRadius: 8, background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
                     <SectionIcon style={{ width: 15, height: 15, color: 'var(--color-text-soft)' }} />
@@ -443,9 +450,9 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
                 {/* Expanded questions */}
                 {section.expanded && (
                   <div style={{
-                    padding: '0 14px 12px',
+                    padding: '12px 14px',
                     borderTop: '1px solid var(--color-border)',
-                    paddingTop: 12,
+                    background: 'var(--color-surface)',
                   }}>
                     {section.questions.map((q, qi) => (
                       <div key={qi} style={{
@@ -525,35 +532,38 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
 
           <div style={{
             background: 'var(--color-card)', border: '1px solid var(--color-border)',
-            borderRadius: 14, padding: 20,
+            borderRadius: 16, padding: 20, boxShadow: 'var(--shadow-card)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-              <SparklesIcon style={{ width: 14, height: 14, color: 'var(--color-accent)' }} />
-              <span style={{
-                fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 13,
-                color: 'var(--color-text-muted)',
-              }}>
-                DesignBrief AI
-              </span>
-            </div>
-
-            <div style={{
-              fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 18,
-              letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: 4,
-            }}>
-              {projectName || 'Your Project'}
-            </div>
-
-            {projectType && (
-              <div style={{
-                display: 'inline-block',
-                background: 'var(--color-accent-bg)', color: 'var(--color-accent)',
-                fontFamily: "'DM Mono', monospace", fontSize: 11,
-                borderRadius: 100, padding: '3px 10px', marginBottom: 16,
-              }}>
-                {projectType.label}
+            <div style={{ paddingBottom: 16, marginBottom: 16, borderBottom: '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <SparklesIcon style={{ width: 14, height: 14, color: 'var(--color-accent)' }} />
+                <span style={{
+                  fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 13,
+                  color: 'var(--color-text-muted)',
+                }}>
+                  DesignBrief AI
+                </span>
               </div>
-            )}
+
+              <div style={{
+                fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 18,
+                letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: projectType ? 8 : 0,
+              }}>
+                {projectName || 'Your Project'}
+              </div>
+
+              {projectType && (
+                <div style={{
+                  display: 'inline-block',
+                  background: 'var(--color-surface)', color: 'var(--color-text-soft)',
+                  fontFamily: "'DM Mono', monospace", fontSize: 11,
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 100, padding: '3px 10px',
+                }}>
+                  {projectType.label}
+                </div>
+              )}
+            </div>
 
             {enabledSections.length === 0 && (
               <div style={{
@@ -591,7 +601,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
 
       {/* Footer bar */}
       <div style={{
-        height: 60, flexShrink: 0, background: 'var(--color-bg)',
+        height: 64, flexShrink: 0, background: 'var(--color-bg)',
         borderTop: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px',
@@ -610,6 +620,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
             border: 'none', borderRadius: 10, padding: '10px 22px',
             fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
             cursor: enabledSections.length === 0 ? 'not-allowed' : 'pointer',
+            boxShadow: enabledSections.length === 0 ? 'none' : '0 2px 8px rgba(0,0,0,0.15)',
             display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s',
           }}
         >
@@ -668,18 +679,18 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
 
       {/* Success icon */}
       <div style={{
-        width: 64, height: 64, borderRadius: '50%',
+        width: 72, height: 72, borderRadius: '50%',
         background: 'rgba(22,163,74,0.1)', border: '2px solid rgba(22,163,74,0.3)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        margin: '0 auto 24px',
+        margin: '0 auto 24px', boxShadow: '0 0 0 8px rgba(22,163,74,0.06)',
       }}>
-        <CheckCircleIcon style={{ width: 32, height: 32, color: '#16a34a' }} />
+        <CheckCircleIcon style={{ width: 36, height: 36, color: '#16a34a' }} />
       </div>
 
       {/* Heading */}
       <h2 style={{
-        fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 28,
-        letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: 8, margin: '0 0 8px',
+        fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 32,
+        letterSpacing: '-0.03em', color: 'var(--color-text)', marginBottom: 8, margin: '0 0 8px',
       }}>
         Your intake form is ready
       </h2>
@@ -693,8 +704,9 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
       {/* Link box */}
       <div style={{
         width: '100%', maxWidth: 520, display: 'flex', gap: 0,
-        background: 'var(--color-card)', border: '1px solid var(--color-border)',
-        borderRadius: 12, overflow: 'hidden', marginBottom: 32,
+        background: 'var(--color-card)', border: '1.5px solid var(--color-border)',
+        borderRadius: 14, overflow: 'hidden', marginBottom: 32,
+        boxShadow: 'var(--shadow-card)',
       }}>
         <input
           readOnly
@@ -708,7 +720,8 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
         <button
           onClick={copyLink}
           style={{
-            background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none',
+            background: 'var(--color-card)', color: 'var(--color-text)',
+            border: 'none', borderLeft: '1.5px solid var(--color-border)',
             padding: '0 20px', fontFamily: "'Urbanist', sans-serif", fontWeight: 700,
             fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center',
             gap: 7, flexShrink: 0, transition: 'opacity 0.15s',
@@ -725,10 +738,15 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
         width: '100%', maxWidth: 520, marginBottom: 32,
       }}>
         {featureCards.map(({ Icon, bg, color, title, desc }) => (
-          <div key={title} style={{
-            background: 'var(--color-card)', border: '1px solid var(--color-border)',
-            borderRadius: 12, padding: 16, textAlign: 'center',
-          }}>
+          <div
+            key={title}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; e.currentTarget.style.borderColor = 'var(--color-border-hover)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+            style={{
+              background: 'var(--color-card)', border: '1px solid var(--color-border)',
+              borderRadius: 16, padding: 16, textAlign: 'center', transition: 'all 0.15s',
+            }}
+          >
             <div style={{
               width: 36, height: 36, borderRadius: 9, background: bg,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -758,7 +776,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
           onClick={onReset}
           style={{
             background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-            borderRadius: 10, padding: '10px 20px',
+            borderRadius: 12, padding: '10px 20px',
             fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 14,
             color: 'var(--color-text)', cursor: 'pointer',
           }}
@@ -769,7 +787,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
           onClick={onViewProjects}
           style={{
             background: 'var(--color-text)', color: 'var(--color-bg)',
-            border: 'none', borderRadius: 10, padding: '10px 20px',
+            border: 'none', borderRadius: 12, padding: '10px 20px',
             fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
             cursor: 'pointer',
           }}

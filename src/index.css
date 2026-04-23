@@ -48,9 +48,9 @@
 
 /* ── LIGHT THEME ─────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  --color-bg:           #FAFAFA;
-  --color-sidebar:      #EFEFEF;
-  --color-surface:      #EBEBEB;
+  --color-bg:           #FFFFFF;
+  --color-sidebar:      #F5F5F5;
+  --color-surface:      #F5F5F5;
   --color-card:         #FFFFFF;
   --color-card-hover:   #F3F3F3;
   --color-border:       #DCDCDC;
@@ -69,7 +69,7 @@
   --color-purple:       #6D28D9;
   --color-pink:         #BE185D;
   --color-teal:         #0D9488;
-  --color-preview-bg:   #EBEBEB;
+  --color-preview-bg:   #F5F5F5;
   --shadow-card:        0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-modal:       0 20px 60px rgba(0,0,0,0.15);
   --shadow-dropdown:    0 8px 24px rgba(0,0,0,0.10);
