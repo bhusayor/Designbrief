@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { INTAKE_SECTIONS, PROJECT_TYPES } from '../lib/constants';
+import { INTAKE_SECTIONS } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import {
   ArrowRightIcon,
@@ -28,20 +28,23 @@ import {
   MegaphoneIcon,
   RectangleStackIcon,
   PaperClipIcon,
+  StarIcon,
+  VideoCameraIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 
-// ─── Icon maps ────────────────────────────────────────────────────────────────
+// ─── Project types (local, with descriptions + Heroicons) ─────────────────────
 
-const PROJECT_TYPE_ICONS = {
-  'brand-identity': SwatchIcon,
-  'website':        ComputerDesktopIcon,
-  'mobile-app':     DevicePhoneMobileIcon,
-  'saas-product':   RectangleStackIcon,
-  'campaign':       MegaphoneIcon,
-  'logo':           PaintBrushIcon,
-  'motion':         FilmIcon,
-  'illustration':   PaintBrushIcon,
-};
+const LOCAL_PROJECT_TYPES = [
+  { id: 'brand-identity', label: 'Brand Identity',  Icon: SwatchIcon,          desc: 'Logo, visual identity, brand guidelines' },
+  { id: 'website',        label: 'Website',          Icon: ComputerDesktopIcon, desc: 'Marketing site, landing page, web presence' },
+  { id: 'mobile-app',     label: 'Mobile App',       Icon: DevicePhoneMobileIcon, desc: 'iOS, Android or cross-platform app' },
+  { id: 'saas-product',   label: 'SaaS Product',     Icon: RectangleStackIcon,  desc: 'Web application, dashboard, platform' },
+  { id: 'campaign',       label: 'Campaign',          Icon: MegaphoneIcon,       desc: 'Marketing campaign, social, print, digital' },
+  { id: 'logo',           label: 'Logo Only',         Icon: StarIcon,            desc: 'Standalone logo design' },
+  { id: 'motion',         label: 'Motion & Video',    Icon: VideoCameraIcon,     desc: 'Animation, video production, motion graphics' },
+  { id: 'illustration',   label: 'Illustration',      Icon: PencilIcon,          desc: 'Custom illustration, icon set, artwork' },
+];
 
 const SECTION_ICONS = {
   'overview':    DocumentTextIcon,
@@ -165,9 +168,9 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10,
         }}>
-          {PROJECT_TYPES.map(pt => {
+          {LOCAL_PROJECT_TYPES.map(pt => {
             const selected = projectType?.id === pt.id;
-            const TypeIcon = PROJECT_TYPE_ICONS[pt.id] || SwatchIcon;
+            const { Icon } = pt;
             return (
               <div
                 key={pt.id}
@@ -189,30 +192,41 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
                 style={{
                   background: selected ? 'var(--color-accent-bg)' : 'var(--color-card)',
                   border: `1.5px solid ${selected ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                  borderRadius: 12, padding: '16px 14px', cursor: 'pointer',
+                  borderRadius: 12, padding: '20px 18px', cursor: 'pointer',
                   transition: 'all 0.15s', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', gap: 8, textAlign: 'center',
+                  alignItems: 'flex-start', textAlign: 'left',
                 }}
               >
                 <div style={{
-                  width: 36, height: 36, borderRadius: 9,
+                  width: 40, height: 40, borderRadius: 10,
                   background: selected ? 'var(--color-accent)' + '18' : 'var(--color-surface)',
                   border: selected ? '1px solid var(--color-accent)' + '30' : 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: 4,
+                  marginBottom: 14, flexShrink: 0,
                 }}>
-                  <TypeIcon style={{
-                    width: 18, height: 18,
-                    color: selected ? 'var(--color-accent)' : 'var(--color-text-soft)',
+                  <Icon style={{
+                    width: 20, height: 20,
+                    color: selected ? 'var(--color-accent)' : 'var(--color-text-muted)',
                   }} />
                 </div>
                 <div style={{
                   fontFamily: "'Urbanist', sans-serif",
-                  fontWeight: selected ? 700 : 600,
-                  fontSize: 12,
+                  fontWeight: 700,
+                  fontSize: 15,
+                  letterSpacing: '-0.01em',
                   color: selected ? 'var(--color-accent)' : 'var(--color-text)',
+                  marginBottom: 5,
                 }}>
                   {pt.label}
+                </div>
+                <div style={{
+                  fontFamily: "'Urbanist', sans-serif",
+                  fontWeight: 400,
+                  fontSize: 12,
+                  color: 'var(--color-text-muted)',
+                  lineHeight: 1.5,
+                }}>
+                  {pt.desc}
                 </div>
               </div>
             );
@@ -480,7 +494,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         </div>
 
         {/* Right: client preview */}
-        <div style={{ padding: 24, overflowY: 'auto', background: 'var(--color-surface)' }}>
+        <div style={{ padding: 24, overflowY: 'auto', background: 'var(--color-preview-bg)' }}>
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             marginBottom: 14,
