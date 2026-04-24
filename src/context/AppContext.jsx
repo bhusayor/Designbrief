@@ -35,6 +35,8 @@ export function AppProvider({ children }) {
   const [activeChat, setActiveChat] = useState(null);
   const [notification, setNotification] = useState(null);
   const [activeIntakeId, setActiveIntakeId] = useState(null);
+  const [intakeForms, setIntakeForms] = useState([]);
+  const [loadingForms, setLoadingForms] = useState(false);
   const [joinToken, setJoinToken] = useState(
     () => localStorage.getItem('db-join-token') || null
   );
@@ -218,6 +220,39 @@ export function AppProvider({ children }) {
       console.error('[AppContext] loadProjectsFromDB exception:', e);
     }
   }
+
+  // ── Intake forms ──────────────────────────────────────────────────────────
+
+  async function loadIntakeForms() {
+    if (!authUser) return;
+    setLoadingForms(true);
+    try {
+      const { data } = await supabase
+        .from('intake_forms')
+        .select(`
+          *,
+          intake_submissions (
+            id,
+            status,
+            translated_result,
+            scoring,
+            completed_at,
+            created_at
+          )
+        `)
+        .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false });
+
+      setIntakeForms(data || []);
+    } catch (e) {
+      console.error('[AppContext] loadIntakeForms error:', e);
+    }
+    setLoadingForms(false);
+  }
+
+  useEffect(() => {
+    if (authUser) loadIntakeForms();
+  }, [authUser?.id]);
 
   // ── Theme ─────────────────────────────────────────────────────────────────
 
@@ -456,6 +491,9 @@ export function AppProvider({ children }) {
     // Intake
     activeIntakeId,
     setActiveIntakeId,
+    intakeForms,
+    loadingForms,
+    loadIntakeForms,
 
     // Join
     joinToken,

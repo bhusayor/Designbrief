@@ -439,7 +439,7 @@ export default function ClientIntakePage() {
       };
       localStorage.setItem('intake-' + activeIntakeId, JSON.stringify(completed));
 
-      // Fire-and-forget save to Supabase
+      // Save to Supabase
       try {
         await supabase.from('intake_submissions').insert({
           id: Math.random().toString(36).slice(2, 10),
@@ -447,9 +447,19 @@ export default function ClientIntakePage() {
           answers,
           mood_urls: moodUrls,
           brief_text: fullBrief,
+          translated_result: finalResult,
           scoring: scoreData,
-          result: finalResult,
+          status: 'complete',
+          completed_at: new Date().toISOString(),
         });
+
+        await supabase
+          .from('intake_forms')
+          .update({
+            status: 'complete',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', activeIntakeId);
       } catch (e) {
         // Silent fail — submission already saved to localStorage
         console.warn('[ClientIntakePage] Supabase submission save failed:', e);

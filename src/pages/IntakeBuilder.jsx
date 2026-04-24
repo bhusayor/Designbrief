@@ -92,8 +92,10 @@ function Toggle({ enabled, onChange }) {
 
 // ─── Screen 1: Project Setup ──────────────────────────────────────────────────
 
-function Screen1({ projectName, setProjectName, projectType, setProjectType, onContinue }) {
+function Screen1({ projectName, setProjectName, projectType, setProjectType, onContinue, clientName, setClientName, clientEmail, setClientEmail }) {
   const [nameFocused, setNameFocused] = useState(false);
+  const [clientNameFocused, setClientNameFocused] = useState(false);
+  const [clientEmailFocused, setClientEmailFocused] = useState(false);
 
   return (
     <div style={{
@@ -130,7 +132,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
       </div>
 
       {/* Project name input */}
-      <div style={{ width: '100%', maxWidth: 520, marginBottom: 28 }}>
+      <div style={{ width: '100%', maxWidth: 520, marginBottom: 16 }}>
         <div style={{
           fontFamily: "'DM Mono', monospace", fontSize: 11,
           color: 'var(--color-text-muted)', letterSpacing: '0.06em',
@@ -151,6 +153,61 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
             fontFamily: "'Urbanist', sans-serif", fontSize: 15,
             color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
             boxShadow: nameFocused ? '0 0 0 3px var(--color-accent-bg)' : 'none',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+        />
+      </div>
+
+      {/* Client name */}
+      <div style={{ width: '100%', maxWidth: 520, marginBottom: 16 }}>
+        <div style={{
+          fontFamily: "'DM Mono', monospace", fontSize: 11,
+          color: 'var(--color-text-muted)', letterSpacing: '0.06em',
+          textTransform: 'uppercase', marginBottom: 8,
+        }}>
+          Client name <span style={{ opacity: 0.5 }}>(optional)</span>
+        </div>
+        <input
+          value={clientName}
+          onChange={e => setClientName(e.target.value)}
+          onFocus={() => setClientNameFocused(true)}
+          onBlur={() => setClientNameFocused(false)}
+          placeholder="Client name (optional)"
+          style={{
+            width: '100%', background: 'var(--color-card)',
+            border: `1.5px solid ${clientNameFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
+            borderRadius: 14, padding: '16px 18px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: 15,
+            color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
+            boxShadow: clientNameFocused ? '0 0 0 3px var(--color-accent-bg)' : 'none',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+        />
+      </div>
+
+      {/* Client email */}
+      <div style={{ width: '100%', maxWidth: 520, marginBottom: 28 }}>
+        <div style={{
+          fontFamily: "'DM Mono', monospace", fontSize: 11,
+          color: 'var(--color-text-muted)', letterSpacing: '0.06em',
+          textTransform: 'uppercase', marginBottom: 8,
+        }}>
+          Client email <span style={{ opacity: 0.5 }}>(optional)</span>
+        </div>
+        <input
+          value={clientEmail}
+          onChange={e => setClientEmail(e.target.value)}
+          onFocus={() => setClientEmailFocused(true)}
+          onBlur={() => setClientEmailFocused(false)}
+          placeholder="Client email (optional)"
+          type="email"
+          style={{
+            width: '100%', background: 'var(--color-card)',
+            border: `1.5px solid ${clientEmailFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
+            borderRadius: 14, padding: '16px 18px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: 15,
+            color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
+            boxShadow: clientEmailFocused ? '0 0 0 3px var(--color-accent-bg)' : 'none',
             transition: 'border-color 0.15s, box-shadow 0.15s',
           }}
         />
@@ -807,6 +864,8 @@ export default function IntakeBuilder() {
   const [screen, setScreen] = useState(1);
   const [projectType, setProjectType] = useState(null);
   const [projectName, setProjectName] = useState('');
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
   const [sections, setSections] = useState(initSections);
   const [shareLink, setShareLink] = useState(null);
 
@@ -840,6 +899,8 @@ export default function IntakeBuilder() {
           project_name: projectName,
           project_type: projectType.id,
           sections: enabledSections,
+          client_name: clientName || null,
+          client_email: clientEmail || null,
         });
       } catch (e) {
         console.error('[IntakeBuilder] Supabase intake save error:', e);
@@ -850,6 +911,8 @@ export default function IntakeBuilder() {
   function handleReset() {
     setProjectType(null);
     setProjectName('');
+    setClientName('');
+    setClientEmail('');
     setSections(initSections());
     setShareLink(null);
     setScreen(1);
@@ -862,6 +925,10 @@ export default function IntakeBuilder() {
         setProjectName={setProjectName}
         projectType={projectType}
         setProjectType={setProjectType}
+        clientName={clientName}
+        setClientName={setClientName}
+        clientEmail={clientEmail}
+        setClientEmail={setClientEmail}
         onContinue={handleContinue}
       />
     );
