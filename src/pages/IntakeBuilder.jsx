@@ -892,19 +892,27 @@ export default function IntakeBuilder() {
       console.log('[IntakeBuilder] user_id:', authUser.id);
       console.log('[IntakeBuilder] project_type:', projectType?.id);
 
-      const { data, error } = await supabase
-        .from('intake_forms')
-        .insert({
-          project_name: projectName,
-          project_type: projectType?.id || projectType?.label || '',
-          sections: enabledSections,
-          user_id: authUser.id,
-          status: 'sent',
-          client_name: clientName || null,
-          client_email: clientEmail || null,
-        })
-        .select('id')
-        .single();
+      const { data, error } = await Promise.race([
+        supabase
+          .from('intake_forms')
+          .insert({
+            project_name: projectName,
+            project_type: projectType?.id || projectType?.label || '',
+            sections: enabledSections,
+            user_id: authUser.id,
+            status: 'sent',
+            client_name: clientName || null,
+            client_email: clientEmail || null,
+          })
+          .select('id')
+          .single(),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Request timed out after 10 seconds')),
+            10000
+          )
+        ),
+      ]).catch(e => ({ data: null, error: { message: e.message } }));
 
       if (error) {
         console.error('[IntakeBuilder] Error:', error.message);
