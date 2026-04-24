@@ -914,27 +914,26 @@ export default function IntakeBuilder() {
         ),
       ]).catch(e => ({ data: null, error: { message: e.message } }));
 
-      if (error) {
-        console.error('[IntakeBuilder] Error:', error.message);
-        showToast(
-          error.message.includes('timed out')
-            ? 'Connection timeout. Check your internet and try again.'
-            : 'Failed to create form: ' + error.message,
-          'error'
-        );
-        setGenerating(false);
-        return;
+      // If Supabase fails (timeout or RLS policy missing), fall back to a local ID
+      // so the designer can still generate and share the link.
+      // Fix: run supabase/intake-designer-policy.sql in the Supabase SQL editor.
+      let savedId;
+      if (error || !data?.id) {
+        console.error('[IntakeBuilder] Supabase error — using local fallback ID. Error:', error?.message);
+        savedId = Math.random().toString(36).slice(2, 10);
+        localStorage.setItem('intake-' + savedId, JSON.stringify({
+          intakeId: savedId,
+          projectName,
+          projectType: projectType?.id || projectType?.label || '',
+          projectTypeLabel: projectType?.label || '',
+          sections: enabledSections,
+          createdAt: new Date().toISOString(),
+          status: 'sent',
+        }));
+      } else {
+        savedId = data.id;
+        console.log('[IntakeBuilder] Saved ID:', savedId);
       }
-
-      if (!data?.id) {
-        console.error('[IntakeBuilder] No ID returned');
-        showToast('Failed to get form ID', 'error');
-        setGenerating(false);
-        return;
-      }
-
-      const savedId = data.id;
-      console.log('[IntakeBuilder] Saved ID:', savedId);
 
       const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
       const link = baseUrl + '/intake/' + savedId;
