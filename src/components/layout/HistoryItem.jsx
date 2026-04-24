@@ -121,20 +121,39 @@ export default function HistoryItem({
             }}
           />
         ) : (
-          <span
-            style={{
-              flex: 1,
-              fontSize: '12px',
-              color: active ? 'var(--color-text)' : 'var(--color-text-soft)',
-              fontFamily: "'Urbanist', sans-serif",
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              fontWeight: active ? 600 : 400,
-            }}
-          >
-            {item.title}
-          </span>
+          <>
+            <span
+              style={{
+                flex: 1,
+                fontSize: '12px',
+                color: active ? 'var(--color-text)' : 'var(--color-text-soft)',
+                fontFamily: "'Urbanist', sans-serif",
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontWeight: active ? 600 : 400,
+              }}
+            >
+              {item.title}
+            </span>
+            {item.source === 'intake' && (
+              <span style={{
+                background: 'rgba(22,163,74,0.1)',
+                border: '1px solid rgba(22,163,74,0.2)',
+                borderRadius: 4,
+                padding: '1px 5px',
+                fontFamily: "'DM Mono', monospace",
+                fontSize: 8, fontWeight: 700,
+                color: '#16a34a',
+                marginLeft: 5,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                flexShrink: 0,
+              }}>
+                Client
+              </span>
+            )}
+          </>
         )}
 
         {!renaming && (

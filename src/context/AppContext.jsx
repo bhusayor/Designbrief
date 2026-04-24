@@ -37,6 +37,7 @@ export function AppProvider({ children }) {
   const [activeIntakeId, setActiveIntakeId] = useState(null);
   const [intakeForms, setIntakeForms] = useState([]);
   const [loadingForms, setLoadingForms] = useState(false);
+  const knownCompleteIdsRef = useRef(null); // null = not yet seeded
   const [joinToken, setJoinToken] = useState(
     () => localStorage.getItem('db-join-token') || null
   );
@@ -224,8 +225,9 @@ export function AppProvider({ children }) {
   // ── Intake forms ──────────────────────────────────────────────────────────
 
   async function loadIntakeForms() {
-    if (!authUser) return;
+    if (!authUser) return [];
     setLoadingForms(true);
+    let result = [];
     try {
       const { data } = await supabase
         .from('intake_forms')
@@ -243,15 +245,52 @@ export function AppProvider({ children }) {
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
 
-      setIntakeForms(data || []);
+      result = data || [];
+      setIntakeForms(result);
     } catch (e) {
       console.error('[AppContext] loadIntakeForms error:', e);
     }
     setLoadingForms(false);
+    return result;
   }
 
   useEffect(() => {
-    if (authUser) loadIntakeForms();
+    if (authUser) {
+      loadIntakeForms().then(forms => {
+        // Seed known-complete IDs on first load so we don't toast for existing completions
+        if (knownCompleteIdsRef.current === null) {
+          knownCompleteIdsRef.current = new Set(
+            forms.filter(f => f.status === 'complete').map(f => f.id)
+          );
+        }
+      });
+    }
+  }, [authUser?.id]);
+
+  // Poll every 60 seconds for new completed submissions
+  useEffect(() => {
+    if (!authUser) return;
+
+    const interval = setInterval(async () => {
+      const freshForms = await loadIntakeForms();
+
+      if (knownCompleteIdsRef.current === null) return;
+
+      const newComplete = freshForms.filter(f =>
+        f.status === 'complete' &&
+        !knownCompleteIdsRef.current.has(f.id)
+      );
+
+      if (newComplete.length > 0) {
+        showToast(
+          '🎉 ' + newComplete[0].project_name +
+          ' — client submitted their brief!'
+        );
+        newComplete.forEach(f => knownCompleteIdsRef.current.add(f.id));
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, [authUser?.id]);
 
   // ── Theme ─────────────────────────────────────────────────────────────────

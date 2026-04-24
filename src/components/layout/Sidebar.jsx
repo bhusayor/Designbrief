@@ -16,7 +16,7 @@ import {
 
 // ─── NavItem with tooltip ──────────────────────────────────────────────────────
 
-function NavItem({ icon: Icon, label, active, onClick, collapsed }) {
+function NavItem({ icon: Icon, label, active, onClick, collapsed, badge }) {
   const [hovered, setHovered] = useState(false)
   const [tooltipTop, setTooltipTop] = useState(0)
   const btnRef = useRef()
@@ -62,6 +62,21 @@ function NavItem({ icon: Icon, label, active, onClick, collapsed }) {
             {label}
           </span>
         )}
+        {!collapsed && badge > 0 && (
+          <div style={{
+            background: '#16a34a',
+            color: 'white',
+            borderRadius: '50%',
+            width: 16, height: 16,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: "'DM Mono', monospace",
+            fontSize: 9, fontWeight: 700,
+            marginLeft: 'auto',
+            flexShrink: 0,
+          }}>
+            {badge > 9 ? '9+' : badge}
+          </div>
+        )}
       </button>
 
       {/* Tooltip — fixed position to escape overflow:hidden on sidebar */}
@@ -102,7 +117,10 @@ export default function Sidebar() {
     theme, toggleTheme, showToast,
     user, signOut,
     setActiveProject,
+    intakeForms,
   } = useContext(AppContext)
+
+  const readyCount = (intakeForms || []).filter(f => f.status === 'complete').length
 
   const [collapsed, setCollapsed] = useState(false)
   const [topHovered, setTopHovered] = useState(false)
@@ -295,6 +313,7 @@ export default function Sidebar() {
           active={activeSection === 'intake'}
           onClick={() => navigate('intake')}
           collapsed={collapsed}
+          badge={readyCount}
         />
         <NavItem
           icon={UserGroupIcon}
