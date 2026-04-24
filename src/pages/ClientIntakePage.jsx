@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import AppContext from '../context/AppContext';
 import { Button, Input } from '../components/ui';
 import { translateAndAnalyse } from '../lib/api';
@@ -393,15 +393,61 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
 export default function ClientIntakePage() {
   const { activeIntakeId } = useContext(AppContext);
 
-  const intakeData = activeIntakeId
-    ? JSON.parse(localStorage.getItem('intake-' + activeIntakeId) || 'null')
-    : null;
+  const [intakeData, setIntakeData] = useState(() => {
+    if (!activeIntakeId) return null;
+    const stored = localStorage.getItem('intake-' + activeIntakeId);
+    return stored ? JSON.parse(stored) : null;
+  });
+  const [loadingForm, setLoadingForm] = useState(false);
 
   const [phase, setPhase] = useState('filling');
   const [answers, setAnswers] = useState({});
   const [moodUrls, setMoodUrls] = useState('');
   const [loadMsg, setLoadMsg] = useState('Processing your responses...');
 
+  // Fetch form from Supabase if not in localStorage (client on different device)
+  useEffect(() => {
+    if (!activeIntakeId) return;
+
+    console.log('[ClientIntakePage] formId:', activeIntakeId);
+    console.log('[ClientIntakePage] full URL:', window.location.href);
+
+    if (intakeData) return; // Already have it from localStorage
+
+    async function fetchForm() {
+      setLoadingForm(true);
+      try {
+        const { data, error } = await supabase
+          .from('intake_forms')
+          .select('*')
+          .eq('id', activeIntakeId)
+          .single();
+
+        if (error || !data) {
+          console.error('[ClientIntakePage] Supabase fetch error:', error);
+          setLoadingForm(false);
+          return;
+        }
+
+        setIntakeData({
+          intakeId: data.id,
+          projectName: data.project_name,
+          projectType: data.project_type,
+          projectTypeLabel: data.project_type,
+          sections: data.sections || [],
+          createdAt: data.created_at,
+          status: data.status || 'pending',
+        });
+      } catch (e) {
+        console.error('[ClientIntakePage] fetch exception:', e);
+      }
+      setLoadingForm(false);
+    }
+
+    fetchForm();
+  }, [activeIntakeId]);
+
+  if (loadingForm) return <SubmittingView loadMsg="Loading your form..." />;
   if (!intakeData) return <InvalidView />;
   if (phase === 'submitting') return <SubmittingView loadMsg={loadMsg} />;
   if (phase === 'done') return <DoneView />;

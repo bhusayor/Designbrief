@@ -5,6 +5,7 @@ import {
   PencilSquareIcon,
   MagnifyingGlassIcon,
   ClipboardDocumentListIcon,
+  RectangleStackIcon,
   UserGroupIcon,
   SunIcon,
   MoonIcon,
@@ -314,6 +315,13 @@ export default function Sidebar() {
           onClick={() => navigate('intake')}
           collapsed={collapsed}
           badge={readyCount}
+        />
+        <NavItem
+          icon={RectangleStackIcon}
+          label="Projects"
+          active={activeSection === 'library'}
+          onClick={() => navigate('library')}
+          collapsed={collapsed}
         />
         <NavItem
           icon={UserGroupIcon}

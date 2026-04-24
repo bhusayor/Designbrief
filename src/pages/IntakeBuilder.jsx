@@ -149,8 +149,8 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
           style={{
             width: '100%', background: 'var(--color-card)',
             border: `1.5px solid ${nameFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
-            borderRadius: 14, padding: '16px 18px',
-            fontFamily: "'Urbanist', sans-serif", fontSize: 15,
+            borderRadius: 10, padding: '10px 14px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: 14,
             color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
             boxShadow: nameFocused ? '0 0 0 3px var(--color-accent-bg)' : 'none',
             transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -176,8 +176,8 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
           style={{
             width: '100%', background: 'var(--color-card)',
             border: `1.5px solid ${clientNameFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
-            borderRadius: 14, padding: '16px 18px',
-            fontFamily: "'Urbanist', sans-serif", fontSize: 15,
+            borderRadius: 10, padding: '10px 14px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: 14,
             color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
             boxShadow: clientNameFocused ? '0 0 0 3px var(--color-accent-bg)' : 'none',
             transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -204,8 +204,8 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
           style={{
             width: '100%', background: 'var(--color-card)',
             border: `1.5px solid ${clientEmailFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
-            borderRadius: 14, padding: '16px 18px',
-            fontFamily: "'Urbanist', sans-serif", fontSize: 15,
+            borderRadius: 10, padding: '10px 14px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: 14,
             color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
             boxShadow: clientEmailFocused ? '0 0 0 3px var(--color-accent-bg)' : 'none',
             transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -484,13 +484,13 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 13,
+                      fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 14,
                       color: 'var(--color-text)',
                     }}>
                       {section.label}
                     </div>
                     <div style={{
-                      fontFamily: "'DM Mono', monospace", fontSize: 10,
+                      fontFamily: "'DM Mono', monospace", fontSize: 11,
                       color: 'var(--color-text-muted)',
                     }}>
                       {section.questions.length} questions
@@ -634,9 +634,9 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
             {enabledSections.map(section => (
               <div key={section.id} style={{ marginBottom: 16 }}>
                 <div style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 10,
-                  color: 'var(--color-text-muted)', textTransform: 'uppercase',
-                  letterSpacing: '0.08em', marginBottom: 8,
+                  fontFamily: "'DM Mono', monospace", fontSize: 11,
+                  color: 'var(--color-text-soft)', textTransform: 'uppercase',
+                  letterSpacing: '0.06em', marginBottom: 8, fontWeight: 600,
                 }}>
                   {section.label}
                 </div>
@@ -645,7 +645,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
                     background: 'var(--color-surface)', borderRadius: 7,
                     padding: '8px 12px', marginBottom: 4,
                     fontFamily: "'Urbanist', sans-serif", fontSize: 13,
-                    color: 'var(--color-text-soft)', lineHeight: 1.4,
+                    color: 'var(--color-text)', lineHeight: 1.4,
                   }}>
                     {q || '(empty question)'}
                   </div>
