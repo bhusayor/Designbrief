@@ -447,10 +447,10 @@ export default function ClientIntakePage() {
           answers,
           mood_urls: moodUrls,
           brief_text: fullBrief,
-          translated_result: finalResult,
+          result: finalResult,
           scoring: scoreData,
           status: 'complete',
-          completed_at: new Date().toISOString(),
+          submitted_at: new Date().toISOString(),
         });
 
         await supabase

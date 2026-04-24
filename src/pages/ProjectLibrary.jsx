@@ -291,14 +291,14 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
         }}>
           {isComplete ? 'Brief ready' : 'Awaiting client'}
         </span>
-        {isComplete && submission?.completed_at && (
+        {isComplete && submission?.submitted_at && (
           <span style={{
             fontFamily: "'DM Mono', monospace",
             fontSize: 9,
             color: 'var(--color-text-muted)',
             marginLeft: 'auto',
           }}>
-            {timeAgo(submission.completed_at)}
+            {timeAgo(submission.submitted_at)}
           </span>
         )}
       </div>
@@ -421,19 +421,19 @@ export default function ProjectLibrary() {
 
   function handleViewForm(form) {
     const submission = form.intake_submissions?.[0];
-    if (!submission?.translated_result) return;
+    if (!submission?.result) return;
 
     setActiveProject({
       id: form.id,
       title: form.project_name,
-      result: submission.translated_result,
+      result: submission.result,
       scoring: submission.scoring,
       data: {
-        brief: '',
+        brief: submission.brief_text || '',
         scoring: submission.scoring,
-        result: submission.translated_result,
+        result: submission.result,
       },
-      ts: form.completed_at || form.created_at,
+      ts: submission.submitted_at || form.created_at,
       source: 'intake',
     });
     navigate('document');

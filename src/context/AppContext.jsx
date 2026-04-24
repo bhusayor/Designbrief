@@ -236,9 +236,9 @@ export function AppProvider({ children }) {
           intake_submissions (
             id,
             status,
-            translated_result,
+            result,
             scoring,
-            completed_at,
+            submitted_at,
             created_at
           )
         `)
