@@ -892,11 +892,11 @@ export default function IntakeBuilder() {
       console.log('[IntakeBuilder] user_id:', authUser.id);
       console.log('[IntakeBuilder] project_type:', projectType?.id);
 
-      const { data, error } = await supabase
+      const insertPromise = supabase
         .from('intake_forms')
         .insert({
           project_name: projectName,
-          project_type: projectType?.id || projectType?.label || '',
+          project_type: projectType?.id || '',
           sections: enabledSections,
           user_id: authUser.id,
           status: 'sent',
@@ -906,9 +906,28 @@ export default function IntakeBuilder() {
         .select('id')
         .single();
 
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(
+          new Error('Request timed out after 10 seconds')
+        ), 10000)
+      );
+
+      const { data, error } = await Promise.race([
+        insertPromise,
+        timeoutPromise,
+      ]).catch(e => ({
+        data: null,
+        error: { message: e.message },
+      }));
+
       if (error) {
-        console.error('[IntakeBuilder] Insert error:', JSON.stringify(error));
-        showToast('Failed to create form: ' + error.message, 'error');
+        console.error('[IntakeBuilder] Error:', error.message);
+        showToast(
+          error.message.includes('timed out')
+            ? 'Connection timeout. Check your internet and try again.'
+            : 'Failed to create form: ' + error.message,
+          'error'
+        );
         setGenerating(false);
         return;
       }
