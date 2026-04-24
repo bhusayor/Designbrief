@@ -320,7 +320,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
 
 // ─── Screen 2: Form Builder ───────────────────────────────────────────────────
 
-function Screen2({ projectName, projectType, sections, setSections, onBack, onGenerate }) {
+function Screen2({ projectName, projectType, sections, setSections, onBack, onGenerate, generating }) {
   const [dragIdx, setDragIdx] = useState(null);
 
   const enabledSections = sections.filter(s => s.enabled);
@@ -670,19 +670,20 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         </span>
         <button
           onClick={onGenerate}
-          disabled={enabledSections.length === 0}
+          disabled={enabledSections.length === 0 || generating}
           style={{
-            background: enabledSections.length === 0 ? 'var(--color-border)' : 'var(--color-text)',
-            color: enabledSections.length === 0 ? 'var(--color-text-muted)' : 'var(--color-bg)',
+            background: (enabledSections.length === 0 || generating) ? 'var(--color-border)' : 'var(--color-text)',
+            color: (enabledSections.length === 0 || generating) ? 'var(--color-text-muted)' : 'var(--color-bg)',
             border: 'none', borderRadius: 10, padding: '10px 22px',
             fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
-            cursor: enabledSections.length === 0 ? 'not-allowed' : 'pointer',
-            boxShadow: enabledSections.length === 0 ? 'none' : '0 2px 8px rgba(0,0,0,0.15)',
+            cursor: (enabledSections.length === 0 || generating) ? 'not-allowed' : 'pointer',
+            boxShadow: (enabledSections.length === 0 || generating) ? 'none' : '0 2px 8px rgba(0,0,0,0.15)',
             display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s',
+            opacity: generating ? 0.7 : 1,
           }}
         >
           <LinkIcon style={{ width: 16, height: 16 }} />
-          Generate Intake Link
+          {generating ? 'Generating...' : 'Generate Intake Link'}
         </button>
       </div>
 
@@ -869,6 +870,7 @@ export default function IntakeBuilder() {
   const [clientEmail, setClientEmail] = useState('');
   const [sections, setSections] = useState(initSections);
   const [shareLink, setShareLink] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
   function handleContinue() {
     setSections(initSections());
@@ -876,6 +878,7 @@ export default function IntakeBuilder() {
   }
 
   async function handleGenerateLink() {
+    setGenerating(true);
     const localId = Math.random().toString(36).slice(2, 10);
     const enabledSections = sections.filter(s => s.enabled);
 
@@ -922,6 +925,7 @@ export default function IntakeBuilder() {
     const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
     const link = baseUrl + '/intake/' + savedId;
     setShareLink(link);
+    setGenerating(false);
     setScreen(3);
   }
 
@@ -960,6 +964,7 @@ export default function IntakeBuilder() {
         setSections={setSections}
         onBack={() => setScreen(1)}
         onGenerate={handleGenerateLink}
+        generating={generating}
       />
     );
   }
