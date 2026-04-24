@@ -694,6 +694,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
 
 function Screen3({ shareLink, onReset, onViewProjects }) {
   const [copied, setCopied] = useState(false);
+  console.log('[IntakeBuilder] Generated link:', shareLink);
 
   function copyLink() {
     navigator.clipboard.writeText(shareLink).then(() => {
@@ -875,10 +876,40 @@ export default function IntakeBuilder() {
   }
 
   async function handleGenerateLink() {
-    const intakeId = Math.random().toString(36).slice(2, 10);
+    const localId = Math.random().toString(36).slice(2, 10);
     const enabledSections = sections.filter(s => s.enabled);
-    const data = {
-      intakeId,
+
+    let savedId = localId;
+
+    if (authUser) {
+      try {
+        const { data, error } = await supabase
+          .from('intake_forms')
+          .insert({
+            id: localId,
+            user_id: authUser.id,
+            project_name: projectName,
+            project_type: projectType.id,
+            sections: enabledSections,
+            client_name: clientName || null,
+            client_email: clientEmail || null,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('[IntakeBuilder] Supabase intake save error:', error);
+        } else {
+          savedId = data?.id || localId;
+          console.log('[IntakeBuilder] Saved form ID:', savedId);
+        }
+      } catch (e) {
+        console.error('[IntakeBuilder] Supabase intake save error:', e);
+      }
+    }
+
+    const formData = {
+      intakeId: savedId,
       projectName,
       projectType: projectType.id,
       projectTypeLabel: projectType.label,
@@ -886,26 +917,12 @@ export default function IntakeBuilder() {
       createdAt: new Date().toISOString(),
       status: 'pending',
     };
-    localStorage.setItem('intake-' + intakeId, JSON.stringify(data));
-    const link = window.location.origin + '/intake/' + intakeId;
+    localStorage.setItem('intake-' + savedId, JSON.stringify(formData));
+
+    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const link = baseUrl + '/intake/' + savedId;
     setShareLink(link);
     setScreen(3);
-
-    if (authUser) {
-      try {
-        await supabase.from('intake_forms').insert({
-          id: intakeId,
-          user_id: authUser.id,
-          project_name: projectName,
-          project_type: projectType.id,
-          sections: enabledSections,
-          client_name: clientName || null,
-          client_email: clientEmail || null,
-        });
-      } catch (e) {
-        console.error('[IntakeBuilder] Supabase intake save error:', e);
-      }
-    }
   }
 
   function handleReset() {
