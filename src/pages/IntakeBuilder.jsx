@@ -878,73 +878,58 @@ export default function IntakeBuilder() {
   }
 
   async function handleGenerateLink() {
+    if (!authUser?.id) {
+      showToast('Please log in first', 'error');
+      return;
+    }
+
     setGenerating(true);
+
     try {
       const enabledSections = sections.filter(s => s.enabled);
 
-      if (!authUser?.id) {
-        showToast('Please log in first', 'error');
-        setGenerating(false);
+      console.log('[IntakeBuilder] Saving...', {
+        projectName,
+        projectType: projectType?.id,
+        userId: authUser.id,
+      });
+
+      const { data, error } = await supabase
+        .from('intake_forms')
+        .insert({
+          project_name: projectName,
+          project_type: projectType?.id || '',
+          sections: enabledSections,
+          user_id: authUser.id,
+          status: 'sent',
+          client_name: clientName || null,
+          client_email: clientEmail || null,
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('[IntakeBuilder] Error:', error);
+        showToast('Could not save form: ' + error.message, 'error');
         return;
       }
 
-      console.log('[IntakeBuilder] Saving form...');
-      console.log('[IntakeBuilder] user_id:', authUser.id);
-      console.log('[IntakeBuilder] project_type:', projectType?.id);
-
-      const { data, error } = await Promise.race([
-        supabase
-          .from('intake_forms')
-          .insert({
-            project_name: projectName,
-            project_type: projectType?.id || projectType?.label || '',
-            sections: enabledSections,
-            user_id: authUser.id,
-            status: 'sent',
-            client_name: clientName || null,
-            client_email: clientEmail || null,
-          })
-          .select('id')
-          .single(),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Request timed out after 10 seconds')),
-            10000
-          )
-        ),
-      ]).catch(e => ({ data: null, error: { message: e.message } }));
-
-      // If Supabase fails (timeout or RLS policy missing), fall back to a local ID
-      // so the designer can still generate and share the link.
-      // Fix: run supabase/intake-designer-policy.sql in the Supabase SQL editor.
-      let savedId;
-      if (error || !data?.id) {
-        console.error('[IntakeBuilder] Supabase error — using local fallback ID. Error:', error?.message);
-        savedId = Math.random().toString(36).slice(2, 10);
-        localStorage.setItem('intake-' + savedId, JSON.stringify({
-          intakeId: savedId,
-          projectName,
-          projectType: projectType?.id || projectType?.label || '',
-          projectTypeLabel: projectType?.label || '',
-          sections: enabledSections,
-          createdAt: new Date().toISOString(),
-          status: 'sent',
-        }));
-      } else {
-        savedId = data.id;
-        console.log('[IntakeBuilder] Saved ID:', savedId);
+      if (!data?.id) {
+        showToast('No ID returned from server', 'error');
+        return;
       }
 
-      const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const link = baseUrl + '/intake/' + savedId;
-      console.log('[IntakeBuilder] Link:', link);
+      console.log('[IntakeBuilder] Saved:', data.id);
+
+      const base = import.meta.env.VITE_APP_URL || window.location.origin;
+      const link = base + '/intake/' + data.id;
 
       setShareLink(link);
-      setGenerating(false);
       setScreen(3);
     } catch (e) {
       console.error('[IntakeBuilder] Exception:', e);
-      showToast('Unexpected error. Try again.', 'error');
+      showToast('Unexpected error: ' + e.message, 'error');
+    } finally {
       setGenerating(false);
     }
   }
