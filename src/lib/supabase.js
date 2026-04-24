@@ -24,9 +24,6 @@ export const supabase = createClient(
       detectSessionInUrl: true,
       storageKey: 'designbrief-auth-v1',
       flowType: 'pkce',
-      lock: {
-        timeout: 15000,
-      },
     },
   }
 )
