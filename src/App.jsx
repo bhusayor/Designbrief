@@ -21,7 +21,7 @@ function AppRouter() {
   useEffect(() => {
     const path = window.location.pathname;
 
-    const intakeMatch = path.match(/^\/intake\/([a-z0-9]+)$/);
+    const intakeMatch = path.match(/^\/intake\/([a-z0-9-]+)$/i);
     if (intakeMatch) {
       setActiveIntakeId(intakeMatch[1]);
       navigate('client-intake');
