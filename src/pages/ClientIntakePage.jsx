@@ -1,8 +1,26 @@
 import { useState, useEffect, useContext } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import AppContext from '../context/AppContext';
 import { Button, Input } from '../components/ui';
 import { translateAndAnalyse } from '../lib/api';
-import { supabase } from '../lib/supabase';
+
+// Dedicated public client — never carries an auth session so anon RLS policies apply
+const publicSupabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+    },
+  }
+);
 
 // ─── Invalid State ─────────────────────────────────────────────────────────────
 
@@ -417,14 +435,18 @@ export default function ClientIntakePage() {
     async function fetchForm() {
       setLoadingForm(true);
       try {
-        const { data, error } = await supabase
+        console.log('[ClientIntakePage] Fetching form:', activeIntakeId);
+
+        const { data, error } = await publicSupabase
           .from('intake_forms')
           .select('*')
           .eq('id', activeIntakeId)
           .single();
 
+        console.log('[ClientIntakePage] Result:', data ? 'FOUND' : 'NOT FOUND', error?.message);
+
         if (error || !data) {
-          console.error('[ClientIntakePage] Supabase fetch error:', error);
+          console.error('[ClientIntakePage] Error:', error);
           setLoadingForm(false);
           return;
         }
@@ -469,6 +491,30 @@ export default function ClientIntakePage() {
       ? `${briefText}\n\nMoodboard references:\n${moodUrls}`
       : briefText;
 
+    // Insert a pending submission row before AI translation so we have an id to update
+    let subData = null;
+    try {
+      const { data, error: subError } = await publicSupabase
+        .from('intake_submissions')
+        .insert({
+          intake_form_id: activeIntakeId,
+          answers,
+          brief_text: fullBrief,
+          mood_urls: moodUrls,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (subError) {
+        console.error('[handleSubmit] Insert error:', subError);
+      } else {
+        subData = data;
+      }
+    } catch (e) {
+      console.warn('[ClientIntakePage] Supabase submission insert failed:', e);
+    }
+
     try {
       setLoadMsg('Translating your brief with AI...');
       const { scoreData, finalResult } = await translateAndAnalyse(fullBrief);
@@ -485,21 +531,21 @@ export default function ClientIntakePage() {
       };
       localStorage.setItem('intake-' + activeIntakeId, JSON.stringify(completed));
 
-      // Save to Supabase
+      // Update submission with result and mark intake form complete
       try {
-        await supabase.from('intake_submissions').insert({
-          id: Math.random().toString(36).slice(2, 10),
-          intake_form_id: activeIntakeId,
-          answers,
-          mood_urls: moodUrls,
-          brief_text: fullBrief,
-          result: finalResult,
-          scoring: scoreData,
-          status: 'complete',
-          submitted_at: new Date().toISOString(),
-        });
+        if (subData?.id) {
+          await publicSupabase
+            .from('intake_submissions')
+            .update({
+              result: finalResult,
+              scoring: scoreData,
+              status: 'complete',
+              submitted_at: new Date().toISOString(),
+            })
+            .eq('id', subData.id);
+        }
 
-        await supabase
+        await publicSupabase
           .from('intake_forms')
           .update({
             status: 'complete',
@@ -507,8 +553,7 @@ export default function ClientIntakePage() {
           })
           .eq('id', activeIntakeId);
       } catch (e) {
-        // Silent fail — submission already saved to localStorage
-        console.warn('[ClientIntakePage] Supabase submission save failed:', e);
+        console.warn('[ClientIntakePage] Supabase update failed:', e);
       }
 
       setPhase('done');
