@@ -879,54 +879,62 @@ export default function IntakeBuilder() {
 
   async function handleGenerateLink() {
     setGenerating(true);
-    const enabledSections = sections.filter(s => s.enabled);
+    try {
+      const enabledSections = sections.filter(s => s.enabled);
 
-    // Step 1: Save to Supabase — no local id, let Supabase auto-generate
-    const { data, error } = await supabase
-      .from('intake_forms')
-      .insert({
-        project_name: projectName,
-        project_type: projectType.id,
-        sections: enabledSections,
-        user_id: authUser?.id,
-        status: 'sent',
-        client_name: clientName || null,
-        client_email: clientEmail || null,
-        created_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
+      if (!authUser?.id) {
+        showToast('Please log in first', 'error');
+        setGenerating(false);
+        return;
+      }
 
-    if (error || !data?.id) {
-      console.error('[IntakeBuilder] Save failed:', error);
-      showToast('Failed to create form. Try again.', 'error');
+      console.log('[IntakeBuilder] Saving form...');
+      console.log('[IntakeBuilder] user_id:', authUser.id);
+      console.log('[IntakeBuilder] project_type:', projectType?.id);
+
+      const { data, error } = await supabase
+        .from('intake_forms')
+        .insert({
+          project_name: projectName,
+          project_type: projectType?.id || projectType?.label || '',
+          sections: enabledSections,
+          user_id: authUser.id,
+          status: 'sent',
+          client_name: clientName || null,
+          client_email: clientEmail || null,
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('[IntakeBuilder] Insert error:', JSON.stringify(error));
+        showToast('Failed to create form: ' + error.message, 'error');
+        setGenerating(false);
+        return;
+      }
+
+      if (!data?.id) {
+        console.error('[IntakeBuilder] No ID returned');
+        showToast('Failed to get form ID', 'error');
+        setGenerating(false);
+        return;
+      }
+
+      const savedId = data.id;
+      console.log('[IntakeBuilder] Saved ID:', savedId);
+
+      const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const link = baseUrl + '/intake/' + savedId;
+      console.log('[IntakeBuilder] Link:', link);
+
+      setShareLink(link);
       setGenerating(false);
-      return;
+      setScreen(3);
+    } catch (e) {
+      console.error('[IntakeBuilder] Exception:', e);
+      showToast('Unexpected error. Try again.', 'error');
+      setGenerating(false);
     }
-
-    const savedId = data.id;
-    console.log('[IntakeBuilder] Form saved with ID:', savedId);
-
-    // Cache locally so the designer can open the form immediately
-    localStorage.setItem('intake-' + savedId, JSON.stringify({
-      intakeId: savedId,
-      projectName,
-      projectType: projectType.id,
-      projectTypeLabel: projectType.label,
-      sections: enabledSections,
-      createdAt: new Date().toISOString(),
-      status: 'sent',
-    }));
-
-    // Step 2: Build link using the Supabase-returned ID
-    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-    const link = baseUrl + '/intake/' + savedId;
-    console.log('[IntakeBuilder] Generated link:', link);
-
-    // Step 3: Store link and navigate to Screen 3
-    setShareLink(link);
-    setGenerating(false);
-    setScreen(3);
   }
 
   function handleReset() {
