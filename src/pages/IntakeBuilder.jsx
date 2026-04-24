@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { INTAKE_SECTIONS } from '../lib/constants';
-import { supabase } from '../lib/supabase';
 import {
   ArrowRightIcon,
   ArrowLeftIcon,
@@ -683,7 +682,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
           }}
         >
           <LinkIcon style={{ width: 16, height: 16 }} />
-          {generating ? 'Saving...' : 'Generate Intake Link'}
+          {generating ? 'Generating...' : 'Generate Intake Link'}
         </button>
       </div>
 
@@ -888,47 +887,43 @@ export default function IntakeBuilder() {
     try {
       const enabledSections = sections.filter(s => s.enabled);
 
-      console.log('[IntakeBuilder] Saving...', {
-        projectName,
-        projectType: projectType?.id,
-        userId: authUser.id,
-      });
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
 
-      const { data, error } = await supabase
-        .from('intake_forms')
-        .insert({
+      const response = await fetch(apiBase + '/api/create-intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           project_name: projectName,
           project_type: projectType?.id || '',
           sections: enabledSections,
           user_id: authUser.id,
-          status: 'sent',
           client_name: clientName || null,
           client_email: clientEmail || null,
-        })
-        .select('id')
-        .single();
+        }),
+      });
 
-      if (error) {
-        console.error('[IntakeBuilder] Error:', error);
-        showToast('Could not save form: ' + error.message, 'error');
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        console.error('[IntakeBuilder] API error:', result.error);
+        showToast(
+          'Could not create form: ' + (result.error || 'Unknown error'),
+          'error'
+        );
         return;
       }
 
-      if (!data?.id) {
-        showToast('No ID returned from server', 'error');
-        return;
-      }
-
-      console.log('[IntakeBuilder] Saved:', data.id);
+      const savedId = result.id;
+      console.log('[IntakeBuilder] Saved:', savedId);
 
       const base = import.meta.env.VITE_APP_URL || window.location.origin;
-      const link = base + '/intake/' + data.id;
+      const link = base + '/intake/' + savedId;
 
       setShareLink(link);
       setScreen(3);
     } catch (e) {
       console.error('[IntakeBuilder] Exception:', e);
-      showToast('Unexpected error: ' + e.message, 'error');
+      showToast('Network error: ' + e.message, 'error');
     } finally {
       setGenerating(false);
     }
