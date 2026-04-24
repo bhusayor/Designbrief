@@ -320,7 +320,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
 
 // ─── Screen 2: Form Builder ───────────────────────────────────────────────────
 
-function Screen2({ projectName, projectType, sections, setSections, onBack, onGenerate, generating }) {
+function Screen2({ projectName, projectType, sections, setSections, onBack, onGenerate }) {
   const [dragIdx, setDragIdx] = useState(null);
 
   const enabledSections = sections.filter(s => s.enabled);
@@ -670,20 +670,19 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         </span>
         <button
           onClick={onGenerate}
-          disabled={enabledSections.length === 0 || generating}
+          disabled={enabledSections.length === 0}
           style={{
-            background: (enabledSections.length === 0 || generating) ? 'var(--color-border)' : 'var(--color-text)',
-            color: (enabledSections.length === 0 || generating) ? 'var(--color-text-muted)' : 'var(--color-bg)',
+            background: enabledSections.length === 0 ? 'var(--color-border)' : 'var(--color-text)',
+            color: enabledSections.length === 0 ? 'var(--color-text-muted)' : 'var(--color-bg)',
             border: 'none', borderRadius: 10, padding: '10px 22px',
             fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
-            cursor: (enabledSections.length === 0 || generating) ? 'not-allowed' : 'pointer',
-            boxShadow: (enabledSections.length === 0 || generating) ? 'none' : '0 2px 8px rgba(0,0,0,0.15)',
+            cursor: enabledSections.length === 0 ? 'not-allowed' : 'pointer',
+            boxShadow: enabledSections.length === 0 ? 'none' : '0 2px 8px rgba(0,0,0,0.15)',
             display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s',
-            opacity: generating ? 0.7 : 1,
           }}
         >
           <LinkIcon style={{ width: 16, height: 16 }} />
-          {generating ? 'Generating...' : 'Generate Intake Link'}
+          Generate Intake Link
         </button>
       </div>
 
@@ -870,49 +869,18 @@ export default function IntakeBuilder() {
   const [clientEmail, setClientEmail] = useState('');
   const [sections, setSections] = useState(initSections);
   const [shareLink, setShareLink] = useState(null);
-  const [generating, setGenerating] = useState(false);
 
   function handleContinue() {
     setSections(initSections());
     setScreen(2);
   }
 
-  async function handleGenerateLink() {
-    setGenerating(true);
-    const localId = Math.random().toString(36).slice(2, 10);
+  function handleGenerateLink() {
+    const intakeId = Math.random().toString(36).slice(2, 10);
     const enabledSections = sections.filter(s => s.enabled);
 
-    let savedId = localId;
-
-    if (authUser) {
-      try {
-        const { data, error } = await supabase
-          .from('intake_forms')
-          .insert({
-            id: localId,
-            user_id: authUser.id,
-            project_name: projectName,
-            project_type: projectType.id,
-            sections: enabledSections,
-            client_name: clientName || null,
-            client_email: clientEmail || null,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('[IntakeBuilder] Supabase intake save error:', error);
-        } else {
-          savedId = data?.id || localId;
-          console.log('[IntakeBuilder] Saved form ID:', savedId);
-        }
-      } catch (e) {
-        console.error('[IntakeBuilder] Supabase intake save error:', e);
-      }
-    }
-
     const formData = {
-      intakeId: savedId,
+      intakeId,
       projectName,
       projectType: projectType.id,
       projectTypeLabel: projectType.label,
@@ -920,13 +888,29 @@ export default function IntakeBuilder() {
       createdAt: new Date().toISOString(),
       status: 'pending',
     };
-    localStorage.setItem('intake-' + savedId, JSON.stringify(formData));
+    localStorage.setItem('intake-' + intakeId, JSON.stringify(formData));
 
     const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-    const link = baseUrl + '/intake/' + savedId;
+    const link = baseUrl + '/intake/' + intakeId;
+    console.log('[IntakeBuilder] Generated link:', link);
     setShareLink(link);
-    setGenerating(false);
     setScreen(3);
+
+    // Save to Supabase in the background — same intakeId is passed so IDs always match
+    if (authUser) {
+      supabase.from('intake_forms').insert({
+        id: intakeId,
+        user_id: authUser.id,
+        project_name: projectName,
+        project_type: projectType.id,
+        sections: enabledSections,
+        client_name: clientName || null,
+        client_email: clientEmail || null,
+      }).then(({ error }) => {
+        if (error) console.error('[IntakeBuilder] Supabase save error:', error);
+        else console.log('[IntakeBuilder] Saved form ID:', intakeId);
+      });
+    }
   }
 
   function handleReset() {
@@ -964,7 +948,6 @@ export default function IntakeBuilder() {
         setSections={setSections}
         onBack={() => setScreen(1)}
         onGenerate={handleGenerateLink}
-        generating={generating}
       />
     );
   }
