@@ -2,7 +2,6 @@ import { useState, useEffect, useContext } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import AppContext from '../context/AppContext';
 import { Button, Input } from '../components/ui';
-import { translateAndAnalyse } from '../lib/api';
 
 // Dedicated public client — never carries an auth session so anon RLS policies apply
 const publicSupabase = createClient(
@@ -65,12 +64,12 @@ function SubmittingView({ loadMsg }) {
     <div style={{
       height: '100%', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      background: 'var(--color-bg)', gap: '20px',
+      background: 'var(--color-bg)', gap: '16px',
     }}>
       <div
         className="spin"
         style={{
-          width: '44px', height: '44px', borderRadius: '50%',
+          width: '40px', height: '40px', borderRadius: '50%',
           border: '3px solid var(--color-border)',
           borderTopColor: 'var(--color-accent)',
         }}
@@ -81,111 +80,87 @@ function SubmittingView({ loadMsg }) {
       }}>
         {loadMsg}
       </div>
-      <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: '11px',
-        color: 'var(--color-text-muted)',
-      }}>
-        This usually takes 15–20 seconds
-      </div>
-      <div style={{ display: 'flex', gap: '6px' }}>
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            style={{
-              width: '6px', height: '6px', borderRadius: '50%',
-              background: 'var(--color-accent)',
-              animation: 'pulse 1.2s ease infinite',
-              animationDelay: `${i * 0.2}s`,
-            }}
-          />
-        ))}
-      </div>
     </div>
   );
 }
 
 // ─── Done State ────────────────────────────────────────────────────────────────
 
-function DoneView() {
+function DoneView({ designerName }) {
   return (
     <div style={{
-      height: '100%', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'var(--color-bg)',
+      minHeight: '100vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: '#ffffff', padding: '24px',
     }}>
-      <div style={{
-        maxWidth: '480px', width: '100%',
-        padding: '80px 24px', textAlign: 'center',
-      }}>
+      <div style={{ maxWidth: '480px', width: '100%', textAlign: 'center' }}>
+
+        {/* Green check circle */}
         <div style={{
-          width: '64px', height: '64px', borderRadius: '50%',
-          background: 'var(--color-accent)',
+          width: '72px', height: '72px', borderRadius: '50%',
+          background: 'rgba(22,163,74,0.08)',
+          border: '2px solid rgba(22,163,74,0.2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '28px', fontWeight: 800, color: 'var(--color-accent-text)',
-          margin: '0 auto 24px',
+          margin: '0 auto 28px',
         }}>
-          ✓
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <polyline
+              points="6,16 13,23 26,10"
+              stroke="#16a34a" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+          </svg>
         </div>
 
-        <h2 style={{
-          fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '26px',
-          color: 'var(--color-text)', letterSpacing: '-0.02em',
-          margin: '0 0 12px',
+        <div style={{
+          fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '28px',
+          color: '#111111', letterSpacing: '-0.02em', lineHeight: 1.2,
+          marginBottom: '12px',
         }}>
-          Thanks, we got your brief!
-        </h2>
+          Thanks! We've got your brief.
+        </div>
 
-        <p style={{
-          fontFamily: "'DM Mono', monospace", fontSize: '13px',
-          color: 'var(--color-text-soft)', lineHeight: 1.7,
+        <div style={{
+          fontFamily: "'Urbanist', sans-serif", fontSize: '16px',
+          color: '#6b6b6b', lineHeight: 1.7,
           marginBottom: '32px',
         }}>
-          Your responses have been received and translated into a design brief.
-          Your designer will review it and be in touch soon.
-        </p>
+          Your responses have been received.{' '}
+          {designerName
+            ? `${designerName} will be in touch soon.`
+            : 'Your designer will be in touch soon.'
+          }
+        </div>
+
+        {/* Divider */}
+        <div style={{
+          width: '40px', height: '2px',
+          background: '#e5e5e5', borderRadius: '1px',
+          margin: '0 auto 28px',
+        }} />
 
         <div style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '12px', padding: '18px 20px', textAlign: 'left',
+          fontFamily: "'DM Mono', monospace", fontSize: '12px',
+          color: '#9b9b9b', lineHeight: 1.6,
         }}>
-          <div style={{
-            fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '13px',
-            color: 'var(--color-text)', marginBottom: '12px',
+          You can close this tab now.
+        </div>
+
+        {/* Branding */}
+        <div style={{
+          marginTop: '48px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: '6px', opacity: 0.4,
+        }}>
+          <span style={{ fontSize: '14px', color: '#111111' }}>✦</span>
+          <span style={{
+            fontFamily: "'DM Mono', monospace", fontSize: '11px',
+            color: '#111111', letterSpacing: '0.04em',
           }}>
-            What happens next:
-          </div>
-          {[
-            'Your designer reviews the translated brief',
-            'They may follow up with clarifying questions',
-            'Once aligned, work begins on your project',
-          ].map((step, i) => (
-            <div key={i} style={{
-              display: 'flex', gap: '10px', alignItems: 'flex-start',
-              marginBottom: i < 2 ? '8px' : 0,
-            }}>
-              <span style={{
-                fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '13px',
-                color: 'var(--color-accent)', flexShrink: 0,
-              }}>
-                {i + 1}.
-              </span>
-              <span style={{
-                fontFamily: "'DM Mono', monospace", fontSize: '12px',
-                color: 'var(--color-text-soft)', lineHeight: 1.6,
-              }}>
-                {step}
-              </span>
-            </div>
-          ))}
+            Powered by DesignBrief AI
+          </span>
         </div>
 
-        <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: '10px',
-          color: 'var(--color-text-muted)', marginTop: '40px',
-        }}>
-          Powered by DesignBrief AI
-        </div>
       </div>
     </div>
   );
@@ -471,12 +446,13 @@ export default function ClientIntakePage() {
 
   if (loadingForm) return <SubmittingView loadMsg="Loading your form..." />;
   if (!intakeData) return <InvalidView />;
-  if (phase === 'submitting') return <SubmittingView loadMsg={loadMsg} />;
-  if (phase === 'done') return <DoneView />;
+  if (phase === 'submitting') return <SubmittingView loadMsg="Saving your responses..." />;
+  if (phase === 'done') return (
+    <DoneView designerName={intakeData?.designerName || null} />
+  );
 
   async function handleSubmit() {
     setPhase('submitting');
-    setLoadMsg('Processing your responses...');
 
     const briefText = intakeData.sections.map(section => {
       const sectionAnswers = section.questions.map((q, i) => {
@@ -491,76 +467,29 @@ export default function ClientIntakePage() {
       ? `${briefText}\n\nMoodboard references:\n${moodUrls}`
       : briefText;
 
-    // Insert a pending submission row before AI translation so we have an id to update
-    let subData = null;
     try {
-      const { data, error: subError } = await publicSupabase
-        .from('intake_submissions')
-        .insert({
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(apiBase + '/api/submit-intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           intake_form_id: activeIntakeId,
           answers,
           brief_text: fullBrief,
           mood_urls: moodUrls,
-          status: 'pending',
-        })
-        .select()
-        .single();
+        }),
+      });
 
-      if (subError) {
-        console.error('[handleSubmit] Insert error:', subError);
-      } else {
-        subData = data;
-      }
-    } catch (e) {
-      console.warn('[ClientIntakePage] Supabase submission insert failed:', e);
-    }
-
-    try {
-      setLoadMsg('Translating your brief with AI...');
-      const { scoreData, finalResult } = await translateAndAnalyse(fullBrief);
-
-      const completed = {
-        ...intakeData,
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-        answers,
-        moodUrls,
-        briefText: fullBrief,
-        scoring: scoreData,
-        result: finalResult,
-      };
-      localStorage.setItem('intake-' + activeIntakeId, JSON.stringify(completed));
-
-      // Update submission with result and mark intake form complete
-      try {
-        if (subData?.id) {
-          await publicSupabase
-            .from('intake_submissions')
-            .update({
-              result: finalResult,
-              scoring: scoreData,
-              status: 'complete',
-              submitted_at: new Date().toISOString(),
-            })
-            .eq('id', subData.id);
-        }
-
-        await publicSupabase
-          .from('intake_forms')
-          .update({
-            status: 'complete',
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', activeIntakeId);
-      } catch (e) {
-        console.warn('[ClientIntakePage] Supabase update failed:', e);
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Submission failed');
       }
 
       setPhase('done');
     } catch (err) {
-      console.error('[ClientIntakePage]', err);
-      setLoadMsg('Something went wrong. Please try again.');
+      console.error('[ClientIntakePage] Submit error:', err);
       setPhase('filling');
+      alert('Something went wrong. Please try again.');
     }
   }
 

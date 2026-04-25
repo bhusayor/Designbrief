@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useContext } from 'react'
 import AppContext from '../context/AppContext'
 import { Button, Badge } from '../components/ui'
+import {
+  SparklesIcon, CheckIcon, LockClosedIcon, PlusIcon,
+} from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
 import { getProjectInvites } from '../lib/teamService'
@@ -23,48 +26,67 @@ function ChatBubble({ msg }) {
   const isAI = msg.role === 'ai'
   const lines = msg.text.split('\n')
 
-  return (
+  const textContent = (
     <div style={{
-      display: 'flex', gap: 8, marginBottom: 12,
-      justifyContent: isAI ? 'flex-start' : 'flex-end',
+      fontFamily: "'Urbanist', sans-serif",
+      fontSize: 13, lineHeight: 1.65,
+      color: isAI ? 'var(--color-text)' : 'var(--color-bg)',
     }}>
-      {isAI && (
-        <div style={{
-          width: 26, height: 26, background: 'var(--color-accent)',
-          borderRadius: 7, display: 'flex', alignItems: 'center',
-          justifyContent: 'center', fontSize: 11,
-          color: 'var(--color-accent-text)', fontWeight: 800,
-          flexShrink: 0, marginTop: 2,
-        }}>✦</div>
-      )}
+      {lines.map((line, li) => {
+        const parts = line.split(/\*\*(.*?)\*\*/g)
+        const isRoleLine = /^[◈◎⟨⟩⚙◉▶✦◆⚡✅⚠]/.test(line.trim())
+        return (
+          <div key={li} style={{
+            marginBottom: li < lines.length - 1 ? (isRoleLine ? 6 : 3) : 0,
+            paddingLeft: isRoleLine ? 8 : 0,
+            borderLeft: isRoleLine ? '2px solid var(--color-border)' : 'none',
+            paddingTop: isRoleLine ? 3 : 0,
+            paddingBottom: isRoleLine ? 3 : 0,
+          }}>
+            {parts.map((p, i) => i % 2 === 1
+              ? <strong key={i} style={{ fontWeight: 700 }}>{p}</strong>
+              : p
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  if (isAI) {
+    return (
       <div style={{
-        maxWidth: '85%',
-        background: isAI ? 'var(--color-card)' : 'var(--color-accent-bg)',
-        border: isAI
-          ? '1px solid var(--color-border)'
-          : '1px solid var(--color-accent-border)',
-        borderRadius: isAI ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
-        padding: '10px 13px', fontSize: 12, lineHeight: 1.75,
-        color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif",
+        display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12,
       }}>
-        {lines.map((line, li) => {
-          const parts = line.split(/\*\*(.*?)\*\*/g)
-          const isRoleLine = /^[◈◎⟨⟩⚙◉▶✦◆⚡✅⚠]/.test(line.trim())
-          return (
-            <div key={li} style={{
-              marginBottom: li < lines.length - 1 ? (isRoleLine ? 6 : 3) : 0,
-              paddingLeft: isRoleLine ? 8 : 0,
-              borderLeft: isRoleLine ? '2px solid var(--color-border)' : 'none',
-              paddingTop: isRoleLine ? 3 : 0,
-              paddingBottom: isRoleLine ? 3 : 0,
-            }}>
-              {parts.map((p, i) => i % 2 === 1
-                ? <strong key={i} style={{ color: 'var(--color-accent)', fontWeight: 700 }}>{p}</strong>
-                : p
-              )}
-            </div>
-          )
-        })}
+        <div style={{
+          width: 28, height: 28, borderRadius: 8,
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, marginTop: 2,
+        }}>
+          <SparklesIcon style={{ width: 13, height: 13, color: 'var(--color-text)' }} />
+        </div>
+        <div style={{
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '4px 14px 14px 14px',
+          padding: '10px 14px', maxWidth: '85%',
+        }}>
+          {textContent}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+      <div style={{
+        background: 'var(--color-text)',
+        borderRadius: '14px 4px 14px 14px',
+        padding: '10px 14px', maxWidth: '80%',
+      }}>
+        {textContent}
       </div>
     </div>
   )
@@ -72,13 +94,15 @@ function ChatBubble({ msg }) {
 
 function ThinkingBubble() {
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+    <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
       <div style={{
-        width: 26, height: 26, background: 'var(--color-accent)',
-        borderRadius: 7, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', fontSize: 11,
-        color: 'var(--color-accent-text)', fontWeight: 800, flexShrink: 0,
-      }}>✦</div>
+        width: 28, height: 28, borderRadius: 8,
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <SparklesIcon style={{ width: 13, height: 13, color: 'var(--color-text)' }} />
+      </div>
       <div style={{
         background: 'var(--color-card)',
         border: '1px solid var(--color-border)',
@@ -93,6 +117,119 @@ function ThinkingBubble() {
             animationDelay: i * 0.2 + 's',
           }} />
         ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── KanbanEmptyState ─────────────────────────────────────────────────────────
+
+const GHOST_COLS = [
+  { label: 'To Do', color: '#6B7280', tasks: [{ w: '85%' }, { w: '70%' }, { w: '90%' }] },
+  { label: 'In Progress', color: '#3B82F6', tasks: [{ w: '75%' }, { w: '60%' }] },
+  { label: 'Review', color: '#F59E0B', tasks: [{ w: '80%' }, { w: '65%' }] },
+  { label: 'Done', color: '#10B981', tasks: [{ w: '70%' }, { w: '55%' }] },
+]
+
+function KanbanEmptyState() {
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+      {/* Ghost kanban board — blurred/faded */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: 12, padding: 20,
+        filter: 'blur(2px)', opacity: 0.35,
+        pointerEvents: 'none', userSelect: 'none',
+      }}>
+        {GHOST_COLS.map((col, ci) => (
+          <div key={ci} style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 14, padding: 14, minHeight: 320,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
+              <span style={{
+                fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13,
+                color: 'var(--color-text)',
+              }}>{col.label}</span>
+              <span style={{
+                fontFamily: "'DM Mono',monospace", fontSize: 10,
+                color: 'var(--color-text-muted)', marginLeft: 'auto',
+              }}>{col.tasks.length}</span>
+            </div>
+            {col.tasks.map((task, ti) => (
+              <div key={ti} style={{
+                background: 'var(--color-card)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 10, padding: '10px 12px', marginBottom: 8,
+              }}>
+                <div style={{
+                  height: 10, width: task.w,
+                  background: 'var(--color-border)', borderRadius: 4, marginBottom: 8,
+                }} />
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{
+                    width: 18, height: 18, borderRadius: '50%',
+                    background: col.color + '30', border: '1px solid ' + col.color + '40',
+                  }} />
+                  <div style={{ height: 6, width: '40%', background: 'var(--color-border)', borderRadius: 3 }} />
+                  <div style={{ height: 6, width: '20%', background: col.color + '30', borderRadius: 3, marginLeft: 'auto' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Overlay CTA */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 16,
+        background: 'linear-gradient(to bottom, transparent 0%, var(--color-bg) 100%)',
+      }}>
+        <div style={{
+          background: 'var(--color-card)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 20, padding: '32px 36px',
+          textAlign: 'center', maxWidth: 380,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+        }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: 14,
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+          }}>
+            <SparklesIcon style={{ width: 22, height: 22, color: 'var(--color-text)' }} />
+          </div>
+          <div style={{
+            fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 20,
+            color: 'var(--color-text)', letterSpacing: '-0.02em', marginBottom: 8,
+          }}>
+            Generate your project board
+          </div>
+          <div style={{
+            fontFamily: "'Urbanist',sans-serif", fontSize: 14,
+            color: 'var(--color-text-soft)', lineHeight: 1.65, marginBottom: 20,
+          }}>
+            Paste your brief in the chat and AI will build a full kanban board
+            with tasks, priorities, and team assignments.
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {['Tasks & priorities', 'Team assignments', 'Timeline'].map(tag => (
+              <div key={tag} style={{
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 100, padding: '4px 12px',
+                fontFamily: "'DM Mono',monospace", fontSize: 10,
+                color: 'var(--color-text-muted)',
+              }}>{tag}</div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -120,6 +257,7 @@ export default function TeamCollab() {
   const [editingTask, setEditingTask] = useState(null)
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
   const [addingTaskCol, setAddingTaskCol] = useState(null)
+  const [newTaskForm, setNewTaskForm] = useState({ title: '', priority: 'medium', assignee: '' })
   const [conversationHistory, setConversationHistory] = useState([])
   const [fileName, setFileName] = useState(null)
   const [activeTab, setActiveTab] = useState('board')
@@ -304,6 +442,34 @@ Return JSON:
   function addTaskToBoard(task) {
     const t = { ...task, id: uid(), column: task.column || 'To Do' }
     setKanban(prev => ({ ...prev, tasks: [...(prev.tasks || []), t] }))
+  }
+
+  function handleAddManualTask(columnId) {
+    if (!newTaskForm.title.trim()) return
+    const newTask = {
+      id: 'manual-' + Date.now(),
+      title: newTaskForm.title.trim(),
+      priority: newTaskForm.priority.toUpperCase(),
+      assignedName: newTaskForm.assignee || null,
+      assignedRole: newTaskForm.assignee
+        ? (teamMembers.find(m => m.name === newTaskForm.assignee)?.role || '')
+        : '',
+      column: columnId,
+      source: 'manual',
+      subtasks: [],
+      description: '',
+      estimatedDays: 1,
+    }
+    setKanban(prev => {
+      if (!prev) {
+        return { tasks: [newTask], columns: ['To Do', 'In Progress', 'Review', 'Done'], projectTimeline: '', unassignedTasks: [], missingRoles: [] }
+      }
+      return { ...prev, tasks: [...(prev.tasks || []), newTask] }
+    })
+    if (phase !== 'kanban') setPhase('kanban')
+    setNewTaskForm({ title: '', priority: 'medium', assignee: '' })
+    setAddingTaskCol(null)
+    addMessage('ai', 'Added "' + newTask.title + '" to ' + columnId + '.')
   }
 
   function applyBoardUpdate(update) {
@@ -1269,7 +1435,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-accent)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
                 placeholder={phase === 'brief'
-                  ? 'Paste brief or describe the project...'
+                  ? 'Paste your brief or describe the project to generate a task board...'
                   : 'Ask a follow-up or request a board change...'}
                 rows={1}
                 style={{
@@ -1308,27 +1474,61 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           background: 'var(--color-bg)',
         }}>
           {[
-            { id: 'board', label: 'Board' },
-            { id: 'brief', label: 'Brief' },
-            { id: 'team', label: 'Team' },
+            {
+              id: 'brief', step: 1, label: 'Brief',
+              isDone: phase === 'kanban' || phase === 'roles',
+              isLocked: false,
+            },
+            {
+              id: 'board', step: 2, label: 'Board',
+              isDone: !!kanban?.tasks?.length,
+              isLocked: phase === 'brief',
+            },
+            {
+              id: 'team', step: 3, label: 'Team',
+              isDone: teamMembers.some(m => m.name?.trim()),
+              isLocked: false,
+            },
           ].map(tab => {
             const isActive = activeTab === tab.id
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => !tab.isLocked && setActiveTab(tab.id)}
                 style={{
-                  padding: '5px 14px', borderRadius: 7, cursor: 'pointer',
-                  background: isActive ? 'var(--color-accent-bg)' : 'transparent',
-                  border: isActive ? '1px solid var(--color-accent-border)' : '1px solid transparent',
-                  color: isActive ? 'var(--color-accent)' : 'var(--color-text-soft)',
-                  fontFamily: "'Urbanist', sans-serif", fontWeight: isActive ? 700 : 400,
-                  fontSize: 12, transition: 'all 0.12s',
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '6px 14px', borderRadius: 8,
+                  border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
+                  background: isActive ? 'var(--color-card)' : 'transparent',
+                  cursor: tab.isLocked ? 'not-allowed' : 'pointer',
+                  opacity: tab.isLocked ? 0.45 : 1,
+                  transition: 'all 0.15s',
                 }}
-                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--color-surface)' }}
-                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
               >
-                {tab.label}
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%',
+                  background: tab.isDone ? '#16a34a' : isActive ? 'var(--color-text)' : 'var(--color-border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, transition: 'background 0.2s',
+                }}>
+                  {tab.isDone ? (
+                    <CheckIcon style={{ width: 10, height: 10, color: 'white' }} />
+                  ) : tab.isLocked ? (
+                    <LockClosedIcon style={{ width: 8, height: 8, color: 'var(--color-text-muted)' }} />
+                  ) : (
+                    <span style={{
+                      fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700,
+                      color: isActive ? 'var(--color-bg)' : 'var(--color-text-muted)',
+                    }}>{tab.step}</span>
+                  )}
+                </div>
+                <span style={{
+                  fontFamily: "'Urbanist',sans-serif",
+                  fontWeight: isActive ? 700 : 500, fontSize: 13,
+                  color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)',
+                }}>
+                  {tab.label}
+                </span>
               </button>
             )
           })}
@@ -1626,19 +1826,8 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
         {/* Empty state */}
         {!kanban && (
-          <div style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 12,
-          }}>
-            <div style={{ fontSize: 40, color: 'var(--color-text-muted)' }}>📋</div>
-            <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 13,
-              color: 'var(--color-text-muted)', textAlign: 'center',
-            }}>Your kanban board will appear here</div>
-            <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 11,
-              color: 'var(--color-text-muted)', textAlign: 'center',
-            }}>Add your team and generate the board</div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <KanbanEmptyState />
           </div>
         )}
 
@@ -2029,34 +2218,118 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
                           {/* Inline add or add button */}
                           {addingTaskCol === col ? (
-                            <InlineAddTask
-                              col={col}
-                              onAdd={task => {
-                                addTaskToBoard({ ...task, column: col })
-                                setAddingTaskCol(null)
-                              }}
-                              onCancel={() => setAddingTaskCol(null)}
-                            />
+                            <div style={{
+                              background: 'var(--color-card)',
+                              border: '1.5px solid var(--color-text)',
+                              borderRadius: 10, padding: '10px 12px', marginTop: 8,
+                            }}>
+                              <input
+                                autoFocus
+                                placeholder="Task title..."
+                                value={newTaskForm.title}
+                                onChange={e => setNewTaskForm(f => ({ ...f, title: e.target.value }))}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleAddManualTask(col)
+                                  if (e.key === 'Escape') {
+                                    setAddingTaskCol(null)
+                                    setNewTaskForm({ title: '', priority: 'medium', assignee: '' })
+                                  }
+                                }}
+                                style={{
+                                  width: '100%', background: 'transparent',
+                                  border: 'none', outline: 'none',
+                                  fontFamily: "'Urbanist',sans-serif", fontSize: 13,
+                                  color: 'var(--color-text)', marginBottom: 8,
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                                {['low', 'medium', 'high'].map(p => (
+                                  <button
+                                    key={p}
+                                    onClick={() => setNewTaskForm(f => ({ ...f, priority: p }))}
+                                    style={{
+                                      padding: '2px 8px', borderRadius: 5,
+                                      border: '1px solid ' + (newTaskForm.priority === p ? 'var(--color-text)' : 'var(--color-border)'),
+                                      background: newTaskForm.priority === p ? 'var(--color-text)' : 'transparent',
+                                      color: newTaskForm.priority === p ? 'var(--color-bg)' : 'var(--color-text-muted)',
+                                      fontFamily: "'DM Mono',monospace", fontSize: 9,
+                                      fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
+                                    }}
+                                  >{p}</button>
+                                ))}
+                              </div>
+                              {teamMembers.filter(m => m.name?.trim()).length > 0 && (
+                                <select
+                                  value={newTaskForm.assignee}
+                                  onChange={e => setNewTaskForm(f => ({ ...f, assignee: e.target.value }))}
+                                  style={{
+                                    width: '100%', background: 'var(--color-surface)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 6, padding: '4px 8px',
+                                    fontFamily: "'Urbanist',sans-serif", fontSize: 12,
+                                    color: 'var(--color-text)', marginBottom: 8, outline: 'none',
+                                    boxSizing: 'border-box',
+                                  }}
+                                >
+                                  <option value="">Unassigned</option>
+                                  {teamMembers.filter(m => m.name?.trim()).map((m, i) => (
+                                    <option key={i} value={m.name}>{m.name}</option>
+                                  ))}
+                                </select>
+                              )}
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                  onClick={() => handleAddManualTask(col)}
+                                  disabled={!newTaskForm.title.trim()}
+                                  style={{
+                                    flex: 1,
+                                    background: newTaskForm.title.trim() ? 'var(--color-text)' : 'var(--color-border)',
+                                    color: 'var(--color-bg)', border: 'none',
+                                    borderRadius: 7, padding: '6px 0',
+                                    fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 12,
+                                    cursor: newTaskForm.title.trim() ? 'pointer' : 'not-allowed',
+                                  }}
+                                >Add task</button>
+                                <button
+                                  onClick={() => {
+                                    setAddingTaskCol(null)
+                                    setNewTaskForm({ title: '', priority: 'medium', assignee: '' })
+                                  }}
+                                  style={{
+                                    padding: '6px 12px', background: 'transparent',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 7, fontFamily: "'Urbanist',sans-serif",
+                                    fontSize: 12, color: 'var(--color-text-muted)', cursor: 'pointer',
+                                  }}
+                                >Cancel</button>
+                              </div>
+                            </div>
                           ) : (
                             <button
                               onClick={() => setAddingTaskCol(col)}
                               style={{
-                                width: '100%', background: 'transparent',
-                                border: '1.5px dashed var(--color-border)',
-                                borderRadius: 10, padding: '9px 0',
-                                color: 'var(--color-text-muted)', fontSize: 12,
-                                cursor: 'pointer', fontFamily: "'Urbanist', sans-serif",
-                                transition: 'all 0.2s',
+                                width: '100%', marginTop: 8, padding: '7px 0',
+                                background: 'transparent',
+                                border: '1px dashed var(--color-border)',
+                                borderRadius: 9,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                cursor: 'pointer', transition: 'all 0.15s',
+                                fontFamily: "'Urbanist',sans-serif", fontSize: 12,
+                                color: 'var(--color-text-muted)', fontWeight: 500,
                               }}
                               onMouseEnter={e => {
-                                e.currentTarget.style.borderColor = accentCol + '66'
-                                e.currentTarget.style.color = accentCol
+                                e.currentTarget.style.borderColor = 'var(--color-text-muted)'
+                                e.currentTarget.style.color = 'var(--color-text)'
                               }}
                               onMouseLeave={e => {
                                 e.currentTarget.style.borderColor = 'var(--color-border)'
                                 e.currentTarget.style.color = 'var(--color-text-muted)'
                               }}
-                            >+ Add task</button>
+                            >
+                              <PlusIcon style={{ width: 13, height: 13 }} />
+                              Add task
+                            </button>
                           )}
                         </div>
                       </div>

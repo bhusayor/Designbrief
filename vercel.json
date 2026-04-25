@@ -13,6 +13,18 @@
     }
   ],
   "functions": {
+    "api/submit-intake.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/claude.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/claude-stream.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
     "api/*.js": {
       "memory": 1024,
       "maxDuration": 30
