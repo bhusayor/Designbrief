@@ -3,6 +3,7 @@ import AppContext from '../context/AppContext'
 import { Button, Badge } from '../components/ui'
 import {
   SparklesIcon, CheckIcon, LockClosedIcon, PlusIcon,
+  XMarkIcon, ArrowUpIcon, ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -256,8 +257,20 @@ export default function TeamCollab() {
   const [dragOverCol, setDragOverCol] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
-  const [addingTaskCol, setAddingTaskCol] = useState(null)
-  const [newTaskForm, setNewTaskForm] = useState({ title: '', priority: 'medium', assignee: '' })
+  const [addingToCol, setAddingToCol] = useState(null)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [chatOpen, setChatOpen] = useState(false)
+  const [projects, setProjects] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('teamcollab-projects'))
+      if (Array.isArray(stored) && stored.length > 0) return stored
+    } catch {}
+    return [{ id: 'default', title: 'My Project' }]
+  })
+  const [activeProjectId, setActiveProjectId] = useState(() => {
+    try { return localStorage.getItem('teamcollab-active-project') || 'default' } catch {}
+    return 'default'
+  })
   const [conversationHistory, setConversationHistory] = useState([])
   const [fileName, setFileName] = useState(null)
   const [activeTab, setActiveTab] = useState('board')
@@ -267,6 +280,7 @@ export default function TeamCollab() {
 
   const chatEndRef = useRef(null)
   const fileInputRef = useRef(null)
+  const addInputRef = useRef(null)
 
   // ── Auto-load from activeProject ──────────────────────────────────────────
 
@@ -292,6 +306,10 @@ export default function TeamCollab() {
         .catch(console.error)
     }
   }, [activeProject?.id])
+
+  useEffect(() => {
+    if (addingToCol) addInputRef.current?.focus()
+  }, [addingToCol])
 
   useEffect(() => {
     if (!activeProject?.id || !authUser) return
@@ -444,16 +462,41 @@ Return JSON:
     setKanban(prev => ({ ...prev, tasks: [...(prev.tasks || []), t] }))
   }
 
+  function saveProjects(newProjects) {
+    localStorage.setItem('teamcollab-projects', JSON.stringify(newProjects))
+  }
+
+  function handleNewProject() {
+    const newProj = { id: uid(), title: 'New Project' }
+    const updated = [...projects, newProj]
+    setProjects(updated)
+    saveProjects(updated)
+    setActiveProjectId(newProj.id)
+    localStorage.setItem('teamcollab-active-project', newProj.id)
+    setMessages([{ id: uid(), role: 'ai', text: 'Welcome to Team Collab. Paste a project brief or describe your project and I will help you build a team and generate a task board.' }])
+    setKanban(null)
+    setTeamMembers([])
+    setPhase('brief')
+    setProjectTitle('')
+    setBriefText('')
+    setActiveTab('board')
+  }
+
+  function handleSwitchProject(id) {
+    setActiveProjectId(id)
+    localStorage.setItem('teamcollab-active-project', id)
+    const proj = projects.find(p => p.id === id)
+    if (proj?.title) setProjectTitle(proj.title)
+  }
+
   function handleAddManualTask(columnId) {
-    if (!newTaskForm.title.trim()) return
+    if (!newTaskTitle.trim()) return
     const newTask = {
       id: 'manual-' + Date.now(),
-      title: newTaskForm.title.trim(),
-      priority: newTaskForm.priority.toUpperCase(),
-      assignedName: newTaskForm.assignee || null,
-      assignedRole: newTaskForm.assignee
-        ? (teamMembers.find(m => m.name === newTaskForm.assignee)?.role || '')
-        : '',
+      title: newTaskTitle.trim(),
+      priority: 'MEDIUM',
+      assignedName: null,
+      assignedRole: '',
       column: columnId,
       source: 'manual',
       subtasks: [],
@@ -467,8 +510,8 @@ Return JSON:
       return { ...prev, tasks: [...(prev.tasks || []), newTask] }
     })
     if (phase !== 'kanban') setPhase('kanban')
-    setNewTaskForm({ title: '', priority: 'medium', assignee: '' })
-    setAddingTaskCol(null)
+    setNewTaskTitle('')
+    setAddingToCol(null)
     addMessage('ai', 'Added "' + newTask.title + '" to ' + columnId + '.')
   }
 
@@ -1199,7 +1242,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
   return (
     <div style={{
-      display: 'flex', height: '100%', overflow: 'hidden',
+      display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden',
       position: 'relative', background: 'var(--color-bg)',
     }}>
 
@@ -1228,467 +1271,112 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
         existingInvites={invites}
       />
 
-      {/* ── Left chat panel ── */}
+      {/* ── Top bar ── */}
       <div style={{
-        width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column',
-        borderRight: '1px solid var(--color-border)', background: 'var(--color-bg)',
+        height: 48, borderBottom: '1px solid var(--color-border)',
+        display: 'flex', alignItems: 'center',
+        padding: '0 20px', gap: 4, flexShrink: 0,
+        background: 'var(--color-bg)',
       }}>
-
-        {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 14px 0' }}>
-          {messages.map(m => <ChatBubble key={m.id} msg={m} />)}
-          {loading && <ThinkingBubble />}
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Role selector */}
-        {phase === 'roles' && (
-          <div style={{
-            padding: '12px 14px',
-            borderTop: '1px solid var(--color-border)',
-            background: 'var(--color-surface)',
-          }}>
-            <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 10,
-              color: 'var(--color-text-muted)', marginBottom: 8,
-              letterSpacing: '0.06em',
-            }}>SELECT ROLES &amp; ADD NAMES</div>
-
-            {/* Role buttons — AI Suggested first, then others */}
-            {suggestedRoles.length > 0 && (
-              <>
-                <div style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 9,
-                  color: 'var(--color-accent)', letterSpacing: '0.08em',
-                  marginBottom: 6,
-                }}>AI SUGGESTED</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                  {suggestedRoles.map(role => {
-                    const meta = ROLE_META[role]
-                    if (!meta) return null
-                    const isSelected = !!teamMembers.find(m => m.role === role)
-                    return (
-                      <button
-                        key={role}
-                        onClick={() => toggleRole(role)}
-                        style={{
-                          background: isSelected ? meta.color + '22' : 'var(--color-surface)',
-                          border: '1px solid ' + (isSelected ? meta.color : meta.color + '55'),
-                          boxShadow: isSelected ? 'none' : '0 0 0 1px ' + meta.color + '38',
-                          borderRadius: 7, padding: '5px 10px', fontSize: 11,
-                          fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer',
-                          color: isSelected ? meta.color : meta.color + 'BB',
-                          display: 'flex', gap: 5, alignItems: 'center',
-                        }}
-                      >
-                        {meta.icon} {role}
-                        {isSelected
-                          ? <span style={{ fontSize: 10, color: meta.color }}>✓</span>
-                          : <span style={{ fontSize: 9, opacity: 0.7, color: meta.color }}>✦</span>
-                        }
-                      </button>
-                    )
-                  })}
-                </div>
-                <div style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 9,
-                  color: 'var(--color-text-muted)', letterSpacing: '0.08em',
-                  marginBottom: 6,
-                }}>OTHER ROLES</div>
-              </>
-            )}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {Object.keys(ROLE_META)
-                .filter(role => !suggestedRoles.includes(role))
-                .map(role => {
-                  const meta = ROLE_META[role]
-                  const isSelected = !!teamMembers.find(m => m.role === role)
-                  return (
-                    <button
-                      key={role}
-                      onClick={() => toggleRole(role)}
-                      style={{
-                        background: isSelected ? meta.color + '22' : 'transparent',
-                        border: '1px solid ' + (isSelected ? meta.color : 'var(--color-border)'),
-                        borderRadius: 7, padding: '5px 10px', fontSize: 11,
-                        fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer',
-                        color: isSelected ? meta.color : 'var(--color-text-soft)',
-                        display: 'flex', gap: 5, alignItems: 'center',
-                      }}
-                    >
-                      {meta.icon} {role}
-                      {isSelected && <span style={{ fontSize: 10, color: meta.color }}>✓</span>}
-                    </button>
-                  )
-                })}
-            </div>
-            {teamMembers.length > 0 && (
+        {[
+          { id: 'board', step: 1, label: 'Board', isDone: !!kanban?.tasks?.length, isLocked: false },
+          { id: 'team', step: 2, label: 'Team', isDone: teamMembers.some(m => m.name?.trim()), isLocked: false },
+        ].map(tab => {
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => !tab.isLocked && setActiveTab(tab.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '6px 14px', borderRadius: 8,
+                border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
+                background: isActive ? 'var(--color-card)' : 'transparent',
+                cursor: tab.isLocked ? 'not-allowed' : 'pointer',
+                opacity: tab.isLocked ? 0.45 : 1,
+                transition: 'all 0.15s',
+              }}
+            >
               <div style={{
-                fontFamily: "'DM Mono', monospace", fontSize: 11,
-                color: 'var(--color-text-muted)', marginTop: 6,
+                width: 18, height: 18, borderRadius: '50%',
+                background: tab.isDone ? '#16a34a' : isActive ? 'var(--color-text)' : 'var(--color-border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, transition: 'background 0.2s',
               }}>
-                {teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''} selected
+                {tab.isDone ? (
+                  <CheckIcon style={{ width: 10, height: 10, color: 'white' }} />
+                ) : (
+                  <span style={{
+                    fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700,
+                    color: isActive ? 'var(--color-bg)' : 'var(--color-text-muted)',
+                  }}>{tab.step}</span>
+                )}
               </div>
-            )}
+              <span style={{
+                fontFamily: "'Urbanist',sans-serif",
+                fontWeight: isActive ? 700 : 500, fontSize: 13,
+                color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)',
+              }}>
+                {tab.label}
+              </span>
+            </button>
+          )
+        })}
 
-            {/* Name inputs */}
-            {teamMembers.length > 0 && (
-              <>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                  {teamMembers.map(m => {
-                    const meta = ROLE_META[m.role] || { color: 'var(--color-text-soft)', icon: '◈' }
-                    return (
-                      <div key={m.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 5,
-                        background: 'var(--color-card)',
-                        border: '1px solid ' + meta.color + '44',
-                        borderRadius: 7, padding: '5px 10px',
-                      }}>
-                        <span style={{ fontSize: 11, flexShrink: 0 }}>{meta.icon}</span>
-                        <input
-                          value={m.name}
-                          onChange={e => updateMemberName(m.id, e.target.value)}
-                          placeholder={m.role}
-                          style={{
-                            background: 'transparent', border: 'none', outline: 'none',
-                            fontFamily: "'Urbanist', sans-serif", fontSize: 11,
-                            color: 'var(--color-text)', width: 100,
-                          }}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
+        <div style={{ flex: 1 }} />
 
-                <button
-                  onClick={handleGenerateKanban}
-                  disabled={loading}
-                  style={{
-                    width: '100%', marginTop: 10,
-                    background: loading ? 'var(--color-border)' : 'var(--color-accent)',
-                    border: 'none', borderRadius: 9, padding: '10px 0',
-                    color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif",
-                    fontWeight: 700, fontSize: 12, cursor: loading ? 'default' : 'pointer',
-                    opacity: loading ? 0.6 : 1,
-                  }}
-                >
-                  {loading ? 'Generating...' : 'Generate Kanban Board →'}
-                </button>
-              </>
-            )}
+        {/* Project switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <select
+              value={activeProjectId}
+              onChange={e => handleSwitchProject(e.target.value)}
+              style={{
+                appearance: 'none', background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8, padding: '6px 32px 6px 12px',
+                fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 12,
+                color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
+                maxWidth: 180,
+              }}
+            >
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+            <ChevronDownIcon style={{
+              width: 12, height: 12, color: 'var(--color-text-muted)',
+              position: 'absolute', right: 10, pointerEvents: 'none',
+            }} />
           </div>
-        )}
-
-        {/* File indicator */}
-        {fileName && (
-          <div style={{ padding: '0 14px 8px' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'var(--color-accent-bg)',
-              border: '1px solid var(--color-accent-border)',
-              borderRadius: 7, padding: '5px 10px',
-              fontSize: 11, fontFamily: "'DM Mono', monospace", color: 'var(--color-accent)',
-            }}>
-              <span>📄 {fileName}</span>
-              <button
-                onClick={() => setFileName(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-accent)', fontSize: 13, padding: '0 0 0 6px' }}
-              >×</button>
-            </div>
-          </div>
-        )}
-
-        {/* Chat input */}
-        {(phase === 'brief' || phase === 'kanban') && (
-          <div style={{
-            padding: '12px 14px',
-            borderTop: '1px solid var(--color-border)',
-            minHeight: 68, display: 'flex', flexDirection: 'column', justifyContent: 'center',
-          }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  width: 36, height: 36, background: 'var(--color-card)',
-                  border: '1px solid var(--color-border)', borderRadius: 8,
-                  cursor: 'pointer', fontSize: 15, color: 'var(--color-text-soft)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >📎</button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,.pdf,.doc,.docx,.md"
-                style={{ display: 'none' }}
-                onChange={e => handleFileUpload(e.target.files[0])}
-              />
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSend()
-                  }
-                }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-accent)' }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
-                placeholder={phase === 'brief'
-                  ? 'Paste your brief or describe the project to generate a task board...'
-                  : 'Ask a follow-up or request a board change...'}
-                rows={1}
-                style={{
-                  flex: 1, background: 'var(--color-card)',
-                  border: '1px solid var(--color-border)', borderRadius: 8,
-                  padding: '9px 12px', color: 'var(--color-text)',
-                  fontFamily: "'DM Mono', monospace", fontSize: 12,
-                  resize: 'none', lineHeight: 1.6, maxHeight: 100, minHeight: 36,
-                  outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || loading}
-                style={{
-                  width: 36, height: 36, background: 'var(--color-accent)',
-                  border: 'none', borderRadius: 8, cursor: !input.trim() || loading ? 'default' : 'pointer',
-                  color: 'var(--color-accent-text)', fontSize: 16, flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  opacity: !input.trim() || loading ? 0.4 : 1,
-                }}
-              >↑</button>
-            </div>
-          </div>
-        )}
+          <button
+            onClick={handleNewProject}
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8, padding: '6px 12px',
+              fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 12,
+              color: 'var(--color-text-soft)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <span style={{ fontSize: 14 }}>+</span>
+            New Project
+          </button>
+        </div>
       </div>
 
-      {/* ── Right panel ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-        {/* Tab bar */}
-        <div style={{
-          height: 48, borderBottom: '1px solid var(--color-border)',
-          display: 'flex', alignItems: 'center',
-          padding: '0 20px', gap: 4, flexShrink: 0,
-          background: 'var(--color-bg)',
-        }}>
-          {[
-            {
-              id: 'brief', step: 1, label: 'Brief',
-              isDone: phase === 'kanban' || phase === 'roles',
-              isLocked: false,
-            },
-            {
-              id: 'board', step: 2, label: 'Board',
-              isDone: !!kanban?.tasks?.length,
-              isLocked: phase === 'brief',
-            },
-            {
-              id: 'team', step: 3, label: 'Team',
-              isDone: teamMembers.some(m => m.name?.trim()),
-              isLocked: false,
-            },
-          ].map(tab => {
-            const isActive = activeTab === tab.id
-            return (
-              <button
-                key={tab.id}
-                onClick={() => !tab.isLocked && setActiveTab(tab.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 7,
-                  padding: '6px 14px', borderRadius: 8,
-                  border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
-                  background: isActive ? 'var(--color-card)' : 'transparent',
-                  cursor: tab.isLocked ? 'not-allowed' : 'pointer',
-                  opacity: tab.isLocked ? 0.45 : 1,
-                  transition: 'all 0.15s',
-                }}
-              >
-                <div style={{
-                  width: 18, height: 18, borderRadius: '50%',
-                  background: tab.isDone ? '#16a34a' : isActive ? 'var(--color-text)' : 'var(--color-border)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, transition: 'background 0.2s',
-                }}>
-                  {tab.isDone ? (
-                    <CheckIcon style={{ width: 10, height: 10, color: 'white' }} />
-                  ) : tab.isLocked ? (
-                    <LockClosedIcon style={{ width: 8, height: 8, color: 'var(--color-text-muted)' }} />
-                  ) : (
-                    <span style={{
-                      fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700,
-                      color: isActive ? 'var(--color-bg)' : 'var(--color-text-muted)',
-                    }}>{tab.step}</span>
-                  )}
-                </div>
-                <span style={{
-                  fontFamily: "'Urbanist',sans-serif",
-                  fontWeight: isActive ? 700 : 500, fontSize: 13,
-                  color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)',
-                }}>
-                  {tab.label}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* ── Brief tab ── */}
-        {activeTab === 'brief' && (() => {
-          const r = activeProject?.data?.result
-          const s = activeProject?.data?.scoring
-          const phases = r ? buildPhases(r.timeframe?.taskDays) : []
-          return (
-            <div style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)' }}>
-              {r ? (
-                <div style={{ maxWidth: 820, margin: '0 auto', padding: '20px 28px 60px' }}>
-
-                  {/* Brief header */}
-                  <div style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    alignItems: 'flex-start', marginBottom: 20,
-                  }}>
-                    <div>
-                      <div style={{
-                        fontFamily: "'DM Mono', monospace", fontSize: 10,
-                        color: 'var(--color-text-muted)', letterSpacing: '0.08em',
-                        marginBottom: 4,
-                      }}>PROJECT BRIEF</div>
-                      <div style={{
-                        fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 22,
-                        color: 'var(--color-text)',
-                      }}>
-                        {r.projectTitle || projectTitle}
-                      </div>
-                    </div>
-                    {s?.verdict && (
-                      <Badge color={verdictColor(s.verdict)} size="sm">
-                        {s.verdict}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {s && <ScoreStrip s={s} />}
-                  {r.isChaos && <ChaosBanner r={r} s={s} />}
-
-                  {/* Project Understanding */}
-                  {r.projectUnderstanding && (
-                    <div style={{
-                      background: 'var(--color-surface)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 14, padding: '18px 24px', marginBottom: 16,
-                    }}>
-                      <div style={{
-                        fontFamily: "'DM Mono', monospace", fontSize: 10,
-                        color: 'var(--color-text-muted)', letterSpacing: '0.08em',
-                        marginBottom: 8,
-                      }}>PROJECT UNDERSTANDING</div>
-                      <div style={{
-                        fontFamily: "'DM Mono', monospace", fontSize: 12,
-                        color: 'var(--color-text-soft)', lineHeight: 1.75,
-                      }}>
-                        {r.projectUnderstanding}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tone + Colour 2-col grid */}
-                  {(r.toneWords?.length > 0 || r.colorDirection) && (
-                    <div style={{
-                      display: 'grid', gridTemplateColumns: '1fr 1fr',
-                      gap: 14, marginBottom: 14,
-                    }}>
-                      {r.toneWords?.length > 0 && (
-                        <div style={{
-                          background: 'var(--color-surface)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: 14, padding: '16px 20px',
-                        }}>
-                          <div style={{
-                            fontFamily: "'DM Mono', monospace", fontSize: 10,
-                            color: 'var(--color-text-muted)', letterSpacing: '0.08em',
-                            marginBottom: 10,
-                          }}>TONE & MOOD</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                            {r.toneWords.map((w, i) => (
-                              <span key={i} style={{
-                                background: 'var(--color-card)',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: 6, padding: '4px 10px',
-                                fontFamily: "'Urbanist', sans-serif", fontWeight: 600,
-                                fontSize: 11, color: 'var(--color-text)',
-                              }}>{w}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {r.colorDirection && (
-                        <div style={{
-                          background: 'var(--color-surface)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: 14, padding: '16px 20px',
-                        }}>
-                          <div style={{
-                            fontFamily: "'DM Mono', monospace", fontSize: 10,
-                            color: 'var(--color-text-muted)', letterSpacing: '0.08em',
-                            marginBottom: 10,
-                          }}>COLOUR DIRECTION</div>
-                          <div style={{
-                            fontFamily: "'DM Mono', monospace", fontSize: 12,
-                            color: 'var(--color-text-soft)', lineHeight: 1.75,
-                          }}>
-                            {r.colorDirection}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {r.budgetRange && <BudgetCard budgetRange={r.budgetRange} />}
-                  {phases.length > 0 && <RoadmapCard phases={phases} timeframe={r.timeframe} />}
-                  {r.rolesNeeded?.length > 0 && <RolesCard rolesNeeded={r.rolesNeeded} />}
-                  {r.techStack && <TechStackCard techStack={r.techStack} />}
-                  {r.features?.length > 0 && <FeaturesCard features={r.features} />}
-                  {r.userFlow?.length > 0 && <UserFlowCard userFlow={r.userFlow} />}
-                </div>
-              ) : (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  height: '100%', padding: '60px 40px', textAlign: 'center',
-                }}>
-                  <div>
-                    <div style={{
-                      fontSize: 48, color: 'var(--color-text-muted)',
-                      background: 'var(--color-surface)', borderRadius: 12,
-                      padding: 16, display: 'inline-block', marginBottom: 16,
-                    }}>◈</div>
-                    <div style={{
-                      fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 16,
-                      color: 'var(--color-text)', marginBottom: 8,
-                    }}>No brief loaded</div>
-                    <div style={{
-                      fontFamily: "'DM Mono', monospace", fontSize: 12,
-                      color: 'var(--color-text-soft)', marginBottom: 16,
-                    }}>
-                      Translate a brief or load a project to see it here.
-                    </div>
-                    <Button variant="secondary" onClick={() => navigate('translator')}>
-                      Go to Brief Translator
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })()}
+      {/* ── Main content ── */}
+      <div style={{
+        flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+        transition: 'margin-right 0.3s ease',
+        marginRight: chatOpen ? 360 : 0,
+      }}>
 
         {/* ── Team tab ── */}
         {activeTab === 'team' && (
           <div style={{ flex: 1, overflowY: 'auto' }}>
             <div style={{ maxWidth: 700, margin: '0 auto', padding: 24 }}>
-
-              {/* Team header */}
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
                 marginBottom: 24,
@@ -1711,12 +1399,9 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                     color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif",
                     fontWeight: 700, fontSize: 12, cursor: 'pointer',
                   }}
-                >
-                  + Invite Member
-                </button>
+                >+ Invite Member</button>
               </div>
 
-              {/* Current team list */}
               {teamMembers.length > 0 ? (
                 teamMembers.map(member => {
                   const meta = ROLE_META[member.role] || { color: 'var(--color-accent)', icon: '◈' }
@@ -1724,67 +1409,48 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                   return (
                     <div key={member.id} style={{
                       display: 'flex', gap: 12, alignItems: 'center',
-                      background: 'var(--color-card)',
-                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-card)', border: '1px solid var(--color-border)',
                       borderRadius: 12, padding: '14px 16px', marginBottom: 8,
                     }}>
                       <div style={{
                         width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                        background: meta.color + '22',
-                        border: '1px solid ' + meta.color + '70',
+                        background: meta.color + '22', border: '1px solid ' + meta.color + '70',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
                         color: meta.color,
-                      }}>
-                        {initial}
-                      </div>
+                      }}>{initial}</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{
-                          fontFamily: "'Urbanist', sans-serif", fontWeight: 700,
-                          fontSize: 13, color: 'var(--color-text)',
-                        }}>
+                        <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
                           {member.name || member.role}
                         </div>
-                        <div style={{
-                          fontFamily: "'DM Mono', monospace", fontSize: 11,
-                          color: 'var(--color-text-soft)',
-                        }}>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-soft)' }}>
                           {member.role}
                         </div>
                       </div>
-                      <Badge color={meta.color} size="sm">
-                        {meta.icon} {member.role}
-                      </Badge>
+                      <Badge color={meta.color} size="sm">{meta.icon} {member.role}</Badge>
                     </div>
                   )
                 })
               ) : (
                 <div style={{
                   fontFamily: "'DM Mono', monospace", fontSize: 12,
-                  color: 'var(--color-text-muted)', textAlign: 'center',
-                  padding: '32px 0',
-                }}>
-                  No team members yet. Use the chat to build your team.
-                </div>
+                  color: 'var(--color-text-muted)', textAlign: 'center', padding: '32px 0',
+                }}>No team members yet. Use the chat to build your team.</div>
               )}
 
-              {/* Pending invites section */}
               {invites.filter(inv => inv.status === 'pending').length > 0 && (
                 <div style={{ marginTop: 20 }}>
                   <div style={{
                     fontFamily: "'Urbanist', sans-serif", fontWeight: 700,
                     fontSize: 13, color: 'var(--color-text)', marginBottom: 12,
-                  }}>
-                    Pending Invites
-                  </div>
+                  }}>Pending Invites</div>
                   {invites.filter(inv => inv.status === 'pending').map(invite => {
                     const meta = ROLE_META[invite.job_role] || {}
                     const initial = (invite.invitee_name || invite.invitee_email || '?')[0].toUpperCase()
                     return (
                       <div key={invite.id} style={{
                         display: 'flex', gap: 12, alignItems: 'center',
-                        background: 'var(--color-card)',
-                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-card)', border: '1px solid var(--color-border)',
                         borderRadius: 12, padding: '14px 16px', marginBottom: 8,
                       }}>
                         <div style={{
@@ -1794,20 +1460,12 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
                           color: meta.color || 'var(--color-accent)',
-                        }}>
-                          {initial}
-                        </div>
+                        }}>{initial}</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{
-                            fontFamily: "'Urbanist', sans-serif", fontWeight: 700,
-                            fontSize: 13, color: 'var(--color-text)',
-                          }}>
+                          <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
                             {invite.invitee_name}
                           </div>
-                          <div style={{
-                            fontFamily: "'DM Mono', monospace", fontSize: 11,
-                            color: 'var(--color-text-muted)',
-                          }}>
+                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>
                             {invite.invitee_email}
                           </div>
                         </div>
@@ -1824,42 +1482,14 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
 
-        {/* Empty state */}
         {!kanban && (
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <KanbanEmptyState />
           </div>
         )}
 
-        {/* Kanban board */}
         {kanban && (
           <>
-            {/* Brief reference bar */}
-            <div style={{
-              height: 36, flexShrink: 0,
-              background: 'var(--color-surface)',
-              borderBottom: '1px solid var(--color-border)',
-              display: 'flex', alignItems: 'center',
-              padding: '0 20px', gap: 12,
-              justifyContent: 'space-between',
-            }}>
-              <span style={{
-                fontFamily: "'DM Mono', monospace", fontSize: 11,
-                color: 'var(--color-text-soft)',
-              }}>
-                ◈ {projectTitle || 'Project Brief'}
-              </span>
-              <span
-                onClick={() => setActiveTab('brief')}
-                style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 11,
-                  color: 'var(--color-accent)', cursor: 'pointer',
-                }}
-              >
-                View Brief →
-              </span>
-            </div>
-
             {/* Board header */}
             <div style={{
               padding: '14px 20px', borderBottom: '1px solid var(--color-border)',
@@ -1875,12 +1505,9 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  {/* View toggle */}
                   <div style={{
-                    display: 'flex', gap: 3,
-                    background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 8, padding: 3,
+                    display: 'flex', gap: 3, background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)', borderRadius: 8, padding: 3,
                   }}>
                     {[
                       { id: 'kanban', icon: '▦', label: 'Board' },
@@ -1912,15 +1539,12 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                       borderRadius: 7, padding: '4px 10px',
                       fontSize: 11, fontFamily: "'DM Mono', monospace",
                       color: 'var(--color-amber)',
-                    }}>
-                      ⚠ Need: {kanban.missingRoles.join(', ')}
-                    </div>
+                    }}>⚠ Need: {kanban.missingRoles.join(', ')}</div>
                   )}
                   <button
                     onClick={() => setActiveTab('team')}
                     style={{
-                      background: 'var(--color-surface)',
-                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-surface)', border: '1px solid var(--color-border)',
                       borderRadius: 8, padding: '7px 14px',
                       color: 'var(--color-text-soft)', fontFamily: "'Urbanist', sans-serif",
                       fontWeight: 700, fontSize: 12, cursor: 'pointer',
@@ -1937,33 +1561,20 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                   >+ Add Task</button>
                 </div>
               </div>
-              {/* Progress bar */}
               {(() => {
                 const progress = calculateProgress(kanban.tasks)
                 const progressColor = progress === 100
                   ? 'var(--color-green)'
-                  : progress > 50
-                    ? 'var(--color-accent)'
-                    : 'var(--color-blue)'
+                  : progress > 50 ? 'var(--color-accent)' : 'var(--color-blue)'
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-                    <div style={{
-                      flex: 1, height: 4, background: 'var(--color-border)',
-                      borderRadius: 2, overflow: 'hidden',
-                    }}>
-                      <div style={{
-                        height: '100%', width: progress + '%',
-                        background: progressColor, borderRadius: 2,
-                        transition: 'width 0.6s ease',
-                      }} />
+                    <div style={{ flex: 1, height: 4, background: 'var(--color-border)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: progress + '%', background: progressColor, borderRadius: 2, transition: 'width 0.6s ease' }} />
                     </div>
                     <span style={{
                       fontFamily: "'DM Mono', monospace", fontSize: 11,
-                      color: progress === 100 ? 'var(--color-green)' : 'var(--color-text-muted)',
-                      flexShrink: 0,
-                    }}>
-                      {progress === 100 ? '✓ Complete' : progress + '%'}
-                    </span>
+                      color: progress === 100 ? 'var(--color-green)' : 'var(--color-text-muted)', flexShrink: 0,
+                    }}>{progress === 100 ? '✓ Complete' : progress + '%'}</span>
                   </div>
                 )
               })()}
@@ -1972,13 +1583,10 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
             {/* Board columns / List view */}
             {boardView === 'list' ? (
               <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-                {/* Table header */}
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 80px 100px 100px 60px',
+                  display: 'grid', gridTemplateColumns: '2fr 1fr 80px 100px 100px 60px',
                   gap: 12, padding: '8px 16px',
-                  background: 'var(--color-surface)',
-                  borderRadius: 8, marginBottom: 10,
+                  background: 'var(--color-surface)', borderRadius: 8, marginBottom: 10,
                   fontSize: 10, fontFamily: "'DM Mono', monospace",
                   color: 'var(--color-text-muted)', letterSpacing: '0.06em',
                 }}>
@@ -1986,146 +1594,66 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                     <div key={h}>{h}</div>
                   ))}
                 </div>
-
-                {/* Tasks grouped by column */}
                 {KANBAN_COLS.map(col => {
                   const colTasks = kanban.tasks.filter(t => t.column === col)
                   if (!colTasks.length) return null
                   const cc = COL_COLORS[col] || 'var(--color-text-muted)'
                   return (
                     <div key={col} style={{ marginBottom: 16 }}>
-                      {/* Column group header */}
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '10px 16px 6px',
-                      }}>
-                        <div style={{
-                          width: 7, height: 7, borderRadius: '50%', background: cc,
-                        }} />
-                        <span style={{
-                          fontFamily: "'Urbanist', sans-serif", fontWeight: 600,
-                          fontSize: 12, color: 'var(--color-text)',
-                        }}>{col}</span>
-                        <span style={{
-                          fontFamily: "'DM Mono', monospace", fontSize: 10,
-                          color: 'var(--color-text-muted)',
-                        }}>({colTasks.length})</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px 6px' }}>
+                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: cc }} />
+                        <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{col}</span>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>({colTasks.length})</span>
                       </div>
-
-                      {/* Task rows */}
                       {colTasks.map(task => {
                         const meta = ROLE_META[task.assignedRole]
                         const roleColor = meta?.color || 'var(--color-text-muted)'
                         const pc = PRIORITY_COLORS[task.priority] || 'var(--color-text-muted)'
                         const dueSt = getDueDateStatus(task.dueDate, task.column)
-                        const dueTxt = !task.dueDate ? '—'
-                          : dueSt === 'overdue' ? 'Overdue'
-                          : dueSt === 'today' ? 'Today'
-                          : formatDueDate(task.dueDate)
-                        const dueColor = !task.dueDate
-                          ? 'var(--color-text-muted)'
-                          : dueSt === 'overdue'
-                            ? 'var(--color-red)'
-                            : dueSt === 'today'
-                              ? 'var(--color-amber)'
-                              : 'var(--color-text-soft)'
+                        const dueTxt = !task.dueDate ? '—' : dueSt === 'overdue' ? 'Overdue' : dueSt === 'today' ? 'Today' : formatDueDate(task.dueDate)
+                        const dueColor = !task.dueDate ? 'var(--color-text-muted)' : dueSt === 'overdue' ? 'var(--color-red)' : dueSt === 'today' ? 'var(--color-amber)' : 'var(--color-text-soft)'
                         return (
                           <div
                             key={task.id}
                             onClick={() => setEditingTask(task)}
                             style={{
-                              display: 'grid',
-                              gridTemplateColumns: '2fr 1fr 80px 100px 100px 60px',
+                              display: 'grid', gridTemplateColumns: '2fr 1fr 80px 100px 100px 60px',
                               gap: 12, padding: '10px 16px',
-                              background: 'var(--color-card)',
-                              border: '1px solid var(--color-border)',
-                              borderLeft: '3px solid ' + pc,
-                              borderRadius: 9, marginBottom: 4,
-                              cursor: 'pointer', transition: 'all 0.15s',
-                              alignItems: 'center',
+                              background: 'var(--color-card)', border: '1px solid var(--color-border)',
+                              borderLeft: '3px solid ' + pc, borderRadius: 9, marginBottom: 4,
+                              cursor: 'pointer', transition: 'all 0.15s', alignItems: 'center',
                             }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = 'var(--color-card-hover)'
-                              e.currentTarget.style.borderColor = 'var(--color-border-hover)'
-                              e.currentTarget.style.borderLeftColor = pc
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = 'var(--color-card)'
-                              e.currentTarget.style.borderColor = 'var(--color-border)'
-                              e.currentTarget.style.borderLeftColor = pc
-                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-card-hover)'; e.currentTarget.style.borderLeftColor = pc }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-card)'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.borderLeftColor = pc }}
                           >
-                            {/* Task title */}
                             <div>
                               {task.blockedBy?.length > 0 && task.column !== 'Done' && (
-                                <span style={{
-                                  fontSize: 9, fontFamily: "'DM Mono', monospace",
-                                  color: 'var(--color-red)', marginRight: 6,
-                                }}>🔒</span>
+                                <span style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", color: 'var(--color-red)', marginRight: 6 }}>🔒</span>
                               )}
-                              <span style={{
-                                fontFamily: "'Urbanist', sans-serif", fontWeight: 600,
-                                fontSize: 12, color: 'var(--color-text)',
-                              }}>{task.title}</span>
+                              <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{task.title}</span>
                               {task.description && (
-                                <div style={{
-                                  fontFamily: "'DM Mono', monospace", fontSize: 10,
-                                  color: 'var(--color-text-muted)',
-                                  overflow: 'hidden', textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap', marginTop: 2,
-                                }}>{task.description}</div>
+                                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{task.description}</div>
                               )}
                             </div>
-                            {/* Assignee */}
                             <div>
                               {task.assignedRole ? (
-                                <div style={{
-                                  background: roleColor + '18',
-                                  border: '1px solid ' + roleColor + '33',
-                                  borderRadius: 5, padding: '2px 7px',
-                                  display: 'inline-flex', alignItems: 'center', gap: 3,
-                                }}>
+                                <div style={{ background: roleColor + '18', border: '1px solid ' + roleColor + '33', borderRadius: 5, padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                                   <span style={{ fontSize: 9 }}>{meta?.icon}</span>
-                                  <span style={{
-                                    fontSize: 9, fontFamily: "'DM Mono', monospace",
-                                    color: roleColor,
-                                  }}>{task.assignedName || task.assignedRole}</span>
+                                  <span style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", color: roleColor }}>{task.assignedName || task.assignedRole}</span>
                                 </div>
                               ) : (
-                                <span style={{
-                                  fontFamily: "'DM Mono', monospace", fontSize: 10,
-                                  color: 'var(--color-text-muted)',
-                                }}>Unassigned</span>
+                                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>Unassigned</span>
                               )}
                             </div>
-                            {/* Priority */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <div style={{
-                                width: 6, height: 6, borderRadius: '50%', background: pc,
-                              }} />
-                              <span style={{
-                                fontFamily: "'DM Mono', monospace", fontSize: 9, color: pc,
-                              }}>{task.priority}</span>
+                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: pc }} />
+                              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: pc }}>{task.priority}</span>
                             </div>
-                            {/* Due date */}
-                            <div style={{
-                              fontFamily: "'DM Mono', monospace", fontSize: 10, color: dueColor,
-                            }}>{dueTxt}</div>
-                            {/* Status */}
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: dueColor }}>{dueTxt}</div>
                             <div>
-                              <div style={{
-                                background: cc + '18',
-                                border: '1px solid ' + cc + '33',
-                                borderRadius: 5, padding: '2px 8px',
-                                display: 'inline-block',
-                                fontFamily: "'DM Mono', monospace", fontSize: 9, color: cc,
-                              }}>{col}</div>
+                              <div style={{ background: cc + '18', border: '1px solid ' + cc + '33', borderRadius: 5, padding: '2px 8px', display: 'inline-block', fontFamily: "'DM Mono', monospace", fontSize: 9, color: cc }}>{col}</div>
                             </div>
-                            {/* Days */}
-                            <div style={{
-                              fontFamily: "'DM Mono', monospace", fontSize: 10,
-                              color: 'var(--color-text-muted)',
-                            }}>{task.estimatedDays}d</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>{task.estimatedDays}d</div>
                           </div>
                         )
                       })}
@@ -2140,10 +1668,8 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                   const colTasks = kanban.tasks.filter(t => t.column === col)
                   const isDropTarget = dragOverCol === col && draggedTaskId !== null
                   const accentCol = COL_COLORS[col]
-
                   return (
                     <React.Fragment key={col}>
-                      {/* Column divider */}
                       {colIdx > 0 && (
                         <div style={{
                           width: 1,
@@ -2151,8 +1677,6 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                           alignSelf: 'stretch', margin: '0 4px',
                         }} />
                       )}
-
-                      {/* Column */}
                       <div
                         style={{
                           width: 280, flexShrink: 0, padding: '0 12px',
@@ -2161,15 +1685,8 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                           outline: isDropTarget ? '2px dashed ' + accentCol + '66' : 'none',
                           outlineOffset: -2,
                         }}
-                        onDragOver={e => {
-                          e.preventDefault()
-                          setDragOverCol(col)
-                        }}
-                        onDragLeave={e => {
-                          if (!e.currentTarget.contains(e.relatedTarget)) {
-                            setDragOverCol(null)
-                          }
-                        }}
+                        onDragOver={e => { e.preventDefault(); setDragOverCol(col) }}
+                        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null) }}
                         onDrop={e => {
                           e.preventDefault()
                           const id = e.dataTransfer.getData('taskId')
@@ -2178,154 +1695,82 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                           setDraggedTaskId(null)
                         }}
                       >
-                        {/* Column header */}
-                        <div style={{
-                          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14,
-                        }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                           <div style={{ width: 7, height: 7, borderRadius: '50%', background: accentCol, flexShrink: 0 }} />
                           <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 12, color: 'var(--color-text)' }}>{col}</span>
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-                            {colTasks.length}
-                          </span>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>{colTasks.length}</span>
                           {isDropTarget && (
-                            <span style={{
-                              fontFamily: "'DM Mono', monospace", fontSize: 9, color: accentCol,
-                              animation: 'pulse 1s ease infinite',
-                            }}>DROP</span>
+                            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: accentCol, animation: 'pulse 1s ease infinite' }}>DROP</span>
                           )}
                         </div>
-
-                        {/* Tasks */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 60 }}>
                           {colTasks.map(task => (
                             <TaskCard key={task.id} task={task} col={col} />
                           ))}
-
-                          {/* Empty drop zone */}
                           {colTasks.length === 0 && (
                             <div style={{
                               height: 60,
                               border: '1.5px dashed ' + (isDropTarget ? accentCol + '88' : 'var(--color-border)'),
-                              borderRadius: 10,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontFamily: "'DM Mono', monospace", fontSize: 11,
-                              color: isDropTarget ? accentCol : 'var(--color-text-muted)',
-                              marginBottom: 8,
-                            }}>
-                              {isDropTarget ? 'Drop here' : 'Empty'}
-                            </div>
+                              color: isDropTarget ? accentCol : 'var(--color-text-muted)', marginBottom: 8,
+                            }}>{isDropTarget ? 'Drop here' : 'Empty'}</div>
                           )}
-
-                          {/* Inline add or add button */}
-                          {addingTaskCol === col ? (
-                            <div style={{
-                              background: 'var(--color-card)',
-                              border: '1.5px solid var(--color-text)',
-                              borderRadius: 10, padding: '10px 12px', marginTop: 8,
-                            }}>
+                          {addingToCol === col ? (
+                            <div style={{ marginTop: 8 }}>
                               <input
-                                autoFocus
+                                ref={addInputRef}
                                 placeholder="Task title..."
-                                value={newTaskForm.title}
-                                onChange={e => setNewTaskForm(f => ({ ...f, title: e.target.value }))}
+                                value={newTaskTitle}
+                                onChange={e => setNewTaskTitle(e.target.value)}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter') handleAddManualTask(col)
-                                  if (e.key === 'Escape') {
-                                    setAddingTaskCol(null)
-                                    setNewTaskForm({ title: '', priority: 'medium', assignee: '' })
-                                  }
+                                  if (e.key === 'Escape') { setAddingToCol(null); setNewTaskTitle('') }
                                 }}
                                 style={{
-                                  width: '100%', background: 'transparent',
-                                  border: 'none', outline: 'none',
+                                  width: '100%', background: 'var(--color-card)',
+                                  border: '1.5px solid var(--color-text)',
+                                  borderRadius: 9, padding: '9px 12px',
                                   fontFamily: "'Urbanist',sans-serif", fontSize: 13,
-                                  color: 'var(--color-text)', marginBottom: 8,
-                                  boxSizing: 'border-box',
+                                  color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
                                 }}
                               />
-                              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                                {['low', 'medium', 'high'].map(p => (
-                                  <button
-                                    key={p}
-                                    onClick={() => setNewTaskForm(f => ({ ...f, priority: p }))}
-                                    style={{
-                                      padding: '2px 8px', borderRadius: 5,
-                                      border: '1px solid ' + (newTaskForm.priority === p ? 'var(--color-text)' : 'var(--color-border)'),
-                                      background: newTaskForm.priority === p ? 'var(--color-text)' : 'transparent',
-                                      color: newTaskForm.priority === p ? 'var(--color-bg)' : 'var(--color-text-muted)',
-                                      fontFamily: "'DM Mono',monospace", fontSize: 9,
-                                      fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
-                                    }}
-                                  >{p}</button>
-                                ))}
-                              </div>
-                              {teamMembers.filter(m => m.name?.trim()).length > 0 && (
-                                <select
-                                  value={newTaskForm.assignee}
-                                  onChange={e => setNewTaskForm(f => ({ ...f, assignee: e.target.value }))}
-                                  style={{
-                                    width: '100%', background: 'var(--color-surface)',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: 6, padding: '4px 8px',
-                                    fontFamily: "'Urbanist',sans-serif", fontSize: 12,
-                                    color: 'var(--color-text)', marginBottom: 8, outline: 'none',
-                                    boxSizing: 'border-box',
-                                  }}
-                                >
-                                  <option value="">Unassigned</option>
-                                  {teamMembers.filter(m => m.name?.trim()).map((m, i) => (
-                                    <option key={i} value={m.name}>{m.name}</option>
-                                  ))}
-                                </select>
-                              )}
-                              <div style={{ display: 'flex', gap: 6 }}>
+                              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                                 <button
                                   onClick={() => handleAddManualTask(col)}
-                                  disabled={!newTaskForm.title.trim()}
+                                  disabled={!newTaskTitle.trim()}
                                   style={{
                                     flex: 1,
-                                    background: newTaskForm.title.trim() ? 'var(--color-text)' : 'var(--color-border)',
-                                    color: 'var(--color-bg)', border: 'none',
-                                    borderRadius: 7, padding: '6px 0',
+                                    background: newTaskTitle.trim() ? 'var(--color-text)' : 'var(--color-border)',
+                                    color: 'var(--color-bg)', border: 'none', borderRadius: 7, padding: '6px 0',
                                     fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 12,
-                                    cursor: newTaskForm.title.trim() ? 'pointer' : 'not-allowed',
+                                    cursor: newTaskTitle.trim() ? 'pointer' : 'not-allowed',
                                   }}
-                                >Add task</button>
+                                >Add</button>
                                 <button
-                                  onClick={() => {
-                                    setAddingTaskCol(null)
-                                    setNewTaskForm({ title: '', priority: 'medium', assignee: '' })
-                                  }}
+                                  onClick={() => { setAddingToCol(null); setNewTaskTitle('') }}
                                   style={{
                                     padding: '6px 12px', background: 'transparent',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: 7, fontFamily: "'Urbanist',sans-serif",
-                                    fontSize: 12, color: 'var(--color-text-muted)', cursor: 'pointer',
+                                    border: '1px solid var(--color-border)', borderRadius: 7,
+                                    fontFamily: "'Urbanist',sans-serif", fontSize: 12,
+                                    color: 'var(--color-text-muted)', cursor: 'pointer',
                                   }}
                                 >Cancel</button>
                               </div>
                             </div>
                           ) : (
                             <button
-                              onClick={() => setAddingTaskCol(col)}
+                              onClick={() => setAddingToCol(col)}
                               style={{
                                 width: '100%', marginTop: 8, padding: '7px 0',
-                                background: 'transparent',
-                                border: '1px dashed var(--color-border)',
-                                borderRadius: 9,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                background: 'transparent', border: '1px dashed var(--color-border)',
+                                borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                 cursor: 'pointer', transition: 'all 0.15s',
                                 fontFamily: "'Urbanist',sans-serif", fontSize: 12,
                                 color: 'var(--color-text-muted)', fontWeight: 500,
                               }}
-                              onMouseEnter={e => {
-                                e.currentTarget.style.borderColor = 'var(--color-text-muted)'
-                                e.currentTarget.style.color = 'var(--color-text)'
-                              }}
-                              onMouseLeave={e => {
-                                e.currentTarget.style.borderColor = 'var(--color-border)'
-                                e.currentTarget.style.color = 'var(--color-text-muted)'
-                              }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
                             >
                               <PlusIcon style={{ width: 13, height: 13 }} />
                               Add task
@@ -2344,43 +1789,277 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
             <div style={{
               height: 68, borderTop: '1px solid var(--color-border)',
               background: 'var(--color-surface)', flexShrink: 0,
-              display: 'flex', alignItems: 'center',
-              padding: '0 20px', overflowX: 'auto', gap: 8,
+              display: 'flex', alignItems: 'center', padding: '0 20px', overflowX: 'auto', gap: 8,
             }}>
               {kanban.unassignedTasks?.length > 0 ? (
                 <>
-                  <span style={{
-                    fontFamily: "'DM Mono', monospace", fontSize: 10,
-                    color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 4,
-                  }}>UNASSIGNED:</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 4 }}>UNASSIGNED:</span>
                   {kanban.unassignedTasks.map((ut, i) => (
                     <div key={i} style={{
-                      background: 'var(--color-card)',
-                      border: '1px solid var(--color-amber)',
-                      borderRadius: 8, padding: '6px 12px',
-                      display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0,
+                      background: 'var(--color-card)', border: '1px solid var(--color-amber)',
+                      borderRadius: 8, padding: '6px 12px', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0,
                     }}>
-                      <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 11, color: 'var(--color-text)' }}>
-                        {ut.title || ut}
-                      </span>
+                      <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 11, color: 'var(--color-text)' }}>{ut.title || ut}</span>
                       {ut.suggestedRole && (
-                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-amber)' }}>
-                          → Need: {ut.suggestedRole}
-                        </span>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-amber)' }}>→ Need: {ut.suggestedRole}</span>
                       )}
                     </div>
                   ))}
                 </>
               ) : (
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>
-                  ✓ All tasks assigned
-                </span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>✓ All tasks assigned</span>
               )}
             </div>
           </>
         )}
 
         </>)}
+      </div>
+
+      {/* ── Floating AI chat bubble ── */}
+      {!chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          title="Open AI chat"
+          style={{
+            position: 'absolute', bottom: 24, right: 24,
+            width: 48, height: 48, borderRadius: '50%',
+            background: 'var(--color-accent)', border: 'none',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)', zIndex: 100,
+            transition: 'transform 0.15s, box-shadow 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.28)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)' }}
+        >
+          <SparklesIcon style={{ width: 20, height: 20, color: 'var(--color-accent-text)' }} />
+        </button>
+      )}
+
+      {/* ── Sliding chat panel ── */}
+      <div style={{
+        position: 'absolute', top: 0, right: chatOpen ? 0 : -360,
+        width: 360, height: '100%',
+        display: 'flex', flexDirection: 'column',
+        borderLeft: '1px solid var(--color-border)',
+        background: 'var(--color-bg)',
+        transition: 'right 0.3s ease',
+        zIndex: 50,
+      }}>
+
+        {/* Chat panel header */}
+        <div style={{
+          height: 48, flexShrink: 0, display: 'flex', alignItems: 'center',
+          padding: '0 14px', gap: 8, borderBottom: '1px solid var(--color-border)',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 26, height: 26, borderRadius: 7,
+              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <SparklesIcon style={{ width: 12, height: 12, color: 'var(--color-text)' }} />
+            </div>
+            <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>AI Assistant</span>
+          </div>
+          <button
+            onClick={() => setChatOpen(false)}
+            style={{
+              width: 28, height: 28, borderRadius: 6,
+              background: 'transparent', border: '1px solid var(--color-border)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-soft)' }} />
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 14px 0' }}>
+          {messages.map(m => <ChatBubble key={m.id} msg={m} />)}
+          {loading && <ThinkingBubble />}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Role selector */}
+        {phase === 'roles' && (
+          <div style={{
+            padding: '12px 14px',
+            borderTop: '1px solid var(--color-border)',
+            background: 'var(--color-surface)',
+          }}>
+            <div style={{
+              fontFamily: "'DM Mono', monospace", fontSize: 10,
+              color: 'var(--color-text-muted)', marginBottom: 8, letterSpacing: '0.06em',
+            }}>SELECT ROLES &amp; ADD NAMES</div>
+            {suggestedRoles.length > 0 && (
+              <>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--color-accent)', letterSpacing: '0.08em', marginBottom: 6 }}>AI SUGGESTED</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {suggestedRoles.map(role => {
+                    const meta = ROLE_META[role]
+                    if (!meta) return null
+                    const isSelected = !!teamMembers.find(m => m.role === role)
+                    return (
+                      <button
+                        key={role}
+                        onClick={() => toggleRole(role)}
+                        style={{
+                          background: isSelected ? meta.color + '22' : 'var(--color-surface)',
+                          border: '1px solid ' + (isSelected ? meta.color : meta.color + '55'),
+                          boxShadow: isSelected ? 'none' : '0 0 0 1px ' + meta.color + '38',
+                          borderRadius: 7, padding: '5px 10px', fontSize: 11,
+                          fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer',
+                          color: isSelected ? meta.color : meta.color + 'BB',
+                          display: 'flex', gap: 5, alignItems: 'center',
+                        }}
+                      >
+                        {meta.icon} {role}
+                        {isSelected ? <span style={{ fontSize: 10, color: meta.color }}>✓</span> : <span style={{ fontSize: 9, opacity: 0.7, color: meta.color }}>✦</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 6 }}>OTHER ROLES</div>
+              </>
+            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {Object.keys(ROLE_META)
+                .filter(role => !suggestedRoles.includes(role))
+                .map(role => {
+                  const meta = ROLE_META[role]
+                  const isSelected = !!teamMembers.find(m => m.role === role)
+                  return (
+                    <button
+                      key={role}
+                      onClick={() => toggleRole(role)}
+                      style={{
+                        background: isSelected ? meta.color + '22' : 'transparent',
+                        border: '1px solid ' + (isSelected ? meta.color : 'var(--color-border)'),
+                        borderRadius: 7, padding: '5px 10px', fontSize: 11,
+                        fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer',
+                        color: isSelected ? meta.color : 'var(--color-text-soft)',
+                        display: 'flex', gap: 5, alignItems: 'center',
+                      }}
+                    >
+                      {meta.icon} {role}
+                      {isSelected && <span style={{ fontSize: 10, color: meta.color }}>✓</span>}
+                    </button>
+                  )
+                })}
+            </div>
+            {teamMembers.length > 0 && (
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
+                {teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''} selected
+              </div>
+            )}
+            {teamMembers.length > 0 && (
+              <>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  {teamMembers.map(m => {
+                    const meta = ROLE_META[m.role] || { color: 'var(--color-text-soft)', icon: '◈' }
+                    return (
+                      <div key={m.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        background: 'var(--color-card)', border: '1px solid ' + meta.color + '44',
+                        borderRadius: 7, padding: '5px 10px',
+                      }}>
+                        <span style={{ fontSize: 11, flexShrink: 0 }}>{meta.icon}</span>
+                        <input
+                          value={m.name}
+                          onChange={e => updateMemberName(m.id, e.target.value)}
+                          placeholder={m.role}
+                          style={{
+                            background: 'transparent', border: 'none', outline: 'none',
+                            fontFamily: "'Urbanist', sans-serif", fontSize: 11,
+                            color: 'var(--color-text)', width: 100,
+                          }}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+                <button
+                  onClick={handleGenerateKanban}
+                  disabled={loading}
+                  style={{
+                    width: '100%', marginTop: 10,
+                    background: loading ? 'var(--color-border)' : 'var(--color-accent)',
+                    border: 'none', borderRadius: 9, padding: '10px 0',
+                    color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif",
+                    fontWeight: 700, fontSize: 12, cursor: loading ? 'default' : 'pointer',
+                    opacity: loading ? 0.6 : 1,
+                  }}
+                >{loading ? 'Generating...' : 'Generate Kanban Board →'}</button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* File indicator */}
+        {fileName && (
+          <div style={{ padding: '0 14px 8px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'var(--color-accent-bg)', border: '1px solid var(--color-accent-border)',
+              borderRadius: 7, padding: '5px 10px',
+              fontSize: 11, fontFamily: "'DM Mono', monospace", color: 'var(--color-accent)',
+            }}>
+              <span>📄 {fileName}</span>
+              <button onClick={() => setFileName(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-accent)', fontSize: 13, padding: '0 0 0 6px' }}>×</button>
+            </div>
+          </div>
+        )}
+
+        {/* Chat input */}
+        {(phase === 'brief' || phase === 'kanban') && (
+          <div style={{
+            padding: '12px 14px', borderTop: '1px solid var(--color-border)',
+            minHeight: 68, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: 36, height: 36, background: 'var(--color-card)',
+                  border: '1px solid var(--color-border)', borderRadius: 8,
+                  cursor: 'pointer', fontSize: 15, color: 'var(--color-text-soft)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}
+              >📎</button>
+              <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => handleFileUpload(e.target.files[0])} />
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-accent)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
+                placeholder={phase === 'brief' ? 'Paste your brief or describe the project to generate a task board...' : 'Ask a follow-up or request a board change...'}
+                rows={1}
+                style={{
+                  flex: 1, background: 'var(--color-card)',
+                  border: '1px solid var(--color-border)', borderRadius: 8,
+                  padding: '9px 12px', color: 'var(--color-text)',
+                  fontFamily: "'DM Mono', monospace", fontSize: 12,
+                  resize: 'none', lineHeight: 1.6, maxHeight: 100, minHeight: 36,
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || loading}
+                style={{
+                  width: 36, height: 36, background: 'var(--color-accent)',
+                  border: 'none', borderRadius: 8, cursor: !input.trim() || loading ? 'default' : 'pointer',
+                  color: 'var(--color-accent-text)', fontSize: 16, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: !input.trim() || loading ? 0.4 : 1,
+                }}
+              >↑</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
