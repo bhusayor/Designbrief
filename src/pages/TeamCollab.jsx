@@ -125,10 +125,7 @@ export default function TeamCollab() {
   const { activeProject, showToast, navigate, authUser, saveProject } = useContext(AppContext)
 
   const [phase, setPhase] = useState('brief')
-  const [messages, setMessages] = useState([{
-    id: uid(), role: 'ai',
-    text: 'Welcome to Team Collab. Paste a project brief or describe your project and I will help you build a team and generate a task board.',
-  }])
+  const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [briefText, setBriefText] = useState('')
   const [projectTitle, setProjectTitle] = useState('')
@@ -364,7 +361,7 @@ Return JSON:
     saveProjects(updated)
     setActiveProjectId(newProj.id)
     localStorage.setItem('teamcollab-active-project', newProj.id)
-    setMessages([{ id: uid(), role: 'ai', text: 'Welcome to Team Collab. Paste a project brief or describe your project and I will help you build a team and generate a task board.' }])
+    setMessages([])
     setKanban(null)
     setTeamMembers([])
     setPhase('brief')
@@ -1098,9 +1095,23 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           </div>
 
           {/* Title */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Task Title *</label>
-            <input autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="What needs to be done?" style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 14, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box' }} />
+          <div style={{ marginBottom: 20 }}>
+            <input
+              autoFocus
+              value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Task title"
+              onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--color-text)' }}
+              onBlur={e => { e.currentTarget.style.borderBottomColor = 'var(--color-border)' }}
+              style={{
+                width: '100%', background: 'transparent', border: 'none',
+                borderBottom: '1px solid var(--color-border)', borderRadius: 0,
+                padding: '8px 0', fontFamily: "'Urbanist',sans-serif",
+                fontSize: 16, fontWeight: 600, color: 'var(--color-text)',
+                outline: 'none', boxSizing: 'border-box',
+                transition: 'border-bottom-color 0.15s',
+              }}
+            />
           </div>
 
           {/* Description */}
@@ -1167,18 +1178,6 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* Column selector */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Add to Column</label>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {KANBAN_COLS.map(col => (
-                <button key={col} onClick={() => setForm(f => ({ ...f, column: col }))} style={{ padding: '6px 14px', borderRadius: 8, border: form.column === col ? '1.5px solid var(--color-text)' : '1px solid var(--color-border)', background: form.column === col ? 'var(--color-text)' : 'var(--color-surface)', cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 12, fontWeight: 600, color: form.column === col ? 'var(--color-bg)' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
-                  {col}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -1631,7 +1630,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
       {/* ── Floating AI chat bubble ── */}
       <button
-        onClick={() => { setChatOpen(prev => !prev); setUnreadCount(0) }}
+        onPointerDown={(e) => { e.preventDefault(); setChatOpen(prev => !prev); setUnreadCount(0) }}
         title={chatOpen ? 'Close AI chat' : 'Open AI chat'}
         style={{
           position: 'absolute', bottom: 24, right: chatOpen ? 376 : 24,
@@ -1667,6 +1666,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
         transition: 'transform 0.3s ease',
         zIndex: 50,
         pointerEvents: chatOpen ? 'auto' : 'none',
+        visibility: chatOpen ? 'visible' : 'hidden',
       }}>
 
         {/* Chat panel header */}
@@ -1686,19 +1686,41 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
             <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>AI Assistant</span>
           </div>
           <button
-            onClick={() => setChatOpen(false)}
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setChatOpen(false) }}
             style={{
-              width: 28, height: 28, borderRadius: 6,
-              background: 'transparent', border: '1px solid var(--color-border)',
+              width: 28, height: 28, borderRadius: 7,
+              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              pointerEvents: 'all', zIndex: 999, position: 'relative',
             }}
           >
-            <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-soft)' }} />
+            <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
           </button>
         </div>
 
         {/* Messages */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 14px 0' }}>
+          {messages.length === 0 && !loading && (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <SparklesIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)' }} />
+              </div>
+              <div>
+                <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 6, letterSpacing: '-0.01em' }}>What do you need?</div>
+                <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.65, maxWidth: 240 }}>Generate a board, add tasks, move cards, or ask anything about your project.</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: 260, marginTop: 8 }}>
+                {['Generate board from brief', 'Add task: [task name]', 'Move [task] to done'].map((suggestion, i) => (
+                  <button key={i}
+                    onPointerDown={() => setInput(suggestion === 'Generate board from brief' ? '' : suggestion.replace('[task name]', '').replace('[task]', ''))}
+                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '8px 12px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-soft)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-soft)' }}
+                  >{suggestion}</button>
+                ))}
+              </div>
+            </div>
+          )}
           {messages.map(m => <ChatBubble key={m.id} msg={m} />)}
           {loading && <ThinkingBubble />}
           <div ref={chatEndRef} />
@@ -1849,7 +1871,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
                 onFocus={e => { e.currentTarget.parentElement.style.borderColor = 'var(--color-accent)' }}
                 onBlur={e => { e.currentTarget.parentElement.style.borderColor = 'var(--color-border)' }}
-                placeholder={phase === 'brief' ? 'Describe your project to generate a board...' : 'Add a task, move it, or ask anything...'}
+                placeholder="Ask anything or describe a task..."
                 rows={1}
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
@@ -1871,10 +1893,6 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                 <ArrowUpIcon style={{ width: 16, height: 16, color: !input.trim() || loading ? 'var(--color-text-muted)' : 'var(--color-bg)' }} />
               </button>
             </div>
-            <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 9,
-              color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 6, letterSpacing: '0.04em',
-            }}>Enter to send · Shift+Enter for new line</div>
           </div>
         )}
       </div>
