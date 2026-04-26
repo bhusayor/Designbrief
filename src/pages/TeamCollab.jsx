@@ -1658,13 +1658,15 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
       {/* ── Sliding chat panel ── */}
       <div style={{
-        position: 'absolute', top: 0, right: chatOpen ? 0 : -360,
+        position: 'absolute', top: 0, right: 0,
         width: 360, height: '100%',
         display: 'flex', flexDirection: 'column',
         borderLeft: '1px solid var(--color-border)',
         background: 'var(--color-bg)',
-        transition: 'right 0.3s ease',
+        transform: chatOpen ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.3s ease',
         zIndex: 50,
+        pointerEvents: chatOpen ? 'auto' : 'none',
       }}>
 
         {/* Chat panel header */}
@@ -1684,7 +1686,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
             <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>AI Assistant</span>
           </div>
           <button
-            onClick={(e) => { e.stopPropagation(); setChatOpen(false) }}
+            onClick={() => setChatOpen(false)}
             style={{
               width: 28, height: 28, borderRadius: 6,
               background: 'transparent', border: '1px solid var(--color-border)',
