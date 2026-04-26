@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect, useContext } from 'react'
 import AppContext from '../context/AppContext'
 import { Button, Badge } from '../components/ui'
 import {
-  SparklesIcon, CheckIcon, LockClosedIcon, PlusIcon,
+  SparklesIcon, CheckIcon, PlusIcon,
   XMarkIcon, ArrowUpIcon, ChevronDownIcon,
+  UserGroupIcon, UserIcon, CalendarIcon,
+  Squares2X2Icon, ListBulletIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -138,6 +140,7 @@ export default function TeamCollab() {
   const [dragOverCol, setDragOverCol] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
+  const [addTaskData, setAddTaskData] = useState({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: '' })
   const [addingToCol, setAddingToCol] = useState(null)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [chatOpen, setChatOpen] = useState(false)
@@ -400,7 +403,6 @@ Return JSON:
     if (phase !== 'kanban') setPhase('kanban')
     setNewTaskTitle('')
     setAddingToCol(null)
-    addMessage('ai', 'Added "' + newTask.title + '" to ' + columnId + '.')
   }
 
   function applyBoardUpdate(update) {
@@ -529,7 +531,6 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           }))
           if (phase !== 'kanban') setPhase('kanban')
           setLoading(false)
-          addMessage('ai', `Added "${result.title}" to ${col}.`)
           return
         }
       }
@@ -547,7 +548,6 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           if (task && col) {
             setKanban(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === task.id ? { ...t, column: col } : t) }))
             setLoading(false)
-            addMessage('ai', `Moved "${task.title}" to ${col}.`)
             return
           }
         }
@@ -565,7 +565,6 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           if (task) {
             setKanban(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== task.id) }))
             setLoading(false)
-            addMessage('ai', `Removed "${task.title}" from the board.`)
             return
           }
         }
@@ -1070,151 +1069,123 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
   // ── AddTaskModal ──────────────────────────────────────────────────────────
 
-  function AddTaskModal({ onAdd, onClose }) {
-    const [t, setT] = useState({
-      title: '', description: '', assignedRole: '',
-      assignedName: '', priority: 'MEDIUM',
-      estimatedDays: 1, column: 'To Do',
+  function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData }) {
+    const [form, setForm] = useState({
+      title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM',
+      column: initialColumn || KANBAN_COLS[0],
+      ...(defaultData || {}),
     })
+    const [assigneeQuery, setAssigneeQuery] = useState('')
+    const [showSuggestions, setShowSuggestions] = useState(false)
+
+    if (!open) return null
+
+    const namedMembers = (modalTeamMembers || []).filter(m => m.name?.trim())
+    const filteredSuggestions = namedMembers.filter(m =>
+      m.name.toLowerCase().includes(assigneeQuery.toLowerCase()) && !form.assignees.includes(m.name)
+    )
 
     return (
-      <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-        zIndex: 200, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', backdropFilter: 'blur(4px)',
-      }}>
-        <div onClick={e => e.stopPropagation()} style={{
-          background: 'var(--color-card)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 18, width: 480, maxWidth: '92vw',
-          maxHeight: '88vh', overflow: 'auto',
-          boxShadow: 'var(--shadow-modal)',
-          animation: 'fadeUp 0.25s ease',
-        }}>
-          <div style={{
-            padding: '18px 22px 14px',
-            borderBottom: '1px solid var(--color-border)',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 4 }}>NEW TASK</div>
-              <div style={{ fontWeight: 800, fontSize: 17, fontFamily: "'Urbanist', sans-serif", color: 'var(--color-text)' }}>Add to Board</div>
-            </div>
-            <button onClick={onClose} style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8, width: 30, height: 30, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--color-text-soft)', fontSize: 15,
-            }}>×</button>
-          </div>
-          <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>TITLE</div>
-              <input
-                autoFocus
-                value={t.title}
-                onChange={e => setT(p => ({ ...p, title: e.target.value }))}
-                placeholder="What needs to be done?"
-                style={{
-                  width: '100%', background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)', borderRadius: 9,
-                  padding: '9px 12px', color: 'var(--color-text)',
-                  fontFamily: "'Urbanist', sans-serif", fontSize: 13, outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-            </div>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 18, width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', padding: 24 }}>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>COLUMN</div>
-                {KANBAN_COLS.map(col => {
-                  const cc = COL_COLORS[col] || 'var(--color-text-muted)'
-                  const active = t.column === col
-                  return (
-                    <button key={col}
-                      onClick={() => setT(p => ({ ...p, column: col }))}
-                      style={{
-                        display: 'block', width: '100%', marginBottom: 4,
-                        background: active ? cc + '22' : 'var(--color-surface)',
-                        border: '1px solid ' + (active ? cc : 'var(--color-border)'),
-                        borderRadius: 7, padding: '7px 10px',
-                        color: active ? cc : 'var(--color-text-soft)',
-                        fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 11,
-                        cursor: 'pointer', textAlign: 'left',
-                      }}
-                    >{col}</button>
-                  )
-                })}
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>Add Task</div>
+            <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
+            </button>
+          </div>
+
+          {/* Title */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Task Title *</label>
+            <input autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="What needs to be done?" style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 14, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+
+          {/* Description */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Description</label>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Add more details..." rows={3} style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
+          </div>
+
+          {/* Assignees */}
+          <div style={{ marginBottom: 16, position: 'relative' }}>
+            <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Assignees</label>
+            {form.assignees.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {form.assignees.map((a, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '3px 10px 3px 8px' }}>
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 9, color: 'var(--color-bg)', flexShrink: 0 }}>{a[0]?.toUpperCase()}</div>
+                    <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text)' }}>{a}</span>
+                    <button onClick={() => setForm(f => ({ ...f, assignees: f.assignees.filter((_, j) => j !== i) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--color-text-muted)' }}>
+                      <XMarkIcon style={{ width: 10, height: 10 }} />
+                    </button>
+                  </div>
+                ))}
               </div>
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>PRIORITY</div>
-                {['HIGH', 'MEDIUM', 'LOW'].map(p => (
-                  <button key={p}
-                    onClick={() => setT(prev => ({ ...prev, priority: p }))}
-                    style={{
-                      display: 'block', width: '100%', marginBottom: 4,
-                      background: t.priority === p ? PRIORITY_COLORS[p] + '22' : 'var(--color-surface)',
-                      border: '1px solid ' + (t.priority === p ? PRIORITY_COLORS[p] : 'var(--color-border)'),
-                      borderRadius: 7, padding: '7px 10px',
-                      color: t.priority === p ? PRIORITY_COLORS[p] : 'var(--color-text-soft)',
-                      fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 11,
-                      cursor: 'pointer', textAlign: 'left',
-                    }}
-                  >{p}</button>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '8px 12px', gap: 6 }}>
+              <UserIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 13, color: 'var(--color-text-muted)' }}>@</span>
+              <input value={assigneeQuery} onChange={e => { setAssigneeQuery(e.target.value); setShowSuggestions(true) }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} placeholder="Type name to assign..." style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)' }} />
+            </div>
+            {showSuggestions && filteredSuggestions.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, zIndex: 10, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+                {filteredSuggestions.map((m, i) => (
+                  <div key={i} onMouseDown={() => { setForm(f => ({ ...f, assignees: [...f.assignees, m.name] })); setAssigneeQuery(''); setShowSuggestions(false) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', borderBottom: i < filteredSuggestions.length - 1 ? '1px solid var(--color-border)' : 'none' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: 'var(--color-bg)' }}>{m.name[0]?.toUpperCase()}</div>
+                    <div>
+                      <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{m.name}</div>
+                      {m.role && <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>{m.role}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Due Date + Priority */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div>
+              <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Due Date</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '8px 12px' }}>
+                <CalendarIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: form.dueDate ? 'var(--color-text)' : 'var(--color-text-muted)', cursor: 'pointer' }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Priority</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[{ id: 'HIGH', color: '#EF4444' }, { id: 'MEDIUM', color: '#F59E0B' }, { id: 'LOW', color: '#6B7280' }].map(p => (
+                  <button key={p.id} onClick={() => setForm(f => ({ ...f, priority: p.id }))} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: form.priority === p.id ? '1.5px solid ' + p.color : '1px solid var(--color-border)', background: form.priority === p.id ? p.color + '15' : 'var(--color-surface)', cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 600, color: form.priority === p.id ? p.color : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
+                    {p.id[0] + p.id.slice(1).toLowerCase()}
+                  </button>
                 ))}
               </div>
             </div>
+          </div>
 
-            {teamMembers.length > 0 && (
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>ASSIGN TO</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {teamMembers.map(m => {
-                    const mm = ROLE_META[m.role] || { color: 'var(--color-text-soft)', icon: '◈' }
-                    const active = t.assignedRole === m.role
-                    return (
-                      <button key={m.id}
-                        onClick={() => setT(p => ({ ...p, assignedRole: m.role, assignedName: m.name || '' }))}
-                        style={{
-                          background: active ? mm.color + '22' : 'var(--color-surface)',
-                          border: '1px solid ' + (active ? mm.color : 'var(--color-border)'),
-                          borderRadius: 7, padding: '5px 11px', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: 5,
-                        }}
-                      >
-                        <span style={{ fontSize: 11 }}>{mm.icon}</span>
-                        <span style={{ fontSize: 11, color: active ? mm.color : 'var(--color-text-soft)', fontWeight: 600, fontFamily: "'Urbanist', sans-serif" }}>
-                          {m.name || m.role}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
-              <button onClick={onClose} style={{
-                flex: 1, background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 9, padding: '10px 0',
-                color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif",
-                fontWeight: 700, fontSize: 12, cursor: 'pointer',
-              }}>Cancel</button>
-              <button
-                onClick={() => { if (t.title.trim()) onAdd(t) }}
-                disabled={!t.title.trim()}
-                style={{
-                  flex: 2, background: 'var(--color-accent)', border: 'none',
-                  borderRadius: 9, padding: '10px 0',
-                  color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif",
-                  fontWeight: 700, fontSize: 12,
-                  cursor: t.title.trim() ? 'pointer' : 'default',
-                  opacity: !t.title.trim() ? 0.4 : 1,
-                }}
-              >Add Task to Board</button>
+          {/* Column selector */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Add to Column</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {KANBAN_COLS.map(col => (
+                <button key={col} onClick={() => setForm(f => ({ ...f, column: col }))} style={{ padding: '6px 14px', borderRadius: 8, border: form.column === col ? '1.5px solid var(--color-text)' : '1px solid var(--color-border)', background: form.column === col ? 'var(--color-text)' : 'var(--color-surface)', cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 12, fontWeight: 600, color: form.column === col ? 'var(--color-bg)' : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
+                  {col}
+                </button>
+              ))}
             </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 10, fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => { if (!form.title.trim()) return; onSave(form); onClose() }} disabled={!form.title.trim()} style={{ padding: '9px 24px', background: form.title.trim() ? 'var(--color-text)' : 'var(--color-border)', border: 'none', borderRadius: 10, fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700, color: 'var(--color-bg)', cursor: form.title.trim() ? 'pointer' : 'default', transition: 'background 0.15s' }}>Add Task</button>
           </div>
         </div>
       </div>
@@ -1237,12 +1208,32 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           onClose={() => setEditingTask(null)}
         />
       )}
-      {showAddTaskModal && (
-        <AddTaskModal
-          onAdd={t => { addTaskToBoard(t); setShowAddTaskModal(false) }}
-          onClose={() => setShowAddTaskModal(false)}
-        />
-      )}
+      <AddTaskModal
+        open={showAddTaskModal}
+        onClose={() => { setShowAddTaskModal(false); setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: KANBAN_COLS[0] }) }}
+        onSave={(formData) => {
+          const newTask = {
+            id: 'manual-' + uid(), title: formData.title,
+            description: formData.description,
+            assignees: formData.assignees,
+            assignedName: formData.assignees[0] || null,
+            assignedRole: '', dueDate: formData.dueDate,
+            priority: formData.priority, column: formData.column,
+            source: 'manual', subtasks: [], estimatedDays: 1,
+          }
+          setKanban(prev => ({
+            ...(prev || {}),
+            tasks: [...(prev?.tasks || []), newTask],
+            projectTimeline: prev?.projectTimeline || '',
+            unassignedTasks: prev?.unassignedTasks || [],
+            missingRoles: prev?.missingRoles || [],
+          }))
+          if (phase !== 'kanban') setPhase('kanban')
+        }}
+        teamMembers={teamMembers}
+        initialColumn={addTaskData.column || KANBAN_COLS[0]}
+        defaultData={addTaskData}
+      />
       <InviteModal
         open={showInviteModal}
         onClose={() => setShowInviteModal(false)}
@@ -1465,57 +1456,57 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
 
-        {/* Board header — only when tasks exist */}
-        {kanban?.tasks?.length > 0 && (
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>{projectTitle}</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-soft)', marginTop: 2 }}>
-                  {kanban.tasks.length} tasks · {kanban.projectTimeline}
-                </div>
+        {/* ── Stats bar — always visible ── */}
+        {(() => {
+          const totalTasks = kanban?.tasks?.length || 0
+          const doneTasks = (kanban?.tasks || []).filter(t => t.column === 'Done').length
+          const donePercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-soft)', fontWeight: 500 }}>
+                  {totalTasks} task{totalTasks !== 1 ? 's' : ''}
+                </span>
+                {totalTasks > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 80, height: 4, background: 'var(--color-border)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: donePercent + '%', height: '100%', background: '#16a34a', borderRadius: 2, transition: 'width 0.3s ease' }} />
+                    </div>
+                    <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>{donePercent}%</span>
+                  </div>
+                )}
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: 3, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 3 }}>
-                  {[{ id: 'kanban', icon: '▦', label: 'Board' }, { id: 'list', icon: '≡', label: 'List' }].map(v => (
-                    <button key={v.id} onClick={() => setBoardView(v.id)} title={v.label} style={{
-                      background: boardView === v.id ? 'var(--color-accent-bg)' : 'transparent',
-                      border: boardView === v.id ? '1px solid var(--color-accent)' : '1px solid transparent',
-                      borderRadius: 6, padding: '4px 10px',
-                      color: boardView === v.id ? 'var(--color-accent)' : 'var(--color-text-muted)',
-                      fontFamily: "'Urbanist', sans-serif", fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
-                      display: 'flex', alignItems: 'center', gap: 4,
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: 3, gap: 2 }}>
+                  {[
+                    { id: 'kanban', Icon: Squares2X2Icon, label: 'Board' },
+                    { id: 'list', Icon: ListBulletIcon, label: 'List' },
+                  ].map(v => (
+                    <button key={v.id} onClick={() => setBoardView(v.id)} style={{
+                      display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 7, border: 'none',
+                      background: boardView === v.id ? 'var(--color-card)' : 'transparent', cursor: 'pointer',
+                      fontFamily: "'Urbanist',sans-serif", fontSize: 12,
+                      fontWeight: boardView === v.id ? 700 : 500,
+                      color: boardView === v.id ? 'var(--color-text)' : 'var(--color-text-muted)',
+                      boxShadow: boardView === v.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                     }}>
-                      <span style={{ fontSize: 13 }}>{v.icon}</span>
-                      <span style={{ fontSize: 11 }}>{v.label}</span>
+                      <v.Icon style={{ width: 13, height: 13 }} />
+                      {v.label}
                     </button>
                   ))}
                 </div>
-                {kanban.missingRoles?.length > 0 && (
-                  <div style={{ background: 'var(--color-amber)22', border: '1px solid var(--color-amber)', borderRadius: 7, padding: '4px 10px', fontSize: 11, fontFamily: "'DM Mono', monospace", color: 'var(--color-amber)' }}>
-                    ⚠ Need: {kanban.missingRoles.join(', ')}
-                  </div>
-                )}
-                <button onClick={() => setActiveTab('team')} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '7px 14px', color: 'var(--color-text-soft)', fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>👤 Team</button>
-                <button onClick={() => setShowAddTaskModal(true)} style={{ background: 'var(--color-accent)', border: 'none', borderRadius: 8, padding: '7px 14px', color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>+ Add Task</button>
+                <button onClick={() => setActiveTab('team')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: activeTab === 'team' ? 'var(--color-card)' : 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
+                  <UserGroupIcon style={{ width: 14, height: 14 }} />
+                  Team
+                </button>
+                <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: KANBAN_COLS[0] }); setShowAddTaskModal(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 9, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700 }}>
+                  <PlusIcon style={{ width: 14, height: 14 }} />
+                  Add Task
+                </button>
               </div>
             </div>
-            {(() => {
-              const progress = calculateProgress(kanban.tasks)
-              const progressColor = progress === 100 ? 'var(--color-green)' : progress > 50 ? 'var(--color-accent)' : 'var(--color-blue)'
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-                  <div style={{ flex: 1, height: 4, background: 'var(--color-border)', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: progress + '%', background: progressColor, borderRadius: 2, transition: 'width 0.6s ease' }} />
-                  </div>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: progress === 100 ? 'var(--color-green)' : 'var(--color-text-muted)', flexShrink: 0 }}>
-                    {progress === 100 ? '✓ Complete' : progress + '%'}
-                  </span>
-                </div>
-              )
-            })()}
-          </div>
-        )}
+          )
+        })()}
 
         {/* List view — only when tasks exist */}
         {boardView === 'list' && kanban?.tasks?.length > 0 ? (
@@ -1576,19 +1567,15 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
         ) : (
 
         /* Kanban columns — always rendered */
-        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', padding: 20 }}>
-          <div style={{ display: 'flex', minWidth: 'max-content', gap: 0 }}>
-            {KANBAN_COLS.map((col, colIdx) => {
+        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', padding: '16px 20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(240px, 1fr))', gap: 12, minWidth: 0 }}>
+            {KANBAN_COLS.map((col) => {
               const colTasks = (kanban?.tasks || []).filter(t => t.column === col)
               const isDropTarget = dragOverCol === col && draggedTaskId !== null
               const accentCol = COL_COLORS[col]
               return (
-                <React.Fragment key={col}>
-                  {colIdx > 0 && (
-                    <div style={{ width: 1, background: 'linear-gradient(to bottom, transparent, var(--color-border), transparent)', alignSelf: 'stretch', margin: '0 4px' }} />
-                  )}
-                  <div
-                    style={{ width: 280, flexShrink: 0, padding: '0 12px', borderRadius: 12, transition: 'background 0.15s', background: isDropTarget ? accentCol + '0D' : 'transparent', outline: isDropTarget ? '2px dashed ' + accentCol + '66' : 'none', outlineOffset: -2 }}
+                  <div key={col}
+                    style={{ padding: '0 4px', borderRadius: 12, transition: 'background 0.15s', background: isDropTarget ? accentCol + '0D' : 'transparent', outline: isDropTarget ? '2px dashed ' + accentCol + '66' : 'none', outlineOffset: -2 }}
                     onDragOver={e => { e.preventDefault(); setDragOverCol(col) }}
                     onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null) }}
                     onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('taskId'); if (id) moveTask(id, col); setDragOverCol(null); setDraggedTaskId(null) }}
@@ -1609,38 +1596,17 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                       {isDropTarget && colTasks.length === 0 && (
                         <div style={{ height: 60, border: '1.5px dashed ' + accentCol + '88', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: accentCol, marginBottom: 8 }}>Drop here</div>
                       )}
-                      {addingToCol === col ? (
-                        <div style={{ marginTop: 8 }}>
-                          <input
-                            ref={addInputRef}
-                            placeholder="Task title..."
-                            value={newTaskTitle}
-                            onChange={e => setNewTaskTitle(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleAddManualTask(col)
-                              if (e.key === 'Escape') { setAddingToCol(null); setNewTaskTitle('') }
-                            }}
-                            style={{ width: '100%', background: 'var(--color-card)', border: '1.5px solid var(--color-text)', borderRadius: 9, padding: '9px 12px', fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box' }}
-                          />
-                          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                            <button onClick={() => handleAddManualTask(col)} disabled={!newTaskTitle.trim()} style={{ flex: 1, background: newTaskTitle.trim() ? 'var(--color-text)' : 'var(--color-border)', color: 'var(--color-bg)', border: 'none', borderRadius: 7, padding: '6px 0', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 12, cursor: newTaskTitle.trim() ? 'pointer' : 'not-allowed' }}>Add</button>
-                            <button onClick={() => { setAddingToCol(null); setNewTaskTitle('') }} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 7, fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', cursor: 'pointer' }}>Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setAddingToCol(col)}
-                          style={{ width: '100%', marginTop: 8, padding: '7px 0', background: 'transparent', border: '1px dashed var(--color-border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
-                        >
-                          <PlusIcon style={{ width: 13, height: 13 }} />
-                          Add task
-                        </button>
-                      )}
+                      <button
+                        onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col }); setShowAddTaskModal(true) }}
+                        style={{ width: '100%', marginTop: 8, padding: '7px 0', background: 'transparent', border: '1px dashed var(--color-border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+                      >
+                        <PlusIcon style={{ width: 13, height: 13 }} />
+                        Add task
+                      </button>
                     </div>
                   </div>
-                </React.Fragment>
               )
             })}
           </div>
@@ -1718,7 +1684,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
             <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>AI Assistant</span>
           </div>
           <button
-            onClick={() => setChatOpen(false)}
+            onClick={(e) => { e.stopPropagation(); setChatOpen(false) }}
             style={{
               width: 28, height: 28, borderRadius: 6,
               background: 'transparent', border: '1px solid var(--color-border)',
