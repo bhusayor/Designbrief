@@ -6,6 +6,7 @@ import {
   XMarkIcon, ArrowUpIcon, ChevronDownIcon,
   UserGroupIcon, UserIcon, CalendarIcon,
   Squares2X2Icon, ListBulletIcon,
+  TableCellsIcon, CalendarDaysIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -158,7 +159,21 @@ export default function TeamCollab() {
   const [activeTab, setActiveTab] = useState('board')
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [invites, setInvites] = useState([])
-  const [boardView, setBoardView] = useState('kanban')
+  const [viewMode, setViewMode] = useState('board')
+  const [customCols, setCustomCols] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tc-cols-' + (activeProjectId || 'default'))
+      if (saved) return JSON.parse(saved)
+    } catch(e) {}
+    return [
+      { id: 'To Do', label: 'To Do', color: '#6B7280' },
+      { id: 'In Progress', label: 'In Progress', color: '#3B82F6' },
+      { id: 'Review', label: 'Review', color: '#F59E0B' },
+      { id: 'Done', label: 'Done', color: '#16a34a' },
+    ]
+  })
+  const [editingColId, setEditingColId] = useState(null)
+  const [editingColLabel, setEditingColLabel] = useState('')
 
   const chatEndRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -352,6 +367,11 @@ Return JSON:
 
   function saveProjects(newProjects) {
     localStorage.setItem('teamcollab-projects', JSON.stringify(newProjects))
+  }
+
+  function saveCustomCols(cols) {
+    setCustomCols(cols)
+    localStorage.setItem('tc-cols-' + (activeProjectId || 'default'), JSON.stringify(cols))
   }
 
   function handleNewProject() {
@@ -1191,6 +1211,88 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
     )
   }
 
+  // ── TableView ─────────────────────────────────────────────────────────────
+
+  function TableView({ tasks, customCols: cols }) {
+    if (!tasks?.length) {
+      return (
+        <div style={{ padding: 40, textAlign: 'center', fontFamily: "'Urbanist',sans-serif", fontSize: 14, color: 'var(--color-text-muted)' }}>
+          No tasks yet. Add tasks to see them here.
+        </div>
+      )
+    }
+    const COLS = [
+      { key: 'title', label: 'Task', width: '35%' },
+      { key: 'assignee', label: 'Assignee', width: '15%' },
+      { key: 'dueDate', label: 'Due Date', width: '15%' },
+      { key: 'priority', label: 'Priority', width: '12%' },
+      { key: 'column', label: 'Status', width: '15%' },
+    ]
+    return (
+      <div style={{ width: '100%', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'Urbanist',sans-serif" }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid var(--color-border)', background: 'var(--color-surface)' }}>
+              {COLS.map(col => (
+                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'left', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', width: col.width, whiteSpace: 'nowrap' }}>{col.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tasks.map((task, i) => {
+              const col = cols.find(c => c.id === task.column) || { label: task.column || '—', color: '#6B7280' }
+              const priorityColor = task.priority === 'HIGH' ? '#EF4444' : task.priority === 'MEDIUM' ? '#F59E0B' : '#6B7280'
+              return (
+                <tr key={task.id || i}
+                  style={{ borderBottom: '1px solid var(--color-border)', background: i % 2 === 0 ? 'var(--color-card)' : 'transparent', transition: 'background 0.1s', cursor: 'pointer' }}
+                  onClick={() => setEditingTask(task)}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 0 ? 'var(--color-card)' : 'transparent' }}
+                >
+                  <td style={{ padding: '10px 14px', fontWeight: 500, fontSize: 13, color: 'var(--color-text)' }}>{task.title}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    {task.assignedName || task.assignee ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
+                          {(task.assignedName || task.assignee || '')[0]?.toUpperCase()}
+                        </div>
+                        <span style={{ fontSize: 12, color: 'var(--color-text-soft)' }}>{task.assignedName || task.assignee}</span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontFamily: "'DM Mono',monospace" }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    {task.dueDate ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'DM Mono',monospace", fontSize: 11, color: new Date(task.dueDate) < new Date() ? '#EF4444' : 'var(--color-text-soft)' }}>
+                        <CalendarIcon style={{ width: 12, height: 12, flexShrink: 0 }} />
+                        {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                    ) : (
+                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: priorityColor + '15', border: '1px solid ' + priorityColor + '30', borderRadius: 5, padding: '2px 8px' }}>
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: priorityColor }} />
+                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: priorityColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{task.priority || 'MEDIUM'}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: col.color + '15', border: '1px solid ' + col.color + '30', borderRadius: 5, padding: '2px 8px' }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: col.color }} />
+                      <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 600, color: col.color }}>{col.label}</span>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1455,51 +1557,60 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
 
-        {/* ── Stats bar — always visible ── */}
+        {/* ── ClickUp-style toolbar ── */}
         {(() => {
           const totalTasks = kanban?.tasks?.length || 0
-          const doneTasks = (kanban?.tasks || []).filter(t => t.column === 'Done').length
+          const doneCol = customCols.find(c => c.label === 'Done') || customCols[customCols.length - 1]
+          const doneTasks = (kanban?.tasks || []).filter(t => t.column === (doneCol?.id || 'Done')).length
           const donePercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
           return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-soft)', fontWeight: 500 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 20px', height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
+              {/* Left: task count + progress */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 120 }}>
+                <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>
                   {totalTasks} task{totalTasks !== 1 ? 's' : ''}
                 </span>
                 {totalTasks > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 80, height: 4, background: 'var(--color-border)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ width: donePercent + '%', height: '100%', background: '#16a34a', borderRadius: 2, transition: 'width 0.3s ease' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 60, height: 3, background: 'var(--color-border)', borderRadius: 2 }}>
+                      <div style={{ width: donePercent + '%', height: '100%', background: '#16a34a', borderRadius: 2, transition: 'width 0.4s ease' }} />
                     </div>
-                    <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>{donePercent}%</span>
+                    <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>{donePercent}%</span>
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ display: 'flex', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: 3, gap: 2 }}>
-                  {[
-                    { id: 'kanban', Icon: Squares2X2Icon, label: 'Board' },
-                    { id: 'list', Icon: ListBulletIcon, label: 'List' },
-                  ].map(v => (
-                    <button key={v.id} onClick={() => setBoardView(v.id)} style={{
-                      display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 7, border: 'none',
-                      background: boardView === v.id ? 'var(--color-card)' : 'transparent', cursor: 'pointer',
-                      fontFamily: "'Urbanist',sans-serif", fontSize: 12,
-                      fontWeight: boardView === v.id ? 700 : 500,
-                      color: boardView === v.id ? 'var(--color-text)' : 'var(--color-text-muted)',
-                      boxShadow: boardView === v.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    }}>
-                      <v.Icon style={{ width: 13, height: 13 }} />
+              {/* Centre: view tabs */}
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                {[
+                  { id: 'board', icon: Squares2X2Icon, label: 'Board' },
+                  { id: 'list', icon: ListBulletIcon, label: 'List' },
+                  { id: 'table', icon: TableCellsIcon, label: 'Table' },
+                  { id: 'calendar', icon: CalendarDaysIcon, label: 'Calendar' },
+                  { id: 'gantt', icon: ChartBarIcon, label: 'Gantt' },
+                ].map(v => {
+                  const isActive = viewMode === v.id
+                  return (
+                    <button key={v.id} onClick={() => setViewMode(v.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: 'none', background: isActive ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', transition: 'all 0.15s', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--color-surface)' }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <v.icon style={{ width: 13, height: 13 }} />
                       {v.label}
                     </button>
-                  ))}
-                </div>
-                <button onClick={() => setActiveTab('team')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: activeTab === 'team' ? 'var(--color-card)' : 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
-                  <UserGroupIcon style={{ width: 14, height: 14 }} />
+                  )
+                })}
+              </div>
+              {/* Right: Team + Add Task */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120, justifyContent: 'flex-end' }}>
+                <button onClick={() => setActiveTab('team')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: activeTab === 'team' ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
+                  <UserGroupIcon style={{ width: 13, height: 13 }} />
                   Team
                 </button>
-                <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: KANBAN_COLS[0] }); setShowAddTaskModal(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 9, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700 }}>
-                  <PlusIcon style={{ width: 14, height: 14 }} />
+                <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: customCols[0]?.id || KANBAN_COLS[0] }); setShowAddTaskModal(true) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700 }}>
+                  <PlusIcon style={{ width: 13, height: 13 }} />
                   Add Task
                 </button>
               </div>
@@ -1507,21 +1618,21 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           )
         })()}
 
-        {/* List view — only when tasks exist */}
-        {boardView === 'list' && kanban?.tasks?.length > 0 ? (
+        {/* List view */}
+        {viewMode === 'list' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 100px 100px 60px', gap: 12, padding: '8px 16px', background: 'var(--color-surface)', borderRadius: 8, marginBottom: 10, fontSize: 10, fontFamily: "'DM Mono', monospace", color: 'var(--color-text-muted)', letterSpacing: '0.06em' }}>
               {['TASK', 'ASSIGNEE', 'PRIORITY', 'DUE DATE', 'STATUS', 'DAYS'].map(h => <div key={h}>{h}</div>)}
             </div>
-            {KANBAN_COLS.map(col => {
-              const colTasks = (kanban?.tasks || []).filter(t => t.column === col)
+            {customCols.map(col => {
+              const colTasks = (kanban?.tasks || []).filter(t => t.column === col.id)
               if (!colTasks.length) return null
-              const cc = COL_COLORS[col] || 'var(--color-text-muted)'
+              const cc = col.color
               return (
-                <div key={col} style={{ marginBottom: 16 }}>
+                <div key={col.id} style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px 6px' }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: cc }} />
-                    <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{col}</span>
+                    <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{col.label}</span>
                     <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>({colTasks.length})</span>
                   </div>
                   {colTasks.map(task => {
@@ -1537,7 +1648,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                         onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-card)'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.borderLeftColor = pc }}
                       >
                         <div>
-                          {task.blockedBy?.length > 0 && task.column !== 'Done' && <span style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", color: 'var(--color-red)', marginRight: 6 }}>🔒</span>}
+                          {task.blockedBy?.length > 0 && task.column !== col.id && <span style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", color: 'var(--color-red)', marginRight: 6 }}>🔒</span>}
                           <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{task.title}</span>
                           {task.description && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{task.description}</div>}
                         </div>
@@ -1554,7 +1665,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: pc }}>{task.priority}</span>
                         </div>
                         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: dueColor }}>{dueTxt}</div>
-                        <div><div style={{ background: cc + '18', border: '1px solid ' + cc + '33', borderRadius: 5, padding: '2px 8px', display: 'inline-block', fontFamily: "'DM Mono', monospace", fontSize: 9, color: cc }}>{col}</div></div>
+                        <div><div style={{ background: cc + '18', border: '1px solid ' + cc + '33', borderRadius: 5, padding: '2px 8px', display: 'inline-block', fontFamily: "'DM Mono', monospace", fontSize: 9, color: cc }}>{col.label}</div></div>
                         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>{task.estimatedDays}d</div>
                       </div>
                     )
@@ -1563,30 +1674,69 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
               )
             })}
           </div>
-        ) : (
+        )}
 
-        /* Kanban columns — always rendered */
-        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', padding: '16px 20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(240px, 1fr))', gap: 12, minWidth: 0 }}>
-            {KANBAN_COLS.map((col) => {
-              const colTasks = (kanban?.tasks || []).filter(t => t.column === col)
-              const isDropTarget = dragOverCol === col && draggedTaskId !== null
-              const accentCol = COL_COLORS[col]
+        {/* Table view */}
+        {viewMode === 'table' && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <TableView
+              tasks={kanban?.tasks || []}
+              customCols={customCols}
+              teamMembers={teamMembers}
+              onUpdateTask={(id, updates) => {
+                setKanban(prev => ({
+                  ...prev,
+                  tasks: prev.tasks.map(t => t.id === id ? { ...t, ...updates } : t),
+                }))
+              }}
+            />
+          </div>
+        )}
+
+        {/* Kanban board */}
+        {(viewMode === 'board' || viewMode === 'calendar' || viewMode === 'gantt') && (
+        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', padding: '16px 20px', background: 'var(--color-surface)' }}>
+          <div style={{ display: 'flex', gap: 12, height: '100%', alignItems: 'flex-start', minWidth: 'max-content' }}>
+            {customCols.map((col) => {
+              const colTasks = (kanban?.tasks || []).filter(t => t.column === col.id)
+              const isDropTarget = dragOverCol === col.id && draggedTaskId !== null
+              const accentCol = col.color
               return (
-                  <div key={col}
-                    style={{ padding: '0 4px', borderRadius: 12, transition: 'background 0.15s', background: isDropTarget ? accentCol + '0D' : 'transparent', outline: isDropTarget ? '2px dashed ' + accentCol + '66' : 'none', outlineOffset: -2 }}
-                    onDragOver={e => { e.preventDefault(); setDragOverCol(col) }}
+                  <div key={col.id}
+                    style={{ width: 260, flexShrink: 0, borderRadius: 12, transition: 'background 0.15s', background: isDropTarget ? accentCol + '0D' : 'rgba(0,0,0,0.03)', outline: isDropTarget ? '2px dashed ' + accentCol + '66' : 'none', outlineOffset: -2, padding: '12px 10px' }}
+                    onDragOver={e => { e.preventDefault(); setDragOverCol(col.id) }}
                     onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null) }}
-                    onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('taskId'); if (id) moveTask(id, col); setDragOverCol(null); setDraggedTaskId(null) }}
+                    onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('taskId'); if (id) moveTask(id, col.id); setDragOverCol(null); setDraggedTaskId(null) }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                       <div style={{ width: 7, height: 7, borderRadius: '50%', background: accentCol, flexShrink: 0 }} />
-                      <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 12, color: 'var(--color-text)' }}>{col}</span>
+                      {editingColId === col.id ? (
+                        <input
+                          autoFocus
+                          value={editingColLabel}
+                          onChange={e => setEditingColLabel(e.target.value)}
+                          onBlur={() => {
+                            if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel } : c))
+                            setEditingColId(null)
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel } : c)); setEditingColId(null) }
+                            if (e.key === 'Escape') setEditingColId(null)
+                          }}
+                          style={{ background: 'transparent', border: 'none', borderBottom: '1.5px solid var(--color-text)', outline: 'none', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)', width: '80%', padding: '0 0 2px 0' }}
+                        />
+                      ) : (
+                        <span
+                          onDoubleClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
+                          style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)', cursor: 'text', userSelect: 'none' }}
+                          title="Double-click to rename"
+                        >{col.label}</span>
+                      )}
                       <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>{colTasks.length}</span>
                       {isDropTarget && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: accentCol, animation: 'pulse 1s ease infinite' }}>DROP</span>}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 60 }}>
-                      {colTasks.map(task => <TaskCard key={task.id} task={task} col={col} />)}
+                      {colTasks.map(task => <TaskCard key={task.id} task={task} col={col.id} />)}
                       {colTasks.length === 0 && !isDropTarget && (
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
                           <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.5 }}>No tasks yet</div>
@@ -1596,7 +1746,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                         <div style={{ height: 60, border: '1.5px dashed ' + accentCol + '88', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: accentCol, marginBottom: 8 }}>Drop here</div>
                       )}
                       <button
-                        onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col }); setShowAddTaskModal(true) }}
+                        onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
                         style={{ width: '100%', marginTop: 8, padding: '7px 0', background: 'transparent', border: '1px dashed var(--color-border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
@@ -1608,6 +1758,23 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                   </div>
               )
             })}
+            {/* Add group button */}
+            <div style={{ width: 240, flexShrink: 0 }}>
+              <button
+                onClick={() => {
+                  const newCol = { id: 'col-' + uid(), label: 'New Group', color: '#8B5CF6' }
+                  const updated = [...customCols, newCol]
+                  saveCustomCols(updated)
+                  setTimeout(() => { setEditingColId(newCol.id); setEditingColLabel('New Group') }, 50)
+                }}
+                style={{ width: '100%', padding: '10px 16px', background: 'transparent', border: '1.5px dashed var(--color-border)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.background = 'var(--color-surface)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
+              >
+                <PlusIcon style={{ width: 14, height: 14 }} />
+                Add group
+              </button>
+            </div>
           </div>
         </div>
         )}
