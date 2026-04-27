@@ -7,6 +7,8 @@ import {
   UserGroupIcon, UserIcon, CalendarIcon,
   Squares2X2Icon, ListBulletIcon,
   TableCellsIcon, CalendarDaysIcon, ChartBarIcon,
+  ChevronLeftIcon, ChevronRightIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -1293,6 +1295,223 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
     )
   }
 
+  // ── CalendarView ──────────────────────────────────────────────────────────
+
+  function CalendarView({ tasks, customCols: cols }) {
+    const today = new Date()
+    const [currentMonth, setCurrentMonth] = useState(today.getMonth())
+    const [currentYear, setCurrentYear] = useState(today.getFullYear())
+
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
+
+    const tasksByDate = {}
+    tasks.forEach(task => {
+      if (!task.dueDate) return
+      const dateKey = task.dueDate.slice(0, 10)
+      if (!tasksByDate[dateKey]) tasksByDate[dateKey] = []
+      tasksByDate[dateKey].push(task)
+    })
+
+    const cells = []
+    for (let i = 0; i < firstDayOfMonth; i++) cells.push(null)
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+    function prevMonth() {
+      if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1) }
+      else setCurrentMonth(m => m - 1)
+    }
+    function nextMonth() {
+      if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1) }
+      else setCurrentMonth(m => m + 1)
+    }
+
+    const noDateCount = tasks.filter(t => !t.dueDate).length
+
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px 20px', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
+        {/* Month navigation */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <button onClick={prevMonth} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronLeftIcon style={{ width: 16, height: 16, color: 'var(--color-text)' }} />
+          </button>
+          <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 20, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
+            {monthNames[currentMonth]} {currentYear}
+          </div>
+          <button onClick={nextMonth} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronRightIcon style={{ width: 16, height: 16, color: 'var(--color-text)' }} />
+          </button>
+        </div>
+
+        {/* Day headers */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, marginBottom: 4 }}>
+          {dayNames.map(d => (
+            <div key={d} style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'center', padding: '4px 0', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{d}</div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, flex: 1 }}>
+          {cells.map((day, i) => {
+            if (day === null) return <div key={'e-' + i} />
+            const dateKey = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0')
+            const dayTasks = tasksByDate[dateKey] || []
+            const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()
+            return (
+              <div key={day} style={{ minHeight: 80, background: isToday ? 'rgba(59,130,246,0.06)' : 'var(--color-card)', border: isToday ? '1.5px solid #3B82F6' : '1px solid var(--color-border)', borderRadius: 10, padding: '6px 8px', transition: 'all 0.1s' }}>
+                <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: isToday ? 800 : 500, fontSize: 13, color: isToday ? '#3B82F6' : 'var(--color-text)', marginBottom: 4 }}>{day}</div>
+                {dayTasks.slice(0, 3).map((task, ti) => {
+                  const col = cols?.find(c => c.id === task.column) || { color: '#6B7280' }
+                  return (
+                    <div key={ti} onClick={() => setEditingTask(task)} style={{ background: col.color + '20', border: '1px solid ' + col.color + '40', borderLeft: '2px solid ' + col.color, borderRadius: '0 4px 4px 0', padding: '2px 5px', marginBottom: 2, fontFamily: "'Urbanist',sans-serif", fontSize: 10, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                      {task.title}
+                    </div>
+                  )
+                })}
+                {dayTasks.length > 3 && (
+                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)' }}>+{dayTasks.length - 3} more</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* No-due-date notice */}
+        {noDateCount > 0 && (
+          <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)' }}>
+            <ExclamationCircleIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
+            {noDateCount} task{noDateCount !== 1 ? 's' : ''} have no due date and won't appear on the calendar.
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── GanttView ─────────────────────────────────────────────────────────────
+
+  function GanttView({ tasks, customCols: cols }) {
+    const today = new Date()
+    const [startDate] = useState(() => {
+      const d = new Date()
+      d.setDate(d.getDate() - 7)
+      d.setHours(0, 0, 0, 0)
+      return d
+    })
+
+    const DAYS = 56
+    const DAY_WIDTH = 32
+
+    const days = []
+    for (let i = 0; i < DAYS; i++) {
+      const d = new Date(startDate)
+      d.setDate(d.getDate() + i)
+      days.push(d)
+    }
+
+    const ganttTasks = tasks.filter(t => t.dueDate)
+
+    function dayIndex(dateStr) {
+      const d = new Date(dateStr)
+      d.setHours(0, 0, 0, 0)
+      return Math.floor((d - startDate) / (1000 * 60 * 60 * 24))
+    }
+
+    const todayIndex = dayIndex(today.toISOString().slice(0, 10))
+
+    if (!ganttTasks.length) {
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40, textAlign: 'center' }}>
+          <ChartBarIcon style={{ width: 32, height: 32, color: 'var(--color-text-muted)' }} />
+          <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 16, color: 'var(--color-text)', marginBottom: 4 }}>No tasks with due dates</div>
+          <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)', maxWidth: 280, lineHeight: 1.6 }}>Add due dates to your tasks to see them on the Gantt chart.</div>
+        </div>
+      )
+    }
+
+    return (
+      <div style={{ flex: 1, display: 'flex', overflowX: 'auto', overflowY: 'auto' }}>
+        <div style={{ minWidth: 'max-content' }}>
+          {/* Header row */}
+          <div style={{ display: 'flex', position: 'sticky', top: 0, zIndex: 10, background: 'var(--color-bg)', borderBottom: '2px solid var(--color-border)' }}>
+            <div style={{ width: 200, flexShrink: 0, padding: '8px 14px', borderRight: '1px solid var(--color-border)', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', background: 'var(--color-bg)' }}>Task</div>
+            <div style={{ display: 'flex' }}>
+              {days.map((d, i) => {
+                const isToday = d.toDateString() === today.toDateString()
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6
+                const isFirstOfWeek = d.getDay() === 1
+                return (
+                  <div key={i} style={{ width: DAY_WIDTH, flexShrink: 0, padding: '4px 2px', textAlign: 'center', background: isToday ? 'rgba(59,130,246,0.1)' : isWeekend ? 'var(--color-surface)' : 'transparent', borderLeft: isFirstOfWeek ? '1px solid var(--color-border)' : 'none' }}>
+                    {(isFirstOfWeek || d.getDate() === 1 || i === 0) && (
+                      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', marginBottom: 1 }}>
+                        {d.toLocaleDateString('en', { month: 'short' })}
+                      </div>
+                    )}
+                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: isToday ? 700 : 400, color: isToday ? '#3B82F6' : 'var(--color-text-muted)' }}>{d.getDate()}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Task rows */}
+          {ganttTasks.map((task, ti) => {
+            const col = cols?.find(c => c.id === task.column) || { color: '#6B7280', label: task.column || '—' }
+            const dueIdx = dayIndex(task.dueDate)
+            const startIdx = Math.max(0, dueIdx - 2)
+            const endIdx = Math.min(DAYS - 1, dueIdx)
+            const barWidth = Math.max(DAY_WIDTH, (endIdx - startIdx + 1) * DAY_WIDTH)
+            const barLeft = startIdx * DAY_WIDTH
+            const isOverdue = new Date(task.dueDate) < today && task.column !== 'done'
+
+            return (
+              <div key={task.id || ti} style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', height: 44, position: 'relative' }}>
+                {/* Task name (sticky) */}
+                <div style={{ width: 200, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 7, borderRight: '1px solid var(--color-border)', background: 'var(--color-bg)', position: 'sticky', left: 0, zIndex: 5 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
+                  <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, fontWeight: 500, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                </div>
+
+                {/* Timeline */}
+                <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', background: ti % 2 === 0 ? 'transparent' : 'var(--color-surface)', minWidth: DAYS * DAY_WIDTH }}>
+                  {/* Weekend shading */}
+                  {days.map((d, i) => (d.getDay() === 0 || d.getDay() === 6) ? (
+                    <div key={i} style={{ position: 'absolute', left: i * DAY_WIDTH, top: 0, bottom: 0, width: DAY_WIDTH, background: 'rgba(0,0,0,0.03)', pointerEvents: 'none' }} />
+                  ) : null)}
+
+                  {/* Today line */}
+                  {todayIndex >= 0 && todayIndex < DAYS && (
+                    <div style={{ position: 'absolute', left: todayIndex * DAY_WIDTH + DAY_WIDTH / 2, top: 0, bottom: 0, width: 2, background: '#3B82F6', opacity: 0.5, pointerEvents: 'none', zIndex: 3 }} />
+                  )}
+
+                  {/* Week grid lines */}
+                  {days.map((d, i) => d.getDay() === 1 ? (
+                    <div key={i} style={{ position: 'absolute', left: i * DAY_WIDTH, top: 0, bottom: 0, width: 1, background: 'var(--color-border)', pointerEvents: 'none' }} />
+                  ) : null)}
+
+                  {/* Task bar */}
+                  {dueIdx >= 0 && startIdx < DAYS && (
+                    <div
+                      title={task.title + ' · Due: ' + new Date(task.dueDate).toLocaleDateString()}
+                      onClick={() => setEditingTask(task)}
+                      style={{ position: 'absolute', left: barLeft, width: barWidth, height: 24, borderRadius: 6, background: isOverdue ? '#EF4444' : col.color, opacity: 0.85, display: 'flex', alignItems: 'center', paddingLeft: 8, cursor: 'pointer', zIndex: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}
+                    >
+                      {barWidth > 48 && (
+                        <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 10, fontWeight: 700, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: barWidth - 16 }}>{task.title}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1693,8 +1912,18 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           </div>
         )}
 
+        {/* Calendar view */}
+        {viewMode === 'calendar' && (
+          <CalendarView tasks={kanban?.tasks || []} customCols={customCols} />
+        )}
+
+        {/* Gantt view */}
+        {viewMode === 'gantt' && (
+          <GanttView tasks={kanban?.tasks || []} customCols={customCols} />
+        )}
+
         {/* Kanban board */}
-        {(viewMode === 'board' || viewMode === 'calendar' || viewMode === 'gantt') && (
+        {viewMode === 'board' && (
         <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', padding: '16px 20px', background: 'var(--color-surface)' }}>
           <div style={{ display: 'flex', gap: 12, height: '100%', alignItems: 'flex-start', minWidth: 'max-content' }}>
             {customCols.map((col) => {
