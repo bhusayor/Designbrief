@@ -9,6 +9,7 @@ import {
   TableCellsIcon, CalendarDaysIcon, ChartBarIcon,
   ChevronLeftIcon, ChevronRightIcon,
   ExclamationCircleIcon,
+  CheckCircleIcon, EllipsisHorizontalIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -795,10 +796,9 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
   // ── TaskCard (inline so it can close over drag state setters) ─────────────
 
   function TaskCard({ task }) {
-    const meta = ROLE_META[task.assignedRole]
-    const roleColor = meta?.color || 'var(--color-text-muted)'
     const isDragging = draggedTaskId === task.id
-    const priorityColor = PRIORITY_COLORS[task.priority] || 'var(--color-text-muted)'
+    const priorityColor = PRIORITY_COLORS[task.priority] || '#6B7280'
+    const assigneeName = task.assignedName || task.assignee || null
 
     return (
       <div
@@ -818,94 +818,65 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
         style={{
           background: 'var(--color-card)',
           border: '1px solid var(--color-border)',
-          borderLeft: '3px solid ' + priorityColor,
-          borderRadius: 12, padding: 14,
-          transition: 'all 0.15s', cursor: 'grab',
+          borderRadius: 10, padding: '12px 14px',
+          marginBottom: 8,
+          cursor: isDragging ? 'grabbing' : 'grab',
+          transition: 'all 0.15s ease',
           opacity: isDragging ? 0.35 : 1,
           userSelect: 'none',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
         }}
         onMouseEnter={e => {
           if (!isDragging) {
-            e.currentTarget.style.borderColor = roleColor
-            e.currentTarget.style.borderLeftColor = priorityColor
-            e.currentTarget.style.background = 'var(--color-card-hover)'
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
             e.currentTarget.style.transform = 'translateY(-1px)'
           }
         }}
         onMouseLeave={e => {
-          if (!isDragging) {
-            e.currentTarget.style.borderColor = 'var(--color-border)'
-            e.currentTarget.style.borderLeftColor = priorityColor
-            e.currentTarget.style.background = 'var(--color-card)'
-            e.currentTarget.style.transform = 'translateY(0)'
-          }
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
+          e.currentTarget.style.transform = 'translateY(0)'
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, marginBottom: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flex: 1, minWidth: 0 }}>
-            {task.blockedBy?.length > 0 && task.column !== 'Done' && (
-              <span style={{
-                background: 'var(--color-red)' + '18',
-                border: '1px solid ' + 'var(--color-red)' + '44',
-                borderRadius: 4, padding: '1px 4px',
-                color: 'var(--color-red)', fontFamily: "'DM Mono', monospace",
-                fontSize: 9, flexShrink: 0, marginTop: 1,
-              }}>🔒</span>
-            )}
-            <span style={{ color: 'var(--color-text-muted)', fontSize: 10, marginTop: 2, flexShrink: 0, cursor: 'grab', letterSpacing: -1 }}>⠿</span>
-            <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 12, lineHeight: 1.4, color: 'var(--color-text)' }}>{task.title}</span>
-          </div>
-          <div style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: priorityColor, flexShrink: 0, marginTop: 5,
-          }} />
+        {/* Priority indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: priorityColor }} />
+          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: priorityColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{task.priority || 'MEDIUM'}</span>
         </div>
+
+        {/* Title */}
+        <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 14, color: 'var(--color-text)', lineHeight: 1.4, marginBottom: task.description ? 6 : 12, wordBreak: 'break-word' }}>
+          {task.title}
+        </div>
+
+        {/* Description preview */}
         {task.description && (
-          <div style={{
-            fontSize: 11, color: 'var(--color-text-soft)',
-            fontFamily: "'DM Mono', monospace",
-            lineHeight: 1.6, marginBottom: 10,
-            display: '-webkit-box', WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          }}>{task.description}</div>
-        )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{
-            background: roleColor + '18',
-            border: '1px solid ' + roleColor + '33',
-            borderRadius: 5, padding: '3px 8px',
-            fontSize: 10, color: roleColor, fontFamily: "'DM Mono', monospace",
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            {meta?.icon} {task.assignedName || task.assignedRole}
+          <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 12, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {task.description}
           </div>
-          <span style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace" }}>
-            {task.estimatedDays}d
-          </span>
-        </div>
-        {task.dueDate && (() => {
-          const status = getDueDateStatus(task.dueDate, task.column)
-          const dueColor = status === 'overdue'
-            ? 'var(--color-red)'
-            : status === 'today'
-              ? 'var(--color-amber)'
-              : 'var(--color-text-muted)'
-          const dueLabel = status === 'overdue'
-            ? 'Overdue'
-            : status === 'today'
-              ? 'Due today'
-              : formatDueDate(task.dueDate)
-          return (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              marginTop: 8, fontSize: 10, fontFamily: "'DM Mono', monospace",
-              color: dueColor,
-            }}>
-              <span style={{ fontSize: 10 }}>📅</span>
-              <span>{dueLabel}</span>
+        )}
+
+        {/* Footer */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          {assigneeName ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
+                {assigneeName[0]?.toUpperCase()}
+              </div>
             </div>
-          )
-        })()}
+          ) : (
+            <div style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px dashed var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <UserIcon style={{ width: 10, height: 10, color: 'var(--color-text-muted)' }} />
+            </div>
+          )}
+          {task.dueDate && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 5, padding: '2px 7px' }}>
+              <CalendarIcon style={{ width: 10, height: 10, color: 'var(--color-text-muted)' }} />
+              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-soft)', fontWeight: 600 }}>
+                {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     )
   }
@@ -1517,8 +1488,14 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden',
-      position: 'relative', background: 'var(--color-bg)',
+      position: 'relative', background: 'var(--color-surface)',
     }}>
+      <style>{`
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
 
       {/* Modals */}
       {editingTask && (
@@ -1663,8 +1640,6 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
       {/* ── Main content ── */}
       <div style={{
         flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column',
-        transition: 'margin-right 0.3s ease',
-        marginRight: chatOpen ? 360 : 0,
       }}>
 
         {/* ── Team tab ── */}
@@ -1775,6 +1750,8 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 8, gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
 
         {/* ── ClickUp-style toolbar ── */}
         {(() => {
@@ -1798,8 +1775,8 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                   </div>
                 )}
               </div>
-              {/* Centre: view tabs */}
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+              {/* View tabs */}
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 2 }}>
                 {[
                   { id: 'board', icon: Squares2X2Icon, label: 'Board' },
                   { id: 'list', icon: ListBulletIcon, label: 'List' },
@@ -1937,32 +1914,53 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                     onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null) }}
                     onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('taskId'); if (id) moveTask(id, col.id); setDragOverCol(null); setDraggedTaskId(null) }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: accentCol, flexShrink: 0 }} />
-                      {editingColId === col.id ? (
-                        <input
-                          autoFocus
-                          value={editingColLabel}
-                          onChange={e => setEditingColLabel(e.target.value)}
-                          onBlur={() => {
-                            if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel } : c))
-                            setEditingColId(null)
-                          }}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') { if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel } : c)); setEditingColId(null) }
-                            if (e.key === 'Escape') setEditingColId(null)
-                          }}
-                          style={{ background: 'transparent', border: 'none', borderBottom: '1.5px solid var(--color-text)', outline: 'none', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)', width: '80%', padding: '0 0 2px 0' }}
-                        />
-                      ) : (
-                        <span
-                          onDoubleClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
-                          style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)', cursor: 'text', userSelect: 'none' }}
-                          title="Double-click to rename"
-                        >{col.label}</span>
-                      )}
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>{colTasks.length}</span>
-                      {isDropTarget && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: accentCol, animation: 'pulse 1s ease infinite' }}>DROP</span>}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '4px 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {editingColId === col.id ? (
+                          <input
+                            autoFocus
+                            value={editingColLabel}
+                            onChange={e => setEditingColLabel(e.target.value)}
+                            onBlur={() => {
+                              if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel } : c))
+                              setEditingColId(null)
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') { if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel } : c)); setEditingColId(null) }
+                              if (e.key === 'Escape') setEditingColId(null)
+                            }}
+                            style={{ background: 'transparent', border: 'none', borderBottom: '1.5px solid var(--color-text)', outline: 'none', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)', width: 120, padding: '0 0 2px 0' }}
+                          />
+                        ) : (
+                          <div
+                            onDoubleClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: accentCol + '15', border: '1px solid ' + accentCol + '30', borderRadius: 6, padding: '3px 10px', cursor: 'text' }}
+                            title="Double-click to rename"
+                          >
+                            <CheckCircleIcon style={{ width: 11, height: 11, color: accentCol, flexShrink: 0 }} />
+                            <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em', userSelect: 'none' }}>{col.label}</span>
+                          </div>
+                        )}
+                        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>{colTasks.length}</span>
+                        {isDropTarget && <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: accentCol, animation: 'pulse 1s ease infinite' }}>DROP</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 2 }}>
+                        <button
+                          onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
+                          style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        >
+                          <PlusIcon style={{ width: 13, height: 13 }} />
+                        </button>
+                        <button
+                          style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        >
+                          <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
+                        </button>
+                      </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 60 }}>
                       {colTasks.map(task => <TaskCard key={task.id} task={task} col={col.id} />)}
@@ -2021,277 +2019,183 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
           </div>
         )}
 
-        </>)}
-      </div>
+        </div> {/* closes kanban card */}
 
-      {/* ── Floating AI chat bubble ── */}
-      <button
-        onPointerDown={(e) => { e.preventDefault(); setChatOpen(prev => !prev); setUnreadCount(0) }}
-        title={chatOpen ? 'Close AI chat' : 'Open AI chat'}
-        style={{
-          position: 'absolute', bottom: 24, right: chatOpen ? 376 : 24,
-          width: 52, height: 52, borderRadius: '50%',
-          background: 'var(--color-text)', border: 'none',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 101,
-          transition: 'right 0.3s ease',
-        }}
-      >
-        <SparklesIcon style={{ width: 20, height: 20, color: 'var(--color-bg)' }} />
-        {!chatOpen && unreadCount > 0 && (
-          <div style={{
-            position: 'absolute', top: -4, right: -4,
-            width: 18, height: 18, borderRadius: '50%',
-            background: '#dc2626', border: '2px solid var(--color-bg)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: 'white',
-          }}>
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </div>
-        )}
-      </button>
+        {/* AI panel — flex sibling */}
+        {chatOpen && (
+          <div style={{ width: 380, flexShrink: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', animation: 'slideInRight 0.25s ease' }}>
 
-      {/* ── Sliding chat panel ── */}
-      <div style={{
-        position: 'absolute', top: 0, right: 0,
-        width: 360, height: '100%',
-        display: 'flex', flexDirection: 'column',
-        borderLeft: '1px solid var(--color-border)',
-        background: 'var(--color-bg)',
-        transform: chatOpen ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform 0.3s ease',
-        zIndex: 50,
-        pointerEvents: chatOpen ? 'auto' : 'none',
-        visibility: chatOpen ? 'visible' : 'hidden',
-      }}>
-
-        {/* Chat panel header */}
-        <div style={{
-          height: 52, flexShrink: 0, display: 'flex', alignItems: 'center',
-          padding: '0 14px', gap: 8, borderBottom: '1px solid var(--color-border)',
-          justifyContent: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              width: 26, height: 26, borderRadius: 7,
-              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <SparklesIcon style={{ width: 12, height: 12, color: 'var(--color-text)' }} />
+            {/* AI panel header */}
+            <div style={{ height: 52, flexShrink: 0, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <SparklesIcon style={{ width: 14, height: 14, color: 'white' }} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 14, color: 'var(--color-text)', lineHeight: 1.2 }}>AI Assistant</div>
+                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', lineHeight: 1.2, marginTop: 1 }}>Ready to help</div>
+                </div>
+              </div>
+              <button
+                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setChatOpen(false) }}
+                style={{ width: 28, height: 28, borderRadius: 7, background: 'transparent', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
+              </button>
             </div>
-            <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>AI Assistant</span>
-          </div>
-          <button
-            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setChatOpen(false) }}
-            style={{
-              width: 28, height: 28, borderRadius: 7,
-              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              pointerEvents: 'all', zIndex: 999, position: 'relative',
-            }}
-          >
-            <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
-          </button>
-        </div>
 
-        {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 14px 0' }}>
-          {messages.length === 0 && !loading && (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <SparklesIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)' }} />
-              </div>
-              <div>
-                <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 6, letterSpacing: '-0.01em' }}>What do you need?</div>
-                <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.65, maxWidth: 240 }}>Generate a board, add tasks, move cards, or ask anything about your project.</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: 260, marginTop: 8 }}>
-                {['Generate board from brief', 'Add task: [task name]', 'Move [task] to done'].map((suggestion, i) => (
-                  <button key={i}
-                    onPointerDown={() => setInput(suggestion === 'Generate board from brief' ? '' : suggestion.replace('[task name]', '').replace('[task]', ''))}
-                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '8px 12px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-soft)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-soft)' }}
-                  >{suggestion}</button>
-                ))}
-              </div>
+            {/* Messages */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 14px 0' }}>
+              {messages.length === 0 && !loading && (
+                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <SparklesIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 6, letterSpacing: '-0.01em' }}>What do you need?</div>
+                    <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.65, maxWidth: 240 }}>Generate a board, add tasks, move cards, or ask anything about your project.</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: 260, marginTop: 8 }}>
+                    {['Generate board from brief', 'Add task: [task name]', 'Move [task] to done'].map((suggestion, i) => (
+                      <button key={i}
+                        onPointerDown={() => setInput(suggestion === 'Generate board from brief' ? '' : suggestion.replace('[task name]', '').replace('[task]', ''))}
+                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '8px 12px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-soft)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-soft)' }}
+                      >{suggestion}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {messages.map(m => <ChatBubble key={m.id} msg={m} />)}
+              {loading && <ThinkingBubble />}
+              <div ref={chatEndRef} />
             </div>
-          )}
-          {messages.map(m => <ChatBubble key={m.id} msg={m} />)}
-          {loading && <ThinkingBubble />}
-          <div ref={chatEndRef} />
-        </div>
 
-        {/* Role selector */}
-        {phase === 'roles' && (
-          <div style={{
-            padding: '12px 14px',
-            borderTop: '1px solid var(--color-border)',
-            background: 'var(--color-surface)',
-          }}>
-            <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 10,
-              color: 'var(--color-text-muted)', marginBottom: 8, letterSpacing: '0.06em',
-            }}>SELECT ROLES &amp; ADD NAMES</div>
-            {suggestedRoles.length > 0 && (
-              <>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--color-accent)', letterSpacing: '0.08em', marginBottom: 6 }}>AI SUGGESTED</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                  {suggestedRoles.map(role => {
+            {/* Role selector */}
+            {phase === 'roles' && (
+              <div style={{ padding: '12px 14px', borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 8, letterSpacing: '0.06em' }}>SELECT ROLES &amp; ADD NAMES</div>
+                {suggestedRoles.length > 0 && (
+                  <>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--color-accent)', letterSpacing: '0.08em', marginBottom: 6 }}>AI SUGGESTED</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      {suggestedRoles.map(role => {
+                        const meta = ROLE_META[role]
+                        if (!meta) return null
+                        const isSelected = !!teamMembers.find(m => m.role === role)
+                        return (
+                          <button key={role} onClick={() => toggleRole(role)}
+                            style={{ background: isSelected ? meta.color + '22' : 'var(--color-surface)', border: '1px solid ' + (isSelected ? meta.color : meta.color + '55'), boxShadow: isSelected ? 'none' : '0 0 0 1px ' + meta.color + '38', borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer', color: isSelected ? meta.color : meta.color + 'BB', display: 'flex', gap: 5, alignItems: 'center' }}
+                          >
+                            {meta.icon} {role}
+                            {isSelected ? <span style={{ fontSize: 10, color: meta.color }}>✓</span> : <span style={{ fontSize: 9, opacity: 0.7, color: meta.color }}>✦</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 6 }}>OTHER ROLES</div>
+                  </>
+                )}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {Object.keys(ROLE_META).filter(role => !suggestedRoles.includes(role)).map(role => {
                     const meta = ROLE_META[role]
-                    if (!meta) return null
                     const isSelected = !!teamMembers.find(m => m.role === role)
                     return (
-                      <button
-                        key={role}
-                        onClick={() => toggleRole(role)}
-                        style={{
-                          background: isSelected ? meta.color + '22' : 'var(--color-surface)',
-                          border: '1px solid ' + (isSelected ? meta.color : meta.color + '55'),
-                          boxShadow: isSelected ? 'none' : '0 0 0 1px ' + meta.color + '38',
-                          borderRadius: 7, padding: '5px 10px', fontSize: 11,
-                          fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer',
-                          color: isSelected ? meta.color : meta.color + 'BB',
-                          display: 'flex', gap: 5, alignItems: 'center',
-                        }}
+                      <button key={role} onClick={() => toggleRole(role)}
+                        style={{ background: isSelected ? meta.color + '22' : 'transparent', border: '1px solid ' + (isSelected ? meta.color : 'var(--color-border)'), borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer', color: isSelected ? meta.color : 'var(--color-text-soft)', display: 'flex', gap: 5, alignItems: 'center' }}
                       >
                         {meta.icon} {role}
-                        {isSelected ? <span style={{ fontSize: 10, color: meta.color }}>✓</span> : <span style={{ fontSize: 9, opacity: 0.7, color: meta.color }}>✦</span>}
+                        {isSelected && <span style={{ fontSize: 10, color: meta.color }}>✓</span>}
                       </button>
                     )
                   })}
                 </div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 6 }}>OTHER ROLES</div>
-              </>
-            )}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {Object.keys(ROLE_META)
-                .filter(role => !suggestedRoles.includes(role))
-                .map(role => {
-                  const meta = ROLE_META[role]
-                  const isSelected = !!teamMembers.find(m => m.role === role)
-                  return (
-                    <button
-                      key={role}
-                      onClick={() => toggleRole(role)}
-                      style={{
-                        background: isSelected ? meta.color + '22' : 'transparent',
-                        border: '1px solid ' + (isSelected ? meta.color : 'var(--color-border)'),
-                        borderRadius: 7, padding: '5px 10px', fontSize: 11,
-                        fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer',
-                        color: isSelected ? meta.color : 'var(--color-text-soft)',
-                        display: 'flex', gap: 5, alignItems: 'center',
-                      }}
-                    >
-                      {meta.icon} {role}
-                      {isSelected && <span style={{ fontSize: 10, color: meta.color }}>✓</span>}
-                    </button>
-                  )
-                })}
-            </div>
-            {teamMembers.length > 0 && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
-                {teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''} selected
+                {teamMembers.length > 0 && (
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
+                    {teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''} selected
+                  </div>
+                )}
+                {teamMembers.length > 0 && (
+                  <>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                      {teamMembers.map(m => {
+                        const meta = ROLE_META[m.role] || { color: 'var(--color-text-soft)', icon: '◈' }
+                        return (
+                          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--color-card)', border: '1px solid ' + meta.color + '44', borderRadius: 7, padding: '5px 10px' }}>
+                            <span style={{ fontSize: 11, flexShrink: 0 }}>{meta.icon}</span>
+                            <input value={m.name} onChange={e => updateMemberName(m.id, e.target.value)} placeholder={m.role}
+                              style={{ background: 'transparent', border: 'none', outline: 'none', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text)', width: 100 }}
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <button onClick={handleGenerateKanban} disabled={loading}
+                      style={{ width: '100%', marginTop: 10, background: loading ? 'var(--color-border)' : 'var(--color-accent)', border: 'none', borderRadius: 9, padding: '10px 0', color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 12, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.6 : 1 }}
+                    >{loading ? 'Generating...' : 'Generate Kanban Board →'}</button>
+                  </>
+                )}
               </div>
             )}
-            {teamMembers.length > 0 && (
-              <>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                  {teamMembers.map(m => {
-                    const meta = ROLE_META[m.role] || { color: 'var(--color-text-soft)', icon: '◈' }
-                    return (
-                      <div key={m.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 5,
-                        background: 'var(--color-card)', border: '1px solid ' + meta.color + '44',
-                        borderRadius: 7, padding: '5px 10px',
-                      }}>
-                        <span style={{ fontSize: 11, flexShrink: 0 }}>{meta.icon}</span>
-                        <input
-                          value={m.name}
-                          onChange={e => updateMemberName(m.id, e.target.value)}
-                          placeholder={m.role}
-                          style={{
-                            background: 'transparent', border: 'none', outline: 'none',
-                            fontFamily: "'Urbanist', sans-serif", fontSize: 11,
-                            color: 'var(--color-text)', width: 100,
-                          }}
-                        />
-                      </div>
-                    )
-                  })}
+
+            {/* File indicator */}
+            {fileName && (
+              <div style={{ padding: '0 14px 8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-accent-bg)', border: '1px solid var(--color-accent-border)', borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: "'DM Mono', monospace", color: 'var(--color-accent)' }}>
+                  <span>📄 {fileName}</span>
+                  <button onClick={() => setFileName(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-accent)', fontSize: 13, padding: '0 0 0 6px' }}>×</button>
                 </div>
-                <button
-                  onClick={handleGenerateKanban}
-                  disabled={loading}
-                  style={{
-                    width: '100%', marginTop: 10,
-                    background: loading ? 'var(--color-border)' : 'var(--color-accent)',
-                    border: 'none', borderRadius: 9, padding: '10px 0',
-                    color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif",
-                    fontWeight: 700, fontSize: 12, cursor: loading ? 'default' : 'pointer',
-                    opacity: loading ? 0.6 : 1,
-                  }}
-                >{loading ? 'Generating...' : 'Generate Kanban Board →'}</button>
-              </>
+              </div>
             )}
+
+            {/* Chat input */}
+            {(phase === 'brief' || phase === 'kanban') && (
+              <div style={{ padding: '10px 14px 14px', borderTop: '1px solid var(--color-border)' }}>
+                <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => handleFileUpload(e.target.files[0])} />
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'var(--color-surface)', borderRadius: 12, padding: '8px 8px 8px 12px', border: '1px solid var(--color-border)' }}>
+                  <textarea
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
+                    onFocus={e => { e.currentTarget.parentElement.style.borderColor = 'var(--color-accent)' }}
+                    onBlur={e => { e.currentTarget.parentElement.style.borderColor = 'var(--color-border)' }}
+                    placeholder="Ask anything or describe a task..."
+                    rows={1}
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--color-text)', fontFamily: "'DM Mono', monospace", fontSize: 12, resize: 'none', lineHeight: 1.6, maxHeight: 100, minHeight: 20, boxSizing: 'border-box', padding: 0 }}
+                  />
+                  <button onClick={handleChatSend} disabled={!input.trim() || loading}
+                    style={{ width: 32, height: 32, background: !input.trim() || loading ? 'var(--color-border)' : 'var(--color-text)', border: 'none', borderRadius: 9, cursor: !input.trim() || loading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}
+                  >
+                    <ArrowUpIcon style={{ width: 16, height: 16, color: !input.trim() || loading ? 'var(--color-text-muted)' : 'var(--color-bg)' }} />
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
-        {/* File indicator */}
-        {fileName && (
-          <div style={{ padding: '0 14px 8px' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'var(--color-accent-bg)', border: '1px solid var(--color-accent-border)',
-              borderRadius: 7, padding: '5px 10px',
-              fontSize: 11, fontFamily: "'DM Mono', monospace", color: 'var(--color-accent)',
-            }}>
-              <span>📄 {fileName}</span>
-              <button onClick={() => setFileName(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-accent)', fontSize: 13, padding: '0 0 0 6px' }}>×</button>
-            </div>
-          </div>
-        )}
+        </div> {/* closes outer flex row */}
 
-        {/* Chat input */}
-        {(phase === 'brief' || phase === 'kanban') && (
-          <div style={{ padding: '10px 14px 14px', borderTop: '1px solid var(--color-border)' }}>
-            <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => handleFileUpload(e.target.files[0])} />
-            <div style={{
-              display: 'flex', alignItems: 'flex-end', gap: 8,
-              background: 'var(--color-surface)', borderRadius: 12,
-              padding: '8px 8px 8px 12px', border: '1px solid var(--color-border)',
-            }}>
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
-                onFocus={e => { e.currentTarget.parentElement.style.borderColor = 'var(--color-accent)' }}
-                onBlur={e => { e.currentTarget.parentElement.style.borderColor = 'var(--color-border)' }}
-                placeholder="Ask anything or describe a task..."
-                rows={1}
-                style={{
-                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  color: 'var(--color-text)', fontFamily: "'DM Mono', monospace", fontSize: 12,
-                  resize: 'none', lineHeight: 1.6, maxHeight: 100, minHeight: 20,
-                  boxSizing: 'border-box', padding: 0,
-                }}
-              />
-              <button
-                onClick={handleChatSend}
-                disabled={!input.trim() || loading}
-                style={{
-                  width: 32, height: 32, background: !input.trim() || loading ? 'var(--color-border)' : 'var(--color-text)',
-                  border: 'none', borderRadius: 9, cursor: !input.trim() || loading ? 'default' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  transition: 'background 0.15s',
-                }}
-              >
-                <ArrowUpIcon style={{ width: 16, height: 16, color: !input.trim() || loading ? 'var(--color-text-muted)' : 'var(--color-bg)' }} />
-              </button>
-            </div>
-          </div>
-        )}
+        </>)}
       </div>
+
+      {/* Floating bubble — only when !chatOpen */}
+      {!chatOpen && (
+        <button
+          onPointerDown={(e) => { e.preventDefault(); setChatOpen(true); setUnreadCount(0) }}
+          title="Open AI chat"
+          style={{ position: 'fixed', bottom: 24, right: 24, width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 101 }}
+        >
+          <SparklesIcon style={{ width: 22, height: 22, color: 'white' }} />
+          {unreadCount > 0 && (
+            <div style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: '#dc2626', border: '2px solid var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: 'white' }}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </div>
+          )}
+        </button>
+      )}
     </div>
   )
 }
