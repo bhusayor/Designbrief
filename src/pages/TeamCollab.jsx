@@ -11,6 +11,7 @@ import {
   ExclamationCircleIcon,
   CheckCircleIcon, EllipsisHorizontalIcon,
   PencilIcon, ArrowLeftIcon, ArrowRightIcon, TrashIcon,
+  Bars2Icon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -138,8 +139,11 @@ export default function TeamCollab() {
   const [suggestedRoles, setSuggestedRoles] = useState([])
   const [kanban, setKanban] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [draggedTaskId, setDraggedTaskId] = useState(null)
+  const [draggedTask, setDraggedTask] = useState(null)
   const [dragOverCol, setDragOverCol] = useState(null)
+  const [dragOverTaskId, setDragOverTaskId] = useState(null)
+  const [draggedColId, setDraggedColId] = useState(null)
+  const [dragOverColId, setDragOverColId] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
   const [addTaskData, setAddTaskData] = useState({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: '' })
@@ -839,7 +843,8 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
   // ── TaskCard (inline so it can close over drag state setters) ─────────────
 
   function TaskCard({ task }) {
-    const isDragging = draggedTaskId === task.id
+    const isDragging = draggedTask?.id === task.id
+    const isDropIndicator = dragOverTaskId === task.id && draggedTask && draggedTask.id !== task.id
     const priorityColor = PRIORITY_COLORS[task.priority] || '#6B7280'
     const assigneeName = task.assignedName || task.assignee || null
 
@@ -847,25 +852,53 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
       <div
         draggable
         onDragStart={e => {
-          e.dataTransfer.setData('taskId', task.id)
+          e.stopPropagation()
+          setDraggedTask(task)
           e.dataTransfer.effectAllowed = 'move'
-          setDraggedTaskId(task.id)
-          setTimeout(() => { e.target.style.opacity = '0.35' }, 0)
+          e.dataTransfer.setData('text/plain', task.id)
+          e.currentTarget.style.opacity = '0.4'
         }}
         onDragEnd={e => {
-          e.target.style.opacity = '1'
-          setDraggedTaskId(null)
+          e.currentTarget.style.opacity = '1'
+          setDraggedTask(null)
           setDragOverCol(null)
+          setDragOverTaskId(null)
+        }}
+        onDragOver={e => {
+          if (!draggedTask || draggedTask.id === task.id) return
+          e.preventDefault()
+          e.stopPropagation()
+          setDragOverTaskId(task.id)
+        }}
+        onDrop={e => {
+          e.preventDefault()
+          e.stopPropagation()
+          if (!draggedTask || draggedTask.id === task.id) return
+          setKanban(prev => {
+            const tasks = [...prev.tasks]
+            const fromIdx = tasks.findIndex(t => t.id === draggedTask.id)
+            const toIdx = tasks.findIndex(t => t.id === task.id)
+            if (fromIdx === -1 || toIdx === -1) return prev
+            const [moved] = tasks.splice(fromIdx, 1)
+            moved.column = task.column
+            const newToIdx = tasks.findIndex(t => t.id === task.id)
+            tasks.splice(newToIdx, 0, moved)
+            return { ...prev, tasks }
+          })
+          setDraggedTask(null)
+          setDragOverCol(null)
+          setDragOverTaskId(null)
         }}
         onClick={() => { if (!isDragging) setEditingTask(task) }}
         style={{
           background: 'var(--color-card)',
           border: '1px solid var(--color-border)',
+          borderTop: isDropIndicator ? '2px solid #3B82F6' : '1px solid var(--color-border)',
           borderRadius: 10, padding: '12px 14px',
           marginBottom: 8,
           cursor: isDragging ? 'grabbing' : 'grab',
-          transition: 'all 0.15s ease',
-          opacity: isDragging ? 0.35 : 1,
+          transition: 'box-shadow 0.15s ease, transform 0.15s ease, border-top 0.1s ease',
+          opacity: isDragging ? 0.4 : 1,
           userSelect: 'none',
           boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
         }}
@@ -1944,127 +1977,211 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
         {/* Kanban board */}
         {viewMode === 'board' && (
-        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', padding: '16px 20px', background: 'var(--color-surface)' }}>
+        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', padding: '16px 20px', background: 'var(--color-surface)' }}>
           <div style={{ display: 'flex', gap: 12, height: '100%', alignItems: 'flex-start', minWidth: 'max-content' }}>
             {customCols.map((col) => {
               const colTasks = (kanban?.tasks || []).filter(t => t.column === col.id)
-              const isDropTarget = dragOverCol === col.id && draggedTaskId !== null
+              const isTaskDropTarget = dragOverCol === col.id && draggedTask !== null && !dragOverTaskId
+              const isColDropTarget = dragOverColId === col.id && draggedColId !== null && draggedColId !== col.id
               const accentCol = col.color
               return (
-                  <div key={col.id}
-                    style={{ width: 260, flexShrink: 0, borderRadius: 12, transition: 'background 0.15s', background: isDropTarget ? accentCol + '0D' : 'rgba(0,0,0,0.03)', outline: isDropTarget ? '2px dashed ' + accentCol + '66' : 'none', outlineOffset: -2, padding: '12px 10px' }}
-                    onDragOver={e => { e.preventDefault(); setDragOverCol(col.id) }}
-                    onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null) }}
-                    onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('taskId'); if (id) moveTask(id, col.id); setDragOverCol(null); setDraggedTaskId(null) }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '4px 0' }}>
+                <div key={col.id}
+                  draggable
+                  onDragStart={e => {
+                    if (draggedTask) { e.preventDefault(); return }
+                    setDraggedColId(col.id)
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('text/plain', 'col-' + col.id)
+                    e.currentTarget.style.opacity = '0.5'
+                  }}
+                  onDragEnd={e => {
+                    e.currentTarget.style.opacity = '1'
+                    setDraggedColId(null)
+                    setDragOverColId(null)
+                  }}
+                  onDragOver={e => {
+                    if (draggedColId && draggedColId !== col.id) {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      setDragOverColId(col.id)
+                    }
+                  }}
+                  onDrop={e => {
+                    if (draggedColId && draggedColId !== col.id) {
+                      e.preventDefault()
+                      const fromIdx = customCols.findIndex(c => c.id === draggedColId)
+                      const toIdx = customCols.findIndex(c => c.id === col.id)
+                      if (fromIdx !== -1 && toIdx !== -1) {
+                        const newCols = [...customCols]
+                        const [moved] = newCols.splice(fromIdx, 1)
+                        newCols.splice(toIdx, 0, moved)
+                        saveCustomCols(newCols)
+                      }
+                      setDraggedColId(null)
+                      setDragOverColId(null)
+                    }
+                  }}
+                  style={{
+                    width: 280, flexShrink: 0, borderRadius: 12,
+                    transition: 'background 0.15s, border-left 0.15s',
+                    background: isTaskDropTarget ? 'rgba(59,130,246,0.05)' : 'rgba(0,0,0,0.03)',
+                    outline: isTaskDropTarget ? '2px dashed #3B82F6' : 'none',
+                    outlineOffset: -2,
+                    borderLeft: isColDropTarget ? '3px solid #3B82F6' : '3px solid transparent',
+                    paddingLeft: 4, padding: '12px 10px',
+                  }}
+                >
+                  {/* Column header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '4px 0' }}>
+                    {/* Left side: drag handle + title */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, flex: 1 }}>
+                      {/* Drag handle */}
+                      <div
+                        style={{ cursor: 'grab', padding: '0 2px', display: 'flex', alignItems: 'center', color: 'var(--color-text-muted)', opacity: 0.4, flexShrink: 0 }}
+                        onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
+                        onMouseLeave={e => { e.currentTarget.style.opacity = '0.4' }}
+                        onMouseDown={e => e.stopPropagation()}
+                      >
+                        <Bars2Icon style={{ width: 14, height: 14 }} />
+                      </div>
+
                       {/* Column title — single-click to rename */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                        {editingColId === col.id ? (
-                          <input
-                            autoFocus
-                            value={editingColLabel}
-                            onChange={e => setEditingColLabel(e.target.value)}
-                            onBlur={() => {
-                              if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel.trim() } : c))
-                              setEditingColId(null)
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') { if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel.trim() } : c)); setEditingColId(null) }
-                              if (e.key === 'Escape') setEditingColId(null)
-                            }}
-                            onClick={e => e.stopPropagation()}
-                            style={{ background: accentCol + '15', border: '1.5px solid ' + accentCol, borderRadius: 6, outline: 'none', padding: '3px 10px', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em', minWidth: 80, maxWidth: 160 }}
-                          />
-                        ) : (
-                          <div
-                            onClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: accentCol + '15', border: '1px solid ' + accentCol + '30', borderRadius: 6, padding: '3px 10px', cursor: 'text', userSelect: 'none', transition: 'background 0.1s' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = accentCol + '25' }}
-                            onMouseLeave={e => { e.currentTarget.style.background = accentCol + '15' }}
-                            title="Click to rename"
-                          >
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: accentCol, flexShrink: 0 }} />
-                            <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{col.label}</span>
-                          </div>
-                        )}
-                        {isDropTarget && <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: accentCol, animation: 'pulse 1s ease infinite' }}>DROP</span>}
-                      </div>
-
-                      {/* Right: task count + three-dot menu + add button */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, position: 'relative' }} data-col-menu>
-                        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, marginRight: 2 }}>{colTasks.length}</span>
-
-                        <button
-                          onClick={e => { e.stopPropagation(); setOpenColMenuId(openColMenuId === col.id ? null : col.id) }}
-                          style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.1s' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      {editingColId === col.id ? (
+                        <input
+                          autoFocus
+                          value={editingColLabel}
+                          onChange={e => setEditingColLabel(e.target.value)}
+                          onBlur={() => {
+                            if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel.trim() } : c))
+                            setEditingColId(null)
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel.trim() } : c)); setEditingColId(null) }
+                            if (e.key === 'Escape') setEditingColId(null)
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          onMouseDown={e => e.stopPropagation()}
+                          style={{ background: accentCol + '15', border: '1.5px solid ' + accentCol, borderRadius: 6, outline: 'none', padding: '3px 10px', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em', minWidth: 80, maxWidth: 150 }}
+                        />
+                      ) : (
+                        <div
+                          onClick={e => { e.stopPropagation(); setEditingColId(col.id); setEditingColLabel(col.label) }}
+                          onMouseDown={e => e.stopPropagation()}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: accentCol + '15', border: '1px solid ' + accentCol + '30', borderRadius: 6, padding: '3px 10px', cursor: 'text', userSelect: 'none', transition: 'background 0.1s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = accentCol + '25' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = accentCol + '15' }}
+                          title="Click to rename"
                         >
-                          <EllipsisHorizontalIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
-                        </button>
-
-                        <button
-                          onClick={e => { e.stopPropagation(); setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
-                          style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.1s' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                        >
-                          <PlusIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
-                        </button>
-
-                        {/* Dropdown menu */}
-                        {openColMenuId === col.id && (
-                          <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 4, minWidth: 180, zIndex: 100 }}>
-                            {(() => {
-                              const colIdx = customCols.findIndex(c => c.id === col.id)
-                              const isFirst = colIdx === 0
-                              const isLast = colIdx === customCols.length - 1
-                              const items = [
-                                { icon: PencilIcon, label: 'Rename', onClick: () => handleRenameColumn(col.id), disabled: false, danger: false },
-                                { icon: ArrowLeftIcon, label: 'Move left', onClick: () => handleMoveColumn(col.id, 'left'), disabled: isFirst, danger: false },
-                                { icon: ArrowRightIcon, label: 'Move right', onClick: () => handleMoveColumn(col.id, 'right'), disabled: isLast, danger: false },
-                                { icon: TrashIcon, label: 'Delete', onClick: () => handleDeleteColumn(col.id), disabled: customCols.length <= 1, danger: true },
-                              ]
-                              return items.map((item, i) => (
-                                <button
-                                  key={i}
-                                  onClick={item.onClick}
-                                  disabled={item.disabled}
-                                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: 7, cursor: item.disabled ? 'not-allowed' : 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 500, color: item.disabled ? 'var(--color-text-muted)' : item.danger ? '#dc2626' : 'var(--color-text)', opacity: item.disabled ? 0.4 : 1, textAlign: 'left', transition: 'background 0.1s' }}
-                                  onMouseEnter={e => { if (!item.disabled) e.currentTarget.style.background = item.danger ? 'rgba(220,38,38,0.08)' : 'var(--color-surface)' }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                                >
-                                  <item.icon style={{ width: 14, height: 14, color: item.disabled ? 'var(--color-text-muted)' : item.danger ? '#dc2626' : 'var(--color-text-soft)', flexShrink: 0 }} />
-                                  {item.label}
-                                </button>
-                              ))
-                            })()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 60 }}>
-                      {colTasks.map(task => <TaskCard key={task.id} task={task} col={col.id} />)}
-                      {colTasks.length === 0 && !isDropTarget && (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
-                          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.5 }}>No tasks yet</div>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: accentCol, flexShrink: 0 }} />
+                          <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{col.label}</span>
                         </div>
                       )}
-                      {isDropTarget && colTasks.length === 0 && (
-                        <div style={{ height: 60, border: '1.5px dashed ' + accentCol + '88', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: accentCol, marginBottom: 8 }}>Drop here</div>
-                      )}
+                    </div>
+
+                    {/* Right: task count + three-dot menu + add button */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, position: 'relative' }} data-col-menu>
+                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, marginRight: 2 }}>{colTasks.length}</span>
+
                       <button
-                        onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
-                        style={{ width: '100%', marginTop: 8, padding: '7px 0', background: 'transparent', border: '1px dashed var(--color-border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+                        onClick={e => { e.stopPropagation(); setOpenColMenuId(openColMenuId === col.id ? null : col.id) }}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.1s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                       >
-                        <PlusIcon style={{ width: 13, height: 13 }} />
-                        Add task
+                        <EllipsisHorizontalIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
                       </button>
+
+                      <button
+                        onClick={e => { e.stopPropagation(); setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
+                        onMouseDown={e => e.stopPropagation()}
+                        style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.1s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <PlusIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
+                      </button>
+
+                      {/* Dropdown menu */}
+                      {openColMenuId === col.id && (
+                        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 4, minWidth: 180, zIndex: 100 }}>
+                          {(() => {
+                            const colIdx = customCols.findIndex(c => c.id === col.id)
+                            const isFirst = colIdx === 0
+                            const isLast = colIdx === customCols.length - 1
+                            const items = [
+                              { icon: PencilIcon, label: 'Rename', onClick: () => handleRenameColumn(col.id), disabled: false, danger: false },
+                              { icon: ArrowLeftIcon, label: 'Move left', onClick: () => handleMoveColumn(col.id, 'left'), disabled: isFirst, danger: false },
+                              { icon: ArrowRightIcon, label: 'Move right', onClick: () => handleMoveColumn(col.id, 'right'), disabled: isLast, danger: false },
+                              { icon: TrashIcon, label: 'Delete', onClick: () => handleDeleteColumn(col.id), disabled: customCols.length <= 1, danger: true },
+                            ]
+                            return items.map((item, i) => (
+                              <button
+                                key={i}
+                                onClick={item.onClick}
+                                disabled={item.disabled}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: 7, cursor: item.disabled ? 'not-allowed' : 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 500, color: item.disabled ? 'var(--color-text-muted)' : item.danger ? '#dc2626' : 'var(--color-text)', opacity: item.disabled ? 0.4 : 1, textAlign: 'left', transition: 'background 0.1s' }}
+                                onMouseEnter={e => { if (!item.disabled) e.currentTarget.style.background = item.danger ? 'rgba(220,38,38,0.08)' : 'var(--color-surface)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                              >
+                                <item.icon style={{ width: 14, height: 14, color: item.disabled ? 'var(--color-text-muted)' : item.danger ? '#dc2626' : 'var(--color-text-soft)', flexShrink: 0 }} />
+                                {item.label}
+                              </button>
+                            ))
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Tasks area */}
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 60 }}
+                    onDragOver={e => {
+                      if (!draggedTask) return
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      setDragOverCol(col.id)
+                    }}
+                    onDragLeave={e => {
+                      if (e.currentTarget.contains(e.relatedTarget)) return
+                      setDragOverCol(null)
+                      setDragOverTaskId(null)
+                    }}
+                    onDrop={e => {
+                      e.preventDefault()
+                      if (!draggedTask) return
+                      if (dragOverTaskId) return
+                      setKanban(prev => ({
+                        ...prev,
+                        tasks: prev.tasks.map(t => t.id === draggedTask.id ? { ...t, column: col.id } : t),
+                      }))
+                      setDraggedTask(null)
+                      setDragOverCol(null)
+                      setDragOverTaskId(null)
+                    }}
+                  >
+                    {colTasks.map(task => <TaskCard key={task.id} task={task} />)}
+                    {colTasks.length === 0 && !isTaskDropTarget && (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
+                        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.5 }}>No tasks yet</div>
+                      </div>
+                    )}
+                    {isTaskDropTarget && colTasks.length === 0 && (
+                      <div style={{ height: 60, border: '1.5px dashed #3B82F680', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono',monospace", fontSize: 11, color: '#3B82F6' }}>Drop here</div>
+                    )}
+                    <button
+                      onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
+                      onMouseDown={e => e.stopPropagation()}
+                      style={{ width: '100%', marginTop: 8, padding: '7px 0', background: 'transparent', border: '1px dashed var(--color-border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+                    >
+                      <PlusIcon style={{ width: 13, height: 13 }} />
+                      Add task
+                    </button>
+                  </div>
+                </div>
               )
             })}
             {/* Add group button */}
