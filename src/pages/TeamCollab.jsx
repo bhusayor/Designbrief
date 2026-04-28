@@ -12,6 +12,8 @@ import {
   CheckCircleIcon, EllipsisHorizontalIcon,
   PencilIcon, ArrowLeftIcon, ArrowRightIcon, TrashIcon,
   Bars2Icon,
+  ArrowPathIcon,
+  ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -183,6 +185,11 @@ export default function TeamCollab() {
   const [editingColId, setEditingColId] = useState(null)
   const [editingColLabel, setEditingColLabel] = useState('')
   const [openColMenuId, setOpenColMenuId] = useState(null)
+  const [promptModalOpen, setPromptModalOpen] = useState(false)
+  const [promptModalTask, setPromptModalTask] = useState(null)
+  const [generatedPrompt, setGeneratedPrompt] = useState('')
+  const [generatingPrompt, setGeneratingPrompt] = useState(false)
+  const [promptCopied, setPromptCopied] = useState(false)
 
   const chatEndRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -422,6 +429,80 @@ Return JSON:
     ;[newCols[idx], newCols[targetIdx]] = [newCols[targetIdx], newCols[idx]]
     saveCustomCols(newCols)
     setOpenColMenuId(null)
+  }
+
+  async function handleGeneratePrompt(task) {
+    setPromptModalTask(task)
+    setPromptModalOpen(true)
+    setGeneratedPrompt('')
+    setGeneratingPrompt(true)
+    setPromptCopied(false)
+
+    try {
+      const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
+      const briefContext = briefText ? briefText.slice(0, 1500) : 'No brief provided'
+      const col = customCols.find(c => c.id === task.column)
+
+      const taskContext = [
+        'Task: ' + task.title,
+        'Description: ' + (task.description || 'No description'),
+        'Status: ' + (col?.label || task.column),
+        'Priority: ' + (task.priority || 'MEDIUM'),
+        task.assignee ? 'Assignee: ' + task.assignee : '',
+        task.dueDate ? 'Due: ' + new Date(task.dueDate).toLocaleDateString() : '',
+      ].filter(Boolean).join('\n')
+
+      const result = await callJSON(
+        'You are a senior engineer who writes clear, actionable implementation prompts for AI coding assistants like Claude Code and Cursor. Your prompts are specific, scoped, and include all necessary context.\n\nReturn ONLY valid JSON.',
+        `Generate a structured implementation prompt for this task. The output should be a copy-paste-ready prompt for Claude Code or Cursor that includes:\n- Clear task description\n- Specific implementation steps (3-7 steps)\n- Files likely to touch\n- Acceptance criteria\n- Edge cases to handle\n\nPROJECT: ${projectName}\n\nPROJECT BRIEF CONTEXT:\n${briefContext}\n\nTASK DETAILS:\n${taskContext}\n\nReturn JSON:\n{\n  "prompt": "the full structured prompt text"\n}\n\nThe prompt should be formatted with clear section headers using ━━━ separators (like "━━━ TASK ━━━", "━━━ STEPS ━━━", etc).\nUse plain text, no markdown bold/italic.\nMake it 200-400 words.\nBe specific to this task — not generic.`,
+        2000
+      )
+
+      const promptText = result?.prompt || buildFallbackPrompt(task, projectName, briefContext, col?.label)
+      setGeneratedPrompt(promptText)
+    } catch (e) {
+      console.error('[generate prompt]', e)
+      const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
+      const col = customCols.find(c => c.id === task.column)
+      setGeneratedPrompt(buildFallbackPrompt(task, projectName, briefText || '', col?.label))
+    } finally {
+      setGeneratingPrompt(false)
+    }
+  }
+
+  function buildFallbackPrompt(task, project, brief, status) {
+    const lines = []
+    lines.push('━━━ TASK ━━━')
+    lines.push(task.title)
+    lines.push('')
+    if (task.description) {
+      lines.push('━━━ DESCRIPTION ━━━')
+      lines.push(task.description)
+      lines.push('')
+    }
+    lines.push('━━━ CONTEXT ━━━')
+    lines.push('Project: ' + project)
+    if (status) lines.push('Status: ' + status)
+    if (task.priority) lines.push('Priority: ' + task.priority)
+    lines.push('')
+    if (brief && brief.trim()) {
+      lines.push('━━━ PROJECT BRIEF ━━━')
+      lines.push(brief.slice(0, 800))
+      lines.push('')
+    }
+    lines.push('━━━ INSTRUCTIONS ━━━')
+    lines.push('1. Read the relevant files first before making any changes.')
+    lines.push('2. Implement the task as described above.')
+    lines.push('3. Match the existing code style and patterns.')
+    lines.push('4. Ensure no compilation errors after changes.')
+    lines.push('5. Test the change works as expected.')
+    lines.push('')
+    lines.push('━━━ ACCEPTANCE ━━━')
+    lines.push('- Task is complete and working')
+    lines.push('- Code follows project conventions')
+    lines.push('- No errors or warnings')
+    lines.push('- Ready for review')
+    return lines.join('\n')
   }
 
   function handleNewProject() {
@@ -933,6 +1014,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
         {/* Footer */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          {/* Left: assignee */}
           {assigneeName ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
@@ -944,14 +1026,34 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
               <UserIcon style={{ width: 10, height: 10, color: 'var(--color-text-muted)' }} />
             </div>
           )}
-          {task.dueDate && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 5, padding: '2px 7px' }}>
-              <CalendarIcon style={{ width: 10, height: 10, color: 'var(--color-text-muted)' }} />
-              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-soft)', fontWeight: 600 }}>
-                {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-          )}
+          {/* Right: due date + prompt button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {task.dueDate && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 5, padding: '2px 7px' }}>
+                <CalendarIcon style={{ width: 10, height: 10, color: 'var(--color-text-muted)' }} />
+                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-soft)', fontWeight: 600 }}>
+                  {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+            )}
+            <button
+              onClick={e => { e.stopPropagation(); handleGeneratePrompt(task) }}
+              title="Generate implementation prompt"
+              style={{ width: 24, height: 24, borderRadius: 6, background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(59,130,246,0.1) 100%)', border: '1px solid rgba(139,92,246,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)'
+                const svg = e.currentTarget.querySelector('svg')
+                if (svg) svg.style.color = 'white'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(59,130,246,0.1) 100%)'
+                const svg = e.currentTarget.querySelector('svg')
+                if (svg) svg.style.color = '#8B5CF6'
+              }}
+            >
+              <SparklesIcon style={{ width: 12, height: 12, color: '#8B5CF6', transition: 'color 0.15s' }} />
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -1570,6 +1672,10 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
         @keyframes slideInRight {
           from { opacity: 0; transform: translateX(20px); }
           to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.75); }
         }
       `}</style>
 
@@ -2379,6 +2485,94 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
         </>)}
       </div>
+
+      {/* Prompt Modal */}
+      {promptModalOpen && (
+        <div
+          onClick={() => setPromptModalOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 18, width: '100%', maxWidth: 680, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+          >
+            {/* Header */}
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <SparklesIcon style={{ width: 16, height: 16, color: 'white' }} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 16, color: 'var(--color-text)', letterSpacing: '-0.01em', lineHeight: 1.2 }}>Generate Prompt</div>
+                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, letterSpacing: '0.04em' }}>Ready for Claude Code · Cursor</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setPromptModalOpen(false)}
+                style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
+              </button>
+            </div>
+
+            {/* Task title strip */}
+            {promptModalTask && (
+              <div style={{ padding: '12px 24px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>For task</div>
+                <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 14, color: 'var(--color-text)' }}>{promptModalTask.title}</div>
+              </div>
+            )}
+
+            {/* Prompt body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', background: 'var(--color-bg)' }}>
+              {generatingPrompt ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[0, 1, 2].map(i => (
+                      <span key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', display: 'block', animation: 'pulse 1.4s ease infinite', animationDelay: i * 0.2 + 's' }} />
+                    ))}
+                  </div>
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)' }}>Building your prompt...</div>
+                </div>
+              ) : (
+                <pre style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, lineHeight: 1.7, color: 'var(--color-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, padding: 16, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, maxHeight: '50vh', overflowY: 'auto' }}>{generatedPrompt}</pre>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '14px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0, background: 'var(--color-bg)' }}>
+              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.04em' }}>
+                {generatedPrompt.length} chars · ~{Math.ceil(generatedPrompt.length / 4)} tokens
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => promptModalTask && handleGeneratePrompt(promptModalTask)}
+                  disabled={generatingPrompt}
+                  style={{ padding: '8px 14px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 9, cursor: generatingPrompt ? 'wait' : 'pointer', fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}
+                >
+                  <ArrowPathIcon style={{ width: 13, height: 13 }} />
+                  Regenerate
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedPrompt)
+                    setPromptCopied(true)
+                    setTimeout(() => setPromptCopied(false), 2000)
+                  }}
+                  disabled={!generatedPrompt}
+                  style={{ padding: '8px 18px', background: promptCopied ? '#16a34a' : !generatedPrompt ? 'var(--color-border)' : 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', color: 'white', border: 'none', borderRadius: 9, cursor: generatedPrompt ? 'pointer' : 'not-allowed', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}
+                >
+                  {promptCopied ? (
+                    <><CheckIcon style={{ width: 14, height: 14 }} />Copied!</>
+                  ) : (
+                    <><ClipboardDocumentIcon style={{ width: 14, height: 14 }} />Copy Prompt</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating bubble — only when !chatOpen */}
       {!chatOpen && (
