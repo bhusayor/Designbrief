@@ -440,68 +440,281 @@ Return JSON:
 
     try {
       const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
-      const briefContext = briefText ? briefText.slice(0, 1500) : 'No brief provided'
+      const briefContext = briefText ? briefText.slice(0, 2000) : ''
       const col = customCols.find(c => c.id === task.column)
 
-      const taskContext = [
-        'Task: ' + task.title,
-        'Description: ' + (task.description || 'No description'),
-        'Status: ' + (col?.label || task.column),
-        'Priority: ' + (task.priority || 'MEDIUM'),
-        task.assignee ? 'Assignee: ' + task.assignee : '',
-        task.dueDate ? 'Due: ' + new Date(task.dueDate).toLocaleDateString() : '',
-      ].filter(Boolean).join('\n')
-
       const result = await callJSON(
-        'You are a senior engineer who writes clear, actionable implementation prompts for AI coding assistants like Claude Code and Cursor. Your prompts are specific, scoped, and include all necessary context.\n\nReturn ONLY valid JSON.',
-        `Generate a structured implementation prompt for this task. The output should be a copy-paste-ready prompt for Claude Code or Cursor that includes:\n- Clear task description\n- Specific implementation steps (3-7 steps)\n- Files likely to touch\n- Acceptance criteria\n- Edge cases to handle\n\nPROJECT: ${projectName}\n\nPROJECT BRIEF CONTEXT:\n${briefContext}\n\nTASK DETAILS:\n${taskContext}\n\nReturn JSON:\n{\n  "prompt": "the full structured prompt text"\n}\n\nThe prompt should be formatted with clear section headers using ━━━ separators (like "━━━ TASK ━━━", "━━━ STEPS ━━━", etc).\nUse plain text, no markdown bold/italic.\nMake it 200-400 words.\nBe specific to this task — not generic.`,
-        2000
+        `You are a senior full-stack engineer who writes EXTREMELY DETAILED, ACTIONABLE implementation prompts for AI coding tools like Claude Code, Cursor, and v0.
+
+CRITICAL RULES:
+1. Read the task title and description CAREFULLY.
+2. INFER the technical scope from the description.
+3. If task says "ecommerce site for selling gadgets" you MUST output specific technical requirements: product catalog, cart, checkout, payment integration, product detail pages, search, filters, responsive design, hero section, featured products, etc.
+4. NEVER output generic instructions like "implement the task" or "match existing code style". Those are useless.
+5. Be SPECIFIC. Name actual components, sections, features, libraries.
+6. Include concrete acceptance criteria tied to the actual feature.
+7. The output must be 300-500 words minimum.
+8. Use ━━━ separators between sections.
+
+Return ONLY valid JSON with no markdown fences.`,
+
+        `Generate a detailed, copy-paste-ready implementation prompt for this specific task.
+
+TASK TITLE: ${task.title}
+
+TASK DESCRIPTION: ${task.description || '(no description provided)'}
+
+PROJECT NAME: ${projectName}
+
+PROJECT BRIEF:
+${briefContext || '(no brief provided)'}
+
+CURRENT STATUS: ${col?.label || task.column}
+PRIORITY: ${task.priority || 'MEDIUM'}
+
+Now generate a HIGHLY SPECIFIC implementation prompt. The prompt should:
+
+1. Open with a clear scope statement that shows you understood what they want to build.
+
+2. Break down the task into concrete deliverables based on what was described. For example, if description says "ecommerce website for selling gadgets", deliverables include:
+   - Hero section with featured product
+   - Product grid with filters and search
+   - Product detail page with image gallery
+   - Shopping cart with quantity controls
+   - Checkout flow with form validation
+   - Mobile responsive layout
+   - Etc.
+
+3. Suggest a tech stack (Next.js 14 App Router, Tailwind, shadcn/ui, Stripe, etc.) appropriate to the task.
+
+4. List 5-8 specific implementation steps in order — actual technical tasks, not generic.
+
+5. Include acceptance criteria SPECIFIC to the feature. For ecommerce: "Cart persists on refresh", "Stripe checkout works in test mode", "Products filter by category", etc.
+
+6. Add a "watch out for" section with 2-3 common pitfalls for this specific task type.
+
+Format with section headers using ━━━ separators:
+━━━ SCOPE ━━━
+━━━ DELIVERABLES ━━━
+━━━ TECH STACK ━━━
+━━━ IMPLEMENTATION STEPS ━━━
+━━━ ACCEPTANCE CRITERIA ━━━
+━━━ WATCH OUT FOR ━━━
+
+Return JSON:
+{
+  "prompt": "the full multi-section prompt"
+}`,
+        3500
       )
 
-      const promptText = result?.prompt || buildFallbackPrompt(task, projectName, briefContext, col?.label)
+      let promptText = result?.prompt
+      if (!promptText || promptText.length < 300 || !promptText.includes('━━━')) {
+        console.warn('[generatePrompt] AI response too generic, using enhanced template')
+        promptText = buildEnhancedPrompt(task, projectName, briefContext, col?.label)
+      }
       setGeneratedPrompt(promptText)
     } catch (e) {
       console.error('[generate prompt]', e)
       const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
       const col = customCols.find(c => c.id === task.column)
-      setGeneratedPrompt(buildFallbackPrompt(task, projectName, briefText || '', col?.label))
+      setGeneratedPrompt(buildEnhancedPrompt(task, projectName, briefText || '', col?.label))
     } finally {
       setGeneratingPrompt(false)
     }
   }
 
-  function buildFallbackPrompt(task, project, brief, status) {
+  function buildEnhancedPrompt(task, project, brief, status) {
+    const title = (task.title || '').toLowerCase()
+    const desc = (task.description || '').toLowerCase()
+    const combined = title + ' ' + desc
+
+    const isEcommerce = /e[-\s]?commerce|shop|store|cart|checkout|product|sell\w*\s+\w+/i.test(combined)
+    const isLanding = /landing|hero|home\s*page|marketing/i.test(combined)
+    const isAuth = /auth|login|sign[\s-]?(in|up)|register/i.test(combined)
+    const isDashboard = /dashboard|admin|analytics|metrics/i.test(combined)
+    const isApi = /api|endpoint|backend|server/i.test(combined)
+    const isPayment = /payment|stripe|checkout|billing/i.test(combined)
+    const isSearch = /search|filter|sort/i.test(combined)
+
     const lines = []
-    lines.push('━━━ TASK ━━━')
-    lines.push(task.title)
+
+    lines.push('━━━ SCOPE ━━━')
+    lines.push('Build: ' + task.title)
+    if (task.description) { lines.push(''); lines.push(task.description) }
     lines.push('')
-    if (task.description) {
-      lines.push('━━━ DESCRIPTION ━━━')
-      lines.push(task.description)
-      lines.push('')
+
+    lines.push('━━━ DELIVERABLES ━━━')
+    if (isEcommerce && isLanding) {
+      lines.push('• Hero section with primary product showcase and CTA')
+      lines.push('• Featured products grid (4-6 items)')
+      lines.push('• Category navigation (electronics, accessories, etc.)')
+      lines.push('• Product cards with image, name, price, quick-add to cart')
+      lines.push('• Search bar with autocomplete')
+      lines.push('• Newsletter signup section')
+      lines.push('• Footer with shop links and social')
+      lines.push('• Fully mobile responsive (breakpoints: 640, 768, 1024, 1280)')
+    } else if (isEcommerce) {
+      lines.push('• Product catalog with grid and list views')
+      lines.push('• Product detail page with image gallery, variants, add to cart')
+      lines.push('• Shopping cart with quantity controls and totals')
+      lines.push('• Checkout flow with form validation')
+      lines.push('• Order confirmation page')
+      lines.push('• User account with order history')
+    } else if (isLanding) {
+      lines.push('• Hero section with headline, subhead, CTA button, hero visual')
+      lines.push('• Features section (3-6 feature cards)')
+      lines.push('• Social proof / testimonials')
+      lines.push('• Pricing section if applicable')
+      lines.push('• FAQ section with accordion')
+      lines.push('• Footer with links and newsletter')
+      lines.push('• Smooth scroll animations on enter')
+      lines.push('• Mobile responsive')
+    } else if (isAuth) {
+      lines.push('• Sign in form (email + password)')
+      lines.push('• Sign up form with validation')
+      lines.push('• Password reset flow')
+      lines.push('• Email verification')
+      lines.push('• OAuth providers (Google, GitHub) if applicable')
+      lines.push('• Session management')
+      lines.push('• Protected route handling')
+    } else if (isDashboard) {
+      lines.push('• Sidebar navigation with main sections')
+      lines.push('• Top bar with user menu and notifications')
+      lines.push('• Stats cards (4 key metrics)')
+      lines.push('• Charts (line, bar, or pie)')
+      lines.push('• Data table with sort, filter, pagination')
+      lines.push('• Empty states for new users')
+      lines.push('• Loading skeletons')
+    } else if (isApi) {
+      lines.push('• REST/GraphQL endpoint definition')
+      lines.push('• Request validation schema')
+      lines.push('• Authentication middleware')
+      lines.push('• Database queries')
+      lines.push('• Error handling with proper status codes')
+      lines.push('• Response shape documentation')
+      lines.push('• Rate limiting if public')
+    } else {
+      lines.push('• Build the feature as described above')
+      lines.push('• Define all required UI states (default, loading, error, empty)')
+      lines.push('• Handle responsive layout across breakpoints')
+      lines.push('• Add proper error boundaries')
+      lines.push('• Write clean, reusable components')
     }
+    lines.push('')
+
+    lines.push('━━━ TECH STACK ━━━')
+    if (isEcommerce || isLanding || isDashboard) {
+      lines.push('• Next.js 14 (App Router)')
+      lines.push('• TypeScript')
+      lines.push('• Tailwind CSS')
+      lines.push('• shadcn/ui components')
+    }
+    if (isPayment || isEcommerce) lines.push('• Stripe for payments')
+    if (isAuth) lines.push('• NextAuth.js or Clerk for auth')
+    if (isDashboard) {
+      lines.push('• Recharts or Chart.js for data viz')
+      lines.push('• TanStack Table for data tables')
+    }
+    if (isSearch) lines.push('• Algolia or Meilisearch for search')
+    if (isApi) {
+      lines.push('• Node.js / TypeScript')
+      lines.push('• Zod for validation')
+      lines.push('• Database: PostgreSQL via Prisma')
+    }
+    if (!isEcommerce && !isLanding && !isDashboard && !isApi) {
+      lines.push("• Use the project's existing stack")
+    }
+    lines.push('')
+
+    lines.push('━━━ IMPLEMENTATION STEPS ━━━')
+    lines.push('1. Set up the page route and base layout structure')
+    lines.push('2. Build the static UI components first (no logic)')
+    lines.push('3. Add responsive styles for mobile, tablet, desktop')
+    if (isEcommerce || isApi) {
+      lines.push('4. Wire up data fetching (server components or API routes)')
+      lines.push('5. Implement state management for cart/forms/filters')
+      lines.push('6. Add loading and error states')
+      lines.push('7. Connect payment flow if applicable')
+      lines.push('8. Test the full user journey')
+    } else if (isAuth) {
+      lines.push('4. Configure auth provider and session handling')
+      lines.push('5. Build forms with validation (zod + react-hook-form)')
+      lines.push('6. Add error states for failed login/signup')
+      lines.push('7. Set up protected route middleware')
+      lines.push('8. Test full auth flow')
+    } else {
+      lines.push('4. Add interactivity and state management')
+      lines.push('5. Handle all edge cases (empty, loading, error)')
+      lines.push('6. Add transitions and micro-interactions')
+      lines.push('7. Test thoroughly on all breakpoints')
+    }
+    lines.push('')
+
+    lines.push('━━━ ACCEPTANCE CRITERIA ━━━')
+    if (isEcommerce) {
+      lines.push('✓ Products display with all data (name, price, image)')
+      lines.push('✓ Cart updates correctly when adding/removing items')
+      lines.push('✓ Cart persists on page refresh')
+      lines.push('✓ Checkout form validates all required fields')
+      lines.push('✓ Payment processes successfully in test mode')
+      lines.push('✓ Mobile experience is fully usable')
+    } else if (isLanding) {
+      lines.push('✓ Hero CTA is prominent and above the fold')
+      lines.push('✓ All sections are mobile responsive')
+      lines.push('✓ Page loads in under 2 seconds')
+      lines.push('✓ Lighthouse score 90+ on performance')
+      lines.push('✓ All links and buttons work')
+      lines.push('✓ Forms submit successfully')
+    } else if (isAuth) {
+      lines.push('✓ Users can sign up with valid credentials')
+      lines.push('✓ Users can sign in and stay logged in')
+      lines.push('✓ Invalid credentials show clear errors')
+      lines.push('✓ Password reset email sends correctly')
+      lines.push('✓ Protected routes redirect to login')
+    } else {
+      lines.push('✓ Feature works as described')
+      lines.push('✓ All UI states are handled')
+      lines.push('✓ Mobile responsive')
+      lines.push('✓ No console errors')
+      lines.push('✓ Code is clean and reusable')
+    }
+    lines.push('')
+
+    lines.push('━━━ WATCH OUT FOR ━━━')
+    if (isEcommerce) {
+      lines.push('• Cart state should sync across tabs (use storage events)')
+      lines.push('• Handle inventory edge cases (out of stock)')
+      lines.push('• Stripe webhooks for order confirmation')
+    } else if (isLanding) {
+      lines.push('• Image optimization (use next/image)')
+      lines.push('• SEO meta tags and Open Graph')
+      lines.push('• Accessibility (proper heading hierarchy, alt text)')
+    } else if (isAuth) {
+      lines.push('• Never store passwords in plain text')
+      lines.push('• CSRF protection on forms')
+      lines.push('• Rate limit login attempts')
+    } else if (isApi) {
+      lines.push('• Input validation on every endpoint')
+      lines.push('• Proper error response shapes')
+      lines.push('• Authentication on protected routes')
+    } else {
+      lines.push('• Handle empty and loading states gracefully')
+      lines.push('• Test on real mobile devices')
+      lines.push('• Accessibility (keyboard nav, screen readers)')
+    }
+    lines.push('')
+
     lines.push('━━━ CONTEXT ━━━')
     lines.push('Project: ' + project)
     if (status) lines.push('Status: ' + status)
     if (task.priority) lines.push('Priority: ' + task.priority)
-    lines.push('')
     if (brief && brief.trim()) {
-      lines.push('━━━ PROJECT BRIEF ━━━')
-      lines.push(brief.slice(0, 800))
       lines.push('')
+      lines.push('Project Brief:')
+      lines.push(brief.slice(0, 600))
     }
-    lines.push('━━━ INSTRUCTIONS ━━━')
-    lines.push('1. Read the relevant files first before making any changes.')
-    lines.push('2. Implement the task as described above.')
-    lines.push('3. Match the existing code style and patterns.')
-    lines.push('4. Ensure no compilation errors after changes.')
-    lines.push('5. Test the change works as expected.')
-    lines.push('')
-    lines.push('━━━ ACCEPTANCE ━━━')
-    lines.push('- Task is complete and working')
-    lines.push('- Code follows project conventions')
-    lines.push('- No errors or warnings')
-    lines.push('- Ready for review')
+
     return lines.join('\n')
   }
 
@@ -2504,7 +2717,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                 </div>
                 <div>
                   <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 16, color: 'var(--color-text)', letterSpacing: '-0.01em', lineHeight: 1.2 }}>Generate Prompt</div>
-                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, letterSpacing: '0.04em' }}>Ready for Claude Code · Cursor</div>
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Ready for Claude Code · Cursor</div>
                 </div>
               </div>
               <button
@@ -2535,13 +2748,13 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                   <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)' }}>Building your prompt...</div>
                 </div>
               ) : (
-                <pre style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, lineHeight: 1.7, color: 'var(--color-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, padding: 16, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, maxHeight: '50vh', overflowY: 'auto' }}>{generatedPrompt}</pre>
+                <pre style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 400, lineHeight: 1.7, color: 'var(--color-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, padding: 18, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, maxHeight: '50vh', overflowY: 'auto', letterSpacing: '-0.005em' }}>{generatedPrompt}</pre>
               )}
             </div>
 
             {/* Footer */}
             <div style={{ padding: '14px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0, background: 'var(--color-bg)' }}>
-              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.04em' }}>
+              <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)' }}>
                 {generatedPrompt.length} chars · ~{Math.ceil(generatedPrompt.length / 4)} tokens
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
