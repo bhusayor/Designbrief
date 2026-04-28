@@ -10,6 +10,7 @@ import {
   ChevronLeftIcon, ChevronRightIcon,
   ExclamationCircleIcon,
   CheckCircleIcon, EllipsisHorizontalIcon,
+  PencilIcon, ArrowLeftIcon, ArrowRightIcon, TrashIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -177,6 +178,7 @@ export default function TeamCollab() {
   })
   const [editingColId, setEditingColId] = useState(null)
   const [editingColLabel, setEditingColLabel] = useState('')
+  const [openColMenuId, setOpenColMenuId] = useState(null)
 
   const chatEndRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -210,6 +212,15 @@ export default function TeamCollab() {
   useEffect(() => {
     if (addingToCol) addInputRef.current?.focus()
   }, [addingToCol])
+
+  useEffect(() => {
+    if (!openColMenuId) return
+    function handleClick(e) {
+      if (!e.target.closest('[data-col-menu]')) setOpenColMenuId(null)
+    }
+    setTimeout(() => document.addEventListener('click', handleClick), 0)
+    return () => document.removeEventListener('click', handleClick)
+  }, [openColMenuId])
 
   useEffect(() => {
     if (!activeProject?.id || !authUser) return
@@ -375,6 +386,38 @@ Return JSON:
   function saveCustomCols(cols) {
     setCustomCols(cols)
     localStorage.setItem('tc-cols-' + (activeProjectId || 'default'), JSON.stringify(cols))
+  }
+
+  function handleRenameColumn(colId) {
+    const col = customCols.find(c => c.id === colId)
+    if (col) { setEditingColId(colId); setEditingColLabel(col.label) }
+    setOpenColMenuId(null)
+  }
+
+  function handleDeleteColumn(colId) {
+    if (customCols.length <= 1) { alert('Cannot delete the last column'); return }
+    if (!confirm('Delete this column? Tasks inside will be moved to the first remaining column.')) {
+      setOpenColMenuId(null); return
+    }
+    const targetCol = customCols.find(c => c.id !== colId)?.id
+    setKanban(prev => {
+      if (!prev?.tasks) return prev
+      return { ...prev, tasks: prev.tasks.map(t => t.column === colId ? { ...t, column: targetCol } : t) }
+    })
+    saveCustomCols(customCols.filter(c => c.id !== colId))
+    setOpenColMenuId(null)
+  }
+
+  function handleMoveColumn(colId, direction) {
+    const idx = customCols.findIndex(c => c.id === colId)
+    if (idx === -1) return
+    if (direction === 'left' && idx === 0) return
+    if (direction === 'right' && idx === customCols.length - 1) return
+    const newCols = [...customCols]
+    const targetIdx = direction === 'left' ? idx - 1 : idx + 1
+    ;[newCols[idx], newCols[targetIdx]] = [newCols[targetIdx], newCols[idx]]
+    saveCustomCols(newCols)
+    setOpenColMenuId(null)
   }
 
   function handleNewProject() {
@@ -1776,7 +1819,7 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                 )}
               </div>
               {/* View tabs */}
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 2 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                 {[
                   { id: 'board', icon: Squares2X2Icon, label: 'Board' },
                   { id: 'list', icon: ListBulletIcon, label: 'List' },
@@ -1915,51 +1958,90 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                     onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('taskId'); if (id) moveTask(id, col.id); setDragOverCol(null); setDraggedTaskId(null) }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '4px 0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {/* Column title — single-click to rename */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
                         {editingColId === col.id ? (
                           <input
                             autoFocus
                             value={editingColLabel}
                             onChange={e => setEditingColLabel(e.target.value)}
                             onBlur={() => {
-                              if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel } : c))
+                              if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel.trim() } : c))
                               setEditingColId(null)
                             }}
                             onKeyDown={e => {
-                              if (e.key === 'Enter') { if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel } : c)); setEditingColId(null) }
+                              if (e.key === 'Enter') { if (editingColLabel.trim()) saveCustomCols(customCols.map(c => c.id === col.id ? { ...c, label: editingColLabel.trim() } : c)); setEditingColId(null) }
                               if (e.key === 'Escape') setEditingColId(null)
                             }}
-                            style={{ background: 'transparent', border: 'none', borderBottom: '1.5px solid var(--color-text)', outline: 'none', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)', width: 120, padding: '0 0 2px 0' }}
+                            onClick={e => e.stopPropagation()}
+                            style={{ background: accentCol + '15', border: '1.5px solid ' + accentCol, borderRadius: 6, outline: 'none', padding: '3px 10px', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em', minWidth: 80, maxWidth: 160 }}
                           />
                         ) : (
                           <div
-                            onDoubleClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: accentCol + '15', border: '1px solid ' + accentCol + '30', borderRadius: 6, padding: '3px 10px', cursor: 'text' }}
-                            title="Double-click to rename"
+                            onClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: accentCol + '15', border: '1px solid ' + accentCol + '30', borderRadius: 6, padding: '3px 10px', cursor: 'text', userSelect: 'none', transition: 'background 0.1s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = accentCol + '25' }}
+                            onMouseLeave={e => { e.currentTarget.style.background = accentCol + '15' }}
+                            title="Click to rename"
                           >
-                            <CheckCircleIcon style={{ width: 11, height: 11, color: accentCol, flexShrink: 0 }} />
-                            <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em', userSelect: 'none' }}>{col.label}</span>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: accentCol, flexShrink: 0 }} />
+                            <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{col.label}</span>
                           </div>
                         )}
-                        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>{colTasks.length}</span>
                         {isDropTarget && <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: accentCol, animation: 'pulse 1s ease infinite' }}>DROP</span>}
                       </div>
-                      <div style={{ display: 'flex', gap: 2 }}>
+
+                      {/* Right: task count + three-dot menu + add button */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, position: 'relative' }} data-col-menu>
+                        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, marginRight: 2 }}>{colTasks.length}</span>
+
                         <button
-                          onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
-                          style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}
+                          onClick={e => { e.stopPropagation(); setOpenColMenuId(openColMenuId === col.id ? null : col.id) }}
+                          style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.1s' }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                         >
-                          <PlusIcon style={{ width: 13, height: 13 }} />
+                          <EllipsisHorizontalIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
                         </button>
+
                         <button
-                          style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}
+                          onClick={e => { e.stopPropagation(); setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
+                          style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.1s' }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                         >
-                          <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
+                          <PlusIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
                         </button>
+
+                        {/* Dropdown menu */}
+                        {openColMenuId === col.id && (
+                          <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 4, minWidth: 180, zIndex: 100 }}>
+                            {(() => {
+                              const colIdx = customCols.findIndex(c => c.id === col.id)
+                              const isFirst = colIdx === 0
+                              const isLast = colIdx === customCols.length - 1
+                              const items = [
+                                { icon: PencilIcon, label: 'Rename', onClick: () => handleRenameColumn(col.id), disabled: false, danger: false },
+                                { icon: ArrowLeftIcon, label: 'Move left', onClick: () => handleMoveColumn(col.id, 'left'), disabled: isFirst, danger: false },
+                                { icon: ArrowRightIcon, label: 'Move right', onClick: () => handleMoveColumn(col.id, 'right'), disabled: isLast, danger: false },
+                                { icon: TrashIcon, label: 'Delete', onClick: () => handleDeleteColumn(col.id), disabled: customCols.length <= 1, danger: true },
+                              ]
+                              return items.map((item, i) => (
+                                <button
+                                  key={i}
+                                  onClick={item.onClick}
+                                  disabled={item.disabled}
+                                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: 7, cursor: item.disabled ? 'not-allowed' : 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 500, color: item.disabled ? 'var(--color-text-muted)' : item.danger ? '#dc2626' : 'var(--color-text)', opacity: item.disabled ? 0.4 : 1, textAlign: 'left', transition: 'background 0.1s' }}
+                                  onMouseEnter={e => { if (!item.disabled) e.currentTarget.style.background = item.danger ? 'rgba(220,38,38,0.08)' : 'var(--color-surface)' }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                                >
+                                  <item.icon style={{ width: 14, height: 14, color: item.disabled ? 'var(--color-text-muted)' : item.danger ? '#dc2626' : 'var(--color-text-soft)', flexShrink: 0 }} />
+                                  {item.label}
+                                </button>
+                              ))
+                            })()}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 60 }}>
