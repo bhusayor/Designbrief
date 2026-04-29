@@ -15,6 +15,7 @@ import {
   ArrowPathIcon,
   ClipboardDocumentIcon,
   AdjustmentsHorizontalIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -193,6 +194,7 @@ export default function TeamCollab() {
   const [promptCopied, setPromptCopied] = useState(false)
   const [promptPrefs, setPromptPrefs] = useState({ colors: '', fonts: '', style: '', references: '' })
   const [showPrefsPanel, setShowPrefsPanel] = useState(false)
+  const [unsplashKey, setUnsplashKey] = useState(() => localStorage.getItem('unsplash-key') || '')
 
   const chatEndRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -481,6 +483,29 @@ Return JSON:
     return { category, palette: PALETTES[category], fonts: FONT_PAIRS[category] }
   }
 
+  async function fetchUnsplashImages(query, count = 3) {
+    if (!unsplashKey) return null
+    try {
+      const res = await fetch(
+        'https://api.unsplash.com/search/photos?query=' + encodeURIComponent(query) +
+        '&per_page=' + count + '&orientation=landscape',
+        { headers: { Authorization: 'Client-ID ' + unsplashKey } }
+      )
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.results?.map(img => ({
+        url: img.urls.regular,
+        thumb: img.urls.small,
+        alt: img.alt_description || query,
+        author: img.user.name,
+        authorUrl: img.user.links.html,
+      })) || []
+    } catch (e) {
+      console.warn('[unsplash]', e)
+      return null
+    }
+  }
+
   async function handleGeneratePrompt(task) {
     setPromptModalTask(task)
     setPromptModalOpen(true)
@@ -494,6 +519,18 @@ Return JSON:
       const isBriefDerived = task.source !== 'manual' && (briefData.colorPalette || briefData.typography)
       const autoDefaults = !isBriefDerived ? getAutoDesignDefaults(task) : null
       const col = customCols.find(c => c.id === task.column)
+
+      const imageQueries = getImageQueries(task, briefData)
+      const taskIcons = getTaskIcons(task)
+      let liveImages = null
+      if (unsplashKey) {
+        liveImages = {}
+        for (const q of imageQueries) {
+          const imgs = await fetchUnsplashImages(q.query, 3)
+          if (imgs?.length) liveImages[q.section] = imgs
+        }
+        if (!Object.keys(liveImages).length) liveImages = null
+      }
 
       let designTokensContext = ''
       if (isBriefDerived && briefData.colorPalette) {
@@ -567,6 +604,17 @@ YOUR PROMPTS ALWAYS INCLUDE:
 - Clean typography hierarchy (max 4 sizes)
 - Generous whitespace — designers' golden ratio
 
+IMAGERY:
+- For every imagery section, suggest SPECIFIC search queries that match the task content (not generic terms)
+- Always include Unsplash, Pexels, and Freepik search URLs with the query embedded
+- Format: "Unsplash: https://unsplash.com/s/photos/QUERY" where QUERY is URL-encoded
+
+ICONS:
+- List EXACT Heroicon names from @heroicons/react/24/outline
+- Format each as: "IconName · what it's for"
+- Example: "ShoppingCartIcon · cart button"
+- Never say "appropriate icons" — name them
+
 THE OUTPUT MUST FEEL LIKE A SENIOR DESIGNER WROTE IT — confident, opinionated, specific. Never generic. Never vague.
 
 Return ONLY valid JSON, no markdown.`,
@@ -627,6 +675,14 @@ Standard quality gates: fonts, contrast, keyboard nav, motion, icons, mobile.
 
 The prompt should be 500-800 words. Be opinionated. Be specific.
 
+IMAGE QUERIES TO INCLUDE:
+${imageQueries.map(q => '- ' + q.section + ': "' + q.query + '"').join('\n')}
+
+SPECIFIC ICONS TO INCLUDE:
+${taskIcons.map(i => '- ' + i.icon + ' for ' + i.use).join('\n')}
+${liveImages && Object.keys(liveImages).length > 0 ? `LIVE UNSPLASH IMAGES (use these URLs directly):
+${Object.entries(liveImages).map(([section, imgs]) => section + ':\n' + imgs.map(img => '  ' + img.url + ' (by ' + img.author + ')').join('\n')).join('\n\n')}
+` : ''}
 Return JSON: { "prompt": "the full multi-section prompt" }`,
         4500
       )
@@ -634,7 +690,7 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
       let promptText = result?.prompt
       if (!promptText || promptText.length < 500 || !promptText.includes('━━━')) {
         console.warn('[generatePrompt] AI response insufficient, using senior template')
-        promptText = buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label)
+        promptText = buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label, liveImages)
       }
       setGeneratedPrompt(promptText)
     } catch (e) {
@@ -644,13 +700,147 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
       const isBriefDerived = task.source !== 'manual' && (briefData.colorPalette || briefData.typography)
       const autoDefaults = !isBriefDerived ? getAutoDesignDefaults(task) : null
       const col = customCols.find(c => c.id === task.column)
-      setGeneratedPrompt(buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label))
+      setGeneratedPrompt(buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label, null))
     } finally {
       setGeneratingPrompt(false)
     }
   }
 
-  function buildSeniorPrompt(task, project, briefData, autoDefaults, prefs, status) {
+  function extractKeyword(text) {
+    const stopwords = new Set([
+      'the','a','an','for','to','of','and','or','but','build','create','design',
+      'page','site','website','app','need','want','make','this','that','my','our',
+      'with','from','add','new'
+    ])
+    const words = text.replace(/[^\w\s]/g,'').split(/\s+/).filter(w => w.length > 3 && !stopwords.has(w))
+    return words[0] || ''
+  }
+
+  function buildUnsplashUrl(query) {
+    return 'https://unsplash.com/s/photos/' + encodeURIComponent(query)
+  }
+
+  function buildPexelsUrl(query) {
+    return 'https://www.pexels.com/search/' + encodeURIComponent(query) + '/'
+  }
+
+  function buildFreepikUrl(query) {
+    return 'https://www.freepik.com/search?format=search&query=' + encodeURIComponent(query)
+  }
+
+  function getImageQueries(task, briefData) {
+    const text = (task.title + ' ' + (task.description || '')).toLowerCase()
+    const industry = briefData?.industry || ''
+    const queries = []
+    if (/hero|landing|home/i.test(text)) {
+      queries.push({ section: 'Hero', query: industry || extractKeyword(text) || 'modern lifestyle' })
+    }
+    if (/product|shop|cart|store|ecommerce|gadget/i.test(text)) {
+      queries.push({ section: 'Product photography', query: 'product photography studio ' + (extractKeyword(text) || 'minimal') })
+    }
+    if (/team|about|people/i.test(text)) {
+      queries.push({ section: 'Team / People', query: 'diverse team office candid' })
+    }
+    if (/testimonial|review|customer/i.test(text)) {
+      queries.push({ section: 'Testimonial portraits', query: 'professional headshot natural light' })
+    }
+    if (/dashboard|analytics|saas|admin/i.test(text)) {
+      queries.push({ section: 'Workspace / Office', query: 'modern workspace laptop' })
+    }
+    if (/food|restaurant|recipe|meal/i.test(text)) {
+      queries.push({ section: 'Food photography', query: 'food photography overhead minimal' })
+    }
+    if (/wellness|fitness|yoga|meditation/i.test(text)) {
+      queries.push({ section: 'Lifestyle', query: 'wellness lifestyle calm natural' })
+    }
+    if (/travel|hotel|destination/i.test(text)) {
+      queries.push({ section: 'Travel / Destinations', query: 'travel destination cinematic' })
+    }
+    if (/feature|how.?it.?works|benefits/i.test(text)) {
+      queries.push({ section: 'Feature illustrations', query: 'abstract gradient minimal shapes' })
+    }
+    if (queries.length === 0) {
+      queries.push({ section: 'Primary imagery', query: extractKeyword(text) || industry || 'modern minimal' })
+    }
+    return queries
+  }
+
+  function getTaskIcons(task) {
+    const text = (task.title + ' ' + (task.description || '')).toLowerCase()
+    const iconMap = []
+    if (/nav|menu|header/i.test(text)) {
+      iconMap.push({ use: 'Mobile menu toggle', icon: 'Bars3Icon' })
+      iconMap.push({ use: 'Close menu', icon: 'XMarkIcon' })
+    }
+    if (/cart|shop|ecommerce|product/i.test(text)) {
+      iconMap.push({ use: 'Cart', icon: 'ShoppingCartIcon' })
+      iconMap.push({ use: 'Add to cart', icon: 'PlusIcon' })
+      iconMap.push({ use: 'Wishlist / Favorite', icon: 'HeartIcon' })
+      iconMap.push({ use: 'Quick view', icon: 'EyeIcon' })
+    }
+    if (/search|filter/i.test(text)) {
+      iconMap.push({ use: 'Search', icon: 'MagnifyingGlassIcon' })
+      iconMap.push({ use: 'Filter', icon: 'AdjustmentsHorizontalIcon' })
+      iconMap.push({ use: 'Sort', icon: 'BarsArrowDownIcon' })
+    }
+    if (/auth|login|sign|user|profile|account/i.test(text)) {
+      iconMap.push({ use: 'Email field', icon: 'EnvelopeIcon' })
+      iconMap.push({ use: 'Password field', icon: 'LockClosedIcon' })
+      iconMap.push({ use: 'Show / hide password', icon: 'EyeIcon · EyeSlashIcon' })
+      iconMap.push({ use: 'User avatar fallback', icon: 'UserCircleIcon' })
+    }
+    if (/dashboard|analytics|stats|metric/i.test(text)) {
+      iconMap.push({ use: 'Home / overview', icon: 'HomeIcon' })
+      iconMap.push({ use: 'Analytics chart', icon: 'ChartBarIcon' })
+      iconMap.push({ use: 'Trend up', icon: 'ArrowTrendingUpIcon' })
+      iconMap.push({ use: 'Trend down', icon: 'ArrowTrendingDownIcon' })
+      iconMap.push({ use: 'Notifications', icon: 'BellIcon' })
+      iconMap.push({ use: 'Settings', icon: 'Cog6ToothIcon' })
+    }
+    if (/calendar|date|schedule|event/i.test(text)) {
+      iconMap.push({ use: 'Date picker', icon: 'CalendarDaysIcon' })
+      iconMap.push({ use: 'Clock / time', icon: 'ClockIcon' })
+    }
+    if (/landing|hero|cta/i.test(text)) {
+      iconMap.push({ use: 'Primary CTA arrow', icon: 'ArrowRightIcon' })
+      iconMap.push({ use: 'Play video', icon: 'PlayIcon' })
+      iconMap.push({ use: 'Sparkle accent', icon: 'SparklesIcon' })
+    }
+    if (/feature|benefit|why/i.test(text)) {
+      iconMap.push({ use: 'Lightning fast', icon: 'BoltIcon' })
+      iconMap.push({ use: 'Secure', icon: 'ShieldCheckIcon' })
+      iconMap.push({ use: 'Checkmark', icon: 'CheckCircleIcon' })
+      iconMap.push({ use: 'Star rating', icon: 'StarIcon' })
+    }
+    if (/social|share|community/i.test(text)) {
+      iconMap.push({ use: 'Share', icon: 'ShareIcon' })
+      iconMap.push({ use: 'Comment', icon: 'ChatBubbleLeftIcon' })
+      iconMap.push({ use: 'Like', icon: 'HandThumbUpIcon' })
+    }
+    if (/upload|file|attach|document/i.test(text)) {
+      iconMap.push({ use: 'Upload', icon: 'ArrowUpTrayIcon' })
+      iconMap.push({ use: 'Document', icon: 'DocumentIcon' })
+      iconMap.push({ use: 'Paperclip', icon: 'PaperClipIcon' })
+    }
+    if (/message|chat|inbox|email/i.test(text)) {
+      iconMap.push({ use: 'Chat', icon: 'ChatBubbleLeftRightIcon' })
+      iconMap.push({ use: 'Send', icon: 'PaperAirplaneIcon' })
+      iconMap.push({ use: 'Email', icon: 'EnvelopeIcon' })
+    }
+    if (/setting|config|admin/i.test(text)) {
+      iconMap.push({ use: 'Settings', icon: 'Cog6ToothIcon' })
+      iconMap.push({ use: 'More options', icon: 'EllipsisHorizontalIcon' })
+    }
+    if (iconMap.length === 0) {
+      iconMap.push({ use: 'Forward action', icon: 'ArrowRightIcon' })
+      iconMap.push({ use: 'Back action', icon: 'ArrowLeftIcon' })
+      iconMap.push({ use: 'Close', icon: 'XMarkIcon' })
+      iconMap.push({ use: 'Confirm', icon: 'CheckIcon' })
+    }
+    return iconMap
+  }
+
+  function buildSeniorPrompt(task, project, briefData, autoDefaults, prefs, status, liveImages) {
     const text = (task.title + ' ' + (task.description || '')).toLowerCase()
     const isEcom = /shop|product|cart|store|ecommerce|gadget/i.test(text)
     const isLanding = /landing|hero|home/i.test(text)
@@ -768,10 +958,47 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
     lines.push('Use Heroicons exclusively (@heroicons/react/24/outline).')
     lines.push('No Lucide. No Font Awesome. No emojis.')
     lines.push('')
-    if (isEcom) lines.push('Likely icons: ShoppingCartIcon, MagnifyingGlassIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronRightIcon, StarIcon')
-    else if (isDashboard) lines.push('Likely icons: HomeIcon, ChartBarIcon, UsersIcon, CogIcon, BellIcon, MagnifyingGlassIcon, ArrowTrendingUpIcon, EllipsisHorizontalIcon')
-    else if (isAuth) lines.push('Likely icons: EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, ArrowRightIcon')
-    else lines.push('Pick semantic Heroicons that match each interactive element.')
+    lines.push('Specific icons for this task:')
+    const taskIconsList = getTaskIcons(task)
+    taskIconsList.forEach(item => {
+      lines.push('  ' + item.icon.padEnd(32) + ' · ' + item.use)
+    })
+    lines.push('')
+    lines.push('Browse all icons: https://heroicons.com')
+    lines.push('')
+
+    lines.push('━━━ IMAGERY ━━━')
+    lines.push('Use real, high-quality images from these sources:')
+    lines.push('')
+    const imgQueries = getImageQueries(task, briefData)
+    if (liveImages && Object.keys(liveImages).length > 0) {
+      lines.push('Live Unsplash images (ready to use):')
+      lines.push('')
+      Object.entries(liveImages).forEach(([section, imgs]) => {
+        lines.push(section + ':')
+        imgs.forEach((img, i) => {
+          lines.push('  ' + (i + 1) + '. ' + img.url)
+          lines.push('     by ' + img.author + ' · alt: "' + img.alt + '"')
+        })
+        lines.push('')
+      })
+      lines.push('Search for more:')
+      lines.push('')
+    }
+    imgQueries.forEach(q => {
+      lines.push(q.section + ':')
+      lines.push('  Unsplash: ' + buildUnsplashUrl(q.query))
+      lines.push('  Pexels:   ' + buildPexelsUrl(q.query))
+      lines.push('  Freepik:  ' + buildFreepikUrl(q.query))
+      lines.push('')
+    })
+    lines.push('Image guidelines:')
+    lines.push('  • Always use next/image with proper width, height, and alt')
+    lines.push('  • Lazy-load below-the-fold images')
+    lines.push('  • Hero images: 1920×1080 or 2400×1600 for retina')
+    lines.push('  • Product images: 800×800 square, consistent crop')
+    lines.push('  • Use blurhash or LQIP for placeholder while loading')
+    lines.push('  • All images must have descriptive alt text for a11y')
     lines.push('')
 
     lines.push('━━━ STATES ━━━')
@@ -2893,6 +3120,22 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                     />
                   </div>
                 ))}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
+                    <PhotoIcon style={{ width: 11, height: 11 }} />
+                    Unsplash API key (optional · for live images)
+                  </label>
+                  <input
+                    value={unsplashKey}
+                    onChange={e => { setUnsplashKey(e.target.value); localStorage.setItem('unsplash-key', e.target.value) }}
+                    placeholder="Get free key at unsplash.com/developers"
+                    type="password"
+                    style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '7px 10px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                    With a key, prompts include real image URLs ready to paste. Without it, you get smart search links for Unsplash, Pexels, and Freepik.
+                  </div>
+                </div>
               </div>
             )}
 
