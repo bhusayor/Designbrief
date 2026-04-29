@@ -15,7 +15,6 @@ import {
   ArrowPathIcon,
   ClipboardDocumentIcon,
   AdjustmentsHorizontalIcon,
-  PhotoIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
@@ -194,7 +193,6 @@ export default function TeamCollab() {
   const [promptCopied, setPromptCopied] = useState(false)
   const [promptPrefs, setPromptPrefs] = useState({ colors: '', fonts: '', style: '', references: '' })
   const [showPrefsPanel, setShowPrefsPanel] = useState(false)
-  const [unsplashKey, setUnsplashKey] = useState(() => localStorage.getItem('unsplash-key') || '')
 
   const chatEndRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -483,29 +481,6 @@ Return JSON:
     return { category, palette: PALETTES[category], fonts: FONT_PAIRS[category] }
   }
 
-  async function fetchUnsplashImages(query, count = 3) {
-    if (!unsplashKey) return null
-    try {
-      const res = await fetch(
-        'https://api.unsplash.com/search/photos?query=' + encodeURIComponent(query) +
-        '&per_page=' + count + '&orientation=landscape',
-        { headers: { Authorization: 'Client-ID ' + unsplashKey } }
-      )
-      if (!res.ok) return null
-      const data = await res.json()
-      return data.results?.map(img => ({
-        url: img.urls.regular,
-        thumb: img.urls.small,
-        alt: img.alt_description || query,
-        author: img.user.name,
-        authorUrl: img.user.links.html,
-      })) || []
-    } catch (e) {
-      console.warn('[unsplash]', e)
-      return null
-    }
-  }
-
   async function handleGeneratePrompt(task) {
     setPromptModalTask(task)
     setPromptModalOpen(true)
@@ -519,18 +494,6 @@ Return JSON:
       const isBriefDerived = task.source !== 'manual' && (briefData.colorPalette || briefData.typography)
       const autoDefaults = !isBriefDerived ? getAutoDesignDefaults(task) : null
       const col = customCols.find(c => c.id === task.column)
-
-      const imageQueries = getImageQueries(task, briefData)
-      const taskIcons = getTaskIcons(task)
-      let liveImages = null
-      if (unsplashKey) {
-        liveImages = {}
-        for (const q of imageQueries) {
-          const imgs = await fetchUnsplashImages(q.query, 3)
-          if (imgs?.length) liveImages[q.section] = imgs
-        }
-        if (!Object.keys(liveImages).length) liveImages = null
-      }
 
       let designTokensContext = ''
       if (isBriefDerived && briefData.colorPalette) {
@@ -587,6 +550,11 @@ DESIGN PRINCIPLES:
         if (promptPrefs.references) userOverrides += '\n- References: ' + promptPrefs.references
       }
 
+      const platform = detectPlatform(task, briefData)
+      const pattern = getStructurePattern(task, platform, briefData)
+      const imageQueries = getImageQueries(task, briefData, pattern, platform)
+      const taskIcons = getTaskIcons(task)
+
       const result = await callJSON(
         `You are a senior product designer + full-stack engineer with 10+ years of experience. You write implementation prompts that produce ULTRA CLEAN, MODERN designs — the kind that win awards on Awwwards and SiteInspire.
 
@@ -598,22 +566,37 @@ YOUR PROMPTS ALWAYS INCLUDE:
 - Micro-interactions on every interactive element
 - Hover states that feel intentional
 - Loading states, empty states, error states
-- Mobile-first responsive breakpoints
 - Accessibility (WCAG AA contrast, keyboard nav)
 - Subtle animations on scroll (fade-up, stagger)
 - Clean typography hierarchy (max 4 sizes)
 - Generous whitespace — designers' golden ratio
 
+PLATFORM AWARENESS:
+- Detect if the task is for: WEBSITE, MOBILE APP, or DESKTOP APP
+- Use platform-appropriate patterns, components, and tech stack
+- Mobile = React Native or SwiftUI, bottom tabs, gestures, haptics, safe areas
+- Website = Next.js, responsive breakpoints, SEO
+- Never propose mobile patterns for a website, or vice versa
+
+STRUCTURE DIVERSITY:
+- DO NOT use the same skeleton (hero / features / testimonials / FAQ / footer) for every task
+- Lean into the unique pattern provided in the user message
+- Common skeletons are forbidden — propose something specific to this task
+- Use editorial layouts, asymmetric grids, bento boxes, scroll-pinned sections, horizontal-scroll, magazine columns, full-bleed strips, marquee bands, stage-by-stage reveals, etc.
+
 IMAGERY:
-- For every imagery section, suggest SPECIFIC search queries that match the task content (not generic terms)
-- Always include Unsplash, Pexels, and Freepik search URLs with the query embedded
-- Format: "Unsplash: https://unsplash.com/s/photos/QUERY" where QUERY is URL-encoded
+- Different sections need different visual types (photo, illustration, 3D render, mockup)
+- Specify the type per section
+- Vary the visual rhythm — do not use the same image type for every section
 
 ICONS:
 - List EXACT Heroicon names from @heroicons/react/24/outline
 - Format each as: "IconName · what it's for"
-- Example: "ShoppingCartIcon · cart button"
 - Never say "appropriate icons" — name them
+
+MOTION:
+- Every pattern has its own signature motion. Use it.
+- Generic "fade in on scroll" is not enough. Be specific to the pattern.
 
 THE OUTPUT MUST FEEL LIKE A SENIOR DESIGNER WROTE IT — confident, opinionated, specific. Never generic. Never vague.
 
@@ -631,6 +614,7 @@ DESCRIPTION: ${task.description || '(none provided — infer scope from title)'}
 PROJECT: ${projectName}
 STATUS: ${col?.label || task.column}
 PRIORITY: ${task.priority || 'MEDIUM'}
+PLATFORM: ${platform.toUpperCase()}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 DESIGN CONTEXT
@@ -639,50 +623,27 @@ ${designTokensContext}
 ${userOverrides}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
+STRUCTURE PATTERN: ${pattern.name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use these sections (do not invent a generic layout):
+${(pattern.sections || pattern.screens || []).map((s, i) => (i + 1) + '. ' + s).join('\n')}
+
+Pattern signature motion:
+${pattern.motion}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
 INSTRUCTIONS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-Build the prompt with these sections using ━━━ separators:
+Build the prompt using ━━━ separators with these sections: SCOPE, DESIGN DIRECTION, ${platform === 'mobile' ? 'SCREEN FLOW' : 'LAYOUT & SECTIONS'}, IMAGERY, COMPONENTS, INTERACTIONS & MOTION, ICONS, STATES, TECH STACK, ACCEPTANCE CRITERIA, POLISH CHECKLIST.
 
-━━━ SCOPE ━━━
-1-2 sentence confident, specific summary of what's being built.
+The prompt should be 500-800 words. Be opinionated and specific. Follow the pattern exactly.
 
-━━━ DESIGN DIRECTION ━━━
-- Visual style, exact color tokens with hex codes, exact font families, spacing scale, border radius, shadow values.
-
-━━━ LAYOUT & SECTIONS ━━━
-List concrete sections with brief descriptions. Be specific to this task type.
-
-━━━ COMPONENTS ━━━
-List key reusable components needed (Button variants, Input, Modal, etc).
-
-━━━ INTERACTIONS & MOTION ━━━
-Specific micro-interactions: hover scale, page-enter stagger, transitions.
-
-━━━ ICONS ━━━
-Use Heroicons exclusively. List specific icons needed for this task.
-
-━━━ STATES ━━━
-Every component: Default, Hover, Active, Loading, Empty, Error, Success.
-
-━━━ TECH STACK ━━━
-Next.js 14 App Router, TypeScript, Tailwind, shadcn/ui, Framer Motion, Heroicons + any task-specific libs.
-
-━━━ ACCEPTANCE CRITERIA ━━━
-6-8 specific checkboxes tied to THIS task. Not generic.
-
-━━━ POLISH CHECKLIST ━━━
-Standard quality gates: fonts, contrast, keyboard nav, motion, icons, mobile.
-
-The prompt should be 500-800 words. Be opinionated. Be specific.
-
-IMAGE QUERIES TO INCLUDE:
-${imageQueries.map(q => '- ' + q.section + ': "' + q.query + '"').join('\n')}
+Imagery types per section:
+${imageQueries.map(q => '- ' + q.section + ': ' + q.type + ' — query "' + q.query + '"').join('\n')}
 
 SPECIFIC ICONS TO INCLUDE:
 ${taskIcons.map(i => '- ' + i.icon + ' for ' + i.use).join('\n')}
-${liveImages && Object.keys(liveImages).length > 0 ? `LIVE UNSPLASH IMAGES (use these URLs directly):
-${Object.entries(liveImages).map(([section, imgs]) => section + ':\n' + imgs.map(img => '  ' + img.url + ' (by ' + img.author + ')').join('\n')).join('\n\n')}
-` : ''}
+
 Return JSON: { "prompt": "the full multi-section prompt" }`,
         4500
       )
@@ -690,7 +651,7 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
       let promptText = result?.prompt
       if (!promptText || promptText.length < 500 || !promptText.includes('━━━')) {
         console.warn('[generatePrompt] AI response insufficient, using senior template')
-        promptText = buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label, liveImages)
+        promptText = buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label)
       }
       setGeneratedPrompt(promptText)
     } catch (e) {
@@ -700,7 +661,7 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
       const isBriefDerived = task.source !== 'manual' && (briefData.colorPalette || briefData.typography)
       const autoDefaults = !isBriefDerived ? getAutoDesignDefaults(task) : null
       const col = customCols.find(c => c.id === task.column)
-      setGeneratedPrompt(buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label, null))
+      setGeneratedPrompt(buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label))
     } finally {
       setGeneratingPrompt(false)
     }
@@ -728,39 +689,80 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
     return 'https://www.freepik.com/search?format=search&query=' + encodeURIComponent(query)
   }
 
-  function getImageQueries(task, briefData) {
+  function getImageQueries(task, briefData, pattern, platform) {
     const text = (task.title + ' ' + (task.description || '')).toLowerCase()
     const industry = briefData?.industry || ''
     const queries = []
-    if (/hero|landing|home/i.test(text)) {
-      queries.push({ section: 'Hero', query: industry || extractKeyword(text) || 'modern lifestyle' })
-    }
-    if (/product|shop|cart|store|ecommerce|gadget/i.test(text)) {
-      queries.push({ section: 'Product photography', query: 'product photography studio ' + (extractKeyword(text) || 'minimal') })
-    }
-    if (/team|about|people/i.test(text)) {
-      queries.push({ section: 'Team / People', query: 'diverse team office candid' })
-    }
-    if (/testimonial|review|customer/i.test(text)) {
-      queries.push({ section: 'Testimonial portraits', query: 'professional headshot natural light' })
-    }
-    if (/dashboard|analytics|saas|admin/i.test(text)) {
-      queries.push({ section: 'Workspace / Office', query: 'modern workspace laptop' })
-    }
-    if (/food|restaurant|recipe|meal/i.test(text)) {
-      queries.push({ section: 'Food photography', query: 'food photography overhead minimal' })
-    }
-    if (/wellness|fitness|yoga|meditation/i.test(text)) {
-      queries.push({ section: 'Lifestyle', query: 'wellness lifestyle calm natural' })
-    }
-    if (/travel|hotel|destination/i.test(text)) {
-      queries.push({ section: 'Travel / Destinations', query: 'travel destination cinematic' })
-    }
-    if (/feature|how.?it.?works|benefits/i.test(text)) {
-      queries.push({ section: 'Feature illustrations', query: 'abstract gradient minimal shapes' })
-    }
+    const sections = pattern?.sections || pattern?.screens || []
+
+    sections.forEach((section, i) => {
+      const s = section.toLowerCase()
+      if (/hero|splash|opening/i.test(s)) {
+        queries.push({
+          section: 'Hero / Opening',
+          type: i % 3 === 0 ? 'photo' : i % 3 === 1 ? '3d render' : 'illustration',
+          query: industry || extractKeyword(text) || 'cinematic minimal',
+          notes: 'Full-bleed, high contrast, works with overlay text',
+        })
+      } else if (/product|gallery/i.test(s)) {
+        queries.push({
+          section: 'Product imagery',
+          type: 'photo',
+          query: 'product photography studio clean white',
+          notes: 'Consistent crop and lighting across all products',
+        })
+      } else if (/feature|bento/i.test(s)) {
+        queries.push({
+          section: 'Feature illustrations',
+          type: 'illustration',
+          query: 'abstract geometric shapes gradient',
+          notes: 'Custom illustrations preferred over stock — keep style consistent',
+        })
+      } else if (/team|founder|about/i.test(s)) {
+        queries.push({
+          section: 'Team / Portrait',
+          type: 'photo',
+          query: 'portrait professional natural light',
+          notes: 'Editorial style portraits, soft lighting',
+        })
+      } else if (/testimonial|review|customer/i.test(s)) {
+        queries.push({
+          section: 'Testimonial portraits',
+          type: 'photo',
+          query: 'professional headshot diverse',
+          notes: 'Square crop, consistent background style',
+        })
+      } else if (/lifestyle|story/i.test(s)) {
+        queries.push({
+          section: 'Lifestyle / Storytelling',
+          type: 'photo',
+          query: (industry || 'modern') + ' lifestyle cinematic',
+          notes: 'Candid moments, real people, avoid stock-photo feel',
+        })
+      } else if (/3d|webgl|render|scene/i.test(s)) {
+        queries.push({
+          section: '3D render',
+          type: '3d render',
+          query: '3d render ' + (extractKeyword(text) || 'abstract object'),
+          notes: 'Three.js scene or static render with consistent lighting',
+        })
+      } else if (/mockup|demo/i.test(s)) {
+        queries.push({
+          section: 'UI mockup',
+          type: 'mockup',
+          query: 'app interface mockup ' + (platform === 'mobile' ? 'mobile' : 'desktop'),
+          notes: 'Use real product screenshots in browser/device frames',
+        })
+      }
+    })
+
     if (queries.length === 0) {
-      queries.push({ section: 'Primary imagery', query: extractKeyword(text) || industry || 'modern minimal' })
+      queries.push({
+        section: 'Primary imagery',
+        type: 'photo',
+        query: extractKeyword(text) || industry || 'modern minimal',
+        notes: 'Set the tone for the whole design',
+      })
     }
     return queries
   }
@@ -840,20 +842,398 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
     return iconMap
   }
 
-  function buildSeniorPrompt(task, project, briefData, autoDefaults, prefs, status, liveImages) {
+  function detectPlatform(task, briefData) {
     const text = (task.title + ' ' + (task.description || '')).toLowerCase()
-    const isEcom = /shop|product|cart|store|ecommerce|gadget/i.test(text)
-    const isLanding = /landing|hero|home/i.test(text)
-    const isDashboard = /dashboard|admin|analytics/i.test(text)
-    const isAuth = /auth|login|sign[\s-]?(in|up)/i.test(text)
+    const discipline = briefData?.discipline
+    if (discipline?.platform) {
+      const p = discipline.platform.toLowerCase()
+      if (p.includes('mobile') || p.includes('ios') || p.includes('android')) return 'mobile'
+      if (p.includes('desktop')) return 'desktop'
+      if (p.includes('web')) return 'website'
+    }
+    if (/\b(ios|android|mobile\s*app|native\s*app|react\s*native|expo|swift|swiftui|kotlin|flutter)\b/i.test(text)) return 'mobile'
+    if (/\b(app\s*store|play\s*store|tab\s*bar|bottom\s*nav|push\s*notif)\b/i.test(text)) return 'mobile'
+    if (/\b(electron|tauri|desktop\s*app|macos\s*app|windows\s*app)\b/i.test(text)) return 'desktop'
+    return 'website'
+  }
 
+  function getStructurePattern(task, platform, briefData) {
+    const text = (task.title + ' ' + (task.description || '')).toLowerCase()
+    const seed = (task.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+    const variant = (seed + new Date().getHours()) % 3
+    if (platform === 'mobile') return getMobilePattern(text, variant)
+    if (platform === 'desktop') return getDesktopPattern(text, variant)
+    return getWebsitePattern(text, variant)
+  }
+
+  function getMobilePattern(text, variant) {
+    if (/shop|product|cart|store|ecommerce|gadget/i.test(text)) {
+      const patterns = [
+        {
+          name: 'Discovery-first',
+          screens: [
+            'Splash → quick brand reveal with logo bloom',
+            'Onboarding (3 swipeable cards) — each with a 3D product render',
+            'Home — large discover hero, horizontal category chips, curated rails (New, Trending, For You)',
+            'Product detail — image gallery with parallax, sticky add-to-cart bar, expandable specs',
+            'Cart — drag-to-remove with haptic, animated total counter',
+            'Checkout — single-screen with progressive reveal',
+            'Profile — circular avatar header over gradient',
+            'Wishlist with empty illustration',
+          ],
+          motion: 'Hero parallax on scroll, shared element transitions between list and detail, spring-physics on add-to-cart',
+        },
+        {
+          name: 'Story-driven',
+          screens: [
+            'Splash — typography-only reveal',
+            'Tabbed home with snap-scroll collections',
+            'Story-format product browse (full-screen swipeable like Instagram stories)',
+            'Quick-buy flow with thumb-reachable controls',
+            'Live order tracking screen with animated timeline',
+            'Reviews tab with photo grid',
+            'Settings as a list with grouped sections',
+          ],
+          motion: 'Story-style horizontal paging, drawer-like detail sheets, FLIP animation between states',
+        },
+        {
+          name: 'Personal shopper',
+          screens: [
+            'Onboarding quiz — single-question-per-screen with progress ring',
+            'Personalized home — feed of cards, each with reasoning ("Picked because you liked X")',
+            'Product card flow with swipe-left-to-skip / swipe-right-to-save',
+            'Saved items as a magazine grid',
+            'Chat-style support with animated typing indicator',
+            'Profile with style preferences as colored chips',
+          ],
+          motion: 'Tinder-style card stack, progress ring fills, chat bubble spring entrance',
+        },
+      ]
+      return patterns[variant]
+    }
+    if (/fitness|health|workout|run|yoga|meditat|wellness/i.test(text)) {
+      const patterns = [
+        {
+          name: 'Coach-led',
+          screens: [
+            'Splash with breathing animation',
+            'Goal selection — large illustration cards',
+            'Daily dashboard — circular progress for streaks, today\'s plan, mood check-in',
+            'Workout active screen — full-bleed video with animated timer, large pause/skip',
+            'Rest screen with breathing circle animation',
+            'Stats — animated graphs that draw on entry',
+          ],
+          motion: 'Breathing circle pulse, graph line draw-on, count-up numbers',
+        },
+        {
+          name: 'Habit-based',
+          screens: [
+            'Onboarding — habit picker grid',
+            'Today screen — habits as tappable rings that fill on completion',
+            'Detailed habit screen with streak calendar heatmap',
+            'Insights with weekly/monthly tabs and animated chart transitions',
+            'Achievements — confetti on unlock',
+            'Profile with photo, level, badges',
+          ],
+          motion: 'Ring fill on tap, confetti particle burst, heatmap cell pulse',
+        },
+        {
+          name: 'Class-format',
+          screens: [
+            'Browse classes — large hero card, filter pills',
+            'Class detail with instructor profile, equipment list, preview video',
+            'Pre-workout countdown screen (3-2-1)',
+            'Class player — picture-in-picture instructor + main demo',
+            'Post-class summary with stats and rating prompt',
+            'Schedule with calendar strip',
+          ],
+          motion: 'Countdown number scale-out, PiP slide-in, calendar strip snap',
+        },
+      ]
+      return patterns[variant]
+    }
+    if (/social|chat|message|community|feed/i.test(text)) {
+      const patterns = [
+        {
+          name: 'Feed-first',
+          screens: [
+            'Pull-to-refresh feed with parallax cards',
+            'Compose — full-screen overlay with media options',
+            'Profile with tabbed content (posts, media, likes)',
+            'Direct messages with bubble tail animation',
+            'Search with trending pills',
+            'Notifications grouped by type',
+          ],
+          motion: 'Pull-to-refresh elastic, message bubble slide-in, tab underline morph',
+        },
+        {
+          name: 'Stories-first',
+          screens: [
+            'Top stories rail (circular avatars with gradient ring)',
+            'Full-screen story viewer with tap-to-skip and progress bars',
+            'Camera screen with filter carousel',
+            'Inbox with unread dot animation',
+            'Discover grid (3-column masonry)',
+          ],
+          motion: 'Story progress bar fill, gradient ring rotate on new content, masonry stagger',
+        },
+        {
+          name: 'Conversation-first',
+          screens: [
+            'Conversations list with last message preview',
+            'Chat screen with smart reply suggestions',
+            'Voice message with animated waveform',
+            'Group settings with member chips',
+            'Compose new message with contact search',
+          ],
+          motion: 'Waveform pulse on play, message reaction bounce, typing dots',
+        },
+      ]
+      return patterns[variant]
+    }
+    const defaults = [
+      {
+        name: 'Tab-based standard',
+        screens: ['Splash with brand reveal', 'Bottom tab bar with 4 main areas', 'Home tab with hero + content rails', 'Detail screens with sticky header', 'Profile / Settings tab'],
+        motion: 'Tab switch crossfade, sticky header collapse on scroll',
+      },
+      {
+        name: 'Single-flow focused',
+        screens: ['Splash', 'Single primary screen with floating action button', 'Modal overlays for secondary actions', 'Slide-up drawer for settings'],
+        motion: 'FAB scale-out, modal slide-up with backdrop fade',
+      },
+      {
+        name: 'Card-deck',
+        screens: ['Splash', 'Stack of card-screens that swipe horizontally', 'Per-card detail with shared element transition', 'Bottom sheet for actions'],
+        motion: 'Card swipe with rotation, shared element morph, bottom sheet drag',
+      },
+    ]
+    return defaults[variant]
+  }
+
+  function getWebsitePattern(text, variant) {
+    if (/shop|product|cart|store|ecommerce|gadget/i.test(text)) {
+      const patterns = [
+        {
+          name: 'Editorial commerce',
+          sections: [
+            'Sticky transparent nav that inverts on scroll',
+            'Editorial hero — full-bleed photo with overlay headline + price tag',
+            'Manifesto strip — large typographic statement on cream background',
+            'Asymmetric product grid (mix of large and small cards)',
+            'In-context lifestyle gallery (parallax)',
+            'Founder story with portrait and pull-quote',
+            'Newsletter as full-bleed section with single input',
+            'Footer with sitemap',
+          ],
+          motion: 'Nav invert on scroll, lifestyle parallax, image reveal masks, magnetic CTA',
+        },
+        {
+          name: 'Storefront-first',
+          sections: [
+            'Top promo banner (dismissible)',
+            'Sticky nav with mega-menu',
+            'Hero with rotating featured product (3D model if possible)',
+            'Category tile grid (4 across)',
+            'Best-sellers carousel with arrows',
+            'Customer photo wall (UGC grid)',
+            'Reviews with star average + individual cards',
+            'Trust strip (returns, shipping, support)',
+            'Footer',
+          ],
+          motion: '3D product rotation on mouse, carousel snap, UGC tile lift on hover',
+        },
+        {
+          name: 'Single-product showcase',
+          sections: [
+            'Minimal nav (logo + cart only)',
+            'Full-screen hero with product centered, animated entrance',
+            'Scroll-driven product story (3-4 pinned sections, each reveals a feature with animation)',
+            'Specs comparison table',
+            'Buy section — sticky on right while content scrolls',
+            'FAQ accordion',
+            'Footer',
+          ],
+          motion: 'Scroll-pinned sections, GSAP timeline, sticky buy panel with smooth handoff',
+        },
+      ]
+      return patterns[variant]
+    }
+    if (/saas|dashboard|platform|tool|software|analytics/i.test(text)) {
+      const patterns = [
+        {
+          name: 'Product-led',
+          sections: [
+            'Top nav with login + free trial CTA',
+            'Hero with animated product UI mockup (browser frame)',
+            'Logo cloud (greyscale, hover colorize)',
+            'Three-column features with inline animated demos',
+            'Long-form scroll showcasing each feature with screenshots',
+            'Comparison table vs competitors',
+            'Pricing with toggle (monthly / annual)',
+            'Final CTA with email capture',
+            'Footer with extensive sitemap',
+          ],
+          motion: 'Browser frame parallax, feature demos auto-cycle, pricing toggle with smooth number morph',
+        },
+        {
+          name: 'Bento-style',
+          sections: [
+            'Hero with 3-line manifesto + single CTA',
+            'Bento grid (Apple-style) — mixed-size cards each highlighting one feature with illustration',
+            'Quote testimonial as full-bleed section',
+            'Process / how it works with horizontal scroll-snap',
+            'Pricing as 3 cards with one highlighted',
+            'CTA banner',
+            'Footer',
+          ],
+          motion: 'Bento card hover lift + illustration play, horizontal scroll-snap with progress dots',
+        },
+        {
+          name: 'Use-case driven',
+          sections: [
+            'Nav',
+            'Hero focused on customer outcome (not product)',
+            'Three persona tabs — content morphs based on selection',
+            'Customer story carousel with logo + quote + metric',
+            'Workflow diagram as animated illustration',
+            'Integration grid (logos)',
+            'Pricing',
+            'Footer',
+          ],
+          motion: 'Persona tab content morph, workflow arrows draw on scroll, integration grid stagger',
+        },
+      ]
+      return patterns[variant]
+    }
+    if (/portfolio|agency|studio|creative|designer|freelance/i.test(text)) {
+      const patterns = [
+        {
+          name: 'Project-first',
+          sections: [
+            'Custom cursor + minimal nav',
+            'Full-screen hero with name and role typed letter-by-letter',
+            'Marquee scroll text with services',
+            'Project grid with hover video preview',
+            'About section as a long-form paragraph with key facts highlighted',
+            'Awards / recognition list',
+            'Contact as a large form with cursor-following effect',
+          ],
+          motion: 'Custom cursor with magnetic targets, marquee infinite scroll, project hover video play',
+        },
+        {
+          name: 'Magazine-style',
+          sections: [
+            'Editorial nav with fine serif',
+            'Asymmetric hero — large image + overlapping text',
+            'Issue-style table of contents for projects',
+            'Each project as a chapter with pull-quote and gallery',
+            'Manifesto / approach section',
+            'Press / mentions logo strip',
+            'Studio info + contact',
+          ],
+          motion: 'Image reveal masks, editorial pull-quote slide-in, chapter scroll progress',
+        },
+        {
+          name: 'Experimental',
+          sections: [
+            'WebGL hero canvas with mouse-reactive shader',
+            'Project list as a draggable spatial canvas',
+            'Modal project view with image gallery and case study',
+            'About as a typographic essay',
+            'Contact via ASCII-style layout',
+          ],
+          motion: 'WebGL shader morph, draggable spatial nav, modal crossfade',
+        },
+      ]
+      return patterns[variant]
+    }
+    const defaults = [
+      {
+        name: 'Editorial-modern',
+        sections: [
+          'Minimal nav — logo + 4 links + CTA',
+          'Hero with large headline + supporting paragraph + dual CTA',
+          'Visual feature strip (3 columns with illustrations)',
+          'Long-form story section with pull-quotes',
+          'Image gallery (masonry)',
+          'Final CTA banner',
+          'Footer',
+        ],
+        motion: 'Headline char-stagger, image reveal on scroll, magnetic CTA',
+      },
+      {
+        name: 'Conversion-focused',
+        sections: [
+          'Sticky nav with prominent CTA',
+          'Hero with social proof under fold',
+          'Problem statement section',
+          'Solution / features (3 bento cards)',
+          'How it works (numbered steps)',
+          'Testimonial wall',
+          'Pricing or CTA',
+          'FAQ',
+          'Footer with newsletter',
+        ],
+        motion: 'Steps draw connecting line on scroll, testimonial wall hover pause, FAQ accordion smooth open',
+      },
+      {
+        name: 'Showcase-style',
+        sections: [
+          'Floating nav (centered pill)',
+          'Hero with full-bleed video or 3D scene',
+          'Marquee logos / text strip',
+          'Showcase grid with mixed media',
+          'Detailed feature with side-by-side visual + copy',
+          'Customer outcomes (numbers + quote)',
+          'CTA with email capture',
+          'Footer',
+        ],
+        motion: '3D scene mouse-react, marquee auto-scroll, number count-up on view',
+      },
+    ]
+    return defaults[variant]
+  }
+
+  function getDesktopPattern(text, variant) {
+    return {
+      name: 'Productivity desktop app',
+      sections: [
+        'Title bar (custom traffic lights on macOS)',
+        'Left sidebar (icon-only collapsible)',
+        'Secondary panel (resizable)',
+        'Main content area with tabs',
+        'Right inspector panel (toggleable)',
+        'Bottom status bar with subtle stats',
+        'Command palette (Cmd+K)',
+      ],
+      motion: 'Sidebar collapse spring, panel resize handle hover, command palette fade-scale in',
+    }
+  }
+
+  function buildSeniorPrompt(task, project, briefData, autoDefaults, prefs, status) {
+    const platform = detectPlatform(task, briefData)
+    const pattern = getStructurePattern(task, platform, briefData)
+    const imageQueries = getImageQueries(task, briefData, pattern, platform)
+    const taskIconsList = getTaskIcons(task)
+
+    const isMobile = platform === 'mobile'
+    const isDesktop = platform === 'desktop'
     const lines = []
 
+    // ── SCOPE ──────────────────────────────────────────────────────────────
     lines.push('━━━ SCOPE ━━━')
     lines.push('Build: ' + task.title)
+    lines.push('Platform: ' + platform.toUpperCase())
     if (task.description) { lines.push(''); lines.push(task.description) }
     lines.push('')
 
+    // ── STRUCTURE PATTERN ──────────────────────────────────────────────────
+    lines.push('━━━ STRUCTURE PATTERN: ' + pattern.name.toUpperCase() + ' ━━━')
+    lines.push('Follow this specific pattern — do not invent a different structure.')
+    lines.push('')
+
+    // ── DESIGN DIRECTION ───────────────────────────────────────────────────
     lines.push('━━━ DESIGN DIRECTION ━━━')
     if (prefs?.colors) { lines.push('Colors (user-specified):'); lines.push('  ' + prefs.colors) }
     else if (briefData?.colorPalette?.length) {
@@ -879,87 +1259,116 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
       lines.push('  · ' + autoDefaults.fonts.rationale)
     }
     lines.push('')
-    lines.push('Spacing scale: 4, 8, 12, 16, 24, 32, 48, 64, 96')
-    lines.push('Border radius: 8px (buttons), 12px (cards), 16px (modals)')
-    lines.push('Shadows: 0 1px 3px rgba(0,0,0,0.05) default · 0 8px 24px rgba(0,0,0,0.08) overlay')
+    if (isMobile) {
+      lines.push('Spacing: 4, 8, 12, 16, 20, 24, 32 (mobile-tight scale)')
+      lines.push('Border radius: 12px (buttons), 16px (cards), 20px (sheets)')
+      lines.push('Shadows: none default · 0 4px 20px rgba(0,0,0,0.10) overlay')
+    } else {
+      lines.push('Spacing scale: 4, 8, 12, 16, 24, 32, 48, 64, 96')
+      lines.push('Border radius: 8px (buttons), 12px (cards), 16px (modals)')
+      lines.push('Shadows: 0 1px 3px rgba(0,0,0,0.05) default · 0 8px 24px rgba(0,0,0,0.08) overlay')
+    }
     if (prefs?.style) { lines.push(''); lines.push('Style override: ' + prefs.style) }
     if (prefs?.references) { lines.push('References: ' + prefs.references) }
     lines.push('')
 
-    lines.push('━━━ LAYOUT & SECTIONS ━━━')
-    if (isEcom && isLanding) {
-      lines.push('• Sticky nav: logo, search, cart icon with count badge')
-      lines.push('• Hero: bold headline, subhead, primary CTA, product hero visual')
-      lines.push('• Trust strip: 3-4 mini badges (free shipping, returns, etc.)')
-      lines.push('• Featured products: 4-card grid with hover lift')
-      lines.push('• Category tiles: 4 across desktop, 2 mobile')
-      lines.push('• Social proof: customer reviews carousel')
-      lines.push('• Newsletter: clean inline form')
-      lines.push('• Footer: sitemap, social, legal')
-    } else if (isLanding) {
-      lines.push('• Sticky nav with anchor links')
-      lines.push('• Hero: H1, supporting copy, primary + secondary CTA, hero visual')
-      lines.push('• Logo cloud (social proof)')
-      lines.push('• Features: 3-column grid with icon + heading + body')
-      lines.push('• How it works: numbered steps with visuals')
-      lines.push('• Testimonials section')
-      lines.push('• FAQ accordion')
-      lines.push('• Final CTA banner')
-      lines.push('• Footer')
-    } else if (isDashboard) {
-      lines.push('• Sidebar: logo, primary nav (5-7 items), user menu at bottom')
-      lines.push('• Top bar: search, notifications, breadcrumbs')
-      lines.push('• Stats cards: 4 KPIs with trend indicators')
-      lines.push('• Primary chart: large area or line chart')
-      lines.push('• Secondary widgets: recent activity, quick actions')
-      lines.push('• Data table: sortable, filterable, paginated')
-    } else if (isAuth) {
-      lines.push("• Centered card on subtle gradient background")
-      lines.push('• Logo at top')
-      lines.push('• Form: email + password fields with floating labels')
-      lines.push('• Submit button: full-width, with loading state')
-      lines.push('• OAuth buttons: Google, GitHub (if configured)')
-      lines.push("• Switch link: Don't have an account?")
+    // ── LAYOUT ─────────────────────────────────────────────────────────────
+    const screenItems = pattern.screens || pattern.sections || []
+    if (isMobile) {
+      lines.push('━━━ SCREEN FLOW ━━━')
+      screenItems.forEach((s, i) => lines.push((i + 1) + '. ' + s))
     } else {
-      lines.push('• Define top-level layout (nav, content, footer)')
-      lines.push('• Identify primary content sections')
-      lines.push('• Plan empty/loading/error states')
-      lines.push('• Mobile and desktop responsive structure')
+      lines.push('━━━ LAYOUT & SECTIONS ━━━')
+      screenItems.forEach(s => lines.push('• ' + s))
     }
     lines.push('')
 
+    // ── IMAGERY ────────────────────────────────────────────────────────────
+    lines.push('━━━ IMAGERY ━━━')
+    lines.push('Use typed imagery matched to each section:')
+    lines.push('')
+    imageQueries.forEach(q => {
+      lines.push('[' + q.type.toUpperCase() + '] ' + q.section)
+      lines.push('  Search: ' + buildUnsplashUrl(q.query))
+      lines.push('  Pexels: ' + buildPexelsUrl(q.query))
+      if (q.type === '3d render') lines.push('  3D tool: https://spline.design')
+      if (q.type === 'illustration') lines.push('  Illustration: https://undraw.co')
+      if (q.type === 'mockup') lines.push('  Mockup tool: https://rotato.app')
+      if (q.notes) lines.push('  Notes: ' + q.notes)
+      lines.push('')
+    })
+    if (isMobile) {
+      lines.push('Image guidelines:')
+      lines.push('  • Use Image from expo-image with contentFit="cover" and placeholder blurhash')
+      lines.push('  • Avoid loading large images above the fold — use progressive reveal')
+      lines.push('  • All images must have accessible alt/accessibilityLabel text')
+    } else {
+      lines.push('Image guidelines:')
+      lines.push('  • Always use next/image with proper width, height, and alt')
+      lines.push('  • Lazy-load below-the-fold images')
+      lines.push('  • Hero images: 1920×1080 or 2400×1600 for retina')
+      lines.push('  • Use blurhash or LQIP for placeholder while loading')
+      lines.push('  • All images must have descriptive alt text for a11y')
+    }
+    lines.push('')
+
+    // ── COMPONENTS ─────────────────────────────────────────────────────────
     lines.push('━━━ COMPONENTS ━━━')
-    lines.push('• Button: primary, secondary, ghost — with hover/active/disabled states')
-    lines.push('• Input: floating label, error state, helper text')
-    if (isEcom) {
-      lines.push('• Product card: image, name, price, quick-add button, hover lift')
-      lines.push('• Cart drawer: slides from right with backdrop blur')
-      lines.push('• Quantity stepper: minus / value / plus')
+    if (isMobile) {
+      lines.push('• Pressable with haptic feedback (Haptics.impactAsync) on all tappable cards')
+      lines.push('• Bottom sheet (react-native-bottom-sheet) for overlays — avoid native modals')
+      lines.push('• Tab bar: 4-5 items with active indicator pill')
+      lines.push('• Swipeable list rows (react-native-gesture-handler)')
+      lines.push('• SkeletonPlaceholder for loading states')
+      lines.push('• Toast via react-native-toast-message — top position, auto-dismiss 3s')
+    } else if (isDesktop) {
+      lines.push('• Menu bar integration with native OS menus')
+      lines.push('• Resizable sidebar (drag handle, collapsible)')
+      lines.push('• Context menu on right-click')
+      lines.push('• Keyboard shortcut display in tooltips (Cmd/Ctrl+K pattern)')
+      lines.push('• Window chrome: traffic-light controls or custom titlebar')
+      lines.push('• Toast: bottom-right, auto-dismiss 4s')
+    } else {
+      lines.push('• Button: primary, secondary, ghost — hover/active/disabled states')
+      lines.push('• Input: floating label, error state, helper text')
+      lines.push('• Modal: backdrop blur, centered card, escape to close')
+      lines.push('• Toast: bottom-right, auto-dismiss 4s')
+      lines.push('• Dropdown menu with keyboard navigation')
     }
-    if (isDashboard) {
-      lines.push('• Stat card: label, value, trend arrow, sparkline')
-      lines.push('• Data table row: hover highlight, action menu')
-    }
-    lines.push('• Modal: backdrop blur, centered card, escape to close')
-    lines.push('• Toast: bottom-right, auto-dismiss after 4s')
     lines.push('')
 
+    // ── MOTION ─────────────────────────────────────────────────────────────
     lines.push('━━━ INTERACTIONS & MOTION ━━━')
-    lines.push('• Hover: translateY(-2px) + shadow expand, 200ms ease-out')
-    lines.push('• Active/click: scale 0.98, 100ms')
-    lines.push('• Page enter: fade-up + stagger children, 80ms delay each')
-    lines.push('• Modal enter: fade + scale 0.96 → 1, 250ms ease-out')
-    lines.push('• All interactive elements have hover transitions')
-    lines.push('• Smooth scroll for anchor links')
-    lines.push('• Respect prefers-reduced-motion')
+    lines.push('Pattern motion: ' + pattern.motion)
+    lines.push('')
+    if (isMobile) {
+      lines.push('• Tap: scale 0.97, 80ms — all pressables')
+      lines.push('• Screen transitions: shared element (react-navigation sharedElements)')
+      lines.push('• Scroll: sticky header collapses with interpolation')
+      lines.push('• Pull-to-refresh: custom Lottie animation')
+      lines.push('• Swipe gestures: dismiss, archive, reply')
+      lines.push('• Respect prefers-reduced-motion via AccessibilityInfo.isReduceMotionEnabled')
+    } else {
+      lines.push('• Hover: translateY(-2px) + shadow expand, 200ms ease-out')
+      lines.push('• Active/click: scale 0.98, 100ms')
+      lines.push('• Page enter: fade-up + stagger children, 80ms delay each')
+      lines.push('• Modal enter: fade + scale 0.96 → 1, 250ms ease-out')
+      lines.push('• Smooth scroll for anchor links')
+      lines.push('• Respect prefers-reduced-motion')
+    }
     lines.push('')
 
+    // ── ICONS ──────────────────────────────────────────────────────────────
     lines.push('━━━ ICONS ━━━')
-    lines.push('Use Heroicons exclusively (@heroicons/react/24/outline).')
-    lines.push('No Lucide. No Font Awesome. No emojis.')
+    if (isMobile) {
+      lines.push('Use Heroicons exclusively (@heroicons/react-native/24/outline).')
+      lines.push('No Expo vector icons. No emojis as icons.')
+    } else {
+      lines.push('Use Heroicons exclusively (@heroicons/react/24/outline).')
+      lines.push('No Lucide. No Font Awesome. No emojis as icons.')
+    }
     lines.push('')
     lines.push('Specific icons for this task:')
-    const taskIconsList = getTaskIcons(task)
     taskIconsList.forEach(item => {
       lines.push('  ' + item.icon.padEnd(32) + ' · ' + item.use)
     })
@@ -967,100 +1376,88 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
     lines.push('Browse all icons: https://heroicons.com')
     lines.push('')
 
-    lines.push('━━━ IMAGERY ━━━')
-    lines.push('Use real, high-quality images from these sources:')
-    lines.push('')
-    const imgQueries = getImageQueries(task, briefData)
-    if (liveImages && Object.keys(liveImages).length > 0) {
-      lines.push('Live Unsplash images (ready to use):')
-      lines.push('')
-      Object.entries(liveImages).forEach(([section, imgs]) => {
-        lines.push(section + ':')
-        imgs.forEach((img, i) => {
-          lines.push('  ' + (i + 1) + '. ' + img.url)
-          lines.push('     by ' + img.author + ' · alt: "' + img.alt + '"')
-        })
-        lines.push('')
-      })
-      lines.push('Search for more:')
-      lines.push('')
-    }
-    imgQueries.forEach(q => {
-      lines.push(q.section + ':')
-      lines.push('  Unsplash: ' + buildUnsplashUrl(q.query))
-      lines.push('  Pexels:   ' + buildPexelsUrl(q.query))
-      lines.push('  Freepik:  ' + buildFreepikUrl(q.query))
-      lines.push('')
-    })
-    lines.push('Image guidelines:')
-    lines.push('  • Always use next/image with proper width, height, and alt')
-    lines.push('  • Lazy-load below-the-fold images')
-    lines.push('  • Hero images: 1920×1080 or 2400×1600 for retina')
-    lines.push('  • Product images: 800×800 square, consistent crop')
-    lines.push('  • Use blurhash or LQIP for placeholder while loading')
-    lines.push('  • All images must have descriptive alt text for a11y')
-    lines.push('')
-
+    // ── STATES ─────────────────────────────────────────────────────────────
     lines.push('━━━ STATES ━━━')
     lines.push('Every component must define:')
     lines.push('• Default · Hover · Active / pressed · Focus (visible ring) · Disabled')
     lines.push('• Loading (skeleton or spinner) · Empty (illustration + CTA) · Error (with retry) · Success (confirmation)')
     lines.push('')
 
+    // ── TECH STACK ─────────────────────────────────────────────────────────
     lines.push('━━━ TECH STACK ━━━')
-    lines.push('• Next.js 14 (App Router)')
-    lines.push('• TypeScript (strict)')
-    lines.push('• Tailwind CSS')
-    lines.push('• shadcn/ui as component base')
-    lines.push('• Framer Motion for animations')
-    lines.push('• @heroicons/react for icons')
-    if (isEcom) { lines.push('• Stripe for payments'); lines.push('• Zustand for cart state') }
-    if (isDashboard) { lines.push('• Recharts for data viz'); lines.push('• TanStack Table') }
-    if (isAuth) { lines.push('• NextAuth.js or Clerk'); lines.push('• Zod + react-hook-form') }
-    lines.push('')
-
-    lines.push('━━━ ACCEPTANCE CRITERIA ━━━')
-    if (isEcom) {
-      lines.push('✓ Hero CTA scrolls to products or opens collection')
-      lines.push('✓ Product cards show image, name, price, and add-to-cart')
-      lines.push('✓ Cart count updates live when adding items')
-      lines.push('✓ Cart persists across page reloads')
-      lines.push('✓ Mobile nav drawer works smoothly')
-      lines.push('✓ All images use next/image with proper sizing')
-      lines.push('✓ Checkout completes in test mode')
-    } else if (isLanding) {
-      lines.push('✓ Hero loads above the fold without layout shift')
-      lines.push('✓ Anchor links smooth-scroll to sections')
-      lines.push('✓ Lighthouse: 95+ performance, 100 accessibility')
-      lines.push('✓ Mobile (375px) renders cleanly')
-      lines.push('✓ All forms submit and show feedback')
-      lines.push('✓ Animations only run when in viewport')
-    } else if (isDashboard) {
-      lines.push('✓ Sidebar collapses on mobile into hamburger menu')
-      lines.push('✓ All stat cards animate their value on mount')
-      lines.push('✓ Charts are responsive and show tooltips')
-      lines.push('✓ Table supports column sort and row selection')
-      lines.push('✓ Empty states have illustrations')
+    if (isMobile) {
+      lines.push('• React Native + Expo (SDK 51)')
+      lines.push('• TypeScript (strict)')
+      lines.push('• NativeWind for styling (Tailwind on RN)')
+      lines.push('• React Navigation 6 (Stack + Tab + Bottom Sheet)')
+      lines.push('• React Native Reanimated 3 + Gesture Handler')
+      lines.push('• @heroicons/react-native for icons')
+      lines.push('• Zustand for state')
+      lines.push('• expo-image for optimized images')
+    } else if (isDesktop) {
+      lines.push('• Tauri 2 (Rust backend) or Electron 31')
+      lines.push('• React 18 + TypeScript (strict)')
+      lines.push('• Tailwind CSS + shadcn/ui')
+      lines.push('• Framer Motion for animations')
+      lines.push('• @heroicons/react for icons')
+      lines.push('• Zustand for state')
     } else {
-      lines.push('✓ Feature works as scoped')
-      lines.push('✓ All states handled (loading, empty, error, success)')
-      lines.push('✓ Mobile responsive (375px → 1440px)')
-      lines.push('✓ Keyboard navigable')
-      lines.push('✓ Color contrast passes WCAG AA')
+      lines.push('• Next.js 14 (App Router)')
+      lines.push('• TypeScript (strict)')
+      lines.push('• Tailwind CSS')
+      lines.push('• shadcn/ui as component base')
+      lines.push('• Framer Motion for animations')
+      lines.push('• @heroicons/react for icons')
     }
     lines.push('')
 
-    lines.push('━━━ POLISH CHECKLIST ━━━')
-    lines.push('[ ] All icons from Heroicons')
-    lines.push('[ ] All transitions 200-300ms')
-    lines.push('[ ] Focus rings visible on all interactive elements')
-    lines.push('[ ] No layout shift (CLS = 0)')
-    lines.push('[ ] Animations respect prefers-reduced-motion')
-    lines.push('[ ] WCAG AA color contrast')
-    lines.push('[ ] Touch targets ≥ 44px on mobile')
-    lines.push('[ ] All copy reviewed and on-brand')
+    // ── ACCEPTANCE CRITERIA ────────────────────────────────────────────────
+    lines.push('━━━ ACCEPTANCE CRITERIA ━━━')
+    lines.push('Pattern: ' + pattern.name)
+    if (isMobile) {
+      lines.push('✓ All screens in the ' + pattern.name + ' flow are implemented')
+      lines.push('✓ Shared element transitions work between list and detail screens')
+      lines.push('✓ Bottom tab bar is accessible with correct active states')
+      lines.push('✓ Pull-to-refresh works on all scrollable screens')
+      lines.push('✓ Haptic feedback fires on primary taps')
+      lines.push('✓ All images load with placeholder and correct aspect ratio')
+      lines.push('✓ Offline / empty states show illustrations + retry CTA')
+      lines.push('✓ VoiceOver / TalkBack passes on primary flow')
+    } else if (isDesktop) {
+      lines.push('✓ All sections in the ' + pattern.name + ' layout are implemented')
+      lines.push('✓ Sidebar resizes and collapses correctly')
+      lines.push('✓ All keyboard shortcuts display in tooltips and work')
+      lines.push('✓ Context menus appear on right-click')
+      lines.push('✓ Window can be resized without layout breakage (min 900×600)')
+      lines.push('✓ All states handled (loading, empty, error, success)')
+    } else {
+      lines.push('✓ All sections in the ' + pattern.name + ' layout are implemented')
+      lines.push('✓ Hero loads above the fold without layout shift (CLS = 0)')
+      lines.push('✓ Lighthouse: 95+ performance, 100 accessibility')
+      lines.push('✓ Mobile (375px) and desktop (1440px) render cleanly')
+      lines.push('✓ All forms submit and show success / error feedback')
+      lines.push('✓ Animations only trigger when in viewport')
+      lines.push('✓ Keyboard navigable throughout')
+      lines.push('✓ WCAG AA color contrast')
+    }
     lines.push('')
 
+    // ── POLISH CHECKLIST ───────────────────────────────────────────────────
+    const imageTypes = [...new Set(imageQueries.map(q => q.type))]
+    lines.push('━━━ POLISH CHECKLIST ━━━')
+    lines.push('[ ] All icons from Heroicons')
+    lines.push('[ ] All transitions ' + (isMobile ? '80-200ms' : '200-300ms'))
+    lines.push('[ ] Focus rings visible on all interactive elements')
+    if (!isMobile) lines.push('[ ] No layout shift (CLS = 0)')
+    lines.push('[ ] Animations respect ' + (isMobile ? 'AccessibilityInfo.isReduceMotionEnabled' : 'prefers-reduced-motion'))
+    lines.push('[ ] WCAG AA color contrast')
+    lines.push('[ ] Touch targets ≥ 44px')
+    lines.push('[ ] All copy reviewed and on-brand')
+    lines.push('[ ] Pattern "' + pattern.name + '" fully followed')
+    imageTypes.forEach(t => lines.push('[ ] ' + t.charAt(0).toUpperCase() + t.slice(1) + ' imagery sourced and attributed'))
+    lines.push('')
+
+    // ── CONTEXT ────────────────────────────────────────────────────────────
     lines.push('━━━ CONTEXT ━━━')
     lines.push('Project: ' + project)
     if (status) lines.push('Status: ' + status)
@@ -3120,22 +3517,6 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                     />
                   </div>
                 ))}
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
-                    <PhotoIcon style={{ width: 11, height: 11 }} />
-                    Unsplash API key (optional · for live images)
-                  </label>
-                  <input
-                    value={unsplashKey}
-                    onChange={e => { setUnsplashKey(e.target.value); localStorage.setItem('unsplash-key', e.target.value) }}
-                    placeholder="Get free key at unsplash.com/developers"
-                    type="password"
-                    style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '7px 10px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                    With a key, prompts include real image URLs ready to paste. Without it, you get smart search links for Unsplash, Pexels, and Freepik.
-                  </div>
-                </div>
               </div>
             )}
 
