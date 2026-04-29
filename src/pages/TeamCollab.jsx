@@ -17,7 +17,7 @@ import {
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
-import { generateKanban, generateTeamRoles, handleFollowUp, callJSON } from '../lib/api'
+import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaudeTools } from '../lib/api'
 import { getProjectInvites } from '../lib/teamService'
 import {
   saveTasksToDB, loadTasksFromDB, updateTaskInDB,
@@ -25,6 +25,134 @@ import {
 } from '../lib/taskService'
 import { InviteModal } from '../components/team'
 const uid = () => Math.random().toString(36).slice(2, 9)
+
+// ─── Board agent tools ────────────────────────────────────────────────────────
+
+const BOARD_TOOLS = [
+  {
+    name: 'board_action',
+    description: 'Perform a single action on the kanban board: add, move, update, or delete a task.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['add', 'move', 'update', 'delete'],
+          description: 'The action to perform',
+        },
+        taskId: {
+          type: 'string',
+          description: 'ID of existing task (required for move/update/delete)',
+        },
+        task: {
+          type: 'object',
+          description: 'Task data for add/update',
+          properties: {
+            title: { type: 'string' },
+            description: { type: 'string' },
+            column: { type: 'string' },
+            priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'] },
+            assignee: { type: 'string' },
+            dueDate: { type: 'string' },
+          },
+        },
+        toColumn: {
+          type: 'string',
+          description: 'Target column for move action',
+        },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'bulk_action',
+    description: 'Add multiple tasks to the board at once. Use when user asks to generate tasks, break something into subtasks, or create a project plan.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        tasks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+              column: { type: 'string' },
+              priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'] },
+              assignee: { type: 'string' },
+              dueDate: { type: 'string' },
+            },
+            required: ['title'],
+          },
+          description: 'Array of tasks to add',
+        },
+        clearFirst: {
+          type: 'boolean',
+          description: 'Whether to clear existing tasks before adding (for full replans)',
+        },
+      },
+      required: ['tasks'],
+    },
+  },
+  {
+    name: 'column_action',
+    description: 'Rename a column or clear all tasks from a column.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['rename', 'clear'] },
+        columnId: { type: 'string', description: 'ID of the column' },
+        newLabel: { type: 'string', description: 'New name (for rename only)' },
+      },
+      required: ['action', 'columnId'],
+    },
+  },
+  {
+    name: 'move_all',
+    description: 'Move all tasks from one column to another.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        fromColumn: { type: 'string' },
+        toColumn: { type: 'string' },
+      },
+      required: ['fromColumn', 'toColumn'],
+    },
+  },
+  {
+    name: 'prioritise_board',
+    description: 'Reorder tasks across the board by priority. Returns a suggested ordering with reasoning.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        criteria: {
+          type: 'string',
+          description: 'What to prioritise by: impact, urgency, effort, deadline',
+        },
+      },
+      required: ['criteria'],
+    },
+  },
+]
+
+const SUGGESTIONS = [
+  {
+    label: 'Generate a project plan',
+    prompt: 'Generate a full project plan for this board with tasks across all columns.',
+  },
+  {
+    label: 'What should I work on next?',
+    prompt: 'What should I work on next based on the current board?',
+  },
+  {
+    label: 'Prioritise the board',
+    prompt: 'Prioritise all tasks on the board by urgency and impact.',
+  },
+  {
+    label: 'Summarise current progress',
+    prompt: 'Give me a summary of where this project stands right now.',
+  },
+]
 
 // ─── ChatBubble ───────────────────────────────────────────────────────────────
 
@@ -166,6 +294,8 @@ export default function TeamCollab() {
     return 'default'
   })
   const [conversationHistory, setConversationHistory] = useState([])
+  const [chatHistory, setChatHistory] = useState([])
+  const [isTyping, setIsTyping] = useState(false)
   const [fileName, setFileName] = useState(null)
   const [activeTab, setActiveTab] = useState('board')
   const [showInviteModal, setShowInviteModal] = useState(false)
@@ -1476,6 +1606,7 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
     setActiveProjectId(newProj.id)
     localStorage.setItem('teamcollab-active-project', newProj.id)
     setMessages([])
+    setChatHistory([])
     setKanban(null)
     setTeamMembers([])
     setPhase('brief')
@@ -1487,6 +1618,7 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
   function handleSwitchProject(id) {
     setActiveProjectId(id)
     localStorage.setItem('teamcollab-active-project', id)
+    setChatHistory([])
     const proj = projects.find(p => p.id === id)
     if (proj?.title) setProjectTitle(proj.title)
   }
@@ -1607,96 +1739,260 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
   // ── Async handlers ────────────────────────────────────────────────────────
 
-  async function handleChatSend() {
-    const msg = input.trim()
-    if (!msg || loading) return
-    setInput('')
-    setFileName(null)
-    addMessage('user', msg)
-    setLoading(true)
+  function executeTool(toolName, toolInput) {
+    switch (toolName) {
 
-    try {
-      const lowerMsg = msg.toLowerCase()
+      case 'board_action': {
+        const { action, taskId, task, toColumn } = toolInput
 
-      // Intent: add a task
-      if (lowerMsg.includes('add') || lowerMsg.includes('create') || lowerMsg.includes('new task')) {
-        const result = await callJSON(
-          'You are a project management assistant. Extract task details from the user message. Return ONLY valid JSON.',
-          `User message: "${msg}"\n\nCurrent kanban columns: ${JSON.stringify(KANBAN_COLS)}\n\nExtract and return:\n{\n  "action": "add_task",\n  "title": "the task title",\n  "column": "exact column name from the list above",\n  "priority": "LOW or MEDIUM or HIGH"\n}\n\nIf no column specified, default to the first column.`,
-          300
-        )
-        if (result?.title) {
-          const col = KANBAN_COLS.find(c => c.toLowerCase() === (result.column || '').toLowerCase()) || KANBAN_COLS[0]
+        if (action === 'add') {
           const newTask = {
-            id: 'ai-' + uid(), title: result.title,
-            priority: (result.priority || 'MEDIUM').toUpperCase(),
-            assignedName: null, assignedRole: '',
-            column: col, source: 'ai-chat',
-            subtasks: [], description: '', estimatedDays: 1,
+            id: 'ai-' + uid(),
+            title: task.title,
+            description: task.description || '',
+            column: task.column || customCols[0]?.id || 'To Do',
+            priority: task.priority || 'MEDIUM',
+            assignee: task.assignee || null,
+            dueDate: task.dueDate || '',
+            source: 'ai-agent',
+            subtasks: [],
+            tags: [],
           }
           setKanban(prev => ({
-            tasks: [...(prev?.tasks || []), newTask],
-            projectTimeline: prev?.projectTimeline || '',
-            unassignedTasks: prev?.unassignedTasks || [],
-            missingRoles: prev?.missingRoles || [],
+            ...(prev || {}),
+            tasks: [...((prev?.tasks) || []), newTask],
           }))
           if (phase !== 'kanban') setPhase('kanban')
-          setLoading(false)
-          return
+          return { success: true, taskId: newTask.id, message: 'Added "' + task.title + '"' }
         }
-      }
 
-      // Intent: move a task
-      if (lowerMsg.includes('move') || lowerMsg.includes('mark') || lowerMsg.includes('complete') || lowerMsg.includes('finish')) {
-        const result = await callJSON(
-          'You are a project management assistant. Extract move task details. Return ONLY JSON.',
-          `User message: "${msg}"\nCurrent tasks: ${JSON.stringify((kanban?.tasks || []).map(t => ({ id: t.id, title: t.title, column: t.column })))}\nColumns: ${JSON.stringify(KANBAN_COLS)}\n\nReturn:\n{\n  "action": "move_task",\n  "taskTitle": "partial task title to match",\n  "toColumn": "exact column name from columns list"\n}`,
-          300
-        )
-        if (result?.taskTitle && result?.toColumn) {
-          const task = kanban?.tasks?.find(t => t.title.toLowerCase().includes(result.taskTitle.toLowerCase()))
-          const col = KANBAN_COLS.find(c => c.toLowerCase() === result.toColumn.toLowerCase()) || result.toColumn
-          if (task && col) {
-            setKanban(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === task.id ? { ...t, column: col } : t) }))
-            setLoading(false)
-            return
-          }
+        if (action === 'move') {
+          setKanban(prev => ({
+            ...prev,
+            tasks: prev.tasks.map(t => t.id === taskId ? { ...t, column: toColumn } : t),
+          }))
+          return { success: true, message: 'Moved task to ' + toColumn }
         }
-      }
 
-      // Intent: delete a task
-      if (lowerMsg.includes('delete') || lowerMsg.includes('remove')) {
-        const result = await callJSON(
-          'Extract delete task info. Return ONLY JSON.',
-          `Message: "${msg}"\nTasks: ${JSON.stringify((kanban?.tasks || []).map(t => ({ id: t.id, title: t.title })))}\nReturn: {"action":"delete_task","taskTitle":"title to match"}`,
-          200
-        )
-        if (result?.taskTitle) {
-          const task = kanban?.tasks?.find(t => t.title.toLowerCase().includes(result.taskTitle.toLowerCase()))
-          if (task) {
-            setKanban(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== task.id) }))
-            setLoading(false)
-            return
-          }
+        if (action === 'update') {
+          setKanban(prev => ({
+            ...prev,
+            tasks: prev.tasks.map(t => t.id === taskId ? { ...t, ...task } : t),
+          }))
+          return { success: true, message: 'Updated task' }
         }
+
+        if (action === 'delete') {
+          setKanban(prev => ({
+            ...prev,
+            tasks: prev.tasks.filter(t => t.id !== taskId),
+          }))
+          return { success: true, message: 'Deleted task' }
+        }
+
+        return { success: false, error: 'Unknown action' }
       }
 
-      // Intent: generate full board or long brief
-      if (!kanban?.tasks?.length || lowerMsg.includes('generate') || lowerMsg.includes('board') || lowerMsg.includes('project') || msg.length > 100) {
-        setLoading(false)
-        await handleAnalyseBrief(msg)
-        return
+      case 'bulk_action': {
+        const { tasks, clearFirst } = toolInput
+        const newTasks = tasks.map(t => ({
+          id: 'ai-' + uid(),
+          title: t.title,
+          description: t.description || '',
+          column: t.column || customCols[0]?.id || 'To Do',
+          priority: t.priority || 'MEDIUM',
+          assignee: t.assignee || null,
+          dueDate: t.dueDate || '',
+          source: 'ai-agent',
+          subtasks: [],
+          tags: [],
+        }))
+        setKanban(prev => ({
+          ...(prev || {}),
+          tasks: clearFirst ? newTasks : [...((prev?.tasks) || []), ...newTasks],
+        }))
+        if (phase !== 'kanban') setPhase('kanban')
+        return { success: true, count: newTasks.length, message: 'Added ' + newTasks.length + ' tasks' }
       }
 
-      // Fallback: follow-up on existing board
-      setLoading(false)
-      await handleFollowUpMessage(msg)
+      case 'column_action': {
+        const { action, columnId, newLabel } = toolInput
+        if (action === 'rename') {
+          saveCustomCols(customCols.map(c => c.id === columnId ? { ...c, label: newLabel } : c))
+          return { success: true, message: 'Renamed column' }
+        }
+        if (action === 'clear') {
+          setKanban(prev => ({
+            ...prev,
+            tasks: prev.tasks.filter(t => t.column !== columnId),
+          }))
+          return { success: true, message: 'Cleared column' }
+        }
+        return { success: false, error: 'Unknown action' }
+      }
+
+      case 'move_all': {
+        const { fromColumn, toColumn } = toolInput
+        setKanban(prev => ({
+          ...prev,
+          tasks: prev.tasks.map(t => t.column === fromColumn ? { ...t, column: toColumn } : t),
+        }))
+        return { success: true, message: 'Moved all tasks from ' + fromColumn + ' to ' + toColumn }
+      }
+
+      case 'prioritise_board': {
+        const order = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+        setKanban(prev => ({
+          ...prev,
+          tasks: [...(prev?.tasks || [])].sort((a, b) => (order[a.priority] || 1) - (order[b.priority] || 1)),
+        }))
+        return { success: true, message: 'Board prioritised' }
+      }
+
+      default:
+        return { success: false, error: 'Unknown tool: ' + toolName }
+    }
+  }
+
+  async function handleChatSend() {
+    const msg = input.trim()
+    if (!msg || isTyping) return
+
+    setInput('')
+    addMessage('user', msg)
+    setIsTyping(true)
+
+    const totalTasks = kanban?.tasks?.length || 0
+    const boardContext = totalTasks > 0
+      ? `CURRENT BOARD STATE:
+Columns: ${customCols.map(c => c.label + ' (' + (kanban?.tasks?.filter(t => t.column === c.id).length || 0) + ' tasks)').join(', ')}
+
+Tasks:
+${(kanban?.tasks || []).map(t => {
+  const col = customCols.find(c => c.id === t.column)
+  return '- [' + t.id + '] ' + t.title +
+    ' | col: ' + (col?.label || t.column) +
+    ' | priority: ' + (t.priority || 'MEDIUM') +
+    (t.assignee ? ' | assignee: ' + t.assignee : '') +
+    (t.dueDate ? ' | due: ' + t.dueDate : '') +
+    (t.description ? ' | desc: ' + t.description.slice(0, 80) : '')
+}).join('\n')}`
+      : 'BOARD IS EMPTY — no tasks yet.'
+
+    const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
+
+    const systemPrompt =
+`You are a senior project manager AI assistant embedded inside a kanban board called DesignBrief AI. You help designers and developers manage their projects.
+
+PROJECT: ${projectName}
+COLUMNS: ${customCols.map(c => c.id + ' (' + c.label + ')').join(', ')}
+
+${boardContext}
+
+YOUR CAPABILITIES:
+You have tools to directly modify the board:
+- board_action: add/move/update/delete tasks
+- bulk_action: add multiple tasks at once
+- column_action: rename/clear columns
+- move_all: bulk-move between columns
+- prioritise_board: sort by priority
+
+WHEN TO USE TOOLS:
+- User asks to add/create a task → board_action(add)
+- User wants to generate a project plan, sprint, or task list → bulk_action
+- User says "move X to done" → board_action(move)
+- User says "clear the done column" → column_action(clear)
+- User says "prioritise the board" → prioritise_board
+- User wants to break a task into subtasks → bulk_action
+- User asks a question (no action needed) → just respond
+
+WHEN USING bulk_action FOR PROJECT PLANS:
+Generate realistic, specific tasks a designer or developer would actually do. Not generic "Research phase" — instead: "Audit competitor onboarding flows", "Define typography scale", "Build product card component".
+
+AFTER USING A TOOL:
+Give a brief, confident confirmation. 1-2 sentences max. No lists.
+Example: "Done — added 8 tasks across your board. The critical path starts with the discovery tasks in To Do."
+
+WHEN ANSWERING QUESTIONS:
+Be direct and insightful. You can see the full board state so use it. Examples:
+- "How are we doing?" → give real stats
+- "What's blocking us?" → look at high-priority tasks in To Do or In Progress
+- "What should I work on next?" → analyse priorities and give a specific answer
+
+STYLE:
+- Direct, confident, concise
+- No bullet-point answers to action requests
+- Never repeat the user's message back to them
+- Never say "I'll help you with that"
+- Act like a smart colleague, not an assistant`
+
+    const newHistory = [
+      ...chatHistory,
+      { role: 'user', content: msg },
+    ]
+
+    try {
+      const data = await callClaudeTools({
+        system: systemPrompt,
+        messages: newHistory,
+        tools: BOARD_TOOLS,
+        maxTokens: 2000,
+      })
+
+      const toolUseBlocks = data.content.filter(b => b.type === 'tool_use')
+      const textBlocks = data.content.filter(b => b.type === 'text')
+
+      if (toolUseBlocks.length > 0) {
+        const toolResults = []
+        for (const toolBlock of toolUseBlocks) {
+          const result = executeTool(toolBlock.name, toolBlock.input)
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: toolBlock.id,
+            content: JSON.stringify(result),
+          })
+        }
+
+        const historyWithTool = [
+          ...newHistory,
+          { role: 'assistant', content: data.content },
+          { role: 'user', content: toolResults },
+        ]
+
+        const followUpData = await callClaudeTools({
+          system: systemPrompt,
+          messages: historyWithTool,
+          maxTokens: 500,
+        })
+
+        const replyText = followUpData.content
+          .filter(b => b.type === 'text')
+          .map(b => b.text)
+          .join(' ')
+          .trim()
+
+        setChatHistory([
+          ...newHistory,
+          { role: 'assistant', content: replyText || 'Done.' },
+        ])
+
+        if (replyText) addMessage('ai', replyText)
+
+      } else {
+        const replyText = textBlocks.map(b => b.text).join(' ').trim()
+        setChatHistory([
+          ...newHistory,
+          { role: 'assistant', content: replyText },
+        ])
+        addMessage('ai', replyText)
+      }
 
     } catch (e) {
-      console.error('[chat] error:', e)
-      setLoading(false)
+      console.error('[agent chat]', e)
       addMessage('ai', 'Something went wrong. Try again.')
     }
+
+    setIsTyping(false)
   }
 
   async function handleSend() {
@@ -3314,29 +3610,49 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
 
             {/* Messages */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 14px 0' }}>
-              {messages.length === 0 && !loading && (
+              {messages.length === 0 && !loading && !isTyping && (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' }}>
                   <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <SparklesIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)' }} />
                   </div>
                   <div>
                     <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 6, letterSpacing: '-0.01em' }}>What do you need?</div>
-                    <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.65, maxWidth: 240 }}>Generate a board, add tasks, move cards, or ask anything about your project.</div>
+                    <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.65, maxWidth: 240 }}>Add tasks, move cards, generate a plan, or ask anything about your project.</div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: 260, marginTop: 8 }}>
-                    {['Generate board from brief', 'Add task: [task name]', 'Move [task] to done'].map((suggestion, i) => (
-                      <button key={i}
-                        onPointerDown={() => setInput(suggestion === 'Generate board from brief' ? '' : suggestion.replace('[task name]', '').replace('[task]', ''))}
-                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '8px 12px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-soft)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-soft)' }}
-                      >{suggestion}</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: 280, marginTop: 8 }}>
+                    {SUGGESTIONS.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setInput(s.prompt)}
+                        style={{
+                          background: 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 9, padding: '8px 12px',
+                          fontFamily: "'Urbanist',sans-serif",
+                          fontSize: 12, fontWeight: 500,
+                          color: 'var(--color-text-soft)',
+                          cursor: 'pointer', textAlign: 'left',
+                          transition: 'all 0.15s', lineHeight: 1.4,
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = 'var(--color-text-muted)'
+                          e.currentTarget.style.color = 'var(--color-text)'
+                          e.currentTarget.style.background = 'var(--color-card)'
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = 'var(--color-border)'
+                          e.currentTarget.style.color = 'var(--color-text-soft)'
+                          e.currentTarget.style.background = 'var(--color-surface)'
+                        }}
+                      >
+                        {s.label}
+                      </button>
                     ))}
                   </div>
                 </div>
               )}
               {messages.map(m => <ChatBubble key={m.id} msg={m} />)}
-              {loading && <ThinkingBubble />}
+              {(loading || isTyping) && <ThinkingBubble />}
               <div ref={chatEndRef} />
             </div>
 
@@ -3432,10 +3748,10 @@ Only include tasks where assignedRole matches or closely relates to: ${newMember
                     rows={1}
                     style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--color-text)', fontFamily: "'DM Mono', monospace", fontSize: 12, resize: 'none', lineHeight: 1.6, maxHeight: 100, minHeight: 20, boxSizing: 'border-box', padding: 0 }}
                   />
-                  <button onClick={handleChatSend} disabled={!input.trim() || loading}
-                    style={{ width: 32, height: 32, background: !input.trim() || loading ? 'var(--color-border)' : 'var(--color-text)', border: 'none', borderRadius: 9, cursor: !input.trim() || loading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}
+                  <button onClick={handleChatSend} disabled={!input.trim() || loading || isTyping}
+                    style={{ width: 32, height: 32, background: !input.trim() || loading || isTyping ? 'var(--color-border)' : 'var(--color-text)', border: 'none', borderRadius: 9, cursor: !input.trim() || loading || isTyping ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}
                   >
-                    <ArrowUpIcon style={{ width: 16, height: 16, color: !input.trim() || loading ? 'var(--color-text-muted)' : 'var(--color-bg)' }} />
+                    <ArrowUpIcon style={{ width: 16, height: 16, color: !input.trim() || loading || isTyping ? 'var(--color-text-muted)' : 'var(--color-bg)' }} />
                   </button>
                 </div>
               </div>

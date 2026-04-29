@@ -104,6 +104,14 @@ function extractJSON(text) {
 // ─── Base callers ─────────────────────────────────────────────────────────────
 
 /**
+ * callClaudeTools — sends a full conversation with optional tools.
+ * Returns { content, stop_reason } where content is an array of blocks.
+ */
+export async function callClaudeTools({ messages, system = '', maxTokens = 2000, tools } = {}) {
+  return post('/api/claude-tools', { messages, system, maxTokens, tools })
+}
+
+/**
  * callClaude — returns raw text string from Claude.
  */
 export async function callClaude(systemPrompt, userMessage, maxTokens = 2000) {
