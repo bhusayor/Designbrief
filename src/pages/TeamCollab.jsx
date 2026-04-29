@@ -1989,7 +1989,13 @@ STYLE:
 
     } catch (e) {
       console.error('[agent chat]', e)
-      addMessage('ai', 'Something went wrong. Try again.')
+      if (e.status === 429) {
+        addMessage('ai', e.data?.message || 'Daily limit reached. Come back tomorrow.')
+      } else if (e.status === 401) {
+        addMessage('ai', 'Session expired. Please refresh the page.')
+      } else {
+        addMessage('ai', 'Something went wrong. Try again.')
+      }
     }
 
     setIsTyping(false)

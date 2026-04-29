@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { requireAuth, checkRateLimit } from './lib/authMiddleware.js'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = 'claude-sonnet-4-6'
@@ -6,7 +7,7 @@ const MODEL = 'claude-sonnet-4-6'
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 }
 
 export default async function handler(req, res) {
@@ -17,6 +18,15 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // 1. Auth check
+  const auth = await requireAuth(req, res)
+  if (!auth) return
+  const { user, supabase } = auth
+
+  // 2. Rate limit check
+  const allowed = await checkRateLimit(supabase, user.id, res)
+  if (!allowed) return
 
   try {
     const { message, system = '', maxTokens = 1000 } = req.body
