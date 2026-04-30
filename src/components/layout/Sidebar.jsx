@@ -13,6 +13,7 @@ import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
   DocumentTextIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline'
 
 // ─── NavItem with tooltip ──────────────────────────────────────────────────────
@@ -123,6 +124,8 @@ export default function Sidebar() {
     user, signOut,
     setActiveProject,
     intakeForms,
+    workspace,
+    creditsUsed, creditsLimit,
   } = useContext(AppContext)
 
   const readyCount = (intakeForms || []).filter(f => f.status === 'complete').length
@@ -205,44 +208,51 @@ export default function Sidebar() {
         {/* Logo mark — NOT clickable */}
         <div
           style={{
-            width: 28,
-            height: 28,
+            width: 24,
+            height: 24,
             background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-            borderRadius: 7,
+            borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 13,
-            color: '#FFFFFF',
-            fontFamily: "'Urbanist', sans-serif",
-            fontWeight: 900,
             flexShrink: 0,
             cursor: 'default',
             userSelect: 'none',
           }}
         >
-          ✦
+          <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
         </div>
 
-        {/* Logo text — only when expanded */}
+        {/* Workspace name — only when expanded */}
         {!collapsed && (
-          <span
-            style={{
-              fontFamily: "'Urbanist', sans-serif",
-              fontWeight: 700,
+          <div style={{ flex: 1, minWidth: 0, marginLeft: 10, userSelect: 'none' }}>
+            <div style={{
+              fontFamily: 'var(--font-sans)',
+              fontWeight: 800,
               fontSize: 14,
+              letterSpacing: '-0.03em',
               color: 'var(--color-text)',
-              letterSpacing: '-0.02em',
-              flex: 1,
-              marginLeft: 10,
-              whiteSpace: 'nowrap',
               overflow: 'hidden',
-              userSelect: 'none',
-            }}
-          >
-            DesignBrief
-            <span style={{ color: 'var(--color-text-muted)' }}>AI</span>
-          </span>
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {workspace?.name || 'DesignBrief AI'}
+            </div>
+            {workspace?.plan && (
+              <div style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: workspace.plan === 'free'
+                  ? 'var(--color-text-muted)'
+                  : 'var(--color-accent)',
+              }}>
+                {workspace.plan} plan
+              </div>
+            )}
+          </div>
         )}
 
         {/* Toggle button — always visible when expanded, hover-reveal when collapsed */}
@@ -393,6 +403,92 @@ export default function Sidebar() {
         </div>
       ) : (
         <div style={{ flex: 1 }} />
+      )}
+
+      {/* ── Credits + Upgrade CTA ── */}
+      {!collapsed && workspace?.plan === 'free' && (
+        <div style={{
+          margin: '0 8px 8px',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '12px 12px 10px',
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}>
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>
+              AI Credits
+            </span>
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              fontWeight: 600,
+              color: creditsUsed >= creditsLimit * 0.9
+                ? '#dc2626'
+                : creditsUsed >= creditsLimit * 0.7
+                  ? '#F59E0B'
+                  : 'var(--color-text-muted)',
+            }}>
+              {creditsUsed}/{creditsLimit}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ height: 4, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', marginBottom: 10, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: Math.min((creditsUsed / creditsLimit) * 100, 100) + '%',
+              background: creditsUsed >= creditsLimit * 0.9
+                ? '#dc2626'
+                : creditsUsed >= creditsLimit * 0.7
+                  ? '#F59E0B'
+                  : 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+              borderRadius: 'var(--radius-full)',
+              transition: 'width 0.4s ease',
+            }} />
+          </div>
+
+          {/* Reset time */}
+          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginBottom: 10 }}>
+            Resets at midnight UTC
+          </div>
+
+          {/* Upgrade button */}
+          <button
+            onClick={() => alert('Pro plan coming soon! 500 credits/day for $19/mo.')}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 5,
+              boxShadow: '0 2px 8px rgba(13,148,136,0.25)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,148,136,0.35)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(13,148,136,0.25)'
+            }}
+          >
+            <SparklesIcon style={{ width: 12, height: 12 }} />
+            Upgrade to Pro
+          </button>
+        </div>
       )}
 
       {/* ── Bottom section ── */}

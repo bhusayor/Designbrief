@@ -62,6 +62,11 @@ export function AppProvider({ children }) {
   const [workspace, setWorkspace] = useState(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(true);
 
+  // ── Credits state ─────────────────────────────────────────────────────────
+  const FREE_DAILY_LIMIT = 50;
+  const [creditsUsed, setCreditsUsed] = useState(0);
+  const [creditsLimit] = useState(FREE_DAILY_LIMIT);
+
   const toastTimer = useRef(null);
 
   // ── Theme sync ────────────────────────────────────────────────────────────
@@ -126,6 +131,7 @@ export function AppProvider({ children }) {
           setAuthUser(null);
           setWorkspace(null);
           setWorkspaceLoading(false);
+          setCreditsUsed(0);
           setUser({
             name: 'Designer',
             firstName: 'Designer',
@@ -180,6 +186,7 @@ export function AppProvider({ children }) {
 
       await loadProjectsFromDB(supabaseUser.id);
       await loadWorkspace(supabaseUser.id);
+      loadCreditsUsed(supabaseUser.id);
 
       // Redirect to join page if there's a stored invite token
       const storedToken = localStorage.getItem('db-join-token');
@@ -188,6 +195,23 @@ export function AppProvider({ children }) {
       }
     } catch (e) {
       console.error('[AppContext] handleAuthUser error:', e);
+    }
+  }
+
+  async function loadCreditsUsed(userId) {
+    try {
+      const startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+
+      const { count } = await supabase
+        .from('ai_usage')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('created_at', startOfDay.toISOString());
+
+      setCreditsUsed(count || 0);
+    } catch (e) {
+      setCreditsUsed(0);
     }
   }
 
@@ -593,6 +617,11 @@ export function AppProvider({ children }) {
     workspace,
     setWorkspace,
     workspaceLoading,
+
+    // Credits
+    creditsUsed,
+    creditsLimit,
+    setCreditsUsed,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

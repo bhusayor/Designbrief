@@ -185,7 +185,7 @@ function getSectionLabel(defaultLabel, result) {
 // ─── Dashboard (main) ─────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { user, navigate, saveHistory, showToast } = useContext(AppContext)
+  const { user, navigate, saveHistory, showToast, setCreditsUsed } = useContext(AppContext)
 
   const [phase, setPhase] = useState('input')
   const [input, setInput] = useState('')
@@ -322,6 +322,7 @@ export default function Dashboard() {
       const { scoreData, finalResult } = await translateAndAnalyse(fullContext)
       clearInterval(msgTimerRef.current)
       if (!finalResult) throw new Error('Translation returned empty. Please try again.')
+      setCreditsUsed(prev => prev + 1)
 
       // Ensure techStack always has data
       if (!finalResult.techStack ||

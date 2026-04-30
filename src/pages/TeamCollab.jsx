@@ -355,7 +355,7 @@ function TypingBubble({ userMessage }) {
 // ─── TeamCollab ───────────────────────────────────────────────────────────────
 
 export default function TeamCollab() {
-  const { activeProject, showToast, navigate, authUser, saveProject } = useContext(AppContext)
+  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed } = useContext(AppContext)
 
   const [phase, setPhase] = useState('brief')
   const [messages, setMessages] = useState([])
@@ -2105,6 +2105,8 @@ STYLE:
         ])
         addMessage('ai', replyText)
       }
+
+      setCreditsUsed(prev => prev + 1)
 
     } catch (e) {
       console.error('[agent chat]', e)
