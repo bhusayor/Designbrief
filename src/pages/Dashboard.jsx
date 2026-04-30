@@ -542,8 +542,8 @@ The flow should be realistic for this product. Return only the JSON array.`,
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         backgroundImage: 'radial-gradient(circle, var(--color-border) 1px, transparent 1px)',
-        backgroundSize: '28px 28px',
-        opacity: 0.4,
+        backgroundSize: '24px 24px',
+        opacity: 0.6,
         maskImage: 'radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 100%)',
         WebkitMaskImage: 'radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 100%)',
       }} />
@@ -557,10 +557,10 @@ The flow should be realistic for this product. Return only the JSON array.`,
           background: 'var(--color-accent-soft)',
           border: '1px solid var(--color-accent-border)',
           borderRadius: 'var(--radius-full)',
-          padding: '4px 12px', marginBottom: 20,
+          padding: '5px 14px 5px 10px', marginBottom: 24,
         }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-accent)' }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: 'var(--color-accent)', letterSpacing: '0.04em' }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-accent)', boxShadow: '0 0 0 3px var(--color-accent-soft)' }} />
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--color-accent)', letterSpacing: '-0.01em' }}>
             AI Brief Translator
           </span>
         </div>
@@ -568,19 +568,20 @@ The flow should be realistic for this product. Return only the JSON array.`,
         {/* Main heading */}
         <h1 style={{
           fontFamily: 'var(--font-sans)', fontWeight: 800,
-          fontSize: 'clamp(28px, 4vw, 42px)',
-          letterSpacing: '-0.04em', lineHeight: 1.1,
+          fontSize: 'clamp(30px, 4.5vw, 46px)',
+          letterSpacing: '-0.04em', lineHeight: 1.08,
           color: 'var(--color-text)', textAlign: 'center',
-          marginBottom: 12, maxWidth: 520,
+          marginBottom: 14, maxWidth: 540,
         }}>
-          Turn a messy brief into<br />
+          From messy brief{' '}to
+          <br />
           <span style={{
-            background: 'linear-gradient(135deg, var(--color-accent) 0%, #8B5CF6 100%)',
+            background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
           }}>
-            a clear project plan
+            clear project plan
           </span>
         </h1>
 
@@ -588,9 +589,9 @@ The flow should be realistic for this product. Return only the JSON array.`,
         <p style={{
           fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 400,
           color: 'var(--color-text-muted)', textAlign: 'center',
-          lineHeight: 1.65, marginBottom: 36, maxWidth: 380,
+          lineHeight: 1.7, marginBottom: 40, maxWidth: 400,
         }}>
-          Paste a client brief below and AI will translate it into deliverables, timelines, and team roles.
+          Paste any client brief below. AI turns it into deliverables, timelines, color palettes, and team roles — instantly.
         </p>
 
         {/* Input card */}
@@ -631,7 +632,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (hasContent) handleTranslate() } }}
-            placeholder="Paste a client brief, describe a project, or upload a doc — I'll translate it."
+            placeholder={"Paste your client brief here — the messier the better...\n\ne.g. \"We need a website for our skincare brand. Think clean, premium, millennial women aged 25–35...\""}
             style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', padding: '20px 22px 12px', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 400, lineHeight: 1.7, minHeight: '120px', maxHeight: '320px', overflowY: 'hidden', display: 'block', boxSizing: 'border-box' }}
           />
 
@@ -699,10 +700,18 @@ The flow should be realistic for this product. Return only the JSON array.`,
         </div>
 
         {/* Feature pills */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 28, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {['Deliverables', 'Timeline', 'Team roles', 'Budget estimate', 'Tech stack'].map(tag => (
-            <div key={tag} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '4px 12px', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)' }}>
-              {tag}
+        <div style={{ display: 'flex', gap: 8, marginTop: 28, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 480 }}>
+          {[
+            { label: 'Color palette',  color: 'var(--color-accent)' },
+            { label: 'Typography',     color: 'var(--color-accent-2)' },
+            { label: 'Tech stack',     color: 'var(--color-accent)' },
+            { label: 'User flow',      color: 'var(--color-accent-2)' },
+            { label: 'Roadmap',        color: 'var(--color-accent)' },
+            { label: 'Team roles',     color: 'var(--color-accent-2)' },
+          ].map(item => (
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '4px 12px 4px 9px', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)' }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: item.color, opacity: 0.7, flexShrink: 0 }} />
+              {item.label}
             </div>
           ))}
         </div>
