@@ -527,20 +527,83 @@ The flow should be realistic for this product. Return only the JSON array.`,
 
   // ── Input phase ────────────────────────────────────────────────────────────
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const hasContent = input.trim().length > 0 || attachedFiles.length > 0
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: '680px', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{
+      height: '100%', overflowY: 'auto',
+      background: 'var(--gradient-hero)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '40px 24px',
+      position: 'relative',
+    }}>
+      {/* Grid texture overlay */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(circle, var(--color-border) 1px, transparent 1px)',
+        backgroundSize: '28px 28px',
+        opacity: 0.4,
+        maskImage: 'radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 100%)',
+        WebkitMaskImage: 'radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 100%)',
+      }} />
 
-        <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '28px', letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: '24px', textAlign: 'center' }}>
-          {greeting}, {user?.firstName || 'Designer'}
+      {/* Hero content */}
+      <div style={{ position: 'relative', width: '100%', maxWidth: '680px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+
+        {/* Eyebrow label */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: 'var(--color-accent-soft)',
+          border: '1px solid var(--color-accent-border)',
+          borderRadius: 'var(--radius-full)',
+          padding: '4px 12px', marginBottom: 20,
+        }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-accent)' }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: 'var(--color-accent)', letterSpacing: '0.04em' }}>
+            AI Brief Translator
+          </span>
         </div>
 
-        <div style={{ width: '100%', background: 'var(--color-card)', border: `1.5px solid ${inputFocused ? 'var(--color-text)' : 'var(--color-border)'}`, borderRadius: '16px', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: inputFocused ? '0 0 0 4px rgba(0,0,0,0.04)' : 'none' }}>
+        {/* Main heading */}
+        <h1 style={{
+          fontFamily: 'var(--font-sans)', fontWeight: 800,
+          fontSize: 'clamp(28px, 4vw, 42px)',
+          letterSpacing: '-0.04em', lineHeight: 1.1,
+          color: 'var(--color-text)', textAlign: 'center',
+          marginBottom: 12, maxWidth: 520,
+        }}>
+          Turn a messy brief into<br />
+          <span style={{
+            background: 'linear-gradient(135deg, var(--color-accent) 0%, #8B5CF6 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}>
+            a clear project plan
+          </span>
+        </h1>
 
+        {/* Subheading */}
+        <p style={{
+          fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 400,
+          color: 'var(--color-text-muted)', textAlign: 'center',
+          lineHeight: 1.65, marginBottom: 36, maxWidth: 380,
+        }}>
+          Paste a client brief below and AI will translate it into deliverables, timelines, and team roles.
+        </p>
+
+        {/* Input card */}
+        <div style={{
+          width: '100%',
+          background: 'var(--color-card)',
+          border: `1px solid ${inputFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: inputFocused ? `var(--shadow-lg), 0 0 0 3px var(--color-focus-ring)` : 'var(--shadow-lg)',
+          overflow: 'hidden',
+          transition: 'box-shadow var(--transition-base), border-color var(--transition-base)',
+        }}>
+          {/* Attached files */}
           {attachedFiles.length > 0 && (
             <div style={{ padding: '10px 14px 0', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {attachedFiles.map(file => (
@@ -550,8 +613,8 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     : <DocumentIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-soft)', flexShrink: 0 }} />
                   }
                   <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>{file.name}</span>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>{formatFileSize(file.size)}</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>{file.name}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--color-text-muted)' }}>{formatFileSize(file.size)}</span>
                   </div>
                   <button onClick={() => removeFile(file.id)} onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 0, marginLeft: '2px', display: 'flex', alignItems: 'center' }}>
                     <XMarkIcon style={{ width: '12px', height: '12px' }} />
@@ -569,35 +632,81 @@ The flow should be realistic for this product. Return only the JSON array.`,
             onBlur={() => setInputFocused(false)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (hasContent) handleTranslate() } }}
             placeholder="Paste a client brief, describe a project, or upload a doc — I'll translate it."
-            style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', padding: '14px 16px', color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif", fontSize: '15px', lineHeight: 1.65, minHeight: '52px', maxHeight: '240px', overflowY: 'hidden', display: 'block', boxSizing: 'border-box' }}
+            style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', padding: '20px 22px 12px', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 400, lineHeight: 1.7, minHeight: '120px', maxHeight: '320px', overflowY: 'hidden', display: 'block', boxSizing: 'border-box' }}
           />
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px 10px' }}>
-            <div style={{ position: 'relative' }} ref={plusMenuRef}>
-              <button onClick={() => setShowPlusMenu(v => !v)} onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.borderColor = 'var(--color-border-hover)' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--color-border)' }} style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'transparent', border: '1.5px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
-                <PlusIcon style={{ width: '16px', height: '16px', color: 'var(--color-text-soft)' }} />
-              </button>
-              {showPlusMenu && (
-                <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '5px', minWidth: '190px', boxShadow: 'var(--shadow-dropdown)', animation: 'fadeUp 0.15s ease', zIndex: 100 }}>
-                  <div onClick={() => { fileInputRef.current.click(); setShowPlusMenu(false) }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer' }}>
-                    <PaperClipIcon style={{ width: '16px', height: '16px', color: 'var(--color-text-soft)', flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text)' }}>Attach file</div>
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>.txt  .pdf  .docx  .md</div>
+          {/* Input footer */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 14px', borderTop: '1px solid var(--color-divider)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Attach button */}
+              <div style={{ position: 'relative' }} ref={plusMenuRef}>
+                <button
+                  onClick={() => setShowPlusMenu(v => !v)}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.borderColor = 'var(--color-border-strong)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--color-border)' }}
+                  style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)', background: 'transparent', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <PlusIcon style={{ width: '15px', height: '15px', color: 'var(--color-text-soft)' }} />
+                </button>
+                {showPlusMenu && (
+                  <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '5px', minWidth: '190px', boxShadow: 'var(--shadow-lg)', animation: 'fadeUp 0.15s ease', zIndex: 100 }}>
+                    <div onClick={() => { fileInputRef.current.click(); setShowPlusMenu(false) }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '9px 12px', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
+                      <PaperClipIcon style={{ width: '16px', height: '16px', color: 'var(--color-text-soft)', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--color-text)' }}>Attach file</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--color-text-muted)' }}>.txt  .pdf  .docx  .md</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-              <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => { handleFileAttach(e.target.files[0]); e.target.value = '' }} />
+                )}
+                <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => { handleFileAttach(e.target.files[0]); e.target.value = '' }} />
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                No minimum — paste anything
+              </span>
             </div>
 
-            {hasContent && (
-              <button onClick={handleTranslate} onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')} onMouseLeave={e => (e.currentTarget.style.opacity = '1')} style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'opacity 0.15s' }}>
-                <ArrowUpIcon style={{ width: '16px', height: '16px' }} />
-              </button>
-            )}
+            {/* Translate button */}
+            <button
+              onClick={handleTranslate}
+              disabled={!hasContent}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '9px 18px',
+                background: hasContent ? 'var(--color-primary)' : 'var(--color-surface-2)',
+                color: hasContent ? 'var(--color-primary-text)' : 'var(--color-text-muted)',
+                border: 'none', borderRadius: 'var(--radius-md)',
+                cursor: hasContent ? 'pointer' : 'default',
+                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+                letterSpacing: '-0.01em',
+                boxShadow: hasContent ? 'var(--shadow-sm)' : 'none',
+                transition: 'all var(--transition-fast)',
+              }}
+              onMouseEnter={e => { if (hasContent) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' } }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = hasContent ? 'var(--shadow-sm)' : 'none' }}
+            >
+              <SparklesIcon style={{ width: 14, height: 14 }} />
+              Translate Brief
+            </button>
           </div>
         </div>
+
+        {/* Keyboard hint */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 16 }}>
+          <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '2px 6px', color: 'var(--color-text-muted)' }}>⌘</kbd>
+          <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '2px 6px', color: 'var(--color-text-muted)' }}>Enter</kbd>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>to translate</span>
+        </div>
+
+        {/* Feature pills */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 28, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {['Deliverables', 'Timeline', 'Team roles', 'Budget estimate', 'Tech stack'].map(tag => (
+            <div key={tag} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '4px 12px', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)' }}>
+              {tag}
+            </div>
+          ))}
+        </div>
+
       </div>
     </div>
   )

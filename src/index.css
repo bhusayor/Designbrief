@@ -5,103 +5,265 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Theme-independent tokens ─────────────────────────────────────────────── */
+/* ─── LIGHT THEME (default) ────────────────────────────────────────────────── */
 :root {
-  --font-display: 'Urbanist', sans-serif;
-  --font-mono: 'DM Mono', monospace;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --radius-full: 9999px;
-}
-
-/* ── DARK THEME (default) ─────────────────────────────────────────────────── */
-:root,
-[data-theme="dark"] {
-  --color-bg:           #161616;
-  --color-sidebar:      #111111;
-  --color-surface:      #1E1E1E;
-  --color-card:         #242424;
-  --color-card-hover:   #2C2C2C;
-  --color-border:       #303030;
-  --color-border-hover: #424242;
-  --color-accent:       #F0F0F0;
-  --color-accent-bg:    rgba(240,240,240,0.08);
-  --color-accent-border:rgba(240,240,240,0.20);
-  --color-accent-text:  #111111;
-  --color-text:         #F0F0F0;
-  --color-text-soft:    #ABABAB;
-  --color-text-muted:   #636363;
-  --color-red:          #F87171;
-  --color-amber:        #FBBF24;
-  --color-green:        #4ADE80;
-  --color-blue:         #60A5FA;
-  --color-purple:       #A78BFA;
-  --color-pink:         #F472B6;
-  --color-teal:         #2DD4BF;
-  --color-preview-bg:   #1A1A1A;
-  --shadow-card:        0 1px 3px rgba(0,0,0,0.4);
-  --shadow-modal:       0 24px 80px rgba(0,0,0,0.7);
-  --shadow-dropdown:    0 8px 24px rgba(0,0,0,0.5);
-}
-
-/* ── LIGHT THEME ─────────────────────────────────────────────────────────── */
-[data-theme="light"] {
+  /* ── Backgrounds ── */
   --color-bg:           #FFFFFF;
-  --color-sidebar:      #F5F5F5;
-  --color-surface:      #F5F5F5;
+  --color-surface:      #FAFAFA;
+  --color-surface-2:    #F4F4F5;
   --color-card:         #FFFFFF;
-  --color-card-hover:   #F3F3F3;
-  --color-border:       #DCDCDC;
-  --color-border-hover: #C6C6C6;
-  --color-accent:       #0F0F0F;
-  --color-accent-bg:    rgba(15,15,15,0.06);
-  --color-accent-border:rgba(15,15,15,0.20);
-  --color-accent-text:  #FFFFFF;
-  --color-text:         #0F0F0F;
-  --color-text-soft:    #383838;
-  --color-text-muted:   #767676;
-  --color-red:          #C41A1A;
-  --color-amber:        #B45309;
-  --color-green:        #15652A;
-  --color-blue:         #1D4ED8;
-  --color-purple:       #6D28D9;
-  --color-pink:         #BE185D;
-  --color-teal:         #0D9488;
-  --color-preview-bg:   #F5F5F5;
-  --shadow-card:        0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-modal:       0 20px 60px rgba(0,0,0,0.15);
-  --shadow-dropdown:    0 8px 24px rgba(0,0,0,0.10);
+  --color-card-hover:   #F9F9F9;
+
+  /* ── Sidebar ── */
+  --color-sidebar:             #FAFAFA;
+  --color-sidebar-border:      #EFEFEF;
+  --color-sidebar-item-hover:  #F0F0F0;
+  --color-sidebar-item-active: #E8E8E8;
+
+  /* ── Text ── */
+  --color-text:             #0F0F0F;
+  --color-text-soft:        #3A3A3A;
+  --color-text-muted:       #8A8A8A;
+  --color-text-placeholder: #B8B8B8;
+
+  /* ── Borders ── */
+  --color-border:        #EBEBEB;
+  --color-border-strong: #D4D4D4;
+  --color-border-hover:  #D4D4D4;
+  --color-divider:       #F0F0F0;
+
+  /* ── Interactive ── */
+  --color-primary:       #0F0F0F;
+  --color-primary-hover: #1A1A1A;
+  --color-primary-text:  #FFFFFF;
+  --color-accent:        #6366F1;
+  --color-accent-soft:   rgba(99,102,241,0.08);
+  --color-accent-bg:     rgba(99,102,241,0.08);
+  --color-accent-border: rgba(99,102,241,0.2);
+  --color-accent-text:   #FFFFFF;
+
+  /* ── States ── */
+  --color-active-bg:  #E8E8E8;
+  --color-focus-ring: rgba(99,102,241,0.2);
+
+  /* ── Gradients ── */
+  --gradient-hero:
+    radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      rgba(99,102,241,0.06) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 80% 80%,
+      rgba(139,92,246,0.04) 0%,
+      transparent 60%
+    ),
+    #FFFFFF;
+  --gradient-subtle:
+    linear-gradient(135deg, #FAFAFA 0%, #F5F5FF 100%);
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:
+    0 1px 3px rgba(0,0,0,0.06),
+    0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:
+    0 4px 12px rgba(0,0,0,0.06),
+    0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:
+    0 8px 32px rgba(0,0,0,0.08),
+    0 4px 12px rgba(0,0,0,0.04);
+  --shadow-xl:
+    0 20px 60px rgba(0,0,0,0.1),
+    0 8px 24px rgba(0,0,0,0.06);
+
+  /* ── Backward compat shadow aliases ── */
+  --shadow-card:     var(--shadow-sm);
+  --shadow-modal:    var(--shadow-xl);
+  --shadow-dropdown: var(--shadow-lg);
+
+  /* ── Radius ── */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  /* ── Typography ── */
+  --font-sans:    'Urbanist', sans-serif;
+  --font-display: 'Urbanist', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+
+  /* ── Transitions ── */
+  --transition-fast:   120ms ease;
+  --transition-base:   200ms ease;
+  --transition-slow:   350ms ease;
+  --transition-spring: 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Semantic colors ── */
+  --color-red:    #C41A1A;
+  --color-amber:  #B45309;
+  --color-green:  #15652A;
+  --color-blue:   #1D4ED8;
+  --color-purple: #6D28D9;
+  --color-pink:   #BE185D;
+  --color-teal:   #0D9488;
+
+  /* ── Misc backward compat ── */
+  --color-preview-bg: var(--color-surface-2);
+}
+
+/* ─── DARK THEME ────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* ── Backgrounds ── */
+  --color-bg:           #111111;
+  --color-surface:      #161616;
+  --color-surface-2:    #1C1C1C;
+  --color-card:         #1A1A1A;
+  --color-card-hover:   #202020;
+
+  /* ── Sidebar ── */
+  --color-sidebar:             #111111;
+  --color-sidebar-border:      #222222;
+  --color-sidebar-item-hover:  #1E1E1E;
+  --color-sidebar-item-active: #2C2C2C;
+
+  /* ── Text ── */
+  --color-text:             #F0F0F0;
+  --color-text-soft:        #ABABAB;
+  --color-text-muted:       #666666;
+  --color-text-placeholder: #444444;
+
+  /* ── Borders ── */
+  --color-border:        #242424;
+  --color-border-strong: #333333;
+  --color-border-hover:  #333333;
+  --color-divider:       #1E1E1E;
+
+  /* ── Interactive ── */
+  --color-primary:       #F0F0F0;
+  --color-primary-hover: #FFFFFF;
+  --color-primary-text:  #111111;
+  --color-accent:        #818CF8;
+  --color-accent-soft:   rgba(129,140,248,0.1);
+  --color-accent-bg:     rgba(129,140,248,0.1);
+  --color-accent-border: rgba(129,140,248,0.25);
+  --color-accent-text:   #111111;
+
+  /* ── States ── */
+  --color-active-bg:  #2C2C2C;
+  --color-focus-ring: rgba(129,140,248,0.25);
+
+  /* ── Gradients ── */
+  --gradient-hero:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      rgba(99,102,241,0.12) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 90% 90%,
+      rgba(139,92,246,0.08) 0%,
+      transparent 60%
+    ),
+    #111111;
+  --gradient-subtle:
+    linear-gradient(135deg, #161616 0%, #1A1820 100%);
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:
+    0 1px 3px rgba(0,0,0,0.4),
+    0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:
+    0 4px 12px rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.3);
+  --shadow-lg:
+    0 8px 32px rgba(0,0,0,0.5),
+    0 4px 12px rgba(0,0,0,0.3);
+  --shadow-xl:
+    0 20px 60px rgba(0,0,0,0.6),
+    0 8px 24px rgba(0,0,0,0.4);
+
+  /* ── Backward compat shadow aliases ── */
+  --shadow-card:     var(--shadow-sm);
+  --shadow-modal:    var(--shadow-xl);
+  --shadow-dropdown: var(--shadow-lg);
+
+  /* ── Semantic colors (dark variants) ── */
+  --color-red:    #F87171;
+  --color-amber:  #FBBF24;
+  --color-green:  #4ADE80;
+  --color-blue:   #60A5FA;
+  --color-purple: #A78BFA;
+  --color-pink:   #F472B6;
+  --color-teal:   #2DD4BF;
+
+  /* ── Misc backward compat ── */
+  --color-preview-bg: var(--color-surface-2);
 }
 
 /* ─── Global Base ──────────────────────────────────────────────────────────── */
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: 'Urbanist', sans-serif;
+html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background 0.2s ease, color 0.2s ease;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.6;
+  transition:
+    background var(--transition-slow),
+    color var(--transition-slow);
 }
 
 /* ─── Scrollbar ────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 2px;
+  background: var(--color-border-strong);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* ─── Selection ────────────────────────────────────────────────────────────── */
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+/* ─── Focus ring ────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ─── Interactive element transitions ───────────────────────────────────────── */
+button, a, input, textarea, select {
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
 }
 
 /* ─── Root override for app shell ─────────────────────────────────────────── */
@@ -137,6 +299,54 @@ body {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
 }
+@keyframes shimmer {
+  from { background-position: 200% center; }
+  to   { background-position: -200% center; }
+}
 
 .fade { animation: fadeUp 0.35s ease both; }
 .spin { animation: spin 0.8s linear infinite; }
+
+/* ─── Typography utilities ─────────────────────────────────────────────────── */
+.text-display {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.text-heading {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.text-subheading {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.text-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.text-small {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.text-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}

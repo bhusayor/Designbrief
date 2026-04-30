@@ -41,23 +41,27 @@ function NavItem({ icon: Icon, label, active, onClick, collapsed, badge }) {
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          padding: collapsed ? '9px 0' : '8px 10px',
+          gap: 8,
+          padding: collapsed ? '9px 0' : '7px 10px',
           justifyContent: collapsed ? 'center' : 'flex-start',
-          borderRadius: 9,
+          borderRadius: 'var(--radius-md)',
           cursor: 'pointer',
-          transition: 'background 0.15s',
+          transition: 'background var(--transition-fast), color var(--transition-fast)',
           marginBottom: 1,
           border: 'none',
-          background: active || hovered ? 'var(--color-surface)' : 'transparent',
+          background: active
+            ? 'var(--color-sidebar-item-active)'
+            : hovered
+              ? 'var(--color-sidebar-item-hover)'
+              : 'transparent',
           color: active ? 'var(--color-text)' : 'var(--color-text-soft)',
-          fontFamily: "'Urbanist', sans-serif",
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontWeight: active ? 600 : 500,
           textAlign: 'left',
         }}
       >
-        <Icon style={{ width: 18, height: 18, flexShrink: 0, opacity: active ? 1 : 0.75 }} />
+        <Icon style={{ width: 15, height: 15, flexShrink: 0, opacity: active ? 1 : 0.6 }} />
         {!collapsed && (
           <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
             {label}
@@ -171,12 +175,12 @@ export default function Sidebar() {
   return (
     <aside
       style={{
-        width: collapsed ? '56px' : '240px',
+        width: collapsed ? '56px' : '220px',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--color-sidebar)',
-        borderRight: '1px solid var(--color-border)',
+        borderRight: '1px solid var(--color-sidebar-border)',
         overflow: 'hidden',
         flexShrink: 0,
         transition: 'width 0.25s ease',
@@ -248,8 +252,8 @@ export default function Sidebar() {
             width: 28,
             height: 28,
             borderRadius: 7,
-            background: topHovered ? 'var(--color-surface)' : 'transparent',
-            border: topHovered ? '1px solid var(--color-border)' : '1px solid transparent',
+            background: topHovered ? 'var(--color-sidebar-item-hover)' : 'transparent',
+            border: topHovered ? '1px solid var(--color-sidebar-border)' : '1px solid transparent',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -337,8 +341,8 @@ export default function Sidebar() {
         <div
           style={{
             height: '1px',
-            background: 'var(--color-border)',
-            margin: '6px 8px',
+            background: 'var(--color-divider)',
+            margin: '4px 8px',
           }}
         />
       )}
@@ -348,11 +352,12 @@ export default function Sidebar() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
           <div
             style={{
-              fontSize: '11px',
-              fontFamily: "'DM Mono', monospace",
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
               color: 'var(--color-text-muted)',
-              letterSpacing: '0.06em',
-              padding: '8px 8px 4px',
+              letterSpacing: '0.08em',
+              fontWeight: 600,
+              padding: '8px 10px 4px',
               textTransform: 'uppercase',
             }}
           >
@@ -394,35 +399,28 @@ export default function Sidebar() {
       <div
         style={{
           padding: '8px',
-          borderTop: '1px solid var(--color-border)',
+          borderTop: '1px solid var(--color-divider)',
           flexShrink: 0,
         }}
       >
-        {/* Theme toggle — expanded only */}
+        {/* Theme toggle */}
         {!collapsed && (
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '7px 8px',
-              borderRadius: '8px',
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-md)',
               marginBottom: '4px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               {theme === 'light'
-                ? <SunIcon style={{ width: '16px', height: '16px', color: 'var(--color-text-muted)' }} />
-                : <MoonIcon style={{ width: '16px', height: '16px', color: 'var(--color-text-muted)' }} />
+                ? <SunIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-muted)' }} />
+                : <MoonIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-muted)' }} />
               }
-              <span
-                style={{
-                  fontFamily: "'Urbanist', sans-serif",
-                  fontSize: '12px',
-                  color: 'var(--color-text-muted)',
-                  marginLeft: '8px',
-                }}
-              >
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
                 {theme === 'light' ? 'Light' : 'Dark'}
               </span>
             </div>
@@ -431,27 +429,27 @@ export default function Sidebar() {
             <button
               onClick={toggleTheme}
               style={{
-                width: '34px',
-                height: '18px',
-                borderRadius: '9px',
+                width: '36px',
+                height: '20px',
+                borderRadius: '10px',
                 cursor: 'pointer',
                 position: 'relative',
                 border: 'none',
-                transition: 'background 0.2s',
-                background: theme === 'light' ? '#202020' : 'var(--color-border)',
+                transition: 'background var(--transition-base)',
+                background: theme === 'dark' ? 'var(--color-primary)' : 'var(--color-surface-2)',
                 flexShrink: 0,
               }}
             >
               <div
                 style={{
                   position: 'absolute',
-                  top: '3px',
+                  top: '4px',
                   width: '12px',
                   height: '12px',
                   borderRadius: '50%',
-                  background: 'white',
-                  left: theme === 'light' ? '19px' : '3px',
-                  transition: 'left 0.2s ease',
+                  background: theme === 'dark' ? 'var(--color-primary-text)' : 'var(--color-text-muted)',
+                  left: theme === 'dark' ? '20px' : '4px',
+                  transition: 'left var(--transition-base)',
                 }}
               />
             </button>
@@ -542,7 +540,7 @@ export default function Sidebar() {
           <button
             ref={profileBtnRef}
             onClick={() => !collapsed && setShowProfileMenu(v => !v)}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             style={{
               display: 'flex',
@@ -550,7 +548,7 @@ export default function Sidebar() {
               gap: '8px',
               padding: collapsed ? '7px 0' : '7px 8px',
               justifyContent: collapsed ? 'center' : 'flex-start',
-              borderRadius: '9px',
+              borderRadius: 'var(--radius-md)',
               cursor: 'pointer',
               transition: 'all 0.15s',
               width: '100%',
@@ -565,9 +563,10 @@ export default function Sidebar() {
                 width: '28px',
                 height: '28px',
                 borderRadius: '50%',
-                background: 'var(--color-text)',
-                color: 'var(--color-bg)',
-                fontFamily: "'Urbanist', sans-serif",
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-soft)',
+                fontFamily: 'var(--font-sans)',
                 fontWeight: 700,
                 fontSize: '11px',
                 display: 'flex',
