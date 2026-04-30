@@ -58,6 +58,10 @@ export function AppProvider({ children }) {
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  // ── Workspace state ───────────────────────────────────────────────────────
+  const [workspace, setWorkspace] = useState(null);
+  const [workspaceLoading, setWorkspaceLoading] = useState(true);
+
   const toastTimer = useRef(null);
 
   // ── Theme sync ────────────────────────────────────────────────────────────
@@ -77,6 +81,7 @@ export function AppProvider({ children }) {
       if (mounted) {
         console.warn('Supabase getSession timed out');
         setAuthLoading(false);
+        setWorkspaceLoading(false);
       }
     }, 5000);
 
@@ -94,9 +99,12 @@ export function AppProvider({ children }) {
 
         if (session?.user) {
           await handleAuthUser(session.user);
+        } else {
+          setWorkspaceLoading(false);
         }
       } catch (err) {
         console.error('Auth init error:', err);
+        setWorkspaceLoading(false);
       } finally {
         if (mounted) {
           clearTimeout(timeout);
@@ -116,6 +124,8 @@ export function AppProvider({ children }) {
           await handleAuthUser(session.user);
         } else if (event === 'SIGNED_OUT') {
           setAuthUser(null);
+          setWorkspace(null);
+          setWorkspaceLoading(false);
           setUser({
             name: 'Designer',
             firstName: 'Designer',
@@ -169,6 +179,7 @@ export function AppProvider({ children }) {
       localStorage.setItem('db-user', JSON.stringify(updatedUser));
 
       await loadProjectsFromDB(supabaseUser.id);
+      await loadWorkspace(supabaseUser.id);
 
       // Redirect to join page if there's a stored invite token
       const storedToken = localStorage.getItem('db-join-token');
@@ -177,6 +188,25 @@ export function AppProvider({ children }) {
       }
     } catch (e) {
       console.error('[AppContext] handleAuthUser error:', e);
+    }
+  }
+
+  async function loadWorkspace(userId) {
+    setWorkspaceLoading(true);
+    try {
+      const { data } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      setWorkspace(data || null);
+    } catch (e) {
+      setWorkspace(null);
+    } finally {
+      setWorkspaceLoading(false);
     }
   }
 
@@ -558,6 +588,11 @@ export function AppProvider({ children }) {
     authUser,
     authLoading,
     signOut,
+
+    // Workspace
+    workspace,
+    setWorkspace,
+    workspaceLoading,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

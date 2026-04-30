@@ -13,6 +13,10 @@
     }
   ],
   "functions": {
+    "api/create-workspace.js": {
+      "memory": 512,
+      "maxDuration": 10
+    },
     "api/submit-intake.js": {
       "memory": 1024,
       "maxDuration": 60

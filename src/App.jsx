@@ -11,11 +11,13 @@ import ProjectDocument from './pages/ProjectDocument';
 import TeamCollab from './pages/TeamCollab';
 import ProjectLibrary from './pages/ProjectLibrary';
 import Auth from './pages/Auth';
+import WorkspaceSetup from './pages/WorkspaceSetup';
 
 function AppRouter() {
   const {
     activeSection, setActiveIntakeId, navigate,
     authUser, authLoading,
+    workspace, setWorkspace, workspaceLoading,
   } = useContext(AppContext);
 
   useEffect(() => {
@@ -47,8 +49,8 @@ function AppRouter() {
     auth:            <Auth />,
   };
 
-  // Loading — checking session
-  if (authLoading) {
+  // Loading — checking session or workspace
+  if (authLoading || (authUser && workspaceLoading)) {
     return (
       <div style={{
         height: '100vh', display: 'flex', alignItems: 'center',
@@ -74,6 +76,16 @@ function AppRouter() {
   // Unauthenticated → show Auth page
   if (!authUser && !publicSections.includes(activeSection)) {
     return <Auth />;
+  }
+
+  // Workspace gate — show setup screen for new users with no workspace
+  if (authUser && !workspace && !publicSections.includes(activeSection)) {
+    return (
+      <WorkspaceSetup
+        user={authUser}
+        onComplete={(ws) => setWorkspace(ws)}
+      />
+    );
   }
 
   // Authenticated + on auth page → redirect to dashboard
