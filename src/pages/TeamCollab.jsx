@@ -15,6 +15,9 @@ import {
   ArrowPathIcon,
   ClipboardDocumentIcon,
   AdjustmentsHorizontalIcon,
+  ArrowsUpDownIcon, BoltIcon, ClockIcon, DevicePhoneMobileIcon,
+  MagnifyingGlassIcon, PencilSquareIcon, RectangleGroupIcon,
+  SwatchIcon, UsersIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaudeTools } from '../lib/api'
@@ -135,22 +138,102 @@ const BOARD_TOOLS = [
   },
 ]
 
-const SUGGESTIONS = [
+const ALL_SUGGESTIONS = [
   {
-    label: 'Generate a project plan',
-    prompt: 'Generate a full project plan for this board with tasks across all columns.',
+    label: 'Generate a project sprint',
+    prompt: 'Generate a realistic sprint plan for this project with tasks distributed across all columns.',
+    icon: 'SparklesIcon',
+    category: 'planning',
   },
   {
-    label: 'What should I work on next?',
-    prompt: 'What should I work on next based on the current board?',
+    label: 'What should I tackle first?',
+    prompt: 'Looking at the current board, what is the highest-impact task I should work on right now and why?',
+    icon: 'BoltIcon',
+    category: 'insight',
   },
   {
-    label: 'Prioritise the board',
-    prompt: 'Prioritise all tasks on the board by urgency and impact.',
+    label: 'Prioritise by urgency',
+    prompt: 'Reorder all tasks on the board prioritising the most urgent and highest-impact ones first.',
+    icon: 'ArrowsUpDownIcon',
+    category: 'action',
   },
   {
-    label: 'Summarise current progress',
-    prompt: 'Give me a summary of where this project stands right now.',
+    label: 'Show project health',
+    prompt: 'Give me an honest summary of this project — what is on track, what is behind, and what needs immediate attention.',
+    icon: 'ChartBarIcon',
+    category: 'insight',
+  },
+  {
+    label: 'Find blockers',
+    prompt: 'Scan the board and identify any tasks that look stuck, overdue, or blocking other work.',
+    icon: 'ExclamationCircleIcon',
+    category: 'insight',
+  },
+  {
+    label: 'Break task into steps',
+    prompt: 'Take the first high-priority task in To Do and break it into 5 specific, actionable subtasks.',
+    icon: 'ListBulletIcon',
+    category: 'action',
+  },
+  {
+    label: 'Plan a design handoff',
+    prompt: 'Add tasks for a complete design-to-dev handoff: final screens, component specs, assets, prototype link, dev QA review.',
+    icon: 'PencilSquareIcon',
+    category: 'planning',
+  },
+  {
+    label: 'Add user research tasks',
+    prompt: 'Add a set of user research tasks: recruitment screener, discussion guide, 5 user sessions, affinity mapping, insights report.',
+    icon: 'UsersIcon',
+    category: 'planning',
+  },
+  {
+    label: 'Mark completed work as done',
+    prompt: 'Move all tasks that appear complete or finished to the Done column.',
+    icon: 'CheckCircleIcon',
+    category: 'action',
+  },
+  {
+    label: 'What is overdue?',
+    prompt: 'Check all tasks with due dates and tell me which ones are overdue or at risk of being late.',
+    icon: 'ClockIcon',
+    category: 'insight',
+  },
+  {
+    label: 'Plan a mobile app build',
+    prompt: 'Generate tasks for building a mobile app: onboarding, auth, core screens, API integration, testing, App Store submission.',
+    icon: 'DevicePhoneMobileIcon',
+    category: 'planning',
+  },
+  {
+    label: 'Build a design system',
+    prompt: 'Add tasks for building a design system: colour tokens, typography scale, component library, documentation, team rollout.',
+    icon: 'SwatchIcon',
+    category: 'planning',
+  },
+  {
+    label: 'Plan a launch week',
+    prompt: 'Create a launch week task plan: pre-launch checklist, announcement content, social posts, email campaign, post-launch review.',
+    icon: 'BoltIcon',
+    category: 'planning',
+  },
+  {
+    label: 'Estimate the workload',
+    prompt: 'Look at all current tasks and give me a rough estimate of how many days of work remain.',
+    icon: 'ChartBarIcon',
+    category: 'insight',
+  },
+  {
+    label: 'Clear done column',
+    prompt: 'Clear all tasks from the Done column to clean up the board.',
+    icon: 'ArrowPathIcon',
+    category: 'action',
+  },
+  {
+    label: 'Add a discovery phase',
+    prompt: 'Add discovery phase tasks: stakeholder interviews, competitive audit, user journey mapping, problem statement, success metrics.',
+    icon: 'MagnifyingGlassIcon',
+    category: 'planning',
   },
 ]
 
@@ -158,99 +241,112 @@ const SUGGESTIONS = [
 
 function ChatBubble({ msg }) {
   const isAI = msg.role === 'ai'
-  const lines = msg.text.split('\n')
 
-  const textContent = (
+  return (
     <div style={{
-      fontFamily: "'Urbanist', sans-serif",
-      fontSize: 13, lineHeight: 1.65,
-      color: isAI ? 'var(--color-text)' : 'var(--color-bg)',
+      display: 'flex',
+      flexDirection: isAI ? 'row' : 'row-reverse',
+      gap: 8,
+      alignItems: 'flex-start',
+      marginBottom: 8,
     }}>
-      {lines.map((line, li) => {
-        const parts = line.split(/\*\*(.*?)\*\*/g)
-        const isRoleLine = /^[◈◎⟨⟩⚙◉▶✦◆⚡✅⚠]/.test(line.trim())
-        return (
-          <div key={li} style={{
-            marginBottom: li < lines.length - 1 ? (isRoleLine ? 6 : 3) : 0,
-            paddingLeft: isRoleLine ? 8 : 0,
-            borderLeft: isRoleLine ? '2px solid var(--color-border)' : 'none',
-            paddingTop: isRoleLine ? 3 : 0,
-            paddingBottom: isRoleLine ? 3 : 0,
-          }}>
-            {parts.map((p, i) => i % 2 === 1
-              ? <strong key={i} style={{ fontWeight: 700 }}>{p}</strong>
-              : p
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-
-  if (isAI) {
-    return (
-      <div style={{
-        display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12,
-      }}>
+      {isAI && (
         <div style={{
-          width: 28, height: 28, borderRadius: 8,
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
+          width: 26, height: 26, borderRadius: 8,
+          background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, marginTop: 2,
         }}>
-          <SparklesIcon style={{ width: 13, height: 13, color: 'var(--color-text)' }} />
+          <SparklesIcon style={{ width: 12, height: 12, color: 'white' }} />
         </div>
-        <div style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '4px 14px 14px 14px',
-          padding: '10px 14px', maxWidth: '85%',
-        }}>
-          {textContent}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+      )}
       <div style={{
-        background: 'var(--color-text)',
-        borderRadius: '14px 4px 14px 14px',
-        padding: '10px 14px', maxWidth: '80%',
+        maxWidth: '82%',
+        background: isAI ? 'var(--color-surface)' : 'var(--color-text)',
+        border: isAI ? '1px solid var(--color-border)' : 'none',
+        borderRadius: isAI ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
+        padding: '10px 13px',
+        fontFamily: "'Urbanist',sans-serif",
+        fontSize: 13, fontWeight: 400,
+        color: isAI ? 'var(--color-text)' : 'var(--color-bg)',
+        lineHeight: 1.65, wordBreak: 'break-word',
       }}>
-        {textContent}
+        {msg.text}
       </div>
     </div>
   )
 }
 
-function ThinkingBubble() {
+// ─── TypingBubble ─────────────────────────────────────────────────────────────
+
+function TypingBubble({ userMessage }) {
+  const getThinkingMessages = (msg) => {
+    const text = (msg || '').toLowerCase()
+    if (/add|create|new task/i.test(text)) {
+      return ['Adding to your board...', 'Setting priority...', 'Placing in the right column...']
+    }
+    if (/generate|plan|sprint|tasks for/i.test(text)) {
+      return ['Analysing your project...', 'Planning the task structure...', 'Assigning priorities...', 'Distributing across columns...']
+    }
+    if (/move|transfer/i.test(text)) {
+      return ['Finding the task...', 'Moving to new column...']
+    }
+    if (/priorit/i.test(text)) {
+      return ['Reading the board...', 'Scoring by impact and urgency...', 'Reordering tasks...']
+    }
+    if (/summarise|summary|progress|status/i.test(text)) {
+      return ['Reading the board...', 'Analysing progress...', 'Putting it together...']
+    }
+    if (/block|stuck|overdue/i.test(text)) {
+      return ['Scanning for blockers...', 'Checking due dates...', 'Identifying risks...']
+    }
+    if (/delete|remove|clear/i.test(text)) {
+      return ['Identifying tasks...', 'Clearing from board...']
+    }
+    return ['Thinking...', 'Reading the board...', 'Working on it...']
+  }
+
+  const msgs = getThinkingMessages(userMessage)
+  const [idx, setIdx] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIdx(prev => prev < msgs.length - 1 ? prev + 1 : prev)
+    }, 1500)
+    return () => clearInterval(timer)
+  }, [msgs.length])
+
   return (
-    <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
       <div style={{
-        width: 28, height: 28, borderRadius: 8,
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        width: 26, height: 26, borderRadius: 8,
+        background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0, marginTop: 2,
       }}>
-        <SparklesIcon style={{ width: 13, height: 13, color: 'var(--color-text)' }} />
+        <SparklesIcon style={{ width: 12, height: 12, color: 'white' }} />
       </div>
       <div style={{
-        background: 'var(--color-card)',
+        background: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
         borderRadius: '4px 12px 12px 12px',
-        padding: '12px 14px', display: 'flex', gap: 5, alignItems: 'center',
+        padding: '10px 14px',
+        display: 'flex', alignItems: 'center', gap: 8,
       }}>
-        {[0, 1, 2].map(i => (
-          <span key={i} style={{
-            width: 5, height: 5, borderRadius: '50%',
-            background: 'var(--color-accent)', display: 'block',
-            animation: 'pulse 1.4s ease infinite',
-            animationDelay: i * 0.2 + 's',
-          }} />
-        ))}
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: 'linear-gradient(135deg, #8B5CF6, #3B82F6)',
+          animation: 'breathe 1.5s ease infinite',
+          flexShrink: 0,
+        }} />
+        <span style={{
+          fontFamily: "'Urbanist',sans-serif",
+          fontSize: 13, fontWeight: 500,
+          color: 'var(--color-text-muted)',
+          fontStyle: 'italic',
+        }}>
+          {msgs[idx]}
+        </span>
       </div>
     </div>
   )
@@ -324,9 +420,12 @@ export default function TeamCollab() {
   const [promptPrefs, setPromptPrefs] = useState({ colors: '', fonts: '', style: '', references: '' })
   const [showPrefsPanel, setShowPrefsPanel] = useState(false)
 
-  const chatEndRef = useRef(null)
+  const messagesEndRef = useRef(null)
+  const scrollAnchorRef = useRef(null)
   const fileInputRef = useRef(null)
   const addInputRef = useRef(null)
+
+  const [activeSuggestions, setActiveSuggestions] = useState([])
 
   // ── Auto-load from activeProject ──────────────────────────────────────────
 
@@ -342,8 +441,18 @@ export default function TeamCollab() {
   }, [])
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isTyping])
+
+  useEffect(() => {
+    const planning = ALL_SUGGESTIONS.filter(s => s.category === 'planning').sort(() => Math.random() - 0.5)[0]
+    const insight = ALL_SUGGESTIONS.filter(s => s.category === 'insight').sort(() => Math.random() - 0.5)[0]
+    const action = ALL_SUGGESTIONS.filter(s => s.category === 'action').sort(() => Math.random() - 0.5)[0]
+    const any = ALL_SUGGESTIONS.sort(() => Math.random() - 0.5)[0]
+    const picks = [planning, insight, action]
+    if (!picks.find(p => p?.label === any?.label)) picks.push(any)
+    setActiveSuggestions(picks.filter(Boolean).slice(0, 4))
+  }, [chatOpen])
 
   useEffect(() => {
     if (activeProject?.id) {
@@ -2942,6 +3051,10 @@ STYLE:
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.4; transform: scale(0.75); }
         }
+        @keyframes breathe {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.3); }
+        }
       `}</style>
 
       {/* Modals */}
@@ -3593,73 +3706,118 @@ STYLE:
 
         {/* AI panel — flex sibling */}
         {chatOpen && (
-          <div style={{ width: 380, flexShrink: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', animation: 'slideInRight 0.25s ease' }}>
+          <div style={{
+            width: 380, flexShrink: 0,
+            background: 'var(--color-bg)', borderRadius: 14,
+            border: '1px solid var(--color-border)', overflow: 'hidden',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+            animation: 'slideInRight 0.25s ease',
+            fontFamily: "'Urbanist',sans-serif",
+          }}>
 
-            {/* AI panel header */}
-            <div style={{ height: 52, flexShrink: 0, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <SparklesIcon style={{ width: 14, height: 14, color: 'white' }} />
+            {/* ── HEADER ── */}
+            <div style={{
+              padding: '14px 16px', borderBottom: '1px solid var(--color-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0, background: 'var(--color-bg)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 10,
+                  background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(139,92,246,0.25)',
+                }}>
+                  <SparklesIcon style={{ width: 15, height: 15, color: 'white' }} />
                 </div>
                 <div>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 14, color: 'var(--color-text)', lineHeight: 1.2 }}>AI Assistant</div>
-                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', lineHeight: 1.2, marginTop: 1 }}>Ready to help</div>
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 15, color: 'var(--color-text)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>AI Assistant</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#16a34a' }} />
+                    <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)' }}>
+                      Ready · {kanban?.tasks?.length || 0} tasks on board
+                    </span>
+                  </div>
                 </div>
               </div>
-              <button
-                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setChatOpen(false) }}
-                style={{ width: 28, height: 28, borderRadius: 7, background: 'transparent', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {messages.length > 0 && (
+                  <button
+                    onClick={() => { setMessages([]); setChatHistory([]) }}
+                    title="Clear chat"
+                    style={{ width: 28, height: 28, borderRadius: 7, background: 'transparent', border: '1px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.borderColor = 'var(--color-border)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent' }}
+                  >
+                    <ArrowPathIcon style={{ width: 13, height: 13 }} />
+                  </button>
+                )}
+                <button
+                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setChatOpen(false) }}
+                  style={{ width: 28, height: 28, borderRadius: 7, background: 'transparent', border: '1px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.borderColor = 'var(--color-border)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent' }}
+                >
+                  <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
+                </button>
+              </div>
             </div>
 
-            {/* Messages */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 14px 0' }}>
-              {messages.length === 0 && !loading && !isTyping && (
-                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 20px', textAlign: 'center' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--color-surface)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <SparklesIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)' }} />
+            {/* ── MESSAGES AREA ── */}
+            <div
+              ref={messagesEndRef}
+              style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 4, scrollBehavior: 'smooth' }}
+            >
+              {messages.length === 0 && !isTyping && (
+                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '20px 4px', textAlign: 'center' }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 14,
+                    background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(59,130,246,0.1) 100%)',
+                    border: '1px solid rgba(139,92,246,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+                  }}>
+                    <SparklesIcon style={{ width: 20, height: 20, color: '#8B5CF6' }} />
                   </div>
-                  <div>
-                    <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 6, letterSpacing: '-0.01em' }}>What do you need?</div>
-                    <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.65, maxWidth: 240 }}>Add tasks, move cards, generate a plan, or ask anything about your project.</div>
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 15, color: 'var(--color-text)', letterSpacing: '-0.02em', marginBottom: 4 }}>What do you need?</div>
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 220, marginBottom: 16 }}>
+                    Manage tasks, generate plans, prioritise work — just ask.
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: 280, marginTop: 8 }}>
-                    {SUGGESTIONS.map((s, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setInput(s.prompt)}
-                        style={{
-                          background: 'var(--color-surface)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: 9, padding: '8px 12px',
-                          fontFamily: "'Urbanist',sans-serif",
-                          fontSize: 12, fontWeight: 500,
-                          color: 'var(--color-text-soft)',
-                          cursor: 'pointer', textAlign: 'left',
-                          transition: 'all 0.15s', lineHeight: 1.4,
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = 'var(--color-text-muted)'
-                          e.currentTarget.style.color = 'var(--color-text)'
-                          e.currentTarget.style.background = 'var(--color-card)'
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'var(--color-border)'
-                          e.currentTarget.style.color = 'var(--color-text-soft)'
-                          e.currentTarget.style.background = 'var(--color-surface)'
-                        }}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7, width: '100%' }}>
+                    {activeSuggestions.map((s, i) => {
+                      const iconMap = {
+                        SparklesIcon, BoltIcon, ArrowsUpDownIcon, ChartBarIcon,
+                        ExclamationCircleIcon, ListBulletIcon, PencilSquareIcon,
+                        UsersIcon, CheckCircleIcon, ClockIcon, DevicePhoneMobileIcon,
+                        SwatchIcon, ArrowPathIcon, MagnifyingGlassIcon,
+                      }
+                      const IconComp = iconMap[s.icon] || SparklesIcon
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setInput(s.prompt)}
+                          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '9px 12px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, fontWeight: 500, color: 'var(--color-text)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 9, width: '100%' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-card)'; e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
+                        >
+                          <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--color-bg)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <IconComp style={{ width: 13, height: 13, color: 'var(--color-text-muted)' }} />
+                          </div>
+                          <span>{s.label}</span>
+                          <ArrowRightIcon style={{ width: 12, height: 12, color: 'var(--color-text-muted)', marginLeft: 'auto', flexShrink: 0 }} />
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )}
               {messages.map(m => <ChatBubble key={m.id} msg={m} />)}
-              {(loading || isTyping) && <ThinkingBubble />}
-              <div ref={chatEndRef} />
+              {isTyping && (
+                <TypingBubble
+                  userMessage={messages.filter(m => m.role === 'user').slice(-1)[0]?.text || ''}
+                />
+              )}
+              <div ref={scrollAnchorRef} />
             </div>
 
             {/* Role selector */}
@@ -3739,27 +3897,53 @@ STYLE:
               </div>
             )}
 
-            {/* Chat input */}
+            {/* ── INPUT AREA ── */}
             {(phase === 'brief' || phase === 'kanban') && (
-              <div style={{ padding: '10px 14px 14px', borderTop: '1px solid var(--color-border)' }}>
+              <div style={{ padding: '10px 12px 12px', borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => handleFileUpload(e.target.files[0])} />
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: 'var(--color-surface)', borderRadius: 12, padding: '8px 8px 8px 12px', border: '1px solid var(--color-border)' }}>
+                <div
+                  style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 14, overflow: 'hidden', transition: 'border-color 0.15s, box-shadow 0.15s' }}
+                  onFocusCapture={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.1)' }}
+                  onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
+                >
                   <textarea
                     value={input}
-                    onChange={e => setInput(e.target.value)}
+                    onChange={e => {
+                      setInput(e.target.value)
+                      e.target.style.height = 'auto'
+                      e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+                    }}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
-                    onFocus={e => { e.currentTarget.parentElement.style.borderColor = 'var(--color-accent)' }}
-                    onBlur={e => { e.currentTarget.parentElement.style.borderColor = 'var(--color-border)' }}
-                    placeholder="Ask anything or describe a task..."
+                    placeholder={kanban?.tasks?.length ? 'Ask anything about this project...' : 'Describe your project or paste a brief...'}
                     rows={1}
-                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--color-text)', fontFamily: "'DM Mono', monospace", fontSize: 12, resize: 'none', lineHeight: 1.6, maxHeight: 100, minHeight: 20, boxSizing: 'border-box', padding: 0 }}
+                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', minHeight: 42, maxHeight: 160, overflowY: 'auto', display: 'block', boxSizing: 'border-box' }}
                   />
-                  <button onClick={handleChatSend} disabled={!input.trim() || loading || isTyping}
-                    style={{ width: 32, height: 32, background: !input.trim() || loading || isTyping ? 'var(--color-border)' : 'var(--color-text)', border: 'none', borderRadius: 9, cursor: !input.trim() || loading || isTyping ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}
-                  >
-                    <ArrowUpIcon style={{ width: 16, height: 16, color: !input.trim() || loading || isTyping ? 'var(--color-text-muted)' : 'var(--color-bg)' }} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px 8px' }}>
+                    {/* Context pill */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '3px 8px 3px 6px', maxWidth: 180, overflow: 'hidden' }}>
+                      <RectangleGroupIcon style={{ width: 10, height: 10, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                      <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {projects.find(p => p.id === activeProjectId)?.title || 'My Project'}
+                      </span>
+                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', opacity: 0.6, flexShrink: 0 }}>
+                        · {kanban?.tasks?.length || 0}
+                      </span>
+                    </div>
+                    {/* Send button */}
+                    <button
+                      onPointerDown={e => { e.preventDefault(); handleChatSend() }}
+                      disabled={!input.trim() || isTyping}
+                      style={{ width: 30, height: 30, borderRadius: 9, background: input.trim() && !isTyping ? 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)' : 'var(--color-border)', border: 'none', cursor: input.trim() && !isTyping ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s', boxShadow: input.trim() && !isTyping ? '0 2px 8px rgba(139,92,246,0.3)' : 'none' }}
+                    >
+                      <ArrowUpIcon style={{ width: 13, height: 13, color: input.trim() && !isTyping ? 'white' : 'var(--color-text-muted)' }} />
+                    </button>
+                  </div>
                 </div>
+                {input.length > 0 && (
+                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 6, opacity: 0.6 }}>
+                    Shift + Enter for new line
+                  </div>
+                )}
               </div>
             )}
 
