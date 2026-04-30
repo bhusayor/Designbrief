@@ -456,9 +456,12 @@ export default function TeamCollab() {
   }, [chatOpen])
 
   useEffect(() => {
-    if (!input && chatInputRef.current) {
-      chatInputRef.current.style.height = 'auto'
-    }
+    const el = chatInputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const newHeight = Math.min(el.scrollHeight, 160)
+    el.style.height = newHeight + 'px'
+    el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden'
   }, [input])
 
   useEffect(() => {
@@ -3909,24 +3912,18 @@ STYLE:
               <div style={{ padding: '10px 12px 12px', borderTop: 'none', background: 'var(--color-bg)', flexShrink: 0 }}>
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => handleFileUpload(e.target.files[0])} />
                 <div
-                  style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 14, overflow: 'hidden', transition: 'border-color 0.15s, box-shadow 0.15s' }}
+                  style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 14, overflow: 'visible', transition: 'border-color 0.15s, box-shadow 0.15s' }}
                   onFocusCapture={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.1)' }}
                   onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <textarea
                     ref={chatInputRef}
                     value={input}
-                    onChange={e => {
-                      setInput(e.target.value)
-                      if (chatInputRef.current) {
-                        chatInputRef.current.style.height = 'auto'
-                        chatInputRef.current.style.height = Math.min(chatInputRef.current.scrollHeight, 160) + 'px'
-                      }
-                    }}
+                    onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
                     placeholder={kanban?.tasks?.length ? 'Ask anything about this project...' : 'Describe your project or paste a brief...'}
                     rows={1}
-                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', height: 'auto', minHeight: 42, maxHeight: 160, overflowY: 'auto', display: 'block', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: "'Urbanist', sans-serif", fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', display: 'block', boxSizing: 'border-box', overflowY: 'hidden', height: 'auto' }}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '4px 10px 10px' }}>
                     <button
