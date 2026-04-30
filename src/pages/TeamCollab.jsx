@@ -424,6 +424,7 @@ export default function TeamCollab() {
   const scrollAnchorRef = useRef(null)
   const fileInputRef = useRef(null)
   const addInputRef = useRef(null)
+  const chatInputRef = useRef(null)
 
   const [activeSuggestions, setActiveSuggestions] = useState([])
 
@@ -453,6 +454,12 @@ export default function TeamCollab() {
     if (!picks.find(p => p?.label === any?.label)) picks.push(any)
     setActiveSuggestions(picks.filter(Boolean).slice(0, 4))
   }, [chatOpen])
+
+  useEffect(() => {
+    if (!input && chatInputRef.current) {
+      chatInputRef.current.style.height = 'auto'
+    }
+  }, [input])
 
   useEffect(() => {
     if (activeProject?.id) {
@@ -3899,7 +3906,7 @@ STYLE:
 
             {/* ── INPUT AREA ── */}
             {(phase === 'brief' || phase === 'kanban') && (
-              <div style={{ padding: '10px 12px 12px', borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
+              <div style={{ padding: '10px 12px 12px', borderTop: 'none', background: 'var(--color-bg)', flexShrink: 0 }}>
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => handleFileUpload(e.target.files[0])} />
                 <div
                   style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 14, overflow: 'hidden', transition: 'border-color 0.15s, box-shadow 0.15s' }}
@@ -3907,29 +3914,21 @@ STYLE:
                   onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <textarea
+                    ref={chatInputRef}
                     value={input}
                     onChange={e => {
                       setInput(e.target.value)
-                      e.target.style.height = 'auto'
-                      e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
+                      if (chatInputRef.current) {
+                        chatInputRef.current.style.height = 'auto'
+                        chatInputRef.current.style.height = Math.min(chatInputRef.current.scrollHeight, 160) + 'px'
+                      }
                     }}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
                     placeholder={kanban?.tasks?.length ? 'Ask anything about this project...' : 'Describe your project or paste a brief...'}
                     rows={1}
-                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', minHeight: 42, maxHeight: 160, overflowY: 'auto', display: 'block', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', height: 'auto', minHeight: 42, maxHeight: 160, overflowY: 'auto', display: 'block', boxSizing: 'border-box' }}
                   />
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px 8px' }}>
-                    {/* Context pill */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '3px 8px 3px 6px', maxWidth: 180, overflow: 'hidden' }}>
-                      <RectangleGroupIcon style={{ width: 10, height: 10, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                      <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {projects.find(p => p.id === activeProjectId)?.title || 'My Project'}
-                      </span>
-                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', opacity: 0.6, flexShrink: 0 }}>
-                        · {kanban?.tasks?.length || 0}
-                      </span>
-                    </div>
-                    {/* Send button */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '4px 10px 10px' }}>
                     <button
                       onPointerDown={e => { e.preventDefault(); handleChatSend() }}
                       disabled={!input.trim() || isTyping}
@@ -3939,11 +3938,6 @@ STYLE:
                     </button>
                   </div>
                 </div>
-                {input.length > 0 && (
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 6, opacity: 0.6 }}>
-                    Shift + Enter for new line
-                  </div>
-                )}
               </div>
             )}
 
