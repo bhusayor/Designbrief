@@ -14,6 +14,13 @@ import {
   ChevronDownIcon,
   DocumentTextIcon,
   SparklesIcon,
+  UserPlusIcon,
+  BoltIcon,
+  ArrowRightIcon,
+  ClockIcon,
+  CheckIcon,
+  PlusIcon,
+  Bars3BottomLeftIcon,
 } from '@heroicons/react/24/outline'
 
 // ─── NavItem with tooltip ──────────────────────────────────────────────────────
@@ -154,6 +161,7 @@ export default function Sidebar() {
     return () => document.removeEventListener('mousedown', handler)
   }, [showProfileMenu])
 
+  // Close workspace menu on outside click
   useEffect(() => {
     if (!showWorkspaceMenu) return
     function handler(e) {
@@ -187,6 +195,12 @@ export default function Sidebar() {
     }
   }
 
+  function planLabel(plan) {
+    if (plan === 'pro') return 'Pro'
+    if (plan === 'business') return 'Business'
+    return 'Free'
+  }
+
   return (
     <aside
       style={{
@@ -202,56 +216,113 @@ export default function Sidebar() {
         position: 'relative',
       }}
     >
-      {/* ── Workspace button + sidebar toggle ── */}
+      {/* ── Row 1: Logo + app name + collapse button ── */}
       <div ref={workspaceAreaRef} style={{ flexShrink: 0 }}>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            padding: '8px 8px 4px',
-            gap: 4,
+            justifyContent: 'space-between',
+            padding: '14px 14px 10px',
           }}
         >
+          {/* Logo mark + name */}
           {collapsed ? (
-            /* Collapsed: just logo mark centred */
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px 0' }}>
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
               <div style={{
-                width: 24, height: 24,
-                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-                borderRadius: 'var(--radius-sm)',
+                width: 26, height: 26, borderRadius: 8,
+                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
               }}>
                 <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
               </div>
             </div>
           ) : (
-            /* Expanded: clickable workspace trigger */
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: 8,
+                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
+              }}>
+                <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
+              </div>
+              <span style={{
+                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 14,
+                letterSpacing: '-0.03em', color: 'var(--color-text)',
+              }}>
+                DesignBrief
+              </span>
+            </div>
+          )}
+
+          {/* Collapse / expand button */}
+          <button
+            onClick={() => setCollapsed(v => !v)}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--color-sidebar-item-hover)'
+              e.currentTarget.style.borderColor = 'var(--color-border)'
+              e.currentTarget.style.color = 'var(--color-text)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.borderColor = 'transparent'
+              e.currentTarget.style.color = 'var(--color-text-muted)'
+            }}
+            style={{
+              width: 26, height: 26, borderRadius: 7,
+              background: 'transparent', border: '1px solid transparent',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
+              flexShrink: 0,
+            }}
+          >
+            <Bars3BottomLeftIcon style={{ width: 14, height: 14 }} />
+          </button>
+        </div>
+
+        {/* Divider between logo row and workspace row */}
+        {!collapsed && (
+          <div style={{ height: 1, background: 'var(--color-divider)', margin: '0 12px' }} />
+        )}
+
+        {/* ── Row 2: Workspace trigger (expanded only) ── */}
+        {!collapsed && (
+          <div style={{ padding: '4px 8px' }}>
             <button
               onClick={() => setShowWorkspaceMenu(v => !v)}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               style={{
-                flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-                padding: '5px 8px', borderRadius: 'var(--radius-md)',
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 8px', borderRadius: 'var(--radius-md)',
                 border: 'none', cursor: 'pointer', background: 'transparent',
                 textAlign: 'left', transition: 'background var(--transition-fast)',
               }}
             >
               <div style={{
-                width: 24, height: 24,
-                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-                borderRadius: 'var(--radius-sm)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                width: 22, height: 22, borderRadius: 6,
+                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 10,
+                color: 'white', flexShrink: 0,
               }}>
-                <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
+                {(workspace?.name || 'D')[0].toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 13,
-                  letterSpacing: '-0.03em', color: 'var(--color-text)',
+                  fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12,
+                  letterSpacing: '-0.02em', color: 'var(--color-text)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
-                  {workspace?.name || 'DesignBrief AI'}
+                  {workspace?.name || 'My Workspace'}
+                </div>
+                <div style={{
+                  fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--color-text-muted)',
+                }}>
+                  {planLabel(workspace?.plan)} plan
                 </div>
               </div>
               <ChevronDownIcon style={{
@@ -260,111 +331,235 @@ export default function Sidebar() {
                 transition: 'transform var(--transition-fast)',
               }} />
             </button>
-          )}
+          </div>
+        )}
 
-          {/* Sidebar toggle button */}
-          <button
-            onClick={() => setCollapsed(v => !v)}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            style={{
-              width: 28, height: 28, borderRadius: 7,
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--color-text-soft)', flexShrink: 0,
-              transition: 'background var(--transition-fast)',
-            }}
-          >
-            {collapsed ? (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1.5" y="2" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.9" />
-                <path d="M8 5l3.5 3L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1.5" y="2" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.9" />
-                <path d="M11 5L7.5 8 11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </button>
-        </div>
-
-        {/* Workspace dropdown — inline expansion */}
+        {/* ── Workspace dropdown panel ── */}
         {!collapsed && showWorkspaceMenu && (
-          <div
-            style={{
-              margin: '0 8px 4px',
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '10px',
-              animation: 'dropIn 0.15s ease',
-            }}
-          >
-            {/* Workspace identity */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <div style={{
-                width: 30, height: 30, borderRadius: 'var(--radius-md)',
-                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <SparklesIcon style={{ width: 14, height: 14, color: 'white' }} />
+          <div style={{
+            margin: '0 8px 8px',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden',
+            animation: 'dropIn 0.18s ease',
+          }}>
+            {/* Workspace info */}
+            <div style={{
+              padding: '14px 14px 12px',
+              borderBottom: '1px solid var(--color-divider)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                {/* Avatar with workspace initial */}
+                <div style={{
+                  width: 38, height: 38, borderRadius: 10,
+                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16,
+                  color: 'white', flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
+                }}>
+                  {(workspace?.name || 'D')[0].toUpperCase()}
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
+                    letterSpacing: '-0.02em', color: 'var(--color-text)',
+                    lineHeight: 1.2, marginBottom: 4,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {workspace?.name || 'My Workspace'}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {/* Plan badge — Title Case */}
+                    <span style={{
+                      background: 'var(--color-accent-soft)',
+                      border: '1px solid rgba(124,58,237,0.2)',
+                      borderRadius: 'var(--radius-full)',
+                      padding: '2px 8px',
+                      fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700,
+                      color: 'var(--color-accent)', letterSpacing: '0.01em',
+                    }}>
+                      {planLabel(workspace?.plan)}
+                    </span>
+
+                    {/* Member count */}
+                    <span style={{
+                      fontFamily: 'var(--font-sans)', fontSize: 11,
+                      color: 'var(--color-text-muted)',
+                      display: 'flex', alignItems: 'center', gap: 3,
+                    }}>
+                      <UserGroupIcon style={{ width: 11, height: 11 }} />
+                      1 member
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{
-                  fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12,
-                  color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {workspace?.name || 'DesignBrief AI'}
-                </div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em',
-                  textTransform: 'uppercase', color: 'var(--color-text-muted)',
-                }}>
-                  {workspace?.plan ? workspace.plan + ' plan' : 'free plan'}
-                </div>
+
+              {/* Settings + Invite buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {[
+                  { icon: Cog6ToothIcon, label: 'Settings' },
+                  { icon: UserPlusIcon, label: 'Invite' },
+                ].map(item => (
+                  <button
+                    key={item.label}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                      padding: '7px 8px',
+                      background: 'var(--color-bg)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)', cursor: 'pointer',
+                      fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                      color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
+                    }}
+                  >
+                    <item.icon style={{ width: 12, height: 12 }} />
+                    {item.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Credits bar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                AI Credits
-              </span>
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
-                color: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'var(--color-text-muted)',
-              }}>
-                {creditsUsed}/{creditsLimit}
-              </span>
-            </div>
-            <div style={{ height: 3, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', marginBottom: 10, overflow: 'hidden' }}>
+            {/* Credits section */}
+            <div style={{
+              padding: '10px 14px',
+              borderBottom: '1px solid var(--color-divider)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 11, color: 'var(--color-text)' }}>
+                  Credits
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
+                  color: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'var(--color-text-muted)',
+                }}>
+                  {creditsLimit - creditsUsed} left
+                </span>
+              </div>
+
+              <div style={{ height: 3, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', overflow: 'hidden', marginBottom: 7 }}>
+                <div style={{
+                  height: '100%',
+                  width: Math.min((creditsUsed / creditsLimit) * 100, 100) + '%',
+                  background: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'linear-gradient(90deg, #7C3AED 0%, #A855F7 100%)',
+                  borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease',
+                }} />
+              </div>
+
               <div style={{
-                height: '100%',
-                width: Math.min((creditsUsed / creditsLimit) * 100, 100) + '%',
-                background: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-                borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease',
-              }} />
+                display: 'flex', alignItems: 'center', gap: 4,
+                fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--color-text-muted)',
+              }}>
+                <ClockIcon style={{ width: 10, height: 10, flexShrink: 0 }} />
+                Daily credits reset at midnight UTC
+              </div>
             </div>
 
             {/* Upgrade button */}
-            <button
-              onClick={() => { alert('Pro plan coming soon! 500 credits/day for $19/mo.'); setShowWorkspaceMenu(false) }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-              style={{
-                width: '100%', padding: '7px 10px',
-                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-                color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
-                cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700,
-                letterSpacing: '-0.01em',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                transition: 'opacity var(--transition-fast)',
-              }}
-            >
-              <SparklesIcon style={{ width: 11, height: 11 }} />
-              Upgrade to Pro
-            </button>
+            <div style={{ padding: '10px 14px' }}>
+              <button
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.4)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)'
+                }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '9px 12px',
+                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                  color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+                  letterSpacing: '-0.01em', transition: 'var(--transition-fast)',
+                  boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <BoltIcon style={{ width: 12, height: 12 }} />
+                  Upgrade to Pro
+                </div>
+                <ArrowRightIcon style={{ width: 12, height: 12, opacity: 0.8 }} />
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: 1, background: 'var(--color-divider)', margin: '0 14px' }} />
+
+            {/* All workspaces */}
+            <div style={{ padding: '8px 14px 4px' }}>
+              <div style={{
+                fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                color: 'var(--color-text-muted)', marginBottom: 6,
+              }}>
+                All workspaces
+              </div>
+
+              {/* Current workspace row */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 8px', borderRadius: 'var(--radius-md)',
+                background: 'var(--color-sidebar-item-active)', marginBottom: 2,
+              }}>
+                <div style={{
+                  width: 22, height: 22, borderRadius: 6,
+                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 10,
+                  color: 'white', flexShrink: 0,
+                }}>
+                  {(workspace?.name || 'D')[0].toUpperCase()}
+                </div>
+                <span style={{
+                  fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+                  color: 'var(--color-text)', flex: 1,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {workspace?.name || 'My Workspace'}
+                </span>
+                <CheckIcon style={{ width: 13, height: 13, color: 'var(--color-accent)', flexShrink: 0 }} />
+              </div>
+            </div>
+
+            {/* Create new workspace */}
+            <div style={{ padding: '4px 14px 12px' }}>
+              <button
+                onClick={() => alert('Multiple workspaces available on Pro plan.')}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--color-accent)'
+                  e.currentTarget.style.color = 'var(--color-accent)'
+                  e.currentTarget.style.background = 'var(--color-accent-soft)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--color-border)'
+                  e.currentTarget.style.color = 'var(--color-text-muted)'
+                  e.currentTarget.style.background = 'transparent'
+                }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 8px', background: 'transparent',
+                  border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
+                  color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
+                }}
+              >
+                <div style={{
+                  width: 20, height: 20, borderRadius: 5,
+                  border: '1.5px dashed currentColor',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <PlusIcon style={{ width: 10, height: 10 }} />
+                </div>
+                Create new workspace
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -411,29 +606,21 @@ export default function Sidebar() {
 
       {/* ── Divider ── */}
       {!collapsed && (
-        <div
-          style={{
-            height: '1px',
-            background: 'var(--color-divider)',
-            margin: '4px 8px',
-          }}
-        />
+        <div style={{ height: '1px', background: 'var(--color-divider)', margin: '4px 8px' }} />
       )}
 
       {/* ── History section (expanded only) ── */}
       {!collapsed ? (
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
-          <div
-            style={{
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--color-text-muted)',
-              letterSpacing: '0.08em',
-              fontWeight: 600,
-              padding: '8px 10px 4px',
-              textTransform: 'uppercase',
-            }}
-          >
+          <div style={{
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono)',
+            color: 'var(--color-text-muted)',
+            letterSpacing: '0.08em',
+            fontWeight: 600,
+            padding: '8px 10px 4px',
+            textTransform: 'uppercase',
+          }}>
             Recents
           </div>
 
@@ -451,14 +638,12 @@ export default function Sidebar() {
                 />
               ))
             : (
-              <div
-                style={{
-                  fontFamily: "'DM Mono', monospace",
-                  fontSize: '11px',
-                  color: 'var(--color-text-muted)',
-                  padding: '12px 8px',
-                }}
-              >
+              <div style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: '11px',
+                color: 'var(--color-text-muted)',
+                padding: '12px 8px',
+              }}>
                 No projects yet
               </div>
             )
@@ -468,15 +653,81 @@ export default function Sidebar() {
         <div style={{ flex: 1 }} />
       )}
 
+      {/* ── Credits + Upgrade (always visible, free plan) ── */}
+      {!collapsed && workspace?.plan === 'free' && (
+        <div style={{
+          margin: '0 8px 8px',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '12px 12px 10px',
+          flexShrink: 0,
+        }}>
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>
+              AI Credits
+            </span>
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
+              color: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'var(--color-text-muted)',
+            }}>
+              {creditsUsed}/{creditsLimit}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ height: 4, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', marginBottom: 8, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: Math.min((creditsUsed / creditsLimit) * 100, 100) + '%',
+              background: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+              borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease',
+            }} />
+          </div>
+
+          {/* Reset text */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--color-text-muted)',
+            marginBottom: 10,
+          }}>
+            <ClockIcon style={{ width: 10, height: 10, flexShrink: 0 }} />
+            Daily credits reset at midnight UTC
+          </div>
+
+          {/* Upgrade button */}
+          <button
+            onClick={() => alert('Pro plan coming soon! 500 credits/day for $19/mo.')}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.4)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)'
+            }}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 12px',
+              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+              color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
+              cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+              letterSpacing: '-0.01em', transition: 'var(--transition-fast)',
+              boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <BoltIcon style={{ width: 12, height: 12 }} />
+              Upgrade to Pro
+            </div>
+            <ArrowRightIcon style={{ width: 12, height: 12, opacity: 0.8 }} />
+          </button>
+        </div>
+      )}
 
       {/* ── Bottom section ── */}
-      <div
-        style={{
-          padding: '8px',
-          borderTop: '1px solid var(--color-divider)',
-          flexShrink: 0,
-        }}
-      >
+      <div style={{ padding: '8px', borderTop: '1px solid var(--color-divider)', flexShrink: 0 }}>
         {/* Theme toggle */}
         {!collapsed && (
           <button
@@ -529,8 +780,7 @@ export default function Sidebar() {
               style={{
                 position: 'absolute',
                 bottom: '100%',
-                left: 0,
-                right: 0,
+                left: 0, right: 0,
                 marginBottom: '4px',
                 background: 'var(--color-card)',
                 border: '1px solid var(--color-border)',
@@ -542,27 +792,15 @@ export default function Sidebar() {
               }}
             >
               <button
-                onClick={() => {
-                  showToast('Settings coming soon', 'info')
-                  setShowProfileMenu(false)
-                }}
+                onClick={() => { showToast('Settings coming soon', 'info'); setShowProfileMenu(false) }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
-                  display: 'flex',
-                  gap: '8px',
-                  alignItems: 'center',
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: '8px',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: "'Urbanist', sans-serif",
-                  fontSize: '13px',
-                  color: 'var(--color-text)',
-                  textAlign: 'left',
-                  transition: 'background 0.1s',
+                  display: 'flex', gap: '8px', alignItems: 'center', width: '100%',
+                  padding: '8px 10px', borderRadius: '8px',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  fontFamily: "'Urbanist', sans-serif", fontSize: '13px',
+                  color: 'var(--color-text)', textAlign: 'left', transition: 'background 0.1s',
                 }}
               >
                 <Cog6ToothIcon style={{ width: '15px', height: '15px' }} />
@@ -573,20 +811,11 @@ export default function Sidebar() {
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
-                  display: 'flex',
-                  gap: '8px',
-                  alignItems: 'center',
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: '8px',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: "'Urbanist', sans-serif",
-                  fontSize: '13px',
-                  color: 'var(--color-red)',
-                  textAlign: 'left',
-                  transition: 'background 0.1s',
+                  display: 'flex', gap: '8px', alignItems: 'center', width: '100%',
+                  padding: '8px 10px', borderRadius: '8px',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  fontFamily: "'Urbanist', sans-serif", fontSize: '13px',
+                  color: 'var(--color-red)', textAlign: 'left', transition: 'background 0.1s',
                 }}
               >
                 <ArrowRightStartOnRectangleIcon style={{ width: '15px', height: '15px' }} />
@@ -602,90 +831,50 @@ export default function Sidebar() {
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
+              display: 'flex', alignItems: 'center', gap: '8px',
               padding: collapsed ? '7px 0' : '7px 8px',
               justifyContent: collapsed ? 'center' : 'flex-start',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-              width: '100%',
-              border: 'none',
-              background: 'transparent',
-              textAlign: 'left',
+              borderRadius: 'var(--radius-md)', cursor: 'pointer',
+              transition: 'all 0.15s', width: '100%',
+              border: 'none', background: 'transparent', textAlign: 'left',
             }}
           >
-            {/* Avatar */}
-            <div
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-2-soft))',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-accent)',
-                fontFamily: 'var(--font-sans)',
-                fontWeight: 700,
-                fontSize: '11px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-2-soft))',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-accent)',
+              fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '11px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
               {initials}
             </div>
 
             {!collapsed && (
               <>
-                <span
-                  style={{
-                    fontFamily: "'Urbanist', sans-serif",
-                    fontWeight: 500,
-                    fontSize: '12px',
-                    color: 'var(--color-text)',
-                    flex: 1,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+                <span style={{
+                  fontFamily: "'Urbanist', sans-serif", fontWeight: 500, fontSize: '12px',
+                  color: 'var(--color-text)', flex: 1,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
                   {user?.name || user?.firstName || 'Designer'}
                 </span>
-                <ChevronDownIcon
-                  style={{
-                    width: '14px',
-                    height: '14px',
-                    color: 'var(--color-text-muted)',
-                    flexShrink: 0,
-                  }}
-                />
+                <ChevronDownIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-muted)', flexShrink: 0 }} />
               </>
             )}
           </button>
 
-          {/* Profile tooltip — fixed position to escape overflow:hidden */}
+          {/* Profile tooltip */}
           {collapsed && profileHovered && (
-            <div
-              style={{
-                position: 'fixed',
-                left: 64,
-                top: profileTooltipTop,
-                transform: 'translateY(-50%)',
-                background: 'var(--color-text)',
-                color: 'var(--color-bg)',
-                padding: '5px 10px',
-                borderRadius: 7,
-                fontFamily: "'Urbanist', sans-serif",
-                fontSize: 12,
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-                pointerEvents: 'none',
-                zIndex: 500,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-              }}
-            >
+            <div style={{
+              position: 'fixed', left: 64, top: profileTooltipTop,
+              transform: 'translateY(-50%)',
+              background: 'var(--color-text)', color: 'var(--color-bg)',
+              padding: '5px 10px', borderRadius: 7,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 12, fontWeight: 500,
+              whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 500,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            }}>
               {user?.firstName || user?.name || 'Designer'}
             </div>
           )}
@@ -711,12 +900,10 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
   const [query, setQuery] = useState('')
   const inputRef = useRef()
 
-  // Auto-focus input on open
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [])
 
-  // Close on Escape
   useEffect(() => {
     function handler(e) {
       if (e.key === 'Escape') onClose()
@@ -732,12 +919,7 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
     : (history || []).slice(0, 12)
 
   function handleSelect(item) {
-    setActiveProject({
-      id: item.id,
-      title: item.title,
-      data: item.data,
-      ts: item.ts,
-    })
+    setActiveProject({ id: item.id, title: item.title, data: item.data, ts: item.ts })
     navigate('document')
     onClose()
   }
@@ -745,8 +927,7 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
   function formatDate(ts) {
     const d = new Date(ts)
     const now = new Date()
-    const diff = now - d
-    const days = Math.floor(diff / 86400000)
+    const days = Math.floor((now - d) / 86400000)
     if (days === 0) return 'Today'
     if (days === 1) return 'Yesterday'
     if (days < 7) return 'Past week'
@@ -756,101 +937,45 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-          zIndex: 300,
-          backdropFilter: 'blur(2px)',
-        }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, backdropFilter: 'blur(2px)' }}
       />
-
-      {/* Modal */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '18%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 580,
-          maxWidth: '90vw',
-          maxHeight: '60vh',
-          background: 'var(--color-card)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-modal)',
-          zIndex: 301,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          animation: 'fadeUp 0.2s ease',
-        }}
-      >
-        {/* Search input row */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '14px 16px',
-            borderBottom: '1px solid var(--color-border)',
-          }}
-        >
-          <MagnifyingGlassIcon
-            style={{
-              width: 18,
-              height: 18,
-              color: 'var(--color-text-muted)',
-              flexShrink: 0,
-            }}
-          />
+      <div style={{
+        position: 'fixed', top: '18%', left: '50%', transform: 'translateX(-50%)',
+        width: 580, maxWidth: '90vw', maxHeight: '60vh',
+        background: 'var(--color-card)', border: '1px solid var(--color-border)',
+        borderRadius: 16, boxShadow: 'var(--shadow-modal)', zIndex: 301,
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        animation: 'fadeUp 0.2s ease',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--color-border)' }}>
+          <MagnifyingGlassIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)', flexShrink: 0 }} />
           <input
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search projects and briefs..."
             style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              fontFamily: "'Urbanist', sans-serif",
-              fontSize: 15,
-              color: 'var(--color-text)',
+              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              fontFamily: "'Urbanist', sans-serif", fontSize: 15, color: 'var(--color-text)',
             }}
           />
           <button
             onClick={onClose}
             style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 7,
-              padding: '3px 8px',
-              cursor: 'pointer',
-              fontFamily: "'DM Mono', monospace",
-              fontSize: 11,
-              color: 'var(--color-text-muted)',
+              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+              borderRadius: 7, padding: '3px 8px', cursor: 'pointer',
+              fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
             }}
           >
             Esc
           </button>
         </div>
 
-        {/* Results */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
           {filtered.length === 0 ? (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '32px 0',
-                fontFamily: "'DM Mono', monospace",
-                fontSize: 13,
-                color: 'var(--color-text-muted)',
-              }}
-            >
+            <div style={{ textAlign: 'center', padding: '32px 0', fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--color-text-muted)' }}>
               {query ? `No results for "${query}"` : 'No projects yet'}
             </div>
           ) : (
@@ -861,46 +986,17 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 9,
-                  cursor: 'pointer',
-                  transition: 'background 0.1s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  gap: 12, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', transition: 'background 0.1s',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <DocumentTextIcon
-                    style={{
-                      width: 16,
-                      height: 16,
-                      color: 'var(--color-text-muted)',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: "'Urbanist', sans-serif",
-                      fontSize: 14,
-                      color: 'var(--color-text)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
+                  <DocumentTextIcon style={{ width: 16, height: 16, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                  <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 14, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.title}
                   </span>
                 </div>
-                <span
-                  style={{
-                    fontFamily: "'DM Mono', monospace",
-                    fontSize: 11,
-                    color: 'var(--color-text-muted)',
-                    flexShrink: 0,
-                  }}
-                >
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', flexShrink: 0 }}>
                   {formatDate(item.ts)}
                 </span>
               </div>

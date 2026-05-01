@@ -20,7 +20,7 @@ export default function WorkspaceSetup({ user, onComplete }) {
     : ''
 
   async function handleCreate() {
-    const wsName = name.trim() || suggested
+    const wsName = name.trim()
     if (!wsName) return
 
     setLoading(true)
@@ -282,7 +282,7 @@ export default function WorkspaceSetup({ user, onComplete }) {
           {/* CTA */}
           <button
             onClick={handleCreate}
-            disabled={loading}
+            disabled={loading || !name.trim()}
             style={{
               width: '100%',
               display: 'flex',
@@ -290,30 +290,42 @@ export default function WorkspaceSetup({ user, onComplete }) {
               justifyContent: 'center',
               gap: 8,
               padding: '12px 24px',
-              background: loading ? 'var(--color-border)' : 'var(--color-primary)',
-              color: loading ? 'var(--color-text-muted)' : 'var(--color-primary-text)',
-              border: 'none',
+              background: !name.trim()
+                ? 'var(--color-surface-2)'
+                : loading
+                  ? 'var(--color-border)'
+                  : 'var(--color-primary)',
+              color: !name.trim()
+                ? 'var(--color-text-muted)'
+                : loading
+                  ? 'var(--color-text-muted)'
+                  : 'var(--color-primary-text)',
+              border: `1px solid ${!name.trim() ? 'var(--color-border)' : 'transparent'}`,
               borderRadius: 'var(--radius-md)',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              cursor: !name.trim() || loading ? 'not-allowed' : 'pointer',
               fontFamily: 'var(--font-sans)',
               fontWeight: 700,
               fontSize: 14,
               letterSpacing: '-0.01em',
-              boxShadow: loading ? 'none' : 'var(--shadow-sm)',
+              transition: 'var(--transition-base)',
+              boxShadow: !name.trim() || loading ? 'none' : 'var(--shadow-sm)',
+              transform: 'translateY(0)',
             }}
             onMouseEnter={e => {
-              if (!loading) {
+              if (name.trim() && !loading) {
                 e.currentTarget.style.transform = 'translateY(-1px)'
                 e.currentTarget.style.boxShadow = 'var(--shadow-md)'
               }
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = loading ? 'none' : 'var(--shadow-sm)'
+              e.currentTarget.style.boxShadow = name.trim() && !loading ? 'var(--shadow-sm)' : 'none'
             }}
           >
             {loading ? (
-              'Creating workspace...'
+              'Creating...'
+            ) : !name.trim() ? (
+              'Enter a workspace name'
             ) : (
               <>
                 Create workspace
