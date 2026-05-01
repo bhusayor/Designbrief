@@ -20,8 +20,8 @@ import {
   ClockIcon,
   CheckIcon,
   PlusIcon,
-  ArrowLeftCircleIcon,
-  ArrowRightCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 
 // ─── NavItem with tooltip ──────────────────────────────────────────────────────
@@ -245,7 +245,7 @@ export default function Sidebar() {
                 }}
               >
                 {logoHovered
-                  ? <ArrowRightCircleIcon style={{ width: 15, height: 15, color: 'white' }} />
+                  ? <ChevronRightIcon style={{ width: 14, height: 14, color: 'white', strokeWidth: 2.5 }} />
                   : <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
                 }
               </button>
@@ -286,7 +286,7 @@ export default function Sidebar() {
                 flexShrink: 0,
               }}
             >
-              <ArrowLeftCircleIcon style={{ width: 16, height: 16 }} />
+              <ChevronLeftIcon style={{ width: 15, height: 15, strokeWidth: 2.5 }} />
             </button>
           )}
         </div>
