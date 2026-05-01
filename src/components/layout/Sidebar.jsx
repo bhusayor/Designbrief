@@ -20,9 +20,29 @@ import {
   ClockIcon,
   CheckIcon,
   PlusIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
 } from '@heroicons/react/24/outline'
+
+function PanelLeftClose({ size = 15, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m16 15-3-3 3-3" />
+    </svg>
+  )
+}
+
+function PanelLeftOpen({ size = 15, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m14 9 3 3-3 3" />
+    </svg>
+  )
+}
 
 // ─── NavItem with tooltip ──────────────────────────────────────────────────────
 
@@ -245,7 +265,7 @@ export default function Sidebar() {
                 }}
               >
                 {logoHovered
-                  ? <ChevronRightIcon style={{ width: 14, height: 14, color: 'white', strokeWidth: 2.5 }} />
+                  ? <PanelLeftOpen size={15} color="white" />
                   : <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
                 }
               </button>
@@ -286,7 +306,7 @@ export default function Sidebar() {
                 flexShrink: 0,
               }}
             >
-              <ChevronLeftIcon style={{ width: 15, height: 15, strokeWidth: 2.5 }} />
+              <PanelLeftClose size={16} color="currentColor" />
             </button>
           )}
         </div>
