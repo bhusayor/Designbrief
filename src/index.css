@@ -36,31 +36,31 @@
   --color-primary-hover: #2A2A2A;
   --color-primary-text:  #FFFFFF;
 
-  /* Accent — teal-indigo */
-  --color-accent:        #0D9488;
-  --color-accent-2:      #6366F1;
-  --color-accent-soft:   rgba(13,148,136,0.08);
-  --color-accent-2-soft: rgba(99,102,241,0.08);
+  /* Accent — purple */
+  --color-accent:        #7C3AED;
+  --color-accent-2:      #9333EA;
+  --color-accent-soft:   rgba(124,58,237,0.08);
+  --color-accent-2-soft: rgba(147,51,234,0.08);
 
   /* Status */
   --color-active-bg:  #E8E8E8;
-  --color-focus-ring: rgba(13,148,136,0.2);
+  --color-focus-ring: rgba(124,58,237,0.2);
 
-  /* Hero gradient — teal bleeds to indigo */
+  /* Hero gradient — purple bloom */
   --gradient-hero:
     radial-gradient(
       ellipse 90% 60% at 20% 0%,
-      rgba(13,148,136,0.07) 0%,
+      rgba(124,58,237,0.07) 0%,
       transparent 65%
     ),
     radial-gradient(
       ellipse 60% 50% at 90% 90%,
-      rgba(99,102,241,0.06) 0%,
+      rgba(147,51,234,0.06) 0%,
       transparent 60%
     ),
     radial-gradient(
       ellipse 40% 30% at 60% 40%,
-      rgba(20,184,166,0.03) 0%,
+      rgba(167,139,250,0.04) 0%,
       transparent 50%
     ),
     #FFFFFF;
@@ -112,7 +112,7 @@
   /* Backward compat aliases */
   --color-border-hover:  var(--color-border-strong);
   --color-accent-bg:     var(--color-accent-soft);
-  --color-accent-border: rgba(13,148,136,0.2);
+  --color-accent-border: rgba(124,58,237,0.2);
   --color-accent-text:   #FFFFFF;
   --color-preview-bg:    var(--color-surface-2);
   --font-display:        var(--font-sans);
@@ -152,31 +152,31 @@
   --color-primary-hover: #FFFFFF;
   --color-primary-text:  #0E0E0E;
 
-  /* Accent — teal-indigo adjusted for dark */
-  --color-accent:        #2DD4BF;
-  --color-accent-2:      #818CF8;
-  --color-accent-soft:   rgba(45,212,191,0.10);
-  --color-accent-2-soft: rgba(129,140,248,0.10);
+  /* Accent — purple adjusted for dark */
+  --color-accent:        #A78BFA;
+  --color-accent-2:      #C084FC;
+  --color-accent-soft:   rgba(167,139,250,0.10);
+  --color-accent-2-soft: rgba(192,132,252,0.10);
 
   /* Status */
   --color-active-bg:  #303030;
-  --color-focus-ring: rgba(45,212,191,0.25);
+  --color-focus-ring: rgba(167,139,250,0.25);
 
-  /* Hero gradient dark — deep cinema feel */
+  /* Hero gradient dark — deep purple cinema feel */
   --gradient-hero:
     radial-gradient(
       ellipse 90% 60% at 15% 0%,
-      rgba(20,184,166,0.10) 0%,
+      rgba(124,58,237,0.12) 0%,
       transparent 65%
     ),
     radial-gradient(
       ellipse 60% 50% at 90% 85%,
-      rgba(99,102,241,0.08) 0%,
+      rgba(147,51,234,0.08) 0%,
       transparent 60%
     ),
     radial-gradient(
       ellipse 30% 30% at 50% 50%,
-      rgba(13,148,136,0.04) 0%,
+      rgba(167,139,250,0.05) 0%,
       transparent 50%
     ),
     #0E0E0E;
@@ -224,8 +224,8 @@
   /* Backward compat aliases */
   --color-border-hover:  var(--color-border-strong);
   --color-accent-bg:     var(--color-accent-soft);
-  --color-accent-border: rgba(45,212,191,0.25);
-  --color-accent-text:   #0E0E0E;
+  --color-accent-border: rgba(167,139,250,0.25);
+  --color-accent-text:   #FFFFFF;
   --color-preview-bg:    var(--color-surface-2);
   --font-display:        var(--font-sans);
   --shadow-card:         var(--shadow-sm);
@@ -339,6 +339,10 @@ button, a, input, textarea, select {
 @keyframes shimmer {
   from { background-position: 200% center; }
   to   { background-position: -200% center; }
+}
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .fade { animation: fadeUp 0.35s ease both; }

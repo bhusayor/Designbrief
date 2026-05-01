@@ -131,7 +131,7 @@ export default function Sidebar() {
   const readyCount = (intakeForms || []).filter(f => f.status === 'complete').length
 
   const [collapsed, setCollapsed] = useState(false)
-  const [topHovered, setTopHovered] = useState(false)
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [profileHovered, setProfileHovered] = useState(false)
@@ -140,6 +140,7 @@ export default function Sidebar() {
   const menuRef = useRef(null)
   const profileRef = useRef(null)
   const profileBtnRef = useRef(null)
+  const workspaceAreaRef = useRef(null)
 
   // Close profile menu on outside click
   useEffect(() => {
@@ -152,6 +153,17 @@ export default function Sidebar() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [showProfileMenu])
+
+  useEffect(() => {
+    if (!showWorkspaceMenu) return
+    function handler(e) {
+      if (workspaceAreaRef.current && !workspaceAreaRef.current.contains(e.target)) {
+        setShowWorkspaceMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showWorkspaceMenu])
 
   const initials = (user?.firstName || user?.name || 'D')[0].toUpperCase()
 
@@ -190,120 +202,171 @@ export default function Sidebar() {
         position: 'relative',
       }}
     >
-      {/* ── Unified logo + toggle hover zone ── */}
-      <div
-        onMouseEnter={() => setTopHovered(true)}
-        onMouseLeave={() => setTopHovered(false)}
-        style={{
-          position: 'relative',
-          padding: '10px 0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between',
-          paddingLeft: collapsed ? 0 : '12px',
-          paddingRight: collapsed ? 0 : '10px',
-          flexShrink: 0,
-        }}
-      >
-        {/* Logo mark — NOT clickable */}
+      {/* ── Workspace button + sidebar toggle ── */}
+      <div ref={workspaceAreaRef} style={{ flexShrink: 0 }}>
         <div
           style={{
-            width: 24,
-            height: 24,
-            background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-            borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            cursor: 'default',
-            userSelect: 'none',
-          }}
-        >
-          <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
-        </div>
-
-        {/* Workspace name — only when expanded */}
-        {!collapsed && (
-          <div style={{ flex: 1, minWidth: 0, marginLeft: 10, userSelect: 'none' }}>
-            <div style={{
-              fontFamily: 'var(--font-sans)',
-              fontWeight: 800,
-              fontSize: 14,
-              letterSpacing: '-0.03em',
-              color: 'var(--color-text)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
-              {workspace?.name || 'DesignBrief AI'}
-            </div>
-            {workspace?.plan && (
-              <div style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 9,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: workspace.plan === 'free'
-                  ? 'var(--color-text-muted)'
-                  : 'var(--color-accent)',
-              }}>
-                {workspace.plan} plan
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Toggle button — always visible when expanded, hover-reveal when collapsed */}
-        <button
-          onClick={() => setCollapsed(v => !v)}
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 7,
-            background: topHovered ? 'var(--color-sidebar-item-hover)' : 'transparent',
-            border: topHovered ? '1px solid var(--color-sidebar-border)' : '1px solid transparent',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--color-text-soft)',
-            transition: 'all 0.15s ease',
-            flexShrink: 0,
-            // When collapsed: only show on hover, position over logo
-            opacity: collapsed ? (topHovered ? 1 : 0) : 1,
-            pointerEvents: collapsed ? (topHovered ? 'auto' : 'none') : 'auto',
-            position: collapsed ? 'absolute' : 'relative',
-            top: collapsed ? '50%' : 'auto',
-            left: collapsed ? '50%' : 'auto',
-            transform: collapsed ? 'translate(-50%, -50%)' : 'none',
+            padding: '8px 8px 4px',
+            gap: 4,
           }}
         >
           {collapsed ? (
-            // Expand icon — sidebar bar + arrow pointing right
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="1.5" y="2" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.9" />
-              <path d="M8 5l3.5 3L8 11"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            /* Collapsed: just logo mark centred */
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px 0' }}>
+              <div style={{
+                width: 24, height: 24,
+                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
+              </div>
+            </div>
           ) : (
-            // Collapse icon — sidebar bar + arrow pointing left
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="1.5" y="2" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.9" />
-              <path d="M11 5L7.5 8 11 11"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            /* Expanded: clickable workspace trigger */
+            <button
+              onClick={() => setShowWorkspaceMenu(v => !v)}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+                padding: '5px 8px', borderRadius: 'var(--radius-md)',
+                border: 'none', cursor: 'pointer', background: 'transparent',
+                textAlign: 'left', transition: 'background var(--transition-fast)',
+              }}
+            >
+              <div style={{
+                width: 24, height: 24,
+                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 13,
+                  letterSpacing: '-0.03em', color: 'var(--color-text)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {workspace?.name || 'DesignBrief AI'}
+                </div>
+              </div>
+              <ChevronDownIcon style={{
+                width: 12, height: 12, color: 'var(--color-text-muted)', flexShrink: 0,
+                transform: showWorkspaceMenu ? 'rotate(180deg)' : 'none',
+                transition: 'transform var(--transition-fast)',
+              }} />
+            </button>
           )}
-        </button>
+
+          {/* Sidebar toggle button */}
+          <button
+            onClick={() => setCollapsed(v => !v)}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            style={{
+              width: 28, height: 28, borderRadius: 7,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--color-text-soft)', flexShrink: 0,
+              transition: 'background var(--transition-fast)',
+            }}
+          >
+            {collapsed ? (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1.5" y="2" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.9" />
+                <path d="M8 5l3.5 3L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1.5" y="2" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.9" />
+                <path d="M11 5L7.5 8 11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        </div>
+
+        {/* Workspace dropdown — inline expansion */}
+        {!collapsed && showWorkspaceMenu && (
+          <div
+            style={{
+              margin: '0 8px 4px',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '10px',
+              animation: 'dropIn 0.15s ease',
+            }}
+          >
+            {/* Workspace identity */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 'var(--radius-md)',
+                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <SparklesIcon style={{ width: 14, height: 14, color: 'white' }} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12,
+                  color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {workspace?.name || 'DesignBrief AI'}
+                </div>
+                <div style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', color: 'var(--color-text-muted)',
+                }}>
+                  {workspace?.plan ? workspace.plan + ' plan' : 'free plan'}
+                </div>
+              </div>
+            </div>
+
+            {/* Credits bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                AI Credits
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
+                color: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'var(--color-text-muted)',
+              }}>
+                {creditsUsed}/{creditsLimit}
+              </span>
+            </div>
+            <div style={{ height: 3, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', marginBottom: 10, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: Math.min((creditsUsed / creditsLimit) * 100, 100) + '%',
+                background: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+                borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease',
+              }} />
+            </div>
+
+            {/* Upgrade button */}
+            <button
+              onClick={() => { alert('Pro plan coming soon! 500 credits/day for $19/mo.'); setShowWorkspaceMenu(false) }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+              style={{
+                width: '100%', padding: '7px 10px',
+                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+                color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
+                cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700,
+                letterSpacing: '-0.01em',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                transition: 'opacity var(--transition-fast)',
+              }}
+            >
+              <SparklesIcon style={{ width: 11, height: 11 }} />
+              Upgrade to Pro
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Nav items ── */}
@@ -405,91 +468,6 @@ export default function Sidebar() {
         <div style={{ flex: 1 }} />
       )}
 
-      {/* ── Credits + Upgrade CTA ── */}
-      {!collapsed && workspace?.plan === 'free' && (
-        <div style={{
-          margin: '0 8px 8px',
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '12px 12px 10px',
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}>
-          {/* Header row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>
-              AI Credits
-            </span>
-            <span style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              fontWeight: 600,
-              color: creditsUsed >= creditsLimit * 0.9
-                ? '#dc2626'
-                : creditsUsed >= creditsLimit * 0.7
-                  ? '#F59E0B'
-                  : 'var(--color-text-muted)',
-            }}>
-              {creditsUsed}/{creditsLimit}
-            </span>
-          </div>
-
-          {/* Progress bar */}
-          <div style={{ height: 4, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', marginBottom: 10, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              width: Math.min((creditsUsed / creditsLimit) * 100, 100) + '%',
-              background: creditsUsed >= creditsLimit * 0.9
-                ? '#dc2626'
-                : creditsUsed >= creditsLimit * 0.7
-                  ? '#F59E0B'
-                  : 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-              borderRadius: 'var(--radius-full)',
-              transition: 'width 0.4s ease',
-            }} />
-          </div>
-
-          {/* Reset time */}
-          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', marginBottom: 10 }}>
-            Resets at midnight UTC
-          </div>
-
-          {/* Upgrade button */}
-          <button
-            onClick={() => alert('Pro plan coming soon! 500 credits/day for $19/mo.')}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '-0.01em',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 5,
-              boxShadow: '0 2px 8px rgba(13,148,136,0.25)',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-1px)'
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,148,136,0.35)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(13,148,136,0.25)'
-            }}
-          >
-            <SparklesIcon style={{ width: 12, height: 12 }} />
-            Upgrade to Pro
-          </button>
-        </div>
-      )}
 
       {/* ── Bottom section ── */}
       <div
@@ -501,55 +479,40 @@ export default function Sidebar() {
       >
         {/* Theme toggle */}
         {!collapsed && (
-          <div
+          <button
+            onClick={toggleTheme}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '6px 10px',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '4px',
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '7px 10px', borderRadius: 'var(--radius-md)', marginBottom: 4,
+              border: 'none', cursor: 'pointer', background: 'transparent',
+              transition: 'background var(--transition-fast)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               {theme === 'light'
-                ? <SunIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-muted)' }} />
-                : <MoonIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-muted)' }} />
+                ? <SunIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
+                : <MoonIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
               }
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                {theme === 'light' ? 'Light' : 'Dark'}
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, color: 'var(--color-text-soft)' }}>
+                {theme === 'light' ? 'Light mode' : 'Dark mode'}
               </span>
             </div>
-
-            {/* Toggle pill */}
-            <button
-              onClick={toggleTheme}
-              style={{
-                width: '36px',
-                height: '20px',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                position: 'relative',
-                border: 'none',
-                transition: 'background var(--transition-base)',
-                background: theme === 'dark' ? 'var(--color-primary)' : 'var(--color-surface-2)',
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '4px',
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  background: theme === 'dark' ? 'var(--color-primary-text)' : 'var(--color-text-muted)',
-                  left: theme === 'dark' ? '20px' : '4px',
-                  transition: 'left var(--transition-base)',
-                }}
-              />
-            </button>
-          </div>
+            <div style={{
+              width: 36, height: 20, borderRadius: 10, position: 'relative', flexShrink: 0,
+              background: theme === 'dark' ? 'var(--color-accent)' : 'var(--color-surface-2)',
+              border: `1px solid ${theme === 'dark' ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              transition: 'background var(--transition-base), border-color var(--transition-base)',
+            }}>
+              <div style={{
+                position: 'absolute', top: 3, width: 12, height: 12, borderRadius: '50%',
+                background: theme === 'dark' ? 'white' : 'var(--color-text-muted)',
+                left: theme === 'dark' ? 19 : 3,
+                transition: 'left var(--transition-base)',
+              }} />
+            </div>
+          </button>
         )}
 
         {/* Profile row */}

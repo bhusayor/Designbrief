@@ -182,6 +182,71 @@ function getSectionLabel(defaultLabel, result) {
   return map[defaultLabel]?.[discipline] || defaultLabel
 }
 
+// ─── TypewriterHeading ────────────────────────────────────────────────────────
+
+const TYPEWRITER_PHRASES = [
+  'clear project plan',
+  'structured deliverables',
+  'winning design strategy',
+  'client-ready roadmap',
+  'team roles & timelines',
+]
+
+function TypewriterHeading() {
+  const [phraseIdx, setPhraseIdx] = useState(0)
+  const [displayed, setDisplayed] = useState('')
+  const [phase, setPhase] = useState('typing')
+
+  useEffect(() => {
+    const target = TYPEWRITER_PHRASES[phraseIdx]
+    let t
+    if (phase === 'typing') {
+      if (displayed.length < target.length) {
+        t = setTimeout(() => setDisplayed(target.slice(0, displayed.length + 1)), 55)
+      } else {
+        t = setTimeout(() => setPhase('pause'), 1800)
+      }
+    } else if (phase === 'pause') {
+      t = setTimeout(() => setPhase('deleting'), 400)
+    } else {
+      if (displayed.length > 0) {
+        t = setTimeout(() => setDisplayed(prev => prev.slice(0, -1)), 28)
+      } else {
+        setPhraseIdx(i => (i + 1) % TYPEWRITER_PHRASES.length)
+        setPhase('typing')
+      }
+    }
+    return () => clearTimeout(t)
+  }, [phase, displayed, phraseIdx])
+
+  return (
+    <h1 style={{
+      fontFamily: 'var(--font-sans)', fontWeight: 800,
+      fontSize: 'clamp(30px, 4.5vw, 46px)',
+      letterSpacing: '-0.04em', lineHeight: 1.08,
+      color: 'var(--color-text)', textAlign: 'center',
+      marginBottom: 14, maxWidth: 540,
+    }}>
+      From messy brief to
+      <br />
+      <span style={{
+        background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+      }}>
+        {displayed}
+      </span>
+      <span style={{
+        display: 'inline-block', width: 2, height: '0.8em',
+        background: 'var(--color-accent)',
+        verticalAlign: 'middle', marginLeft: 1,
+        animation: 'blink 1s step-end infinite',
+      }} />
+    </h1>
+  )
+}
+
 // ─── Dashboard (main) ─────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -552,39 +617,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
       {/* Hero content */}
       <div style={{ position: 'relative', width: '100%', maxWidth: '680px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
-        {/* Eyebrow label */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'var(--color-accent-soft)',
-          border: '1px solid var(--color-accent-border)',
-          borderRadius: 'var(--radius-full)',
-          padding: '5px 14px 5px 10px', marginBottom: 24,
-        }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-accent)', boxShadow: '0 0 0 3px var(--color-accent-soft)' }} />
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--color-accent)', letterSpacing: '-0.01em' }}>
-            AI Brief Translator
-          </span>
-        </div>
-
-        {/* Main heading */}
-        <h1 style={{
-          fontFamily: 'var(--font-sans)', fontWeight: 800,
-          fontSize: 'clamp(30px, 4.5vw, 46px)',
-          letterSpacing: '-0.04em', lineHeight: 1.08,
-          color: 'var(--color-text)', textAlign: 'center',
-          marginBottom: 14, maxWidth: 540,
-        }}>
-          From messy brief{' '}to
-          <br />
-          <span style={{
-            background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>
-            clear project plan
-          </span>
-        </h1>
+        <TypewriterHeading />
 
         {/* Subheading */}
         <p style={{
@@ -592,7 +625,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
           color: 'var(--color-text-muted)', textAlign: 'center',
           lineHeight: 1.7, marginBottom: 40, maxWidth: 400,
         }}>
-          Paste any client brief below. AI turns it into deliverables, timelines, color palettes, and team roles — instantly.
+          Paste a client brief. Get deliverables, timelines, colors, and team roles — instantly.
         </p>
 
         {/* Input card */}
@@ -633,7 +666,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (hasContent) handleTranslate() } }}
-            placeholder={"Paste your client brief here — the messier the better...\n\ne.g. \"We need a website for our skincare brand. Think clean, premium, millennial women aged 25–35...\""}
+            placeholder="Paste your brief here…"
             style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', padding: '20px 22px 12px', color: 'var(--color-text)', fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 400, lineHeight: 1.7, minHeight: '120px', maxHeight: '320px', overflowY: 'hidden', display: 'block', boxSizing: 'border-box' }}
           />
 
@@ -663,9 +696,6 @@ The flow should be realistic for this product. Return only the JSON array.`,
                 )}
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => { handleFileAttach(e.target.files[0]); e.target.value = '' }} />
               </div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                No minimum — paste anything
-              </span>
             </div>
 
             {/* Translate button */}
@@ -691,30 +721,6 @@ The flow should be realistic for this product. Return only the JSON array.`,
               Translate Brief
             </button>
           </div>
-        </div>
-
-        {/* Keyboard hint */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 16 }}>
-          <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '2px 6px', color: 'var(--color-text-muted)' }}>⌘</kbd>
-          <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '2px 6px', color: 'var(--color-text-muted)' }}>Enter</kbd>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>to translate</span>
-        </div>
-
-        {/* Feature pills */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 28, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 480 }}>
-          {[
-            { label: 'Color palette',  color: 'var(--color-accent)' },
-            { label: 'Typography',     color: 'var(--color-accent-2)' },
-            { label: 'Tech stack',     color: 'var(--color-accent)' },
-            { label: 'User flow',      color: 'var(--color-accent-2)' },
-            { label: 'Roadmap',        color: 'var(--color-accent)' },
-            { label: 'Team roles',     color: 'var(--color-accent-2)' },
-          ].map(item => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '4px 12px 4px 9px', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)' }}>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: item.color, opacity: 0.7, flexShrink: 0 }} />
-              {item.label}
-            </div>
-          ))}
         </div>
 
       </div>
