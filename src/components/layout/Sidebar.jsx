@@ -20,7 +20,7 @@ import {
   ClockIcon,
   CheckIcon,
   PlusIcon,
-  Bars3Icon,
+  ChevronDoubleLeftIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 
@@ -263,30 +263,32 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* Collapse / expand button */}
-          <button
-            onClick={() => setCollapsed(v => !v)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'var(--color-sidebar-item-hover)'
-              e.currentTarget.style.borderColor = 'var(--color-border)'
-              e.currentTarget.style.color = 'var(--color-text)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.borderColor = 'transparent'
-              e.currentTarget.style.color = 'var(--color-text-muted)'
-            }}
-            style={{
-              width: 26, height: 26, borderRadius: 7,
-              background: 'transparent', border: '1px solid transparent',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
-              flexShrink: 0,
-            }}
-          >
-            <Bars3Icon style={{ width: 14, height: 14 }} />
-          </button>
+          {/* Collapse button — only visible when expanded */}
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(true)}
+              title="Collapse sidebar"
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'var(--color-sidebar-item-hover)'
+                e.currentTarget.style.borderColor = 'var(--color-border)'
+                e.currentTarget.style.color = 'var(--color-text)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.borderColor = 'transparent'
+                e.currentTarget.style.color = 'var(--color-text-muted)'
+              }}
+              style={{
+                width: 26, height: 26, borderRadius: 7,
+                background: 'transparent', border: '1px solid transparent',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
+                flexShrink: 0,
+              }}
+            >
+              <ChevronDoubleLeftIcon style={{ width: 14, height: 14 }} />
+            </button>
+          )}
         </div>
 
         {/* Collapsed workspace avatar */}
