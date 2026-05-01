@@ -20,7 +20,8 @@ import {
   ClockIcon,
   CheckIcon,
   PlusIcon,
-  Bars3BottomLeftIcon,
+  Bars3Icon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 
 // ─── NavItem with tooltip ──────────────────────────────────────────────────────
@@ -144,10 +145,12 @@ export default function Sidebar() {
   const [profileHovered, setProfileHovered] = useState(false)
   const [profileTooltipTop, setProfileTooltipTop] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
+  const [logoHovered, setLogoHovered] = useState(false)
   const menuRef = useRef(null)
   const profileRef = useRef(null)
   const profileBtnRef = useRef(null)
   const workspaceAreaRef = useRef(null)
+  const workspaceDropdownRef = useRef(null)
 
   // Close profile menu on outside click
   useEffect(() => {
@@ -165,9 +168,9 @@ export default function Sidebar() {
   useEffect(() => {
     if (!showWorkspaceMenu) return
     function handler(e) {
-      if (workspaceAreaRef.current && !workspaceAreaRef.current.contains(e.target)) {
-        setShowWorkspaceMenu(false)
-      }
+      const inArea = workspaceAreaRef.current && workspaceAreaRef.current.contains(e.target)
+      const inDropdown = workspaceDropdownRef.current && workspaceDropdownRef.current.contains(e.target)
+      if (!inArea && !inDropdown) setShowWorkspaceMenu(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -226,20 +229,29 @@ export default function Sidebar() {
             padding: '14px 14px 10px',
           }}
         >
-          {/* Logo mark + name */}
+          {/* Logo mark */}
           {collapsed ? (
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-              <div style={{
-                width: 26, height: 26, borderRadius: 8,
-                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
-              }}>
-                <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
-              </div>
+              <button
+                onClick={() => setCollapsed(false)}
+                onMouseEnter={() => setLogoHovered(true)}
+                onMouseLeave={() => setLogoHovered(false)}
+                title="Expand sidebar"
+                style={{
+                  width: 26, height: 26, borderRadius: 8, border: 'none', cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(124,58,237,0.3)', flexShrink: 0,
+                }}
+              >
+                {logoHovered
+                  ? <ChevronRightIcon style={{ width: 13, height: 13, color: 'white' }} />
+                  : <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
+                }
+              </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
               <div style={{
                 width: 26, height: 26, borderRadius: 8,
                 background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
@@ -248,12 +260,6 @@ export default function Sidebar() {
               }}>
                 <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
               </div>
-              <span style={{
-                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 14,
-                letterSpacing: '-0.03em', color: 'var(--color-text)',
-              }}>
-                DesignBrief
-              </span>
             </div>
           )}
 
@@ -279,9 +285,28 @@ export default function Sidebar() {
               flexShrink: 0,
             }}
           >
-            <Bars3BottomLeftIcon style={{ width: 14, height: 14 }} />
+            <Bars3Icon style={{ width: 14, height: 14 }} />
           </button>
         </div>
+
+        {/* Collapsed workspace avatar */}
+        {collapsed && (
+          <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 6 }}>
+            <button
+              onClick={() => setShowWorkspaceMenu(v => !v)}
+              title={workspace?.name || 'My Workspace'}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 12,
+                color: 'white', boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
+              }}
+            >
+              {(workspace?.name || 'D')[0].toUpperCase()}
+            </button>
+          </div>
+        )}
 
         {/* Divider between logo row and workspace row */}
         {!collapsed && (
@@ -290,15 +315,17 @@ export default function Sidebar() {
 
         {/* ── Row 2: Workspace trigger (expanded only) ── */}
         {!collapsed && (
-          <div style={{ padding: '4px 8px' }}>
+          <div style={{ padding: '4px 8px 0' }}>
             <button
               onClick={() => setShowWorkspaceMenu(v => !v)}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              onMouseLeave={e => (e.currentTarget.style.background = showWorkspaceMenu ? 'var(--color-sidebar-item-active)' : 'var(--color-surface)')}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 8px', borderRadius: 'var(--radius-md)',
-                border: 'none', cursor: 'pointer', background: 'transparent',
+                padding: '7px 10px', borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+                cursor: 'pointer',
+                background: showWorkspaceMenu ? 'var(--color-sidebar-item-active)' : 'var(--color-surface)',
                 textAlign: 'left', transition: 'background var(--transition-fast)',
               }}
             >
@@ -337,11 +364,12 @@ export default function Sidebar() {
         {/* ── Workspace dropdown panel ── */}
         {!collapsed && showWorkspaceMenu && (
           <div style={{
-            margin: '0 8px 8px',
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
+            margin: '4px 8px 8px',
+            background: 'var(--color-card)',
+            border: '1px solid var(--color-border-strong)',
             borderRadius: 'var(--radius-lg)',
             overflow: 'hidden',
+            boxShadow: 'var(--shadow-lg)',
             animation: 'dropIn 0.18s ease',
           }}>
             {/* Workspace info */}
@@ -425,81 +453,17 @@ export default function Sidebar() {
               </div>
             </div>
 
-            {/* Credits section */}
-            <div style={{
-              padding: '10px 14px',
-              borderBottom: '1px solid var(--color-divider)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 11, color: 'var(--color-text)' }}>
-                  Credits
-                </span>
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
-                  color: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'var(--color-text-muted)',
-                }}>
-                  {creditsLimit - creditsUsed} left
-                </span>
-              </div>
-
-              <div style={{ height: 3, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', overflow: 'hidden', marginBottom: 7 }}>
-                <div style={{
-                  height: '100%',
-                  width: Math.min((creditsUsed / creditsLimit) * 100, 100) + '%',
-                  background: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'linear-gradient(90deg, #7C3AED 0%, #A855F7 100%)',
-                  borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease',
-                }} />
-              </div>
-
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--color-text-muted)',
-              }}>
-                <ClockIcon style={{ width: 10, height: 10, flexShrink: 0 }} />
-                Daily credits reset at midnight UTC
-              </div>
-            </div>
-
-            {/* Upgrade button */}
-            <div style={{ padding: '10px 14px' }}>
-              <button
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.4)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)'
-                }}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '9px 12px',
-                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
-                  color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
-                  letterSpacing: '-0.01em', transition: 'var(--transition-fast)',
-                  boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <BoltIcon style={{ width: 12, height: 12 }} />
-                  Upgrade to Pro
-                </div>
-                <ArrowRightIcon style={{ width: 12, height: 12, opacity: 0.8 }} />
-              </button>
-            </div>
-
             {/* Divider */}
-            <div style={{ height: 1, background: 'var(--color-divider)', margin: '0 14px' }} />
+            <div style={{ height: 1, background: 'var(--color-border)' }} />
 
-            {/* All workspaces */}
-            <div style={{ padding: '8px 14px 4px' }}>
+            {/* All Workspaces */}
+            <div style={{ padding: '8px 14px 4px', background: 'var(--color-surface)' }}>
               <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600,
-                letterSpacing: '0.08em', textTransform: 'uppercase',
+                fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.01em', textTransform: 'none',
                 color: 'var(--color-text-muted)', marginBottom: 6,
               }}>
-                All workspaces
+                All Workspaces
               </div>
 
               {/* Current workspace row */}
@@ -529,7 +493,7 @@ export default function Sidebar() {
             </div>
 
             {/* Create new workspace */}
-            <div style={{ padding: '4px 14px 12px' }}>
+            <div style={{ padding: '4px 14px 12px', background: 'var(--color-surface)' }}>
               <button
                 onClick={() => alert('Multiple workspaces available on Pro plan.')}
                 onMouseEnter={e => {
@@ -613,13 +577,13 @@ export default function Sidebar() {
       {!collapsed ? (
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
           <div style={{
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            fontFamily: 'var(--font-sans)',
             color: 'var(--color-text-muted)',
-            letterSpacing: '0.08em',
+            letterSpacing: '0.01em',
             fontWeight: 600,
             padding: '8px 10px 4px',
-            textTransform: 'uppercase',
+            textTransform: 'none',
           }}>
             Recents
           </div>
@@ -880,6 +844,162 @@ export default function Sidebar() {
           )}
         </div>
       </div>
+
+      {/* ── Collapsed workspace dropdown (fixed position) ── */}
+      {collapsed && showWorkspaceMenu && (
+        <div
+          ref={workspaceDropdownRef}
+          style={{
+            position: 'fixed',
+            left: 64,
+            top: 60,
+            width: 260,
+            background: 'var(--color-card)',
+            border: '1px solid var(--color-border-strong)',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-lg)',
+            zIndex: 400,
+            animation: 'slideInLeft 0.18s ease',
+          }}
+        >
+          {/* Workspace info */}
+          <div style={{ padding: '14px 14px 12px', borderBottom: '1px solid var(--color-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 10,
+                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16,
+                color: 'white', flexShrink: 0,
+                boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
+              }}>
+                {(workspace?.name || 'D')[0].toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
+                  letterSpacing: '-0.02em', color: 'var(--color-text)',
+                  lineHeight: 1.2, marginBottom: 4,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {workspace?.name || 'My Workspace'}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{
+                    background: 'var(--color-accent-soft)',
+                    border: '1px solid rgba(124,58,237,0.2)',
+                    borderRadius: 'var(--radius-full)',
+                    padding: '2px 8px',
+                    fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700,
+                    color: 'var(--color-accent)', letterSpacing: '0.01em',
+                  }}>
+                    {planLabel(workspace?.plan)}
+                  </span>
+                  <span style={{
+                    fontFamily: 'var(--font-sans)', fontSize: 11,
+                    color: 'var(--color-text-muted)',
+                    display: 'flex', alignItems: 'center', gap: 3,
+                  }}>
+                    <UserGroupIcon style={{ width: 11, height: 11 }} />
+                    1 member
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {[
+                { icon: Cog6ToothIcon, label: 'Settings' },
+                { icon: UserPlusIcon, label: 'Invite' },
+              ].map(item => (
+                <button
+                  key={item.label}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    padding: '7px 8px',
+                    background: 'var(--color-bg)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)', cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                    color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
+                  }}
+                >
+                  <item.icon style={{ width: 12, height: 12 }} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* All Workspaces */}
+          <div style={{ background: 'var(--color-surface)' }}>
+            <div style={{ padding: '8px 14px 4px' }}>
+              <div style={{
+                fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.01em', textTransform: 'none',
+                color: 'var(--color-text-muted)', marginBottom: 6,
+              }}>
+                All Workspaces
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 8px', borderRadius: 'var(--radius-md)',
+                background: 'var(--color-sidebar-item-active)', marginBottom: 2,
+              }}>
+                <div style={{
+                  width: 22, height: 22, borderRadius: 6,
+                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 10,
+                  color: 'white', flexShrink: 0,
+                }}>
+                  {(workspace?.name || 'D')[0].toUpperCase()}
+                </div>
+                <span style={{
+                  fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+                  color: 'var(--color-text)', flex: 1,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {workspace?.name || 'My Workspace'}
+                </span>
+                <CheckIcon style={{ width: 13, height: 13, color: 'var(--color-accent)', flexShrink: 0 }} />
+              </div>
+            </div>
+            <div style={{ padding: '4px 14px 12px' }}>
+              <button
+                onClick={() => alert('Multiple workspaces available on Pro plan.')}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--color-accent)'
+                  e.currentTarget.style.color = 'var(--color-accent)'
+                  e.currentTarget.style.background = 'var(--color-accent-soft)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--color-border)'
+                  e.currentTarget.style.color = 'var(--color-text-muted)'
+                  e.currentTarget.style.background = 'transparent'
+                }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 8px', background: 'transparent',
+                  border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
+                  color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
+                }}
+              >
+                <div style={{
+                  width: 20, height: 20, borderRadius: 5,
+                  border: '1.5px dashed currentColor',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <PlusIcon style={{ width: 10, height: 10 }} />
+                </div>
+                Create new workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Search Modal ── */}
       {showSearch && (

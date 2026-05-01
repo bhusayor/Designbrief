@@ -625,7 +625,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
           color: 'var(--color-text-muted)', textAlign: 'center',
           lineHeight: 1.7, marginBottom: 40, maxWidth: 400,
         }}>
-          Paste a client brief. Get deliverables, timelines, colors, and team roles — instantly.
+          Paste a client brief. Get deliverables, timelines, colors, and team roles in seconds.
         </p>
 
         {/* Input card */}
