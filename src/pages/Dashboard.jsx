@@ -19,6 +19,7 @@ import {
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
 import TemplatePicker from '../components/brief/TemplatePicker'
 import { getBriefTemplate, getWebsiteTemplate, BRIEF_TEMPLATES } from '../lib/templates'
+import BriefRenderer from '../components/brief/BriefRenderer'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -634,25 +635,34 @@ The flow should be realistic for this product. Return only the JSON array.`,
           ))}
         </div>
 
-        {/* Existing ResultView unchanged */}
-        <ResultView
-          result={result}
-          scoring={scoring}
-          inspirations={inspirations}
-          loadingInspi={loadingInspi}
-          inspiSearched={inspiSearched}
-          onFetchInspirations={handleFetchInspirations}
-          onReset={handleReset}
-          onDownload={handleDownload}
-          onShare={() => {
-            navigator.clipboard.writeText(window.location.origin + '/share/' + uid())
-              .then(() => showToast('Share link copied!', 'success'))
-          }}
-          onNavigate={navigate}
-          showToast={showToast}
-          loadingCompetitors={loadingCompetitors}
-          onLoadCompetitors={handleLoadCompetitors}
-        />
+        {/* agency-deck uses the existing full ResultView; all others use BriefRenderer */}
+        {selectedBriefTemplate === 'agency-deck' ? (
+          <ResultView
+            result={result}
+            scoring={scoring}
+            inspirations={inspirations}
+            loadingInspi={loadingInspi}
+            inspiSearched={inspiSearched}
+            onFetchInspirations={handleFetchInspirations}
+            onReset={handleReset}
+            onDownload={handleDownload}
+            onShare={() => {
+              navigator.clipboard.writeText(window.location.origin + '/share/' + uid())
+                .then(() => showToast('Share link copied!', 'success'))
+            }}
+            onNavigate={navigate}
+            showToast={showToast}
+            loadingCompetitors={loadingCompetitors}
+            onLoadCompetitors={handleLoadCompetitors}
+          />
+        ) : (
+          <div style={{ padding: '24px 32px' }}>
+            <BriefRenderer
+              result={result}
+              templateId={selectedBriefTemplate}
+            />
+          </div>
+        )}
       </div>
     )
   }
