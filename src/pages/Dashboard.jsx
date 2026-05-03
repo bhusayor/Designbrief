@@ -253,7 +253,12 @@ function TypewriterHeading() {
 // ─── Dashboard (main) ─────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { user, navigate, saveHistory, showToast, setCreditsUsed } = useContext(AppContext)
+  const {
+    user, navigate, saveHistory, showToast, setCreditsUsed,
+    selectedBriefTemplate, setSelectedBriefTemplate,
+    selectedWebsiteTemplate, setSelectedWebsiteTemplate,
+    setActiveProjectBriefResult,
+  } = useContext(AppContext)
 
   const [phase, setPhase] = useState('input')
   const [input, setInput] = useState('')
@@ -270,8 +275,6 @@ export default function Dashboard() {
   const [loadingCompetitors, setLoadingCompetitors] = useState(false)
   const [storedBriefText, setStoredBriefText] = useState('')
   const [inspiSearched, setInspiSearched] = useState(false)
-  const [selectedBriefTemplate, setSelectedBriefTemplate] = useState('agency-deck')
-  const [selectedWebsiteTemplate, setSelectedWebsiteTemplate] = useState('saas-landing')
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
 
   const textareaRef = useRef(null)
@@ -487,11 +490,13 @@ The flow should be realistic for this product. Return only the JSON array.`,
 
       const fullResult = { ...finalResult, competitors }
       setScoring(scoreData)
-      setResult({
+      const resultWithMeta = {
         ...fullResult,
         _briefTemplateId: selectedBriefTemplate,
         _websiteTemplateId: selectedWebsiteTemplate,
-      })
+      }
+      setResult(resultWithMeta)
+      setActiveProjectBriefResult(resultWithMeta)
       setPhase('result')
       setInspirations(Array.isArray(inspiData) ? inspiData : [])
       setInspiSearched(true)

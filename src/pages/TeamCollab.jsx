@@ -20,6 +20,7 @@ import {
   SwatchIcon, UsersIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
+import { getWebsiteTemplate } from '../lib/templates'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaudeTools } from '../lib/api'
 import { getProjectInvites } from '../lib/teamService'
 import {
@@ -355,7 +356,9 @@ function TypingBubble({ userMessage }) {
 // ─── TeamCollab ───────────────────────────────────────────────────────────────
 
 export default function TeamCollab() {
-  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed } = useContext(AppContext)
+  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate } = useContext(AppContext)
+
+  const websiteTemplate = getWebsiteTemplate(selectedWebsiteTemplate || 'saas-landing')
 
   const [phase, setPhase] = useState('brief')
   const [messages, setMessages] = useState([])
@@ -799,6 +802,13 @@ DESIGN PRINCIPLES:
         if (promptPrefs.references) userOverrides += '\n- References: ' + promptPrefs.references
       }
 
+      const wsTemplateContext = websiteTemplate
+        ? '\n\nWEBSITE STRUCTURE TEMPLATE: ' + websiteTemplate.name +
+          '\nSections: ' + websiteTemplate.sections.join(', ') +
+          '\nMotion: ' + websiteTemplate.motion +
+          '\nTech: ' + websiteTemplate.techStack
+        : ''
+
       const platform = detectPlatform(task, briefData)
       const pattern = getStructurePattern(task, platform, briefData)
       const imageQueries = getImageQueries(task, briefData, pattern, platform)
@@ -892,6 +902,8 @@ ${imageQueries.map(q => '- ' + q.section + ': ' + q.type + ' — query "' + q.qu
 
 SPECIFIC ICONS TO INCLUDE:
 ${taskIcons.map(i => '- ' + i.icon + ' for ' + i.use).join('\n')}
+
+${wsTemplateContext}
 
 Return JSON: { "prompt": "the full multi-section prompt" }`,
         4500
@@ -3994,6 +4006,45 @@ STYLE:
                   <AdjustmentsHorizontalIcon style={{ width: 13, height: 13 }} />
                   Customize
                 </button>
+              </div>
+            )}
+
+            {/* Website template badge */}
+            {websiteTemplate && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 24px',
+                background: 'var(--color-surface)',
+                borderBottom: '1px solid var(--color-border)',
+                flexShrink: 0,
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: '0.06em',
+                  color: 'var(--color-text-muted)',
+                  textTransform: 'uppercase',
+                }}>
+                  Website template
+                </span>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: (websiteTemplate.accent || '#7C3AED') + '12',
+                  border: '1px solid ' + (websiteTemplate.accent || '#7C3AED') + '30',
+                  borderRadius: 'var(--radius-full)',
+                  padding: '2px 10px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: websiteTemplate.accent || '#7C3AED',
+                }}>
+                  {websiteTemplate.name}
+                </span>
               </div>
             )}
 

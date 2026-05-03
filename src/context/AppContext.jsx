@@ -67,6 +67,11 @@ export function AppProvider({ children }) {
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsLimit] = useState(FREE_DAILY_LIMIT);
 
+  // ── Template state ────────────────────────────────────────────────────────
+  const [selectedBriefTemplate, setSelectedBriefTemplate] = useState('agency-deck');
+  const [selectedWebsiteTemplate, setSelectedWebsiteTemplate] = useState('saas-landing');
+  const [activeProjectBriefResult, setActiveProjectBriefResult] = useState(null);
+
   const toastTimer = useRef(null);
 
   // ── Theme sync ────────────────────────────────────────────────────────────
@@ -622,6 +627,14 @@ export function AppProvider({ children }) {
     creditsUsed,
     creditsLimit,
     setCreditsUsed,
+
+    // Templates
+    selectedBriefTemplate,
+    setSelectedBriefTemplate,
+    selectedWebsiteTemplate,
+    setSelectedWebsiteTemplate,
+    activeProjectBriefResult,
+    setActiveProjectBriefResult,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
