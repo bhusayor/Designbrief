@@ -17,6 +17,8 @@ import {
   generateSubtasks,
 } from '../lib/api'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
+import TemplatePicker from '../components/brief/TemplatePicker'
+import { getBriefTemplate, getWebsiteTemplate, BRIEF_TEMPLATES } from '../lib/templates'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -267,6 +269,9 @@ export default function Dashboard() {
   const [loadingCompetitors, setLoadingCompetitors] = useState(false)
   const [storedBriefText, setStoredBriefText] = useState('')
   const [inspiSearched, setInspiSearched] = useState(false)
+  const [selectedBriefTemplate, setSelectedBriefTemplate] = useState('agency-deck')
+  const [selectedWebsiteTemplate, setSelectedWebsiteTemplate] = useState('saas-landing')
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -384,7 +389,18 @@ export default function Dashboard() {
     }, 2200)
 
     try {
-      const { scoreData, finalResult } = await translateAndAnalyse(fullContext)
+      const briefTmpl = getBriefTemplate(selectedBriefTemplate)
+      const websiteTmpl = getWebsiteTemplate(selectedWebsiteTemplate)
+      const templateContext =
+        '\n\n---TEMPLATE STYLE---\n' +
+        briefTmpl.aiModifier +
+        '\n\n---WEBSITE STRUCTURE---\n' +
+        'Build for a ' + websiteTmpl.name +
+        ' structure.\nKey sections: ' +
+        websiteTmpl.sections.join(', ') +
+        '\nMotion: ' + websiteTmpl.motion
+
+      const { scoreData, finalResult } = await translateAndAnalyse(fullContext + templateContext)
       clearInterval(msgTimerRef.current)
       if (!finalResult) throw new Error('Translation returned empty. Please try again.')
       setCreditsUsed(prev => prev + 1)
@@ -470,7 +486,11 @@ The flow should be realistic for this product. Return only the JSON array.`,
 
       const fullResult = { ...finalResult, competitors }
       setScoring(scoreData)
-      setResult(fullResult)
+      setResult({
+        ...fullResult,
+        _briefTemplateId: selectedBriefTemplate,
+        _websiteTemplateId: selectedWebsiteTemplate,
+      })
       setPhase('result')
       setInspirations(Array.isArray(inspiData) ? inspiData : [])
       setInspiSearched(true)
@@ -570,24 +590,70 @@ The flow should be realistic for this product. Return only the JSON array.`,
 
   if (phase === 'result' && result) {
     return (
-      <ResultView
-        result={result}
-        scoring={scoring}
-        inspirations={inspirations}
-        loadingInspi={loadingInspi}
-        inspiSearched={inspiSearched}
-        onFetchInspirations={handleFetchInspirations}
-        onReset={handleReset}
-        onDownload={handleDownload}
-        onShare={() => {
-          navigator.clipboard.writeText(window.location.origin + '/share/' + uid())
-            .then(() => showToast('Share link copied!', 'success'))
-        }}
-        onNavigate={navigate}
-        showToast={showToast}
-        loadingCompetitors={loadingCompetitors}
-        onLoadCompetitors={handleLoadCompetitors}
-      />
+      <div style={{ width: '100%' }}>
+        {/* Template switcher tabs */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '12px 24px 0',
+          flexWrap: 'wrap',
+        }}>
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            color: 'var(--color-text-muted)',
+            textTransform: 'uppercase',
+            marginRight: 2,
+          }}>
+            View as
+          </span>
+          {BRIEF_TEMPLATES.map(tmpl => (
+            <button
+              key={tmpl.id}
+              onClick={() => setSelectedBriefTemplate(tmpl.id)}
+              style={{
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                border: '1px solid ' + (
+                  selectedBriefTemplate === tmpl.id ? tmpl.accent : 'var(--color-border)'
+                ),
+                background: selectedBriefTemplate === tmpl.id ? tmpl.accent + '12' : 'transparent',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 11,
+                fontWeight: selectedBriefTemplate === tmpl.id ? 700 : 500,
+                color: selectedBriefTemplate === tmpl.id ? tmpl.accent : 'var(--color-text-muted)',
+                transition: 'var(--transition-fast)',
+              }}
+            >
+              {tmpl.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Existing ResultView unchanged */}
+        <ResultView
+          result={result}
+          scoring={scoring}
+          inspirations={inspirations}
+          loadingInspi={loadingInspi}
+          inspiSearched={inspiSearched}
+          onFetchInspirations={handleFetchInspirations}
+          onReset={handleReset}
+          onDownload={handleDownload}
+          onShare={() => {
+            navigator.clipboard.writeText(window.location.origin + '/share/' + uid())
+              .then(() => showToast('Share link copied!', 'success'))
+          }}
+          onNavigate={navigate}
+          showToast={showToast}
+          loadingCompetitors={loadingCompetitors}
+          onLoadCompetitors={handleLoadCompetitors}
+        />
+      </div>
     )
   }
 
@@ -627,6 +693,79 @@ The flow should be realistic for this product. Return only the JSON array.`,
         }}>
           Paste a client brief. Get deliverables, timelines, colors, and team roles in seconds.
         </p>
+
+        {/* Template selector toggle */}
+        <button
+          onClick={() => setShowTemplatePicker(prev => !prev)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '7px 14px',
+            background: showTemplatePicker ? 'var(--color-surface-2)' : 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-full)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--color-text-soft)',
+            marginBottom: 12,
+            transition: 'var(--transition-fast)',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = 'var(--color-border-strong)'
+            e.currentTarget.style.color = 'var(--color-text)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'var(--color-border)'
+            e.currentTarget.style.color = 'var(--color-text-soft)'
+          }}
+        >
+          <SwatchIcon style={{ width: 13, height: 13 }} />
+          {getBriefTemplate(selectedBriefTemplate).name}
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9,
+            background: 'var(--color-accent-soft)',
+            color: 'var(--color-accent)',
+            border: '1px solid rgba(124,58,237,0.2)',
+            borderRadius: 'var(--radius-full)',
+            padding: '1px 7px',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}>
+            Change
+          </span>
+        </button>
+
+        {/* Template picker panel */}
+        {showTemplatePicker && (
+          <div style={{
+            width: '100%',
+            maxWidth: 620,
+            marginBottom: 14,
+            padding: 16,
+            background: 'var(--color-card)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-lg)',
+            animation: 'dropIn 0.2s ease',
+          }}>
+            <TemplatePicker
+              selectedBriefTemplate={selectedBriefTemplate}
+              selectedWebsiteTemplate={selectedWebsiteTemplate}
+              onSelectBrief={id => {
+                setSelectedBriefTemplate(id)
+                setShowTemplatePicker(false)
+              }}
+              onSelectWebsite={id => {
+                setSelectedWebsiteTemplate(id)
+                setShowTemplatePicker(false)
+              }}
+            />
+          </div>
+        )}
 
         {/* Input card */}
         <div style={{
