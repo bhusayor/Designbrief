@@ -764,7 +764,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
           />
 
           {/* Input footer */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 14px', borderTop: '1px solid var(--color-divider)' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 14px', borderTop: '1px solid var(--color-divider)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {/* Attach button */}
               <div style={{ position: 'relative' }} ref={plusMenuRef}>
@@ -795,7 +795,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
               <div style={{ width: 1, height: 20, background: 'var(--color-divider)', flexShrink: 0 }} />
 
               {/* Brief Template pill */}
-              <div style={{ position: 'relative' }} ref={stylePickerRef}>
+              <div ref={stylePickerRef}>
                 <button
                   onClick={() => setShowStylePicker(v => !v)}
                   style={{
@@ -857,7 +857,8 @@ The flow should be realistic for this product. Return only the JSON array.`,
                   <div style={{
                     position: 'absolute',
                     top: 'calc(100% + 8px)',
-                    left: 0,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
                     background: 'var(--color-card)',
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-xl)',
@@ -943,6 +944,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
                               borderRadius: 'var(--radius-full)',
                               padding: '2px 8px',
                               letterSpacing: '0.01em',
+                              whiteSpace: 'nowrap',
                             }}>
                               {tmpl.tagline}
                             </div>

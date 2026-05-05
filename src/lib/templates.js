@@ -44,7 +44,7 @@ export const BRIEF_TEMPLATES = [
   {
     id: 'sprint-plan',
     name: 'Sprint Plan',
-    tagline: 'Agile, action-oriented breakdown',
+    tagline: 'Action-oriented sprint breakdown',
     description: 'Deliverables split into sprint weeks with effort estimates, priorities, and role assignments.',
     icon: 'RocketLaunchIcon',
     accent: '#16a34a',
