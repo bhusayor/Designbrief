@@ -1089,7 +1089,6 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
         background: 'var(--color-card)', border: '1px solid var(--color-border)',
         borderRadius: 16, boxShadow: 'var(--shadow-modal)', zIndex: 301,
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        animation: 'fadeUp 0.2s ease',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--color-border)' }}>
           <MagnifyingGlassIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)', flexShrink: 0 }} />

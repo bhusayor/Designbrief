@@ -868,7 +868,6 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     padding: '16px',
                     width: 620,
                     boxShadow: 'var(--shadow-lg)',
-                    animation: 'dropIn 0.15s ease',
                   }}>
                     {/* Header */}
                     <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--color-divider)' }}>
