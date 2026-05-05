@@ -859,6 +859,9 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     top: 'calc(100% + 8px)',
                     left: '50%',
                     transform: 'translateX(-50%)',
+                    zIndex: 100,
+                  }}>
+                  <div style={{
                     background: 'var(--color-card)',
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-xl)',
@@ -866,7 +869,6 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     width: 620,
                     boxShadow: 'var(--shadow-lg)',
                     animation: 'dropIn 0.15s ease',
-                    zIndex: 100,
                   }}>
                     {/* Header */}
                     <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--color-divider)' }}>
@@ -964,6 +966,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
                         )
                       })}
                     </div>
+                  </div>
                   </div>
                 )}
               </div>
