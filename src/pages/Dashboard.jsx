@@ -795,7 +795,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
               {/* Divider */}
               <div style={{ width: 1, height: 20, background: 'var(--color-divider)', flexShrink: 0 }} />
 
-              {/* Output style pill */}
+              {/* Brief Template pill */}
               <div style={{ position: 'relative' }} ref={stylePickerRef}>
                 <button
                   onClick={() => setShowStylePicker(v => !v)}
@@ -803,49 +803,61 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 5,
-                    padding: '5px 10px 5px 8px',
-                    background: showStylePicker ? currentTemplate.accent + '15' : 'transparent',
-                    border: '1px solid ' + (showStylePicker ? currentTemplate.accent + '60' : 'var(--color-border)'),
+                    padding: '5px 10px 5px 10px',
+                    background: showStylePicker ? currentTemplate.accent + '12' : 'transparent',
+                    border: '1px solid ' + (showStylePicker ? currentTemplate.accent + '50' : 'var(--color-border)'),
                     borderRadius: 'var(--radius-full)',
                     cursor: 'pointer',
                     fontFamily: 'var(--font-sans)',
                     fontSize: 12,
-                    fontWeight: 600,
-                    color: showStylePicker ? currentTemplate.accent : 'var(--color-text-soft)',
                     transition: 'var(--transition-fast)',
                   }}
                   onMouseEnter={e => {
                     if (!showStylePicker) {
-                      e.currentTarget.style.borderColor = currentTemplate.accent + '60'
-                      e.currentTarget.style.color = currentTemplate.accent
-                      e.currentTarget.style.background = currentTemplate.accent + '10'
+                      e.currentTarget.style.borderColor = 'var(--color-border-strong)'
+                      e.currentTarget.style.background = 'var(--color-surface)'
                     }
                   }}
                   onMouseLeave={e => {
                     if (!showStylePicker) {
                       e.currentTarget.style.borderColor = 'var(--color-border)'
-                      e.currentTarget.style.color = 'var(--color-text-soft)'
                       e.currentTarget.style.background = 'transparent'
                     }
                   }}
                 >
+                  <span style={{
+                    fontWeight: 500,
+                    color: 'var(--color-text-muted)',
+                    letterSpacing: '-0.01em',
+                  }}>
+                    Brief Template
+                  </span>
+                  <div style={{ width: 1, height: 12, background: 'var(--color-divider)', margin: '0 3px', flexShrink: 0 }} />
                   {(() => {
                     const IconComp = ICON_MAP[currentTemplate.icon] || SwatchIcon
-                    return <IconComp style={{ width: 12, height: 12, color: currentTemplate.accent }} />
+                    return <IconComp style={{ width: 11, height: 11, color: currentTemplate.accent, flexShrink: 0 }} />
                   })()}
-                  <span>{currentTemplate.name}</span>
+                  <span style={{
+                    fontWeight: 700,
+                    color: currentTemplate.accent,
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {currentTemplate.name}
+                  </span>
                   <ChevronDownIcon style={{
-                    width: 11, height: 11, opacity: 0.6,
+                    width: 11, height: 11,
+                    color: 'var(--color-text-muted)',
                     transform: showStylePicker ? 'rotate(180deg)' : 'none',
                     transition: 'transform 0.2s',
+                    flexShrink: 0,
                   }} />
                 </button>
 
-                {/* Upward popover */}
+                {/* Downward popover */}
                 {showStylePicker && (
                   <div style={{
                     position: 'absolute',
-                    bottom: 'calc(100% + 10px)',
+                    top: 'calc(100% + 8px)',
                     left: 0,
                     background: 'var(--color-card)',
                     border: '1px solid var(--color-border)',
@@ -853,12 +865,12 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     padding: '14px',
                     minWidth: 380,
                     boxShadow: 'var(--shadow-lg)',
-                    animation: 'fadeUp 0.15s ease',
+                    animation: 'dropIn 0.15s ease',
                     zIndex: 100,
                   }}>
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 2 }}>Output style</div>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)' }}>Choose how your brief will be formatted</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 2 }}>Brief Template</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)' }}>Select how your brief output will be structured</div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
                       {BRIEF_TEMPLATES.map(tmpl => {
