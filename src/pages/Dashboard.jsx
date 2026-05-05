@@ -862,7 +862,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-xl)',
                     padding: '16px',
-                    width: 460,
+                    width: 520,
                     boxShadow: 'var(--shadow-lg)',
                     animation: 'dropIn 0.15s ease',
                     zIndex: 100,
@@ -873,8 +873,8 @@ The flow should be realistic for this product. Return only the JSON array.`,
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>Choose how your output will be structured and formatted</div>
                     </div>
 
-                    {/* Template list */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {/* Template grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                       {BRIEF_TEMPLATES.map(tmpl => {
                         const IconComp = ICON_MAP[tmpl.icon] || SwatchIcon
                         const isSel = selectedBriefTemplate === tmpl.id
@@ -884,33 +884,34 @@ The flow should be realistic for this product. Return only the JSON array.`,
                             onClick={() => { setSelectedBriefTemplate(tmpl.id); setShowStylePicker(false) }}
                             style={{
                               display: 'flex',
+                              flexDirection: 'column',
                               alignItems: 'flex-start',
-                              gap: 12,
-                              padding: '11px 12px',
-                              background: isSel ? tmpl.accent + '10' : 'transparent',
-                              border: '1.5px solid ' + (isSel ? tmpl.accent + '60' : 'transparent'),
+                              gap: 8,
+                              padding: '12px',
+                              background: isSel ? tmpl.accent + '10' : 'var(--color-surface)',
+                              border: '1.5px solid ' + (isSel ? tmpl.accent : 'var(--color-border)'),
                               borderRadius: 'var(--radius-lg)',
                               cursor: 'pointer',
                               textAlign: 'left',
                               transition: 'var(--transition-fast)',
-                              width: '100%',
+                              boxShadow: isSel ? '0 0 0 3px ' + tmpl.accent + '18' : 'none',
                             }}
                             onMouseEnter={e => {
                               if (!isSel) {
-                                e.currentTarget.style.background = 'var(--color-surface)'
-                                e.currentTarget.style.borderColor = 'var(--color-border)'
+                                e.currentTarget.style.borderColor = tmpl.accent + '80'
+                                e.currentTarget.style.background = tmpl.accent + '08'
                               }
                             }}
                             onMouseLeave={e => {
                               if (!isSel) {
-                                e.currentTarget.style.background = 'transparent'
-                                e.currentTarget.style.borderColor = 'transparent'
+                                e.currentTarget.style.borderColor = 'var(--color-border)'
+                                e.currentTarget.style.background = 'var(--color-surface)'
                               }
                             }}
                           >
                             {/* Icon */}
                             <div style={{
-                              width: 38, height: 38, flexShrink: 0,
+                              width: 36, height: 36,
                               borderRadius: 'var(--radius-md)',
                               background: tmpl.accent + '15',
                               border: '1px solid ' + tmpl.accent + '25',
@@ -919,53 +920,44 @@ The flow should be realistic for this product. Return only the JSON array.`,
                               <IconComp style={{ width: 18, height: 18, color: tmpl.accent }} />
                             </div>
 
-                            {/* Text */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{
-                                display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3,
-                              }}>
-                                <span style={{
-                                  fontFamily: 'var(--font-sans)',
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  color: isSel ? tmpl.accent : 'var(--color-text)',
-                                  letterSpacing: '-0.01em',
-                                }}>
-                                  {tmpl.name}
-                                </span>
-                                <span style={{
-                                  fontFamily: 'var(--font-sans)',
-                                  fontSize: 10,
-                                  fontWeight: 500,
-                                  color: tmpl.accent,
-                                  background: tmpl.accent + '12',
-                                  border: '1px solid ' + tmpl.accent + '25',
-                                  borderRadius: 'var(--radius-full)',
-                                  padding: '1px 7px',
-                                  letterSpacing: '0.01em',
-                                }}>
-                                  {tmpl.tagline}
-                                </span>
-                              </div>
-                              <p style={{
-                                fontFamily: 'var(--font-sans)',
-                                fontSize: 11,
-                                fontWeight: 400,
-                                color: 'var(--color-text-muted)',
-                                lineHeight: 1.55,
-                                margin: 0,
-                              }}>
-                                {tmpl.description}
-                              </p>
+                            {/* Name */}
+                            <div style={{
+                              fontFamily: 'var(--font-sans)',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: isSel ? tmpl.accent : 'var(--color-text)',
+                              letterSpacing: '-0.01em',
+                              lineHeight: 1.2,
+                            }}>
+                              {tmpl.name}
                             </div>
 
-                            {/* Selected dot */}
-                            {isSel && (
-                              <div style={{
-                                width: 8, height: 8, borderRadius: '50%',
-                                background: tmpl.accent, flexShrink: 0, marginTop: 5,
-                              }} />
-                            )}
+                            {/* Tagline */}
+                            <div style={{
+                              fontFamily: 'var(--font-sans)',
+                              fontSize: 10,
+                              fontWeight: 500,
+                              color: tmpl.accent,
+                              background: tmpl.accent + '12',
+                              border: '1px solid ' + tmpl.accent + '25',
+                              borderRadius: 'var(--radius-full)',
+                              padding: '2px 8px',
+                              letterSpacing: '0.01em',
+                            }}>
+                              {tmpl.tagline}
+                            </div>
+
+                            {/* Description */}
+                            <p style={{
+                              fontFamily: 'var(--font-sans)',
+                              fontSize: 11,
+                              fontWeight: 400,
+                              color: 'var(--color-text-muted)',
+                              lineHeight: 1.55,
+                              margin: 0,
+                            }}>
+                              {tmpl.description}
+                            </p>
                           </button>
                         )
                       })}
