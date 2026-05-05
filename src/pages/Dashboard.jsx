@@ -861,17 +861,20 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     background: 'var(--color-card)',
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-xl)',
-                    padding: '14px',
-                    minWidth: 380,
+                    padding: '16px',
+                    width: 460,
                     boxShadow: 'var(--shadow-lg)',
                     animation: 'dropIn 0.15s ease',
                     zIndex: 100,
                   }}>
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 2 }}>Brief Template</div>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)' }}>Select how your brief output will be structured</div>
+                    {/* Header */}
+                    <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--color-divider)' }}>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 3 }}>Brief Template</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>Choose how your output will be structured and formatted</div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+
+                    {/* Template list */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {BRIEF_TEMPLATES.map(tmpl => {
                         const IconComp = ICON_MAP[tmpl.icon] || SwatchIcon
                         const isSel = selectedBriefTemplate === tmpl.id
@@ -881,47 +884,88 @@ The flow should be realistic for this product. Return only the JSON array.`,
                             onClick={() => { setSelectedBriefTemplate(tmpl.id); setShowStylePicker(false) }}
                             style={{
                               display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '10px 6px',
-                              background: isSel ? tmpl.accent + '12' : 'var(--color-surface)',
-                              border: '1.5px solid ' + (isSel ? tmpl.accent : 'var(--color-border)'),
+                              alignItems: 'flex-start',
+                              gap: 12,
+                              padding: '11px 12px',
+                              background: isSel ? tmpl.accent + '10' : 'transparent',
+                              border: '1.5px solid ' + (isSel ? tmpl.accent + '60' : 'transparent'),
                               borderRadius: 'var(--radius-lg)',
                               cursor: 'pointer',
+                              textAlign: 'left',
                               transition: 'var(--transition-fast)',
+                              width: '100%',
                             }}
                             onMouseEnter={e => {
                               if (!isSel) {
-                                e.currentTarget.style.borderColor = tmpl.accent
-                                e.currentTarget.style.background = tmpl.accent + '08'
+                                e.currentTarget.style.background = 'var(--color-surface)'
+                                e.currentTarget.style.borderColor = 'var(--color-border)'
                               }
                             }}
                             onMouseLeave={e => {
                               if (!isSel) {
-                                e.currentTarget.style.borderColor = 'var(--color-border)'
-                                e.currentTarget.style.background = 'var(--color-surface)'
+                                e.currentTarget.style.background = 'transparent'
+                                e.currentTarget.style.borderColor = 'transparent'
                               }
                             }}
                           >
+                            {/* Icon */}
                             <div style={{
-                              width: 28, height: 28,
+                              width: 38, height: 38, flexShrink: 0,
                               borderRadius: 'var(--radius-md)',
                               background: tmpl.accent + '15',
+                              border: '1px solid ' + tmpl.accent + '25',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
-                              <IconComp style={{ width: 14, height: 14, color: tmpl.accent }} />
+                              <IconComp style={{ width: 18, height: 18, color: tmpl.accent }} />
                             </div>
-                            <span style={{
-                              fontFamily: 'var(--font-sans)',
-                              fontSize: 10,
-                              fontWeight: isSel ? 700 : 500,
-                              color: isSel ? tmpl.accent : 'var(--color-text-muted)',
-                              textAlign: 'center',
-                              lineHeight: 1.2,
-                            }}>
-                              {tmpl.name}
-                            </span>
+
+                            {/* Text */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3,
+                              }}>
+                                <span style={{
+                                  fontFamily: 'var(--font-sans)',
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  color: isSel ? tmpl.accent : 'var(--color-text)',
+                                  letterSpacing: '-0.01em',
+                                }}>
+                                  {tmpl.name}
+                                </span>
+                                <span style={{
+                                  fontFamily: 'var(--font-sans)',
+                                  fontSize: 10,
+                                  fontWeight: 500,
+                                  color: tmpl.accent,
+                                  background: tmpl.accent + '12',
+                                  border: '1px solid ' + tmpl.accent + '25',
+                                  borderRadius: 'var(--radius-full)',
+                                  padding: '1px 7px',
+                                  letterSpacing: '0.01em',
+                                }}>
+                                  {tmpl.tagline}
+                                </span>
+                              </div>
+                              <p style={{
+                                fontFamily: 'var(--font-sans)',
+                                fontSize: 11,
+                                fontWeight: 400,
+                                color: 'var(--color-text-muted)',
+                                lineHeight: 1.55,
+                                margin: 0,
+                              }}>
+                                {tmpl.description}
+                              </p>
+                            </div>
+
+                            {/* Selected dot */}
+                            {isSel && (
+                              <div style={{
+                                width: 8, height: 8, borderRadius: '50%',
+                                background: tmpl.accent, flexShrink: 0, marginTop: 5,
+                              }} />
+                            )}
                           </button>
                         )
                       })}

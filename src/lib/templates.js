@@ -3,6 +3,7 @@ export const BRIEF_TEMPLATES = [
     id: 'agency-deck',
     name: 'Agency Deck',
     tagline: 'Visual, client-ready presentation',
+    description: 'A polished client-facing document with brand identity, colour palettes, deliverables, and timelines — ready for stakeholder sign-off.',
     icon: 'PresentationChartBarIcon',
     accent: '#7C3AED',
     aiModifier:
@@ -16,6 +17,7 @@ export const BRIEF_TEMPLATES = [
     id: 'technical-spec',
     name: 'Technical Spec',
     tagline: 'Developer-ready documentation',
+    description: 'Structured engineering docs covering tech stack, architecture decisions, component hierarchy, API surface, and risk flags.',
     icon: 'CodeBracketIcon',
     accent: '#0EA5E9',
     aiModifier:
@@ -29,6 +31,7 @@ export const BRIEF_TEMPLATES = [
     id: 'creative-direction',
     name: 'Creative Direction',
     tagline: 'Mood-forward design brief',
+    description: 'A mood-driven brief centred on concept, tone, typography, and colour — built to align and inspire the creative team before production.',
     icon: 'SwatchIcon',
     accent: '#EC4899',
     aiModifier:
@@ -42,6 +45,7 @@ export const BRIEF_TEMPLATES = [
     id: 'sprint-plan',
     name: 'Sprint Plan',
     tagline: 'Agile, action-oriented breakdown',
+    description: 'Deliverables broken into sprint weeks with effort estimates, priorities, and role assignments — formatted like a Linear or Jira backlog.',
     icon: 'RocketLaunchIcon',
     accent: '#16a34a',
     aiModifier:
@@ -55,6 +59,7 @@ export const BRIEF_TEMPLATES = [
     id: 'lean-canvas',
     name: 'Lean Canvas',
     tagline: 'Startup hypothesis on one page',
+    description: 'A one-page startup model mapping problem, solution, value proposition, customer segments, and revenue streams in a 9-box canvas.',
     icon: 'ViewColumnsIcon',
     accent: '#F59E0B',
     aiModifier:
