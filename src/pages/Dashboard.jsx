@@ -729,7 +729,6 @@ The flow should be realistic for this product. Return only the JSON array.`,
           border: `1px solid ${inputFocused ? 'var(--color-accent)' : 'var(--color-border)'}`,
           borderRadius: 'var(--radius-xl)',
           boxShadow: inputFocused ? `var(--shadow-lg), 0 0 0 3px var(--color-focus-ring)` : 'var(--shadow-lg)',
-          overflow: 'hidden',
           transition: 'box-shadow var(--transition-base), border-color var(--transition-base)',
         }}>
           {/* Attached files */}
