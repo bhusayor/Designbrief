@@ -5,7 +5,7 @@ import {
   ArrowLeftIcon, ArrowDownTrayIcon, ShareIcon, UserGroupIcon,
   ExclamationTriangleIcon, LightBulbIcon, CurrencyDollarIcon,
   CalendarDaysIcon, UsersIcon, GlobeAltIcon,
-  ArrowTopRightOnSquareIcon, SparklesIcon, BoltIcon, ChevronRightIcon,
+  ArrowTopRightOnSquareIcon, SparklesIcon, BoltIcon, ChevronRightIcon, ChevronDownIcon,
   SwatchIcon, CursorArrowRaysIcon, CodeBracketIcon, ServerIcon,
   FilmIcon, PencilSquareIcon, ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline'
@@ -17,7 +17,7 @@ import {
   generateSubtasks,
 } from '../lib/api'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
-import TemplatePicker from '../components/brief/TemplatePicker'
+import { ICON_MAP } from '../components/brief/TemplatePicker'
 import { getBriefTemplate, getWebsiteTemplate, BRIEF_TEMPLATES } from '../lib/templates'
 import BriefRenderer from '../components/brief/BriefRenderer'
 
@@ -275,12 +275,13 @@ export default function Dashboard() {
   const [loadingCompetitors, setLoadingCompetitors] = useState(false)
   const [storedBriefText, setStoredBriefText] = useState('')
   const [inspiSearched, setInspiSearched] = useState(false)
-  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [showStylePicker, setShowStylePicker] = useState(false)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
   const plusMenuRef = useRef(null)
   const msgTimerRef = useRef(null)
+  const stylePickerRef = useRef(null)
 
   // Quick brief from session storage
   useEffect(() => {
@@ -297,6 +298,18 @@ export default function Dashboard() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [showPlusMenu])
+
+  // Close style picker on outside click
+  useEffect(() => {
+    if (!showStylePicker) return
+    function handler(e) {
+      if (stylePickerRef.current && !stylePickerRef.current.contains(e.target)) setShowStylePicker(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showStylePicker])
+
+  const currentTemplate = BRIEF_TEMPLATES.find(t => t.id === selectedBriefTemplate) || BRIEF_TEMPLATES[0]
 
   // Auto-resize textarea
   useEffect(() => {
@@ -709,79 +722,6 @@ The flow should be realistic for this product. Return only the JSON array.`,
           Paste a client brief. Get deliverables, timelines, colors, and team roles in seconds.
         </p>
 
-        {/* Template selector toggle */}
-        <button
-          onClick={() => setShowTemplatePicker(prev => !prev)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '7px 14px',
-            background: showTemplatePicker ? 'var(--color-surface-2)' : 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-full)',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--color-text-soft)',
-            marginBottom: 12,
-            transition: 'var(--transition-fast)',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.borderColor = 'var(--color-border-strong)'
-            e.currentTarget.style.color = 'var(--color-text)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.borderColor = 'var(--color-border)'
-            e.currentTarget.style.color = 'var(--color-text-soft)'
-          }}
-        >
-          <SwatchIcon style={{ width: 13, height: 13 }} />
-          {getBriefTemplate(selectedBriefTemplate).name}
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 9,
-            background: 'var(--color-accent-soft)',
-            color: 'var(--color-accent)',
-            border: '1px solid rgba(124,58,237,0.2)',
-            borderRadius: 'var(--radius-full)',
-            padding: '1px 7px',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-          }}>
-            Change
-          </span>
-        </button>
-
-        {/* Template picker panel */}
-        {showTemplatePicker && (
-          <div style={{
-            width: '100%',
-            maxWidth: 620,
-            marginBottom: 14,
-            padding: 16,
-            background: 'var(--color-card)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-xl)',
-            boxShadow: 'var(--shadow-lg)',
-            animation: 'dropIn 0.2s ease',
-          }}>
-            <TemplatePicker
-              selectedBriefTemplate={selectedBriefTemplate}
-              selectedWebsiteTemplate={selectedWebsiteTemplate}
-              onSelectBrief={id => {
-                setSelectedBriefTemplate(id)
-                setShowTemplatePicker(false)
-              }}
-              onSelectWebsite={id => {
-                setSelectedWebsiteTemplate(id)
-                setShowTemplatePicker(false)
-              }}
-            />
-          </div>
-        )}
-
         {/* Input card */}
         <div style={{
           width: '100%',
@@ -829,6 +769,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {/* Attach button */}
               <div style={{ position: 'relative' }} ref={plusMenuRef}>
+
                 <button
                   onClick={() => setShowPlusMenu(v => !v)}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.borderColor = 'var(--color-border-strong)' }}
@@ -849,6 +790,133 @@ The flow should be realistic for this product. Return only the JSON array.`,
                   </div>
                 )}
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => { handleFileAttach(e.target.files[0]); e.target.value = '' }} />
+              </div>
+
+              {/* Divider */}
+              <div style={{ width: 1, height: 20, background: 'var(--color-divider)', flexShrink: 0 }} />
+
+              {/* Output style pill */}
+              <div style={{ position: 'relative' }} ref={stylePickerRef}>
+                <button
+                  onClick={() => setShowStylePicker(v => !v)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '5px 10px 5px 8px',
+                    background: showStylePicker ? currentTemplate.accent + '15' : 'transparent',
+                    border: '1px solid ' + (showStylePicker ? currentTemplate.accent + '60' : 'var(--color-border)'),
+                    borderRadius: 'var(--radius-full)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: showStylePicker ? currentTemplate.accent : 'var(--color-text-soft)',
+                    transition: 'var(--transition-fast)',
+                  }}
+                  onMouseEnter={e => {
+                    if (!showStylePicker) {
+                      e.currentTarget.style.borderColor = currentTemplate.accent + '60'
+                      e.currentTarget.style.color = currentTemplate.accent
+                      e.currentTarget.style.background = currentTemplate.accent + '10'
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!showStylePicker) {
+                      e.currentTarget.style.borderColor = 'var(--color-border)'
+                      e.currentTarget.style.color = 'var(--color-text-soft)'
+                      e.currentTarget.style.background = 'transparent'
+                    }
+                  }}
+                >
+                  {(() => {
+                    const IconComp = ICON_MAP[currentTemplate.icon] || SwatchIcon
+                    return <IconComp style={{ width: 12, height: 12, color: currentTemplate.accent }} />
+                  })()}
+                  <span>{currentTemplate.name}</span>
+                  <ChevronDownIcon style={{
+                    width: 11, height: 11, opacity: 0.6,
+                    transform: showStylePicker ? 'rotate(180deg)' : 'none',
+                    transition: 'transform 0.2s',
+                  }} />
+                </button>
+
+                {/* Upward popover */}
+                {showStylePicker && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 'calc(100% + 10px)',
+                    left: 0,
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '14px',
+                    minWidth: 380,
+                    boxShadow: 'var(--shadow-lg)',
+                    animation: 'fadeUp 0.15s ease',
+                    zIndex: 100,
+                  }}>
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 2 }}>Output style</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)' }}>Choose how your brief will be formatted</div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+                      {BRIEF_TEMPLATES.map(tmpl => {
+                        const IconComp = ICON_MAP[tmpl.icon] || SwatchIcon
+                        const isSel = selectedBriefTemplate === tmpl.id
+                        return (
+                          <button
+                            key={tmpl.id}
+                            onClick={() => { setSelectedBriefTemplate(tmpl.id); setShowStylePicker(false) }}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '10px 6px',
+                              background: isSel ? tmpl.accent + '12' : 'var(--color-surface)',
+                              border: '1.5px solid ' + (isSel ? tmpl.accent : 'var(--color-border)'),
+                              borderRadius: 'var(--radius-lg)',
+                              cursor: 'pointer',
+                              transition: 'var(--transition-fast)',
+                            }}
+                            onMouseEnter={e => {
+                              if (!isSel) {
+                                e.currentTarget.style.borderColor = tmpl.accent
+                                e.currentTarget.style.background = tmpl.accent + '08'
+                              }
+                            }}
+                            onMouseLeave={e => {
+                              if (!isSel) {
+                                e.currentTarget.style.borderColor = 'var(--color-border)'
+                                e.currentTarget.style.background = 'var(--color-surface)'
+                              }
+                            }}
+                          >
+                            <div style={{
+                              width: 28, height: 28,
+                              borderRadius: 'var(--radius-md)',
+                              background: tmpl.accent + '15',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <IconComp style={{ width: 14, height: 14, color: tmpl.accent }} />
+                            </div>
+                            <span style={{
+                              fontFamily: 'var(--font-sans)',
+                              fontSize: 10,
+                              fontWeight: isSel ? 700 : 500,
+                              color: isSel ? tmpl.accent : 'var(--color-text-muted)',
+                              textAlign: 'center',
+                              lineHeight: 1.2,
+                            }}>
+                              {tmpl.name}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

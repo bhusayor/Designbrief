@@ -17,7 +17,7 @@ import {
   WEBSITE_TEMPLATES,
 } from '../../lib/templates'
 
-const ICON_MAP = {
+export const ICON_MAP = {
   PresentationChartBarIcon,
   CodeBracketIcon,
   SwatchIcon,
