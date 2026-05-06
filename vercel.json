@@ -13,6 +13,18 @@
     }
   ],
   "functions": {
+    "api/connectors/figma.js": {
+      "memory": 512,
+      "maxDuration": 15
+    },
+    "api/connectors/github.js": {
+      "memory": 512,
+      "maxDuration": 15
+    },
+    "api/connectors/linear.js": {
+      "memory": 512,
+      "maxDuration": 20
+    },
     "api/create-workspace.js": {
       "memory": 512,
       "maxDuration": 10
