@@ -13,37 +13,14 @@
     }
   ],
   "functions": {
-    "api/connectors/figma.js": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "api/connectors/github.js": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "api/connectors/linear.js": {
-      "memory": 512,
-      "maxDuration": 20
-    },
-    "api/create-workspace.js": {
-      "memory": 512,
-      "maxDuration": 10
-    },
     "api/submit-intake.js": {
-      "memory": 1024,
       "maxDuration": 60
     },
     "api/claude.js": {
-      "memory": 1024,
       "maxDuration": 60
     },
     "api/claude-stream.js": {
-      "memory": 1024,
       "maxDuration": 60
-    },
-    "api/*.js": {
-      "memory": 1024,
-      "maxDuration": 30
     }
   }
 }
