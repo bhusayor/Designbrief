@@ -20,6 +20,7 @@ import {
   ClockIcon,
   CheckIcon,
   PlusIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline'
 
 function PanelLeftClose({ size = 15, color = 'currentColor' }) {
@@ -586,6 +587,13 @@ export default function Sidebar() {
           label="Team Collab"
           active={activeSection === 'team'}
           onClick={() => navigate('team')}
+          collapsed={collapsed}
+        />
+        <NavItem
+          icon={LinkIcon}
+          label="Connectors"
+          active={activeSection === 'connectors'}
+          onClick={() => navigate('connectors')}
           collapsed={collapsed}
         />
       </div>
