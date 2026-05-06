@@ -258,6 +258,7 @@ export default function Dashboard() {
     selectedBriefTemplate, setSelectedBriefTemplate,
     selectedWebsiteTemplate, setSelectedWebsiteTemplate,
     setActiveProjectBriefResult,
+    connectorData,
   } = useContext(AppContext)
 
   const [phase, setPhase] = useState('input')
@@ -417,7 +418,34 @@ export default function Dashboard() {
         websiteTmpl.sections.join(', ') +
         '\nMotion: ' + websiteTmpl.motion
 
-      const { scoreData, finalResult } = await translateAndAnalyse(fullContext + templateContext)
+      // Build connector enrichment context
+      let connectorContext = ''
+      if (connectorData?.figma) {
+        const f = connectorData.figma
+        const colorList = (f.colors || []).slice(0, 10).map(c => c.name + ': ' + c.hex).join(', ')
+        const fontList = (f.fonts || []).slice(0, 4).map(f => f.fontFamily).join(', ')
+        connectorContext +=
+          '\n\n---EXISTING FIGMA DESIGN SYSTEM---' +
+          '\nFile: ' + (f.fileName || 'Figma file') +
+          (colorList ? '\nColor styles: ' + colorList : '') +
+          (fontList ? '\nFont families: ' + fontList : '') +
+          '\nIMPORTANT: Use these exact colors and fonts in the color palette and typography sections of the output. Do not suggest different ones.'
+      }
+      if (connectorData?.github) {
+        const g = connectorData.github
+        connectorContext +=
+          '\n\n---EXISTING TECH STACK---' +
+          '\nRepo: ' + (g.repoName || '') +
+          '\nFramework: ' + (g.framework || 'Unknown') +
+          '\nLanguage: ' + (g.language || 'JS') +
+          '\nStyling: ' + (g.styling || '') +
+          (g.uiKit?.length ? '\nUI kit: ' + g.uiKit.join(', ') : '') +
+          (g.animations ? '\nAnimations: ' + g.animations : '') +
+          (g.database ? '\nDatabase: ' + g.database : '') +
+          '\nIMPORTANT: The tech stack section must use this existing stack. Do not suggest replacing it.'
+      }
+
+      const { scoreData, finalResult } = await translateAndAnalyse(fullContext + templateContext + connectorContext)
       clearInterval(msgTimerRef.current)
       if (!finalResult) throw new Error('Translation returned empty. Please try again.')
       setCreditsUsed(prev => prev + 1)
@@ -995,6 +1023,25 @@ The flow should be realistic for this product. Return only the JSON array.`,
             </button>
           </div>
         </div>
+
+        {/* Active connector badges */}
+        {(connectorData?.figma || connectorData?.github) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Active</span>
+            {connectorData?.figma && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#A259FF12', border: '1px solid #A259FF30', borderRadius: 'var(--radius-full)', padding: '3px 10px', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: '#A259FF' }}>
+                <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#A259FF' }} />
+                Figma · {(connectorData.figma.colors || []).length} colors
+              </div>
+            )}
+            {connectorData?.github && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(45,51,59,0.08)', border: '1px solid rgba(45,51,59,0.2)', borderRadius: 'var(--radius-full)', padding: '3px 10px', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--color-text-soft)' }}>
+                <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-text-soft)' }} />
+                {connectorData.github.framework || 'GitHub'}
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
     </div>

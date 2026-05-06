@@ -72,6 +72,9 @@ export function AppProvider({ children }) {
   const [selectedWebsiteTemplate, setSelectedWebsiteTemplate] = useState('saas-landing');
   const [activeProjectBriefResult, setActiveProjectBriefResult] = useState(null);
 
+  // ── Connector data ────────────────────────────────────────────────────────
+  const [connectorData, setConnectorData] = useState({ figma: null, github: null, linear: null });
+
   const toastTimer = useRef(null);
 
   // ── Theme sync ────────────────────────────────────────────────────────────
@@ -232,10 +235,29 @@ export function AppProvider({ children }) {
         .single();
 
       setWorkspace(data || null);
+      if (data?.id) loadConnectorData(data.id);
     } catch (e) {
       setWorkspace(null);
     } finally {
       setWorkspaceLoading(false);
+    }
+  }
+
+  async function loadConnectorData(workspaceId) {
+    try {
+      const { data } = await supabase
+        .from('connectors')
+        .select('type, extracted_data, status')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'connected');
+
+      if (data) {
+        const map = {};
+        data.forEach(c => { map[c.type] = c.extracted_data; });
+        setConnectorData(prev => ({ ...prev, ...map }));
+      }
+    } catch (e) {
+      console.error('[connectors load]', e);
     }
   }
 
@@ -635,6 +657,10 @@ export function AppProvider({ children }) {
     setSelectedWebsiteTemplate,
     activeProjectBriefResult,
     setActiveProjectBriefResult,
+
+    // Connector data
+    connectorData,
+    setConnectorData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -356,7 +356,7 @@ function TypingBubble({ userMessage }) {
 // ─── TeamCollab ───────────────────────────────────────────────────────────────
 
 export default function TeamCollab() {
-  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate } = useContext(AppContext)
+  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
 
   const websiteTemplate = getWebsiteTemplate(selectedWebsiteTemplate || 'saas-landing')
 
@@ -381,6 +381,10 @@ export default function TeamCollab() {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [chatOpen, setChatOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [pushLinearOpen, setPushLinearOpen] = useState(false)
+  const [selectedTeamId, setSelectedTeamId] = useState('')
+  const [pushingLinear, setPushingLinear] = useState(false)
+  const [pushResult, setPushResult] = useState(null)
   const [projects, setProjects] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('teamcollab-projects'))
@@ -3126,6 +3130,88 @@ STYLE:
         existingInvites={invites}
       />
 
+      {/* ── Push to Linear modal ── */}
+      {pushLinearOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setPushLinearOpen(false) }}>
+          <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 28, width: 420, boxShadow: 'var(--shadow-xl)' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: '#5E6AD2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17.5 66.7L33.3 82.5L82.5 33.3" stroke="white" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M17.5 33.3H50" stroke="white" strokeWidth="14" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15, color: 'var(--color-text)' }}>Push to Linear</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>{kanban?.tasks?.length || 0} task{(kanban?.tasks?.length || 0) !== 1 ? 's' : ''} will be created as issues</div>
+              </div>
+            </div>
+
+            {/* Team selector */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--color-text-soft)', marginBottom: 6 }}>Team</label>
+              <select
+                value={selectedTeamId}
+                onChange={e => setSelectedTeamId(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer' }}
+              >
+                {(connectorData?.linear?.teams || []).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Result banner */}
+            {pushResult && (
+              <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: 16, background: pushResult.ok ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)', border: `1px solid ${pushResult.ok ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'var(--font-sans)', fontSize: 13, color: pushResult.ok ? '#16a34a' : '#dc2626' }}>
+                {pushResult.message}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                onClick={() => { setPushLinearOpen(false); setPushResult(null) }}
+                style={{ padding: '9px 20px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!selectedTeamId || pushingLinear}
+                onClick={async () => {
+                  const linearToken = prompt('Enter your Linear API key to push tasks:')
+                  if (!linearToken) return
+                  setPushingLinear(true)
+                  setPushResult(null)
+                  try {
+                    const resp = await fetch('/api/connectors/linear', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'push_tasks', linearToken, teamId: selectedTeamId, tasks: kanban.tasks, workspaceId: workspace?.id }),
+                    })
+                    const data = await resp.json()
+                    if (data.ok) {
+                      setPushResult({ ok: true, message: `Successfully pushed ${data.created || kanban.tasks.length} issues to Linear.` })
+                    } else {
+                      setPushResult({ ok: false, message: data.error || 'Failed to push tasks.' })
+                    }
+                  } catch {
+                    setPushResult({ ok: false, message: 'Network error. Please try again.' })
+                  } finally {
+                    setPushingLinear(false)
+                  }
+                }}
+                style={{ padding: '9px 20px', background: selectedTeamId && !pushingLinear ? '#5E6AD2' : 'var(--color-border)', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: selectedTeamId && !pushingLinear ? '#fff' : 'var(--color-text-muted)', cursor: selectedTeamId && !pushingLinear ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {pushingLinear ? 'Pushing...' : 'Push to Linear'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Top bar ── */}
       <div style={{
         height: 48, borderBottom: '1px solid var(--color-border)',
@@ -3393,6 +3479,18 @@ STYLE:
                   <PlusIcon style={{ width: 13, height: 13 }} />
                   Add Task
                 </button>
+                {connectorData?.linear?.teams?.length > 0 && kanban?.tasks?.length > 0 && (
+                  <button
+                    onClick={() => { setSelectedTeamId(connectorData.linear.teams[0]?.id || ''); setPushResult(null); setPushLinearOpen(true) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: '#5E6AD2', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700 }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M17.5 66.7L33.3 82.5L82.5 33.3" stroke="white" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M17.5 33.3H50" stroke="white" strokeWidth="14" strokeLinecap="round"/>
+                    </svg>
+                    Push to Linear
+                  </button>
+                )}
               </div>
             </div>
           )
