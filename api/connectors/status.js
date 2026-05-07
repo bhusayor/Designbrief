@@ -13,11 +13,21 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).end()
 
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return res.status(401).json({ error: 'Unauthorised' })
+  const authHeader = req.headers.authorization
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing authorization header' })
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+  if (!token || token === 'undefined' || token === 'null') {
+    return res.status(401).json({ error: 'Invalid token' })
+  }
 
   const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
-  if (authErr || !user) return res.status(401).json({ error: 'Invalid session' })
+  if (authErr || !user) {
+    console.error('[status auth]', authErr)
+    return res.status(401).json({ error: 'Invalid session' })
+  }
 
   const { workspaceId, projectId } = req.body
   if (!workspaceId) return res.status(400).json({ error: 'workspaceId required' })

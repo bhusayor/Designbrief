@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { LinkIcon, XMarkIcon, CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { supabase } from '../../lib/supabase'
 
-function getAuthHeader() {
-  try {
-    const raw = localStorage.getItem('sb-' + (import.meta.env.VITE_SUPABASE_URL || '').replace(/^https?:\/\//, '').split('.')[0] + '-auth-token')
-    if (raw) { const p = JSON.parse(raw); if (p?.access_token) return 'Bearer ' + p.access_token }
-  } catch {}
-  for (const k of Object.keys(localStorage)) {
-    if (k.includes('-auth-token')) {
-      try { const p = JSON.parse(localStorage.getItem(k)); if (p?.access_token) return 'Bearer ' + p.access_token } catch {}
-    }
+async function getAuthHeader() {
+  let session = null
+  for (let i = 0; i < 3; i++) {
+    const { data } = await supabase.auth.getSession()
+    session = data?.session
+    if (session?.access_token) break
+    await new Promise(r => setTimeout(r, 400))
   }
-  return ''
+  if (!session?.access_token) {
+    throw new Error('Session expired. Please refresh the page.')
+  }
+  return { Authorization: 'Bearer ' + session.access_token }
 }
 
 function getToken(workspaceId, type) {
@@ -84,13 +86,15 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   useEffect(() => {
     if (!workspaceId || !projectId) return
     setLoadingStatus(true)
-    fetch('/api/connectors/status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
-      body: JSON.stringify({ workspaceId, projectId }),
-    })
+    getAuthHeader()
+      .then(authH => fetch('/api/connectors/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authH },
+        body: JSON.stringify({ workspaceId, projectId }),
+      }))
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.project) setProject(d.project) })
+      .catch(() => {})
       .finally(() => setLoadingStatus(false))
   }, [workspaceId, projectId])
 
@@ -102,7 +106,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     try {
       const r = await fetch('/api/connectors/figma', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
         body: JSON.stringify({ action: 'connect', workspaceId, projectId, figmaToken: token, figmaUrl: figmaUrl.trim() }),
       })
       const d = await r.json()
@@ -119,7 +123,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     try {
       const r = await fetch('/api/connectors/figma', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
         body: JSON.stringify({ action: 'disconnect', workspaceId, projectId }),
       })
       const d = await r.json()
@@ -138,7 +142,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     try {
       const r = await fetch('/api/connectors/github', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
         body: JSON.stringify({ action: 'connect', workspaceId, projectId, githubToken: token || undefined, repoUrl: githubUrl.trim() }),
       })
       const d = await r.json()
@@ -155,7 +159,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     try {
       const r = await fetch('/api/connectors/github', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
         body: JSON.stringify({ action: 'disconnect', workspaceId, projectId }),
       })
       const d = await r.json()
@@ -174,7 +178,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     try {
       const r = await fetch('/api/connectors/linear', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
         body: JSON.stringify({ action: 'get_teams', workspaceId, linearToken: token }),
       })
       const d = await r.json()
@@ -190,7 +194,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     try {
       const r = await fetch('/api/connectors/linear', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
         body: JSON.stringify({ action: 'save_team', workspaceId, projectId, teamId: selectedTeamId, teamName: selectedTeamName }),
       })
       const d = await r.json()
@@ -207,7 +211,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     try {
       const r = await fetch('/api/connectors/linear', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
         body: JSON.stringify({ action: 'disconnect', workspaceId, projectId }),
       })
       const d = await r.json()

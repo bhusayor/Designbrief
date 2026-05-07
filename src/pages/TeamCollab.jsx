@@ -442,29 +442,35 @@ export default function TeamCollab() {
 
   // ── Connector status ───────────────────────────────────────────────────────
   useEffect(() => {
-    const wsId = workspace?.id
-    if (!wsId) return
-    const authHeader = (() => {
-      try {
-        const raw = localStorage.getItem('sb-' + (import.meta.env.VITE_SUPABASE_URL || '').replace(/^https?:\/\//, '').split('.')[0] + '-auth-token')
-        if (raw) { const p = JSON.parse(raw); if (p?.access_token) return 'Bearer ' + p.access_token }
-      } catch {}
-      for (const k of Object.keys(localStorage)) {
-        if (k.includes('-auth-token')) {
-          try { const p = JSON.parse(localStorage.getItem(k)); if (p?.access_token) return 'Bearer ' + p.access_token } catch {}
-        }
+    if (workspace?.id && authUser?.id) loadConnectorStatus()
+  }, [workspace?.id, authUser?.id])
+
+  async function loadConnectorStatus() {
+    if (!workspace?.id) return
+    try {
+      let session = null
+      for (let i = 0; i < 3; i++) {
+        const { data } = await supabase.auth.getSession()
+        session = data?.session
+        if (session?.access_token) break
+        await new Promise(r => setTimeout(r, 500))
       }
-      return ''
-    })()
-    fetch('/api/connectors/status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
-      body: JSON.stringify({ workspaceId: wsId }),
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.installed) setInstalledConnectors(d.installed) })
-      .catch(() => {})
-  }, [workspace?.id])
+      if (!session?.access_token) return
+      const res = await fetch('/api/connectors/status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+        },
+        body: JSON.stringify({ workspaceId: workspace.id }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.installed) setInstalledConnectors(data.installed)
+    } catch (e) {
+      console.error('[connector status]', e)
+    }
+  }
 
   // ── Auto-load from activeProject ──────────────────────────────────────────
 

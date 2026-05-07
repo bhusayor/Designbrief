@@ -134,9 +134,12 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
     setError('')
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const authH = session?.access_token
-        ? { Authorization: 'Bearer ' + session.access_token }
-        : {}
+      if (!session?.access_token) {
+        setError('Session expired. Please refresh the page.')
+        setLoading(false)
+        return
+      }
+      const authH = { Authorization: 'Bearer ' + session.access_token }
 
       if (token.trim()) saveToken(workspaceId, connector.id, token.trim())
 
@@ -169,9 +172,11 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
     setLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const authH = session?.access_token
-        ? { Authorization: 'Bearer ' + session.access_token }
-        : {}
+      if (!session?.access_token) {
+        setLoading(false)
+        return
+      }
+      const authH = { Authorization: 'Bearer ' + session.access_token }
       clearToken(workspaceId, connector.id)
       await fetch('/api/connectors/' + connector.id, {
         method: 'POST',
@@ -614,32 +619,47 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function Connectors() {
-  const { workspace } = useApp()
+  const { workspace, authUser } = useApp()
   const [installed, setInstalled] = useState({ figma: false, github: false, linear: false })
   const [hints, setHints] = useState({})
   const [search, setSearch] = useState('')
   const [selectedConnector, setSelectedConnector] = useState(null)
 
   useEffect(() => {
-    if (workspace?.id) loadStatus()
-  }, [workspace?.id])
+    if (workspace?.id && authUser?.id) loadStatus()
+  }, [workspace?.id, authUser?.id])
 
   async function loadStatus() {
+    if (!workspace?.id) return
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const authH = session?.access_token
-        ? { Authorization: 'Bearer ' + session.access_token }
-        : {}
+      let session = null
+      for (let i = 0; i < 3; i++) {
+        const { data } = await supabase.auth.getSession()
+        session = data?.session
+        if (session?.access_token) break
+        await new Promise(r => setTimeout(r, 500))
+      }
+      if (!session?.access_token) {
+        console.warn('[connectors] No session after retries')
+        return
+      }
       const res = await fetch('/api/connectors/status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authH },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+        },
         body: JSON.stringify({ workspaceId: workspace.id }),
       })
+      if (!res.ok) {
+        console.warn('[connectors status]', res.status)
+        return
+      }
       const data = await res.json()
       if (data.installed) setInstalled(data.installed)
       if (data.hints) setHints(data.hints)
     } catch (e) {
-      console.error('[status]', e)
+      console.error('[connectors]', e)
     }
   }
 
