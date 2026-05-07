@@ -29,6 +29,7 @@ import {
 } from '../lib/taskService'
 import { InviteModal } from '../components/team'
 import ConnectPanel from '../components/connectors/ConnectPanel'
+import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -448,27 +449,13 @@ export default function TeamCollab() {
   async function loadConnectorStatus() {
     if (!workspace?.id) return
     try {
-      let session = null
-      for (let i = 0; i < 3; i++) {
-        const { data } = await supabase.auth.getSession()
-        session = data?.session
-        if (session?.access_token) break
-        await new Promise(r => setTimeout(r, 500))
-      }
-      if (!session?.access_token) return
-      const res = await fetch('/api/connectors/status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + session.access_token,
-        },
-        body: JSON.stringify({ workspaceId: workspace.id }),
+      const data = await authedFetch('/api/connectors/status', {
+        workspaceId: workspace.id,
+        projectId: String(activeProjectId || 'default'),
       })
-      if (!res.ok) return
-      const data = await res.json()
       if (data.installed) setInstalledConnectors(data.installed)
     } catch (e) {
-      console.error('[connector status]', e)
+      console.warn('[tc connectors]', e.message)
     }
   }
 

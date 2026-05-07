@@ -1,20 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { LinkIcon, XMarkIcon, CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import { supabase } from '../../lib/supabase'
-
-async function getAuthHeader() {
-  let session = null
-  for (let i = 0; i < 3; i++) {
-    const { data } = await supabase.auth.getSession()
-    session = data?.session
-    if (session?.access_token) break
-    await new Promise(r => setTimeout(r, 400))
-  }
-  if (!session?.access_token) {
-    throw new Error('Session expired. Please refresh the page.')
-  }
-  return { Authorization: 'Bearer ' + session.access_token }
-}
+import { authedFetch, getAuthHeader } from '../../lib/getAuthHeader'
 
 function getToken(workspaceId, type) {
   return localStorage.getItem('db-token-' + workspaceId + '-' + type) || ''
@@ -86,13 +72,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   useEffect(() => {
     if (!workspaceId || !projectId) return
     setLoadingStatus(true)
-    getAuthHeader()
-      .then(authH => fetch('/api/connectors/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authH },
-        body: JSON.stringify({ workspaceId, projectId }),
-      }))
-      .then(r => r.ok ? r.json() : null)
+    authedFetch('/api/connectors/status', { workspaceId, projectId })
       .then(d => { if (d?.project) setProject(d.project) })
       .catch(() => {})
       .finally(() => setLoadingStatus(false))
@@ -104,13 +84,10 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     if (!figmaUrl.trim()) return
     setFigmaLoading(true); setFigmaError(null)
     try {
-      const r = await fetch('/api/connectors/figma', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
-        body: JSON.stringify({ action: 'connect', workspaceId, projectId, figmaToken: token, figmaUrl: figmaUrl.trim() }),
+      const d = await authedFetch('/api/connectors/figma', {
+        action: 'connect', workspaceId, projectId,
+        figmaToken: token, figmaUrl: figmaUrl.trim(),
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed to connect Figma')
       setProject(p => ({ ...(p || {}), figma_file_url: figmaUrl, figma_file_name: d.data?.fileName, figma_extracted: d.data }))
       setFigmaUrl('')
       onConnected?.()
@@ -121,13 +98,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   async function handleFigmaUnlink() {
     setFigmaLoading(true); setFigmaError(null)
     try {
-      const r = await fetch('/api/connectors/figma', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
-        body: JSON.stringify({ action: 'disconnect', workspaceId, projectId }),
-      })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed to disconnect Figma')
+      await authedFetch('/api/connectors/figma', { action: 'disconnect', workspaceId, projectId })
       setProject(p => ({ ...(p || {}), figma_file_url: null, figma_file_name: null, figma_extracted: null }))
       onConnected?.()
     } catch (e) { setFigmaError(e.message) }
@@ -140,13 +111,10 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     const token = getToken(workspaceId, 'github')
     setGithubLoading(true); setGithubError(null)
     try {
-      const r = await fetch('/api/connectors/github', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
-        body: JSON.stringify({ action: 'connect', workspaceId, projectId, githubToken: token || undefined, repoUrl: githubUrl.trim() }),
+      const d = await authedFetch('/api/connectors/github', {
+        action: 'connect', workspaceId, projectId,
+        githubToken: token || undefined, repoUrl: githubUrl.trim(),
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed to connect GitHub')
       setProject(p => ({ ...(p || {}), github_repo_url: githubUrl, github_repo_name: d.data?.repoName, github_extracted: d.data }))
       setGithubUrl('')
       onConnected?.()
@@ -157,13 +125,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   async function handleGithubUnlink() {
     setGithubLoading(true); setGithubError(null)
     try {
-      const r = await fetch('/api/connectors/github', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
-        body: JSON.stringify({ action: 'disconnect', workspaceId, projectId }),
-      })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed to disconnect GitHub')
+      await authedFetch('/api/connectors/github', { action: 'disconnect', workspaceId, projectId })
       setProject(p => ({ ...(p || {}), github_repo_url: null, github_repo_name: null, github_extracted: null }))
       onConnected?.()
     } catch (e) { setGithubError(e.message) }
@@ -176,13 +138,9 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     if (!token) { setLinearError('No Linear token saved. Install Linear from the Integrations page.'); return }
     setLinearLoading(true); setLinearError(null)
     try {
-      const r = await fetch('/api/connectors/linear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
-        body: JSON.stringify({ action: 'get_teams', workspaceId, linearToken: token }),
+      const d = await authedFetch('/api/connectors/linear', {
+        action: 'get_teams', workspaceId, linearToken: token,
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed to fetch teams')
       setLinearTeams(d.data?.teams || [])
     } catch (e) { setLinearError(e.message) }
     finally { setLinearLoading(false) }
@@ -192,13 +150,10 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     if (!selectedTeamId) return
     setSavingTeam(true); setLinearError(null)
     try {
-      const r = await fetch('/api/connectors/linear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
-        body: JSON.stringify({ action: 'save_team', workspaceId, projectId, teamId: selectedTeamId, teamName: selectedTeamName }),
+      await authedFetch('/api/connectors/linear', {
+        action: 'save_team', workspaceId, projectId,
+        teamId: selectedTeamId, teamName: selectedTeamName,
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed to save team')
       setProject(p => ({ ...(p || {}), linear_team_id: selectedTeamId, linear_team_name: selectedTeamName }))
       setLinearTeams(null); setSelectedTeamId(null); setSelectedTeamName(null)
       onConnected?.()
@@ -209,13 +164,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   async function handleLinearUnlink() {
     setLinearLoading(true); setLinearError(null)
     try {
-      const r = await fetch('/api/connectors/linear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeader())},
-        body: JSON.stringify({ action: 'disconnect', workspaceId, projectId }),
-      })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed to disconnect Linear')
+      await authedFetch('/api/connectors/linear', { action: 'disconnect', workspaceId, projectId })
       setProject(p => ({ ...(p || {}), linear_team_id: null, linear_team_name: null }))
       setLinearTeams(null)
       onConnected?.()
