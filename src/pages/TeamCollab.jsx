@@ -20,7 +20,7 @@ import {
   SwatchIcon, UsersIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
-import { getWebsiteTemplate } from '../lib/templates'
+import { getWebsiteTemplate, WEBSITE_TEMPLATES } from '../lib/templates'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaudeTools } from '../lib/api'
 import { getProjectInvites } from '../lib/teamService'
 import {
@@ -357,9 +357,20 @@ function TypingBubble({ userMessage }) {
 // ─── TeamCollab ───────────────────────────────────────────────────────────────
 
 export default function TeamCollab() {
-  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
+  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, setSelectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
 
   const websiteTemplate = getWebsiteTemplate(selectedWebsiteTemplate || 'saas-landing')
+
+  function detectWebsiteTemplateFromText(text) {
+    if (!text) return null
+    const t = text.toLowerCase()
+    if (/\b(shop|store|product|cart|checkout|retail|marketplace|buy|sell|ecommerce|e-commerce)\b/.test(t)) return 'ecommerce'
+    if (/\b(portfolio|agency|freelance|creative studio|design studio|personal site|showcase|case study)\b/.test(t)) return 'portfolio'
+    if (/\b(mvp|waitlist|validate|beta|launch|early access|pre-launch|coming soon)\b/.test(t)) return 'startup-mvp'
+    if (/\b(mobile app|ios app|android app|app store|google play|download.*app|native app)\b/.test(t)) return 'mobile-app'
+    if (/\b(saas|software|platform|tool|dashboard|subscription|b2b|enterprise|signup)\b/.test(t)) return 'saas-landing'
+    return null
+  }
 
   const [phase, setPhase] = useState('brief')
   const [messages, setMessages] = useState([])
@@ -427,6 +438,8 @@ export default function TeamCollab() {
   const [promptCopied, setPromptCopied] = useState(false)
   const [promptPrefs, setPromptPrefs] = useState({ colors: '', fonts: '', style: '', references: '' })
   const [showPrefsPanel, setShowPrefsPanel] = useState(false)
+  const [promptError, setPromptError] = useState(null)
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -446,6 +459,9 @@ export default function TeamCollab() {
       setProjectTitle(title)
       addMessage('ai', 'I have loaded the brief for **' + title + '**. Analysing team requirements...')
       handleAnalyseBrief(brief)
+      // Auto-detect website template from brief + title
+      const detected = detectWebsiteTemplateFromText(title + ' ' + brief)
+      if (detected) setSelectedWebsiteTemplate(detected)
     }
   }, [])
 
@@ -462,6 +478,16 @@ export default function TeamCollab() {
     if (!picks.find(p => p?.label === any?.label)) picks.push(any)
     setActiveSuggestions(picks.filter(Boolean).slice(0, 4))
   }, [chatOpen])
+
+  // Auto-detect website template when brief text changes (debounced)
+  useEffect(() => {
+    if (!briefText || briefText.length < 20) return
+    const timer = setTimeout(() => {
+      const detected = detectWebsiteTemplateFromText(projectTitle + ' ' + briefText)
+      if (detected) setSelectedWebsiteTemplate(detected)
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [briefText, projectTitle])
 
   useEffect(() => {
     const el = chatInputRef.current
@@ -744,6 +770,7 @@ Return JSON:
     setGeneratedPrompt('')
     setGeneratingPrompt(true)
     setPromptCopied(false)
+    setPromptError(null)
 
     try {
       const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
@@ -915,19 +942,31 @@ Return JSON: { "prompt": "the full multi-section prompt" }`,
       )
 
       let promptText = result?.prompt
-      if (!promptText || promptText.length < 500 || !promptText.includes('━━━')) {
-        console.warn('[generatePrompt] AI response insufficient, using senior template')
-        promptText = buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label)
+      if (promptText && promptText.length >= 200) {
+        setGeneratedPrompt(promptText)
+      } else {
+        // AI returned something unusable — fall back to structured template
+        const fallback = buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label)
+        setGeneratedPrompt(fallback)
+        setPromptError('AI generation fell back to template — you can regenerate or use this structured prompt.')
       }
-      setGeneratedPrompt(promptText)
     } catch (e) {
       console.error('[generate prompt]', e)
-      const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
-      const briefData = getProjectBriefData()
-      const isBriefDerived = task.source !== 'manual' && (briefData.colorPalette || briefData.typography)
-      const autoDefaults = !isBriefDerived ? getAutoDesignDefaults(task) : null
-      const col = customCols.find(c => c.id === task.column)
-      setGeneratedPrompt(buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label))
+      // Show the specific error so the user knows what's wrong
+      const msg = e?.data?.code === 'RATE_LIMITED'
+        ? 'Daily AI limit reached. Resets at midnight.'
+        : e?.data?.code === 'NO_AUTH' || e?.status === 401
+        ? 'Session expired — please refresh the page.'
+        : e?.message?.includes('429')
+        ? 'Daily AI limit reached. Resets at midnight.'
+        : 'AI unavailable — showing structured template prompt instead.'
+      setPromptError(msg)
+      const projectNameFb = projects.find(p => p.id === activeProjectId)?.title || 'Project'
+      const briefDataFb = getProjectBriefData()
+      const isBriefDerivedFb = task.source !== 'manual' && (briefDataFb.colorPalette || briefDataFb.typography)
+      const autoDefaultsFb = !isBriefDerivedFb ? getAutoDesignDefaults(task) : null
+      const colFb = customCols.find(c => c.id === task.column)
+      setGeneratedPrompt(buildSeniorPrompt(task, projectNameFb, briefDataFb, autoDefaultsFb, promptPrefs, colFb?.label))
     } finally {
       setGeneratingPrompt(false)
     }
@@ -4109,44 +4148,35 @@ STYLE:
               </div>
             )}
 
-            {/* Website template badge */}
-            {websiteTemplate && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 24px',
-                background: 'var(--color-surface)',
-                borderBottom: '1px solid var(--color-border)',
-                flexShrink: 0,
-              }}>
-                <span style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  letterSpacing: '0.06em',
-                  color: 'var(--color-text-muted)',
-                  textTransform: 'uppercase',
-                }}>
-                  Website template
+            {/* Website template row — clickable badge + inline picker */}
+            <div style={{ padding: '8px 24px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--color-text-muted)', textTransform: 'uppercase', flexShrink: 0 }}>
+                  Template
                 </span>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  background: (websiteTemplate.accent || '#7C3AED') + '12',
-                  border: '1px solid ' + (websiteTemplate.accent || '#7C3AED') + '30',
-                  borderRadius: 'var(--radius-full)',
-                  padding: '2px 10px',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: websiteTemplate.accent || '#7C3AED',
-                }}>
-                  {websiteTemplate.name}
-                </span>
+                {WEBSITE_TEMPLATES.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => { setSelectedWebsiteTemplate(t.id); setShowTemplatePicker(false) }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      background: selectedWebsiteTemplate === t.id ? (t.accent || '#7C3AED') + '18' : 'transparent',
+                      border: '1px solid ' + (selectedWebsiteTemplate === t.id ? (t.accent || '#7C3AED') + '60' : 'var(--color-border)'),
+                      borderRadius: 20,
+                      padding: '3px 10px',
+                      cursor: 'pointer',
+                      fontFamily: "'Urbanist',sans-serif",
+                      fontSize: 11,
+                      fontWeight: selectedWebsiteTemplate === t.id ? 700 : 500,
+                      color: selectedWebsiteTemplate === t.id ? (t.accent || '#7C3AED') : 'var(--color-text-muted)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {t.name}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
 
             {/* Customize panel */}
             {showPrefsPanel && (
@@ -4167,6 +4197,17 @@ STYLE:
                     />
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Error banner */}
+            {promptError && !generatingPrompt && (
+              <div style={{ margin: '0 24px', marginTop: 12, padding: '10px 14px', background: '#FEF3C7', border: '1px solid #F59E0B40', borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
+                <ExclamationCircleIcon style={{ width: 14, height: 14, color: '#D97706', flexShrink: 0, marginTop: 1 }} />
+                <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: '#92400E', fontWeight: 500, lineHeight: 1.4 }}>{promptError}</span>
+                <button onClick={() => setPromptError(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', flexShrink: 0, padding: 0 }}>
+                  <XMarkIcon style={{ width: 13, height: 13 }} />
+                </button>
               </div>
             )}
 
@@ -4193,7 +4234,7 @@ STYLE:
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
-                  onClick={() => promptModalTask && handleGeneratePrompt(promptModalTask)}
+                  onClick={() => { setPromptError(null); promptModalTask && handleGeneratePrompt(promptModalTask) }}
                   disabled={generatingPrompt}
                   style={{ padding: '9px 16px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 9, cursor: generatingPrompt ? 'wait' : 'pointer', fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s' }}
                 >
