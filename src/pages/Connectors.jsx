@@ -653,67 +653,69 @@ export default function Connectors() {
 
   return (
     <div style={{
-      padding: '28px 32px', maxWidth: 920,
+      padding: '28px 32px',
       fontFamily: "'Urbanist', sans-serif",
     }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{
-          fontWeight: 800, fontSize: 22,
-          letterSpacing: '-0.04em',
-          color: 'var(--color-text)',
-          margin: '0 0 6px',
-        }}>
-          Connectors
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
-          Connect your tools to supercharge AI-generated briefs.
-          {installedCount > 0 && (
-            <span style={{
-              marginLeft: 8, fontFamily: 'monospace',
-              fontSize: 11, fontWeight: 700,
-              background: 'rgba(22,163,74,0.08)',
-              border: '1px solid rgba(22,163,74,0.2)',
-              borderRadius: 100, padding: '2px 9px',
-              color: '#16a34a',
-            }}>
-              {installedCount} installed
-            </span>
-          )}
-        </p>
+      {/* Header + search — constrained width */}
+      <div style={{ maxWidth: 640 }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{
+            fontWeight: 800, fontSize: 22,
+            letterSpacing: '-0.04em',
+            color: 'var(--color-text)',
+            margin: '0 0 6px',
+          }}>
+            Connectors
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
+            Connect your tools to supercharge AI-generated briefs.
+            {installedCount > 0 && (
+              <span style={{
+                marginLeft: 8, fontFamily: 'monospace',
+                fontSize: 11, fontWeight: 700,
+                background: 'rgba(22,163,74,0.08)',
+                border: '1px solid rgba(22,163,74,0.2)',
+                borderRadius: 100, padding: '2px 9px',
+                color: '#16a34a',
+              }}>
+                {installedCount} installed
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Search */}
+        <div style={{ position: 'relative', marginBottom: 20 }}>
+          <MagnifyingGlassIcon style={{
+            position: 'absolute', left: 12, top: '50%',
+            transform: 'translateY(-50%)',
+            width: 15, height: 15,
+            color: 'var(--color-text-muted)',
+            pointerEvents: 'none',
+          }}/>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search connectors..."
+            style={{
+              width: '100%',
+              background: 'var(--color-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 10,
+              padding: '10px 14px 10px 36px',
+              fontFamily: "'Urbanist', sans-serif",
+              fontSize: 14, color: 'var(--color-text)',
+              outline: 'none', boxSizing: 'border-box',
+              transition: 'all 0.15s',
+            }}
+            onFocus={e => { e.target.style.borderColor = '#7C3AED'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.1)' }}
+            onBlur={e => { e.target.style.borderColor = 'var(--color-border)'; e.target.style.boxShadow = 'none' }}
+          />
+        </div>
       </div>
 
-      {/* Search */}
-      <div style={{ position: 'relative', marginBottom: 20 }}>
-        <MagnifyingGlassIcon style={{
-          position: 'absolute', left: 12, top: '50%',
-          transform: 'translateY(-50%)',
-          width: 15, height: 15,
-          color: 'var(--color-text-muted)',
-          pointerEvents: 'none',
-        }}/>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search connectors..."
-          style={{
-            width: '100%',
-            background: 'var(--color-card)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 10,
-            padding: '10px 14px 10px 36px',
-            fontFamily: "'Urbanist', sans-serif",
-            fontSize: 14, color: 'var(--color-text)',
-            outline: 'none', boxSizing: 'border-box',
-            transition: 'all 0.15s',
-          }}
-          onFocus={e => { e.target.style.borderColor = '#7C3AED'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.1)' }}
-          onBlur={e => { e.target.style.borderColor = 'var(--color-border)'; e.target.style.boxShadow = 'none' }}
-        />
-      </div>
-
-      {/* auto-fill grid — all cards on one row, extras wrap */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+      {/* auto-fill grid — cards use full available width */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         {filtered.map(connector => (
           <ConnectorCard
             key={connector.id}
