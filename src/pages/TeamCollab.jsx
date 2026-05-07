@@ -28,6 +28,7 @@ import {
   calculateDueDates, calculateProgress, logActivity,
 } from '../lib/taskService'
 import { InviteModal } from '../components/team'
+import { supabase } from '../lib/supabase'
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 // ─── Board agent tools ────────────────────────────────────────────────────────
@@ -3186,10 +3187,11 @@ STYLE:
                   setPushingLinear(true)
                   setPushResult(null)
                   try {
-                    const resp = await fetch('/api/connectors/linear', {
+                    const { data: { session } } = await supabase.auth.getSession()
+                    const resp = await fetch('/api/connectors', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ action: 'push_tasks', linearToken, teamId: selectedTeamId, tasks: kanban.tasks, workspaceId: workspace?.id }),
+                      headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { 'Authorization': 'Bearer ' + session.access_token } : {}) },
+                      body: JSON.stringify({ type: 'linear', action: 'push_tasks', linearToken, teamId: selectedTeamId, tasks: kanban.tasks, workspaceId: workspace?.id }),
                     })
                     const data = await resp.json()
                     if (data.ok) {

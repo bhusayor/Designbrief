@@ -476,7 +476,7 @@ export default function Connectors() {
   async function callConnector(type, body) {
     const h = await getAuthHeader()
     const res = await fetch(
-      '/api/connectors/' + type,
+      '/api/connectors',
       {
         method: 'POST',
         headers: {
@@ -484,6 +484,7 @@ export default function Connectors() {
           ...h,
         },
         body: JSON.stringify({
+          type,
           workspaceId: workspace.id,
           ...body,
         }),
