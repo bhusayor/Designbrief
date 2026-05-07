@@ -20,7 +20,7 @@ import {
   SwatchIcon, UsersIcon,
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
-import { getWebsiteTemplate, WEBSITE_TEMPLATES } from '../lib/templates'
+import { getWebsiteTemplate } from '../lib/templates'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaudeTools } from '../lib/api'
 import { getProjectInvites } from '../lib/teamService'
 import {
@@ -357,20 +357,9 @@ function TypingBubble({ userMessage }) {
 // ─── TeamCollab ───────────────────────────────────────────────────────────────
 
 export default function TeamCollab() {
-  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, setSelectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
+  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
 
   const websiteTemplate = getWebsiteTemplate(selectedWebsiteTemplate || 'saas-landing')
-
-  function detectWebsiteTemplateFromText(text) {
-    if (!text) return null
-    const t = text.toLowerCase()
-    if (/\b(shop|store|product|cart|checkout|retail|marketplace|buy|sell|ecommerce|e-commerce)\b/.test(t)) return 'ecommerce'
-    if (/\b(portfolio|agency|freelance|creative studio|design studio|personal site|showcase|case study)\b/.test(t)) return 'portfolio'
-    if (/\b(mvp|waitlist|validate|beta|launch|early access|pre-launch|coming soon)\b/.test(t)) return 'startup-mvp'
-    if (/\b(mobile app|ios app|android app|app store|google play|download.*app|native app)\b/.test(t)) return 'mobile-app'
-    if (/\b(saas|software|platform|tool|dashboard|subscription|b2b|enterprise|signup)\b/.test(t)) return 'saas-landing'
-    return null
-  }
 
   const [phase, setPhase] = useState('brief')
   const [messages, setMessages] = useState([])
@@ -439,7 +428,6 @@ export default function TeamCollab() {
   const [promptPrefs, setPromptPrefs] = useState({ colors: '', fonts: '', style: '', references: '' })
   const [showPrefsPanel, setShowPrefsPanel] = useState(false)
   const [promptError, setPromptError] = useState(null)
-  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -459,9 +447,6 @@ export default function TeamCollab() {
       setProjectTitle(title)
       addMessage('ai', 'I have loaded the brief for **' + title + '**. Analysing team requirements...')
       handleAnalyseBrief(brief)
-      // Auto-detect website template from brief + title
-      const detected = detectWebsiteTemplateFromText(title + ' ' + brief)
-      if (detected) setSelectedWebsiteTemplate(detected)
     }
   }, [])
 
@@ -478,16 +463,6 @@ export default function TeamCollab() {
     if (!picks.find(p => p?.label === any?.label)) picks.push(any)
     setActiveSuggestions(picks.filter(Boolean).slice(0, 4))
   }, [chatOpen])
-
-  // Auto-detect website template when brief text changes (debounced)
-  useEffect(() => {
-    if (!briefText || briefText.length < 20) return
-    const timer = setTimeout(() => {
-      const detected = detectWebsiteTemplateFromText(projectTitle + ' ' + briefText)
-      if (detected) setSelectedWebsiteTemplate(detected)
-    }, 800)
-    return () => clearTimeout(timer)
-  }, [briefText, projectTitle])
 
   useEffect(() => {
     const el = chatInputRef.current
@@ -778,187 +753,71 @@ Return JSON:
       const isBriefDerived = task.source !== 'manual' && (briefData.colorPalette || briefData.typography)
       const autoDefaults = !isBriefDerived ? getAutoDesignDefaults(task) : null
       const col = customCols.find(c => c.id === task.column)
-
-      let designTokensContext = ''
-      if (isBriefDerived && briefData.colorPalette) {
-        designTokensContext = `USE THESE EXACT BRAND TOKENS (from project brief):
-
-COLORS:
-${briefData.colorPalette.map(c => '- ' + (c.hex || c.color) + ' · ' + (c.name || '') + ' · ' + (c.usage || '')).join('\n')}
-
-TYPOGRAPHY:
-${briefData.typography
-  ? '- Display: ' + (briefData.typography.displayFont || briefData.typography.heading || 'Inter') + '\n- Body: ' + (briefData.typography.bodyFont || briefData.typography.body || 'Inter')
-  : '- Use a single sans-serif (Inter or Geist)'}
-
-${briefData.toneWords?.length ? 'BRAND TONE: ' + briefData.toneWords.join(', ') : ''}
-${briefData.brandVoice?.personality ? 'VOICE: ' + briefData.brandVoice.personality : ''}
-${briefData.audience ? 'AUDIENCE: ' + briefData.audience : ''}
-${briefData.industry ? 'INDUSTRY: ' + briefData.industry : ''}`
-      } else if (autoDefaults) {
-        const p = autoDefaults.palette
-        const f = autoDefaults.fonts
-        designTokensContext = `AUTO-SELECTED DESIGN TOKENS (curated for this task):
-
-DESIGN DIRECTION: ${p.name}
-
-COLORS:
-- Primary:    ${p.primary} (text, dark accents)
-- Accent:     ${p.accent} (CTAs, links, highlights)
-- Background: ${p.bg}
-- Text:       ${p.text}
-- Muted:      ${p.muted} (secondary text, borders)
-
-TYPOGRAPHY:
-- Display: ${f.display} (headings)
-- Body:    ${f.body} (body text)
-- ${f.rationale}
-
-DESIGN PRINCIPLES:
-- Clean, modern, minimal
-- Generous whitespace (use 8px base spacing)
-- Subtle micro-interactions on hover
-- 200-300ms transitions for all state changes
-- Heroicons for ALL icons (https://heroicons.com)
-- Maximum 2 font weights per surface
-- Border radius: 12px for cards, 8px for buttons
-- Subtle shadows: 0 1px 3px rgba(0,0,0,0.05)`
-      }
-
-      let userOverrides = ''
-      if (promptPrefs.colors || promptPrefs.fonts || promptPrefs.style || promptPrefs.references) {
-        userOverrides = '\n\nUSER OVERRIDES (MUST follow these instead of defaults):'
-        if (promptPrefs.colors) userOverrides += '\n- Colors: ' + promptPrefs.colors
-        if (promptPrefs.fonts) userOverrides += '\n- Fonts: ' + promptPrefs.fonts
-        if (promptPrefs.style) userOverrides += '\n- Style: ' + promptPrefs.style
-        if (promptPrefs.references) userOverrides += '\n- References: ' + promptPrefs.references
-      }
-
-      const wsTemplateContext = websiteTemplate
-        ? '\n\nWEBSITE STRUCTURE TEMPLATE: ' + websiteTemplate.name +
-          '\nSections: ' + websiteTemplate.sections.join(', ') +
-          '\nMotion: ' + websiteTemplate.motion +
-          '\nTech: ' + websiteTemplate.techStack
-        : ''
-
       const platform = detectPlatform(task, briefData)
       const pattern = getStructurePattern(task, platform, briefData)
-      const imageQueries = getImageQueries(task, briefData, pattern, platform)
       const taskIcons = getTaskIcons(task)
 
+      // Build a compact design context (keep input tokens low so response fits in 10s)
+      let designCtx = ''
+      if (isBriefDerived && briefData.colorPalette) {
+        const colors = briefData.colorPalette.slice(0, 4).map(c => (c.hex || c.color) + ' ' + (c.name || '')).join(', ')
+        const fonts = briefData.typography
+          ? (briefData.typography.displayFont || 'Inter') + ' / ' + (briefData.typography.bodyFont || 'Inter')
+          : 'Inter'
+        designCtx = `Colors: ${colors}\nFonts: ${fonts}`
+        if (briefData.toneWords?.length) designCtx += '\nTone: ' + briefData.toneWords.slice(0, 4).join(', ')
+      } else if (autoDefaults) {
+        const p = autoDefaults.palette
+        designCtx = `Colors: ${p.primary} primary, ${p.accent} accent, ${p.bg} bg\nFonts: ${autoDefaults.fonts.display} / ${autoDefaults.fonts.body}`
+      }
+
+      const overrides = [
+        promptPrefs.colors && 'Colors: ' + promptPrefs.colors,
+        promptPrefs.fonts && 'Fonts: ' + promptPrefs.fonts,
+        promptPrefs.style && 'Style: ' + promptPrefs.style,
+        promptPrefs.references && 'References: ' + promptPrefs.references,
+      ].filter(Boolean).join('\n')
+
+      const sections = (pattern.sections || pattern.screens || []).slice(0, 6).join(', ')
+      const icons = taskIcons.slice(0, 5).map(i => i.icon).join(', ')
+
       const result = await callJSON(
-        `You are a senior product designer + full-stack engineer with 10+ years of experience. You write implementation prompts that produce ULTRA CLEAN, MODERN designs — the kind that win awards on Awwwards and SiteInspire.
+        'You are a senior product designer. Write concise implementation prompts. Return ONLY valid JSON: { "prompt": "..." }',
+        `Write an implementation prompt for this task.
 
-YOUR PROMPTS ALWAYS INCLUDE:
-- Specific design tokens (colors, typography, spacing, radius)
-- Layout structure with concrete sections
-- Heroicons for ALL icons (no Lucide, no FA)
-- Smooth transitions (200-300ms cubic-bezier)
-- Micro-interactions on every interactive element
-- Hover states that feel intentional
-- Loading states, empty states, error states
-- Accessibility (WCAG AA contrast, keyboard nav)
-- Subtle animations on scroll (fade-up, stagger)
-- Clean typography hierarchy (max 4 sizes)
-- Generous whitespace — designers' golden ratio
+Task: ${task.title}
+${task.description ? 'Description: ' + task.description : ''}
+Project: ${projectName}
+Platform: ${platform}
+Priority: ${task.priority || 'MEDIUM'}
 
-PLATFORM AWARENESS:
-- Detect if the task is for: WEBSITE, MOBILE APP, or DESKTOP APP
-- Use platform-appropriate patterns, components, and tech stack
-- Mobile = React Native or SwiftUI, bottom tabs, gestures, haptics, safe areas
-- Website = Next.js, responsive breakpoints, SEO
-- Never propose mobile patterns for a website, or vice versa
+Design:
+${designCtx || 'Modern, clean — use Inter, dark neutrals, indigo accent'}
+${overrides ? '\nOverrides:\n' + overrides : ''}
 
-STRUCTURE DIVERSITY:
-- DO NOT use the same skeleton (hero / features / testimonials / FAQ / footer) for every task
-- Lean into the unique pattern provided in the user message
-- Common skeletons are forbidden — propose something specific to this task
-- Use editorial layouts, asymmetric grids, bento boxes, scroll-pinned sections, horizontal-scroll, magazine columns, full-bleed strips, marquee bands, stage-by-stage reveals, etc.
+Structure (use these sections): ${sections}
+Motion: ${pattern.motion}
+Icons (Heroicons): ${icons}
 
-IMAGERY:
-- Different sections need different visual types (photo, illustration, 3D render, mockup)
-- Specify the type per section
-- Vary the visual rhythm — do not use the same image type for every section
-
-ICONS:
-- List EXACT Heroicon names from @heroicons/react/24/outline
-- Format each as: "IconName · what it's for"
-- Never say "appropriate icons" — name them
-
-MOTION:
-- Every pattern has its own signature motion. Use it.
-- Generic "fade in on scroll" is not enough. Be specific to the pattern.
-
-THE OUTPUT MUST FEEL LIKE A SENIOR DESIGNER WROTE IT — confident, opinionated, specific. Never generic. Never vague.
-
-Return ONLY valid JSON, no markdown.`,
-
-        `Generate a senior-level implementation prompt for this task.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-TASK
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-TITLE: ${task.title}
-
-DESCRIPTION: ${task.description || '(none provided — infer scope from title)'}
-
-PROJECT: ${projectName}
-STATUS: ${col?.label || task.column}
-PRIORITY: ${task.priority || 'MEDIUM'}
-PLATFORM: ${platform.toUpperCase()}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-DESIGN CONTEXT
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-${designTokensContext}
-${userOverrides}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-STRUCTURE PATTERN: ${pattern.name}
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use these sections (do not invent a generic layout):
-${(pattern.sections || pattern.screens || []).map((s, i) => (i + 1) + '. ' + s).join('\n')}
-
-Pattern signature motion:
-${pattern.motion}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-INSTRUCTIONS
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-Build the prompt using ━━━ separators with these sections: SCOPE, DESIGN DIRECTION, ${platform === 'mobile' ? 'SCREEN FLOW' : 'LAYOUT & SECTIONS'}, IMAGERY, COMPONENTS, INTERACTIONS & MOTION, ICONS, STATES, TECH STACK, ACCEPTANCE CRITERIA, POLISH CHECKLIST.
-
-The prompt should be 500-800 words. Be opinionated and specific. Follow the pattern exactly.
-
-Imagery types per section:
-${imageQueries.map(q => '- ' + q.section + ': ' + q.type + ' — query "' + q.query + '"').join('\n')}
-
-SPECIFIC ICONS TO INCLUDE:
-${taskIcons.map(i => '- ' + i.icon + ' for ' + i.use).join('\n')}
-
-${wsTemplateContext}
-
-Return JSON: { "prompt": "the full multi-section prompt" }`,
-        4500
+Write a focused 300-400 word prompt covering: scope, design tokens, layout, components, interactions, icons, tech stack. Be specific and opinionated. No generic advice.`,
+        1500
       )
 
       let promptText = result?.prompt
-      if (promptText && promptText.length >= 200) {
+      if (promptText && promptText.length >= 100) {
         setGeneratedPrompt(promptText)
       } else {
-        // AI returned something unusable — fall back to structured template
-        const fallback = buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label)
-        setGeneratedPrompt(fallback)
-        setPromptError('AI generation fell back to template — you can regenerate or use this structured prompt.')
+        setGeneratedPrompt(buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label))
+        setPromptError('AI returned an incomplete response — showing structured template instead.')
       }
     } catch (e) {
       console.error('[generate prompt]', e)
-      // Show the specific error so the user knows what's wrong
-      const msg = e?.data?.code === 'RATE_LIMITED'
+      const msg = e?.code === 'TIMEOUT'
+        ? 'Request timed out — the server took too long. Showing template prompt instead.'
+        : e?.data?.code === 'RATE_LIMITED'
         ? 'Daily AI limit reached. Resets at midnight.'
-        : e?.data?.code === 'NO_AUTH' || e?.status === 401
+        : e?.status === 401
         ? 'Session expired — please refresh the page.'
-        : e?.message?.includes('429')
-        ? 'Daily AI limit reached. Resets at midnight.'
         : 'AI unavailable — showing structured template prompt instead.'
       setPromptError(msg)
       const projectNameFb = projects.find(p => p.id === activeProjectId)?.title || 'Project'
@@ -4148,35 +4007,6 @@ STYLE:
               </div>
             )}
 
-            {/* Website template row — clickable badge + inline picker */}
-            <div style={{ padding: '8px 24px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--color-text-muted)', textTransform: 'uppercase', flexShrink: 0 }}>
-                  Template
-                </span>
-                {WEBSITE_TEMPLATES.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => { setSelectedWebsiteTemplate(t.id); setShowTemplatePicker(false) }}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      background: selectedWebsiteTemplate === t.id ? (t.accent || '#7C3AED') + '18' : 'transparent',
-                      border: '1px solid ' + (selectedWebsiteTemplate === t.id ? (t.accent || '#7C3AED') + '60' : 'var(--color-border)'),
-                      borderRadius: 20,
-                      padding: '3px 10px',
-                      cursor: 'pointer',
-                      fontFamily: "'Urbanist',sans-serif",
-                      fontSize: 11,
-                      fontWeight: selectedWebsiteTemplate === t.id ? 700 : 500,
-                      color: selectedWebsiteTemplate === t.id ? (t.accent || '#7C3AED') : 'var(--color-text-muted)',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {t.name}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Customize panel */}
             {showPrefsPanel && (

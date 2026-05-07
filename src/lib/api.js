@@ -12,26 +12,41 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // ─── Core fetch helper ────────────────────────────────────────────────────────
 
-async function post(path, body) {
+async function post(path, body, timeoutMs = 25000) {
   // Attach the current session JWT if available
   const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: {} }))
   const authHeader = session?.access_token
     ? { 'Authorization': 'Bearer ' + session.access_token }
     : {}
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    const error = new Error(errData.message || `API error: ${res.status}`);
-    error.status = res.status;
-    error.data = errData;
-    throw error;
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      const error = new Error(errData.message || `API error: ${res.status}`)
+      error.status = res.status
+      error.data = errData
+      throw error
+    }
+    return res.json()
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const timeoutErr = new Error('Request timed out — please try again')
+      timeoutErr.code = 'TIMEOUT'
+      throw timeoutErr
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
-  return res.json();
 }
 
 // ─── JSON extraction strategies ───────────────────────────────────────────────
