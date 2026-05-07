@@ -712,8 +712,8 @@ export default function Connectors() {
         />
       </div>
 
-      {/* 2-column grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      {/* auto-fill grid — all cards on one row, extras wrap */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
         {filtered.map(connector => (
           <ConnectorCard
             key={connector.id}
