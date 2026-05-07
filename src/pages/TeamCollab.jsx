@@ -4,7 +4,7 @@ import { Button, Badge } from '../components/ui'
 import {
   SparklesIcon, CheckIcon, PlusIcon,
   XMarkIcon, ArrowUpIcon, ChevronDownIcon,
-  UserGroupIcon, UserIcon, CalendarIcon,
+  UserGroupIcon, UserIcon, CalendarIcon, LinkIcon,
   Squares2X2Icon, ListBulletIcon,
   TableCellsIcon, CalendarDaysIcon, ChartBarIcon,
   ChevronLeftIcon, ChevronRightIcon,
@@ -28,6 +28,7 @@ import {
   calculateDueDates, calculateProgress, logActivity,
 } from '../lib/taskService'
 import { InviteModal } from '../components/team'
+import ConnectPanel from '../components/connectors/ConnectPanel'
 import { supabase } from '../lib/supabase'
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -428,6 +429,8 @@ export default function TeamCollab() {
   const [promptPrefs, setPromptPrefs] = useState({ colors: '', fonts: '', style: '', references: '' })
   const [showPrefsPanel, setShowPrefsPanel] = useState(false)
   const [promptError, setPromptError] = useState(null)
+  const [showConnectPanel, setShowConnectPanel] = useState(false)
+  const [installedConnectors, setInstalledConnectors] = useState({ figma: false, github: false, linear: false })
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -436,6 +439,32 @@ export default function TeamCollab() {
   const chatInputRef = useRef(null)
 
   const [activeSuggestions, setActiveSuggestions] = useState([])
+
+  // ── Connector status ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const wsId = workspace?.id
+    if (!wsId) return
+    const authHeader = (() => {
+      try {
+        const raw = localStorage.getItem('sb-' + (import.meta.env.VITE_SUPABASE_URL || '').replace(/^https?:\/\//, '').split('.')[0] + '-auth-token')
+        if (raw) { const p = JSON.parse(raw); if (p?.access_token) return 'Bearer ' + p.access_token }
+      } catch {}
+      for (const k of Object.keys(localStorage)) {
+        if (k.includes('-auth-token')) {
+          try { const p = JSON.parse(localStorage.getItem(k)); if (p?.access_token) return 'Bearer ' + p.access_token } catch {}
+        }
+      }
+      return ''
+    })()
+    fetch('/api/connectors/status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+      body: JSON.stringify({ workspaceId: wsId }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.installed) setInstalledConnectors(d.installed) })
+      .catch(() => {})
+  }, [workspace?.id])
 
   // ── Auto-load from activeProject ──────────────────────────────────────────
 
@@ -3367,13 +3396,33 @@ STYLE:
                   )
                 })}
               </div>
-              {/* Right: Team + Add Task */}
+              {/* Right: Team + Connect + Add Task */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120, justifyContent: 'flex-end' }}>
                 <button onClick={() => setActiveTab('team')}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: activeTab === 'team' ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
                   <UserGroupIcon style={{ width: 13, height: 13 }} />
                   Team
                 </button>
+                {(installedConnectors.figma || installedConnectors.github || installedConnectors.linear) && (
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setShowConnectPanel(p => !p)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: showConnectPanel ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}
+                    >
+                      <LinkIcon style={{ width: 13, height: 13 }} />
+                      Connect
+                    </button>
+                    {showConnectPanel && (
+                      <ConnectPanel
+                        workspaceId={workspace?.id}
+                        projectId={activeProjectId}
+                        installed={installedConnectors}
+                        onClose={() => setShowConnectPanel(false)}
+                        onConnected={() => setShowConnectPanel(false)}
+                      />
+                    )}
+                  </div>
+                )}
                 <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: customCols[0]?.id || KANBAN_COLS[0] }); setShowAddTaskModal(true) }}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700 }}>
                   <PlusIcon style={{ width: 13, height: 13 }} />
