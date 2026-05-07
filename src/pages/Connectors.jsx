@@ -653,7 +653,7 @@ export default function Connectors() {
 
   return (
     <div style={{
-      padding: '28px 32px', maxWidth: 720,
+      padding: '28px 32px', maxWidth: 920,
       fontFamily: "'Urbanist', sans-serif",
     }}>
       {/* Header */}
