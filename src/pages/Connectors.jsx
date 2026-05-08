@@ -290,13 +290,13 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
               disabled={loading || !canInstall}
               style={{
                 padding: '8px 24px',
-                background: !canInstall || loading ? 'var(--color-border)' : accentColor,
+                background: !canInstall || loading ? 'var(--color-border)' : '#7C3AED',
                 color: 'white', border: 'none', borderRadius: 10,
                 cursor: !canInstall || loading ? 'not-allowed' : 'pointer',
                 fontFamily: "'Urbanist', sans-serif",
                 fontSize: 13, fontWeight: 700,
                 transition: 'all 0.15s',
-                boxShadow: !canInstall || loading ? 'none' : '0 2px 8px ' + accentColor + '40',
+                boxShadow: !canInstall || loading ? 'none' : '0 2px 8px rgba(124,58,237,0.35)',
               }}
             >
               {loading ? 'Connecting...' : success ? 'Connected ✓' : 'Connect'}
@@ -422,7 +422,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
                     outline: 'none', boxSizing: 'border-box',
                     transition: 'all 0.15s',
                   }}
-                  onFocus={e => { e.target.style.borderColor = accentColor; e.target.style.boxShadow = '0 0 0 3px ' + accentColor + '18' }}
+                  onFocus={e => { e.target.style.borderColor = '#7C3AED'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.12)' }}
                   onBlur={e => { e.target.style.borderColor = 'var(--color-border)'; e.target.style.boxShadow = 'none' }}
                 />
                 <button
