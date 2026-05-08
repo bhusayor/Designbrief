@@ -299,48 +299,54 @@ async function handleGithub(action, body, user) {
   return { success: true, data: extracted }
 }
 
-// --- Linear helpers ---
+// --- Notion helpers ---
 
-const LINEAR_API = 'https://api.linear.app/graphql'
-
-async function linearQuery(token, query, variables = {}) {
-  const res = await fetch(LINEAR_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': token },
-    body: JSON.stringify({ query, variables }),
-  })
-  if (!res.ok) throw new Error('Linear API error: ' + res.status)
-  const data = await res.json()
-  if (data.errors) throw new Error(data.errors[0]?.message || 'Linear error')
-  return data.data
+function extractNotionPageId(url) {
+  // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  const uuidMatch = url.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i)
+  if (uuidMatch) return uuidMatch[1].replace(/-/g, '')
+  // Plain 32-char hex at end of path segment
+  const hexMatch = url.match(/([0-9a-f]{32})(?:[?#/]|$)/i)
+  if (hexMatch) return hexMatch[1]
+  return null
 }
 
-async function handleLinear(action, body, user) {
-  const { linearToken, projectId, workspaceId, teamId, tasks } = body
+function richTextToPlain(richText = []) {
+  return richText.map(t => t.plain_text).join('')
+}
+
+async function handleNotion(action, body, user) {
+  const { notionToken, notionUrl, projectId, workspaceId } = body
 
   if (action === 'install') {
-    if (!linearToken) throw new ClientError(400, 'linearToken required')
+    if (!notionToken) throw new ClientError(400, 'notionToken required')
 
-    const data = await linearQuery(linearToken, `query { viewer { id name email } }`)
+    const testRes = await fetch('https://api.notion.com/v1/users/me', {
+      headers: { 'Authorization': 'Bearer ' + notionToken, 'Notion-Version': '2022-06-28' },
+    })
+    if (!testRes.ok) {
+      throw new ClientError(400, 'Invalid Notion token. Go to notion.so → Settings → Connections → Develop or manage integrations.', { code: 'INVALID_TOKEN' })
+    }
+    const me = await testRes.json()
 
     await supabase.from('workspace_tokens').upsert({
       workspace_id: workspaceId,
       user_id: user.id,
-      linear_token_hint: linearToken.slice(-4),
-      linear_installed: true,
+      notion_token_hint: notionToken.slice(-4),
+      notion_installed: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'workspace_id' })
 
-    return { success: true, installed: true, user: data.viewer?.email || data.viewer?.name }
+    return { success: true, installed: true, user: me.name || me.bot?.owner?.user?.name || null }
   }
 
   if (action === 'uninstall') {
     await supabase.from('workspace_tokens')
-      .update({ linear_installed: false, linear_token_hint: null, updated_at: new Date().toISOString() })
+      .update({ notion_installed: false, notion_token_hint: null, updated_at: new Date().toISOString() })
       .eq('workspace_id', workspaceId)
 
     await supabase.from('project_connectors')
-      .update({ linear_team_id: null, linear_team_name: null, linear_synced_at: null, updated_at: new Date().toISOString() })
+      .update({ notion_page_url: null, notion_page_id: null, notion_page_title: null, notion_extracted: {}, notion_synced_at: null, updated_at: new Date().toISOString() })
       .eq('workspace_id', workspaceId)
 
     return { success: true }
@@ -350,82 +356,169 @@ async function handleLinear(action, body, user) {
     if (!projectId) throw new ClientError(400, 'projectId required')
     await supabase.from('project_connectors').upsert({
       project_id: projectId, workspace_id: workspaceId, user_id: user.id,
-      linear_team_id: null, linear_team_name: null,
-      linear_synced_at: null, updated_at: new Date().toISOString(),
+      notion_page_url: null, notion_page_id: null, notion_page_title: null,
+      notion_extracted: {}, notion_synced_at: null, updated_at: new Date().toISOString(),
     }, { onConflict: 'project_id,workspace_id' })
     return { success: true }
   }
 
-  if (!linearToken) throw new ClientError(400, 'linearToken required')
+  // connect
+  if (!projectId) throw new ClientError(400, 'projectId required')
+  if (!notionToken || !notionUrl) throw new ClientError(400, 'notionToken and notionUrl required')
 
-  if (action === 'get_teams') {
-    const data = await linearQuery(linearToken, `query {
-      teams { nodes { id name key states { nodes { id name type color } } } }
-      viewer { id name email }
-    }`)
-    const teams = data.teams?.nodes?.map(t => ({
-      id: t.id, name: t.name, key: t.key, states: t.states?.nodes || [],
-    })) || []
+  const pageId = extractNotionPageId(notionUrl)
+  if (!pageId) throw new ClientError(400, 'Invalid Notion URL — could not extract page ID')
 
-    await supabase.from('workspace_tokens').upsert({
-      workspace_id: workspaceId, user_id: user.id,
-      linear_token_hint: linearToken.slice(-4), updated_at: new Date().toISOString(),
-    }, { onConflict: 'workspace_id' })
+  const notionHeaders = { 'Authorization': 'Bearer ' + notionToken, 'Notion-Version': '2022-06-28' }
 
-    return { success: true, data: { viewer: data.viewer, teams } }
+  const [pageRes, blocksRes] = await Promise.all([
+    fetch('https://api.notion.com/v1/pages/' + pageId, { headers: notionHeaders }),
+    fetch('https://api.notion.com/v1/blocks/' + pageId + '/children?page_size=100', { headers: notionHeaders }),
+  ])
+
+  if (!pageRes.ok) {
+    const err = await pageRes.json().catch(() => ({}))
+    if (pageRes.status === 404) throw new ClientError(400, 'Page not found. Make sure the integration has access to this page in Notion.', { code: 'NOT_FOUND' })
+    if (pageRes.status === 401) throw new ClientError(401, 'Notion token is invalid or expired.', { code: 'INVALID_TOKEN' })
+    throw new ClientError(400, 'Notion error: ' + (err.message || pageRes.status), { code: 'NOTION_API_ERROR' })
   }
 
-  if (action === 'save_team') {
+  const pageData = await pageRes.json()
+  const blocksData = blocksRes.ok ? await blocksRes.json() : null
+
+  const titleProp = Object.values(pageData.properties || {}).find(p => p.type === 'title')
+  const pageTitle = richTextToPlain(titleProp?.title) || 'Untitled'
+
+  const CONTENT_TYPES = ['paragraph', 'heading_1', 'heading_2', 'heading_3', 'bulleted_list_item', 'numbered_list_item', 'quote', 'callout', 'toggle']
+  const blocks = blocksData?.results || []
+  const contentBlocks = blocks
+    .filter(b => CONTENT_TYPES.includes(b.type))
+    .map(b => ({ type: b.type, text: richTextToPlain(b[b.type]?.rich_text) }))
+    .filter(b => b.text.trim())
+
+  const extracted = {
+    pageTitle,
+    pageId,
+    contentBlocks,
+    contentPreview: contentBlocks.slice(0, 8).map(b => b.text).join('\n'),
+    blockCount: blocks.length,
+    lastEdited: pageData.last_edited_time,
+  }
+
+  await supabase.from('project_connectors').upsert({
+    project_id: projectId, workspace_id: workspaceId, user_id: user.id,
+    notion_page_url: notionUrl, notion_page_id: pageId,
+    notion_page_title: pageTitle, notion_extracted: extracted,
+    notion_synced_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  }, { onConflict: 'project_id,workspace_id' })
+
+  await supabase.from('workspace_tokens').upsert({
+    workspace_id: workspaceId, user_id: user.id,
+    notion_token_hint: notionToken.slice(-4), updated_at: new Date().toISOString(),
+  }, { onConflict: 'workspace_id' })
+
+  return { success: true, data: extracted }
+}
+
+// --- Google Docs helpers ---
+
+function extractDocId(url) {
+  const match = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/)
+  return match ? match[1] : null
+}
+
+async function handleGdocs(action, body, user) {
+  const { gdocsUrl, gdocsApiKey, projectId, workspaceId } = body
+
+  if (action === 'install') {
+    await supabase.from('workspace_tokens').upsert({
+      workspace_id: workspaceId,
+      user_id: user.id,
+      gdocs_installed: true,
+      gdocs_token_hint: gdocsApiKey ? gdocsApiKey.slice(-4) : null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'workspace_id' })
+    return { success: true, installed: true }
+  }
+
+  if (action === 'uninstall') {
+    await supabase.from('workspace_tokens')
+      .update({ gdocs_installed: false, gdocs_token_hint: null, updated_at: new Date().toISOString() })
+      .eq('workspace_id', workspaceId)
+
+    await supabase.from('project_connectors')
+      .update({ gdocs_file_url: null, gdocs_file_id: null, gdocs_file_name: null, gdocs_extracted: {}, gdocs_synced_at: null, updated_at: new Date().toISOString() })
+      .eq('workspace_id', workspaceId)
+
+    return { success: true }
+  }
+
+  if (action === 'disconnect') {
     if (!projectId) throw new ClientError(400, 'projectId required')
     await supabase.from('project_connectors').upsert({
       project_id: projectId, workspace_id: workspaceId, user_id: user.id,
-      linear_team_id: teamId, linear_team_name: body.teamName || null,
-      linear_synced_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      gdocs_file_url: null, gdocs_file_id: null, gdocs_file_name: null,
+      gdocs_extracted: {}, gdocs_synced_at: null, updated_at: new Date().toISOString(),
     }, { onConflict: 'project_id,workspace_id' })
     return { success: true }
   }
 
-  if (action === 'push_tasks') {
-    if (!projectId) throw new ClientError(400, 'projectId required')
-    if (!teamId || !tasks?.length) throw new ClientError(400, 'teamId and tasks required')
+  // connect
+  if (!projectId) throw new ClientError(400, 'projectId required')
+  if (!gdocsUrl) throw new ClientError(400, 'gdocsUrl required')
 
-    const teamData = await linearQuery(linearToken,
-      `query($teamId: String!) { team(id: $teamId) { states { nodes { id name type } } } }`,
-      { teamId }
-    )
-    const states = teamData.team?.states?.nodes || []
-    const stateMap = {
-      'todo': states.find(s => s.type === 'unstarted' || s.name.toLowerCase().includes('todo'))?.id,
-      'inprogress': states.find(s => s.type === 'started' || s.name.toLowerCase().includes('progress'))?.id,
-      'review': states.find(s => s.name.toLowerCase().includes('review'))?.id,
-      'done': states.find(s => s.type === 'completed' || s.name.toLowerCase().includes('done'))?.id,
-    }
-    const priorityMap = { HIGH: 2, MEDIUM: 3, LOW: 4 }
-    const results = []
+  const docId = extractDocId(gdocsUrl)
+  if (!docId) throw new ClientError(400, 'Invalid Google Docs URL — paste the full URL from your browser')
 
-    for (const task of tasks) {
-      try {
-        const stateId = stateMap[task.column?.toLowerCase()] || stateMap['todo']
-        const data = await linearQuery(linearToken,
-          `mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url title } } }`,
-          { input: { teamId, title: task.title, description: task.description || '', priority: priorityMap[task.priority?.toUpperCase()] || 3, ...(stateId && { stateId }) } }
-        )
-        if (data.issueCreate?.success)
-          results.push({ taskId: task.id, issue: data.issueCreate.issue, success: true })
-      } catch (e) {
-        results.push({ taskId: task.id, error: e.message, success: false })
-      }
-    }
+  // Export as plain text (works for "anyone with the link can view" docs)
+  const exportUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=txt'
+  const exportRes = await fetch(exportUrl, { redirect: 'follow' })
 
-    return {
-      success: true,
-      pushed: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
-      results,
+  if (!exportRes.ok) {
+    if (exportRes.status === 403 || exportRes.status === 401) {
+      throw new ClientError(400, 'Document is private. In Google Docs, share it as "Anyone with the link" and try again.', { code: 'PRIVATE_DOC' })
     }
+    throw new ClientError(400, 'Could not access document: ' + exportRes.status)
   }
 
-  throw new ClientError(400, 'Unknown action: ' + action)
+  const content = await exportRes.text()
+
+  // Use Google Docs API for title if API key provided, otherwise use first content line
+  let docTitle = 'Google Doc'
+  if (gdocsApiKey) {
+    const apiRes = await fetch('https://docs.googleapis.com/v1/documents/' + docId + '?key=' + gdocsApiKey + '&fields=title')
+    if (apiRes.ok) {
+      const apiData = await apiRes.json()
+      docTitle = apiData.title || 'Google Doc'
+    }
+  } else {
+    const firstLine = content.split('\n').find(l => l.trim())
+    if (firstLine) docTitle = firstLine.trim().slice(0, 120)
+  }
+
+  const wordCount = content.split(/\s+/).filter(Boolean).length
+  const extracted = {
+    fileName: docTitle,
+    docId,
+    content: content.slice(0, 8000),
+    wordCount,
+  }
+
+  await supabase.from('project_connectors').upsert({
+    project_id: projectId, workspace_id: workspaceId, user_id: user.id,
+    gdocs_file_url: gdocsUrl, gdocs_file_id: docId,
+    gdocs_file_name: docTitle, gdocs_extracted: extracted,
+    gdocs_synced_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  }, { onConflict: 'project_id,workspace_id' })
+
+  if (gdocsApiKey) {
+    await supabase.from('workspace_tokens').upsert({
+      workspace_id: workspaceId, user_id: user.id,
+      gdocs_token_hint: gdocsApiKey.slice(-4), updated_at: new Date().toISOString(),
+    }, { onConflict: 'workspace_id' })
+  }
+
+  return { success: true, data: extracted }
 }
 
 // --- Main handler ---
@@ -457,7 +550,8 @@ export default async function handler(req, res) {
     switch (type) {
       case 'figma':  result = await handleFigma(rest.action, body, user);  break
       case 'github': result = await handleGithub(rest.action, body, user); break
-      case 'linear': result = await handleLinear(rest.action, body, user); break
+      case 'notion': result = await handleNotion(rest.action, body, user); break
+      case 'gdocs':  result = await handleGdocs(rest.action, body, user);  break
       default: return res.status(400).json({ error: 'Unknown connector type: ' + type })
     }
     return res.json(result)

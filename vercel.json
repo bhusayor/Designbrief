@@ -9,7 +9,8 @@
   "rewrites": [
     { "source": "/api/connectors/figma", "destination": "/api/connectors" },
     { "source": "/api/connectors/github", "destination": "/api/connectors" },
-    { "source": "/api/connectors/linear", "destination": "/api/connectors" },
+    { "source": "/api/connectors/notion", "destination": "/api/connectors" },
+    { "source": "/api/connectors/gdocs", "destination": "/api/connectors" },
     {
       "source": "/api/:path*",
       "destination": "/api/:path*"

@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   try {
     const { data: wt } = await supabase
       .from('workspace_tokens')
-      .select('figma_installed, figma_token_hint, github_installed, github_token_hint, linear_installed, linear_token_hint')
+      .select('figma_installed, figma_token_hint, github_installed, github_token_hint, notion_installed, notion_token_hint, gdocs_installed, gdocs_token_hint')
       .eq('workspace_id', workspaceId)
       .single()
 
@@ -54,12 +54,14 @@ export default async function handler(req, res) {
       installed: {
         figma: wt?.figma_installed || false,
         github: wt?.github_installed || false,
-        linear: wt?.linear_installed || false,
+        notion: wt?.notion_installed || false,
+        gdocs: wt?.gdocs_installed || false,
       },
       hints: {
         figma: wt?.figma_token_hint || null,
         github: wt?.github_token_hint || null,
-        linear: wt?.linear_token_hint || null,
+        notion: wt?.notion_token_hint || null,
+        gdocs: wt?.gdocs_token_hint || null,
       },
       project: pc || null,
     })

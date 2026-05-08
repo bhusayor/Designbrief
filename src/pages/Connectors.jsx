@@ -41,10 +41,19 @@ function GitHubLogo({ size = 32, color }) {
   )
 }
 
-function LinearLogo({ size = 32, color }) {
+function NotionLogo({ size = 32 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill={color || '#5E6AD2'}>
-      <path d="M1.22541 61.5228c-.2225-.9485.90748-1.5459 1.59638-.857l37.4647 37.4648c.6889.6889.0915 1.8189-.857 1.5964C20.0515 94.4522 5.54779 79.9485 1.22541 61.5228zM.00189 46.8891c-.01764 1.1768.92748 2.3339 1.02777 3.4728L52.1109 99.9981c1.1768.0176 2.3339.0077 3.4728-.0277L.02966 46.6628c-.03549 1.0617-.04474 1.5734-.02777 2.2263zM5.91288 27.2783c-.4681-.7927.3124-1.7133 1.1762-1.3938L72.9214 92.9138c.3195.8639-.6011 1.6445-1.3938 1.1762C58.1808 86.8084 14.1973 42.8248 5.91288 27.2783zM16.1427 13.4795c-.5292-.6892.1312-1.6472.9425-1.3942l71.4237 71.4238c.253.8113-.705 1.4717-1.3942.9425C74.5437 73.2108 26.8467 25.5138 16.1427 13.4795z"/>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#000">
+      <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86.82c-.28-.186-.654-.466-1.354-.513L3.351.006C2.605.051 1.859.326 1.858 1.373v.047l.046.093 2.555 3.695zm.746 14.226V5.234c0-.28.14-.513.42-.607l14.34-.84.047.047V18.827c0 .28-.093.513-.42.56l-13.967.84c-.42.046-.42-.187-.42-.793zm12.44-.793c.327-.047.42-.234.42-.513V6.167l-2.24.14V18.08l1.82-.44zm-11.09 1.167l12.253-2.193V7.054l-12.253.653v11.1z"/>
+    </svg>
+  )
+}
+
+function GDocsLogo({ size = 32, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color || '#4285F4'}>
+      <path d="M14.727 0H2.182A2.182 2.182 0 0 0 0 2.182v19.636C0 23.02.98 24 2.182 24h15.636A2.182 2.182 0 0 0 20 21.818V5.273L14.727 0zm-.545 1.455 3.862 3.863h-3.862V1.455zM18.182 22.91H2.182a1.09 1.09 0 0 1-1.09-1.09V2.18a1.09 1.09 0 0 1 1.09-1.09h10.909v4.363h4.364v16.364a1.09 1.09 0 0 1-1.273 1.09z"/>
+      <path d="M4.364 11.636h10.909v1.091H4.364zm0 2.91h10.909v1.09H4.364zm0 2.909h6.545v1.09H4.364z"/>
     </svg>
   )
 }
@@ -96,26 +105,46 @@ const CONNECTORS = [
     tokenRequired: false,
   },
   {
-    id: 'linear',
-    name: 'Linear',
-    tagline: 'Push tasks directly to your Linear team',
+    id: 'notion',
+    name: 'Notion',
+    tagline: 'Pull notes, specs, and briefs into AI context',
     description:
-      'Generate tasks from your brief and send them ' +
-      'straight to Linear — with priority, status, and ' +
-      'description. Your Team Collab board maps directly ' +
-      'to Linear workflow states. One-click push from ' +
-      'inside the task board.',
-    accentColor: '#5E6AD2',
-    bgColor: 'rgba(94,106,210,0.08)',
-    popularity: null,
-    Logo: LinearLogo,
-    logoColor: '#5E6AD2',
-    tools: ['create_issues', 'map_priority_status', 'link_linear_team', 'one_click_push'],
-    tokenLabel: 'API Key',
-    tokenPlaceholder: 'lin_api_...',
-    tokenHelp: 'Linear → Settings → API → Personal API keys',
-    tokenHelpUrl: 'https://linear.app/settings/api',
+      'Connect a Notion page to any project and DesignBrief AI ' +
+      'reads its content as context. Paste in existing requirements, ' +
+      'research notes, or user stories — the AI extends what you ' +
+      'already have instead of starting from scratch.',
+    accentColor: '#000000',
+    bgColor: 'rgba(0,0,0,0.05)',
+    popularity: 'Popular',
+    Logo: NotionLogo,
+    logoColor: null,
+    tools: ['page_content', 'context_injection', 'brief_enrichment', 'heading_extraction'],
+    tokenLabel: 'Integration Token',
+    tokenPlaceholder: 'secret_...',
+    tokenHelp: 'Notion → Settings → Connections → Develop or manage integrations',
+    tokenHelpUrl: 'https://www.notion.so/profile/integrations',
     tokenRequired: true,
+  },
+  {
+    id: 'gdocs',
+    name: 'Google Docs',
+    tagline: 'Import existing docs as brief context',
+    description:
+      'Link a Google Doc to your project and DesignBrief AI will ' +
+      'read its content as context. PRDs, research docs, and briefs ' +
+      'you\'ve already written become input for generating sharper AI ' +
+      'output. Works with any publicly shared document.',
+    accentColor: '#4285F4',
+    bgColor: 'rgba(66,133,244,0.08)',
+    popularity: null,
+    Logo: GDocsLogo,
+    logoColor: '#4285F4',
+    tools: ['doc_content', 'context_injection', 'brief_enrichment', 'public_access'],
+    tokenLabel: 'Google API Key (optional, for title lookup)',
+    tokenPlaceholder: 'AIza... or leave blank',
+    tokenHelp: 'Leave blank — just share your doc as "Anyone with the link"',
+    tokenHelpUrl: 'https://console.cloud.google.com/apis/credentials',
+    tokenRequired: false,
   },
 ]
 
@@ -616,7 +645,7 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function Connectors() {
   const { workspace, authUser } = useApp()
-  const [installed, setInstalled] = useState({ figma: false, github: false, linear: false })
+  const [installed, setInstalled] = useState({ figma: false, github: false, notion: false, gdocs: false })
   const [hints, setHints] = useState({})
   const [search, setSearch] = useState('')
   const [selectedConnector, setSelectedConnector] = useState(null)

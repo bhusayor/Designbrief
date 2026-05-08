@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { LinkIcon, XMarkIcon, CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import { authedFetch, getAuthHeader } from '../../lib/getAuthHeader'
+import { XMarkIcon } from '@heroicons/react/24/outline'
+import { authedFetch } from '../../lib/getAuthHeader'
 
 function getToken(workspaceId, type) {
   return localStorage.getItem('db-token-' + workspaceId + '-' + type) || ''
@@ -27,10 +27,19 @@ function GitHubIcon() {
   )
 }
 
-function LinearIcon() {
+function NotionIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
-      <path d="M1.22541 61.5228c-.2225-.9485.90748-1.5459 1.59638-.857l36.4485 36.4484c.6889.6889.0915 1.8189-.857 1.5964C17.3712 94.4522 5.54765 82.6286 1.22541 61.5228zM.00189 46.8891c-.01764.2833.08887.5599.28957.7606L52.3503 99.7085c.2007.2007.4773.3072.7606.2896 2.3336-.1452 4.6071-.4271 6.8091-.8355.3933-.0731.5283-.5599.2448-.8434L.8452 40.0756c-.28349-.2835-.77028-.1485-.8434.2448-.40839 2.202-.69029 4.4755-.8-.8355zM0 52.2293c0-.2637.10483-.5167.29148-.7034L52.2293.29148C52.416.10483 52.669 0 52.9327 0 76.1607 0 95.9604 17.7538 99.3884 40.9627c.0539.3682-.0765.7408-.3484 1.0127L1.0127 99.04c-.27192.2719-.64461.4023-1.01274.3484C2.95054 96.1878.528997 74.2019 0 52.2293z" fill="#5E6AD2"/>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="#000">
+      <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86.82c-.28-.186-.654-.466-1.354-.513L3.351.006C2.605.051 1.859.326 1.858 1.373v.047l.046.093 2.555 3.695zm.746 14.226V5.234c0-.28.14-.513.42-.607l14.34-.84.047.047V18.827c0 .28-.093.513-.42.56l-13.967.84c-.42.046-.42-.187-.42-.793zm12.44-.793c.327-.047.42-.234.42-.513V6.167l-2.24.14V18.08l1.82-.44zm-11.09 1.167l12.253-2.193V7.054l-12.253.653v11.1z"/>
+    </svg>
+  )
+}
+
+function GDocsIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="#4285F4">
+      <path d="M14.727 0H2.182A2.182 2.182 0 0 0 0 2.182v19.636C0 23.02.98 24 2.182 24h15.636A2.182 2.182 0 0 0 20 21.818V5.273L14.727 0zm-.545 1.455 3.862 3.863h-3.862V1.455zM18.182 22.91H2.182a1.09 1.09 0 0 1-1.09-1.09V2.18a1.09 1.09 0 0 1 1.09-1.09h10.909v4.363h4.364v16.364a1.09 1.09 0 0 1-1.273 1.09z"/>
+      <path d="M4.364 11.636h10.909v1.091H4.364zm0 2.91h10.909v1.09H4.364zm0 2.909h6.545v1.09H4.364z"/>
     </svg>
   )
 }
@@ -51,13 +60,15 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   const [githubLoading, setGithubLoading] = useState(false)
   const [githubError, setGithubError] = useState(null)
 
-  // Linear state
-  const [linearTeams, setLinearTeams] = useState(null)
-  const [linearLoading, setLinearLoading] = useState(false)
-  const [linearError, setLinearError] = useState(null)
-  const [selectedTeamId, setSelectedTeamId] = useState(null)
-  const [selectedTeamName, setSelectedTeamName] = useState(null)
-  const [savingTeam, setSavingTeam] = useState(false)
+  // Notion state
+  const [notionUrl, setNotionUrl] = useState('')
+  const [notionLoading, setNotionLoading] = useState(false)
+  const [notionError, setNotionError] = useState(null)
+
+  // Google Docs state
+  const [gdocsUrl, setGdocsUrl] = useState('')
+  const [gdocsLoading, setGdocsLoading] = useState(false)
+  const [gdocsError, setGdocsError] = useState(null)
 
   // Close on outside click
   useEffect(() => {
@@ -132,49 +143,67 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     finally { setGithubLoading(false) }
   }
 
-  // ── Linear ─────────────────────────────────────────────────────────────────
-  async function handleFetchTeams() {
-    const token = getToken(workspaceId, 'linear')
-    if (!token) { setLinearError('No Linear token saved. Install Linear from the Integrations page.'); return }
-    setLinearLoading(true); setLinearError(null)
+  // ── Notion ─────────────────────────────────────────────────────────────────
+  async function handleNotionLink() {
+    const token = getToken(workspaceId, 'notion')
+    if (!notionUrl.trim()) return
+    setNotionLoading(true); setNotionError(null)
     try {
-      const d = await authedFetch('/api/connectors/linear', {
-        type: 'linear', action: 'get_teams', workspaceId, linearToken: token,
+      const d = await authedFetch('/api/connectors/notion', {
+        type: 'notion', action: 'connect', workspaceId, projectId,
+        notionToken: token, notionUrl: notionUrl.trim(),
       })
-      setLinearTeams(d.data?.teams || [])
-    } catch (e) { setLinearError(e.message) }
-    finally { setLinearLoading(false) }
+      setProject(p => ({ ...(p || {}), notion_page_url: notionUrl, notion_page_title: d.data?.pageTitle, notion_extracted: d.data }))
+      setNotionUrl('')
+      onConnected?.()
+    } catch (e) { setNotionError(e.message) }
+    finally { setNotionLoading(false) }
   }
 
-  async function handleSaveTeam() {
-    if (!selectedTeamId) return
-    setSavingTeam(true); setLinearError(null)
+  async function handleNotionUnlink() {
+    setNotionLoading(true); setNotionError(null)
     try {
-      await authedFetch('/api/connectors/linear', {
-        type: 'linear', action: 'save_team', workspaceId, projectId,
-        teamId: selectedTeamId, teamName: selectedTeamName,
-      })
-      setProject(p => ({ ...(p || {}), linear_team_id: selectedTeamId, linear_team_name: selectedTeamName }))
-      setLinearTeams(null); setSelectedTeamId(null); setSelectedTeamName(null)
+      await authedFetch('/api/connectors/notion', { type: 'notion', action: 'disconnect', workspaceId, projectId })
+      setProject(p => ({ ...(p || {}), notion_page_url: null, notion_page_title: null, notion_extracted: null }))
       onConnected?.()
-    } catch (e) { setLinearError(e.message) }
-    finally { setSavingTeam(false) }
+    } catch (e) { setNotionError(e.message) }
+    finally { setNotionLoading(false) }
   }
 
-  async function handleLinearUnlink() {
-    setLinearLoading(true); setLinearError(null)
+  // ── Google Docs ────────────────────────────────────────────────────────────
+  async function handleGdocsLink() {
+    if (!gdocsUrl.trim()) return
+    const apiKey = getToken(workspaceId, 'gdocs')
+    setGdocsLoading(true); setGdocsError(null)
     try {
-      await authedFetch('/api/connectors/linear', { type: 'linear', action: 'disconnect', workspaceId, projectId })
-      setProject(p => ({ ...(p || {}), linear_team_id: null, linear_team_name: null }))
-      setLinearTeams(null)
+      const d = await authedFetch('/api/connectors/gdocs', {
+        type: 'gdocs', action: 'connect', workspaceId, projectId,
+        gdocsUrl: gdocsUrl.trim(),
+        ...(apiKey && { gdocsApiKey: apiKey }),
+      })
+      setProject(p => ({ ...(p || {}), gdocs_file_url: gdocsUrl, gdocs_file_name: d.data?.fileName, gdocs_extracted: d.data }))
+      setGdocsUrl('')
       onConnected?.()
-    } catch (e) { setLinearError(e.message) }
-    finally { setLinearLoading(false) }
+    } catch (e) { setGdocsError(e.message) }
+    finally { setGdocsLoading(false) }
+  }
+
+  async function handleGdocsUnlink() {
+    setGdocsLoading(true); setGdocsError(null)
+    try {
+      await authedFetch('/api/connectors/gdocs', { type: 'gdocs', action: 'disconnect', workspaceId, projectId })
+      setProject(p => ({ ...(p || {}), gdocs_file_url: null, gdocs_file_name: null, gdocs_extracted: null }))
+      onConnected?.()
+    } catch (e) { setGdocsError(e.message) }
+    finally { setGdocsLoading(false) }
   }
 
   const figmaConnected = !!project?.figma_file_url
   const githubConnected = !!project?.github_repo_url
-  const linearConnected = !!project?.linear_team_id
+  const notionConnected = !!project?.notion_page_url
+  const gdocsConnected = !!project?.gdocs_file_url
+
+  const noneInstalled = !installed?.figma && !installed?.github && !installed?.notion && !installed?.gdocs
 
   return (
     <div
@@ -211,11 +240,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
               error={figmaError}
             >
               {figmaConnected ? (
-                <button
-                  onClick={handleFigmaUnlink}
-                  disabled={figmaLoading}
-                  style={unlinkStyle}
-                >
+                <button onClick={handleFigmaUnlink} disabled={figmaLoading} style={unlinkStyle}>
                   {figmaLoading ? '…' : 'Unlink'}
                 </button>
               ) : (
@@ -251,11 +276,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
               error={githubError}
             >
               {githubConnected ? (
-                <button
-                  onClick={handleGithubUnlink}
-                  disabled={githubLoading}
-                  style={unlinkStyle}
-                >
+                <button onClick={handleGithubUnlink} disabled={githubLoading} style={unlinkStyle}>
                   {githubLoading ? '…' : 'Unlink'}
                 </button>
               ) : (
@@ -279,69 +300,80 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
             </ConnectorRow>
           )}
 
-          {/* ── Linear row ── */}
-          {installed?.linear && (
+          {/* ── Notion row ── */}
+          {installed?.notion && (
             <ConnectorRow
-              Icon={<LinearIcon />}
-              name="Linear"
-              accentColor="#5E6AD2"
-              connected={linearConnected}
-              connectedLabel={project?.linear_team_name || 'Team connected'}
-              loading={linearLoading || savingTeam}
-              error={linearError}
+              Icon={<NotionIcon />}
+              name="Notion"
+              accentColor="#000"
+              connected={notionConnected}
+              connectedLabel={project?.notion_page_title || 'Notion page'}
+              loading={notionLoading}
+              error={notionError}
             >
-              {linearConnected ? (
-                <button
-                  onClick={handleLinearUnlink}
-                  disabled={linearLoading}
-                  style={unlinkStyle}
-                >
-                  {linearLoading ? '…' : 'Unlink'}
+              {notionConnected ? (
+                <button onClick={handleNotionUnlink} disabled={notionLoading} style={unlinkStyle}>
+                  {notionLoading ? '…' : 'Unlink'}
                 </button>
-              ) : linearTeams ? (
-                <div style={{ marginTop: 6 }}>
-                  <select
-                    value={selectedTeamId || ''}
-                    onChange={e => {
-                      const team = linearTeams.find(t => t.id === e.target.value)
-                      setSelectedTeamId(e.target.value)
-                      setSelectedTeamName(team?.name || null)
-                    }}
-                    style={{ ...inputStyle, width: '100%', marginBottom: 6 }}
-                  >
-                    <option value="">Select a team…</option>
-                    {linearTeams.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      onClick={() => { setLinearTeams(null); setSelectedTeamId(null) }}
-                      style={{ ...unlinkStyle, flex: 1 }}
-                    >Cancel</button>
-                    <button
-                      onClick={handleSaveTeam}
-                      disabled={savingTeam || !selectedTeamId}
-                      style={{ ...linkBtnStyle, flex: 2, background: savingTeam || !selectedTeamId ? '#e5e7eb' : '#5E6AD2', color: savingTeam || !selectedTeamId ? '#9ca3af' : '#fff' }}
-                    >
-                      {savingTeam ? 'Saving…' : 'Connect team'}
-                    </button>
-                  </div>
-                </div>
               ) : (
-                <button
-                  onClick={handleFetchTeams}
-                  disabled={linearLoading}
-                  style={{ ...linkBtnStyle, marginTop: 6, width: '100%', background: '#5E6AD2', color: '#fff' }}
-                >
-                  {linearLoading ? 'Loading teams…' : 'Fetch teams'}
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <input
+                    value={notionUrl}
+                    onChange={e => setNotionUrl(e.target.value)}
+                    placeholder="notion.so/…"
+                    style={inputStyle}
+                    onKeyDown={e => { if (e.key === 'Enter') handleNotionLink() }}
+                  />
+                  <button
+                    onClick={handleNotionLink}
+                    disabled={notionLoading || !notionUrl.trim()}
+                    style={{ ...linkBtnStyle, background: notionLoading || !notionUrl.trim() ? '#e5e7eb' : '#000', color: notionLoading || !notionUrl.trim() ? '#9ca3af' : '#fff' }}
+                  >
+                    {notionLoading ? '…' : 'Link'}
+                  </button>
+                </div>
+              )}
+            </ConnectorRow>
+          )}
+
+          {/* ── Google Docs row ── */}
+          {installed?.gdocs && (
+            <ConnectorRow
+              Icon={<GDocsIcon />}
+              name="Google Docs"
+              accentColor="#4285F4"
+              connected={gdocsConnected}
+              connectedLabel={project?.gdocs_file_name || 'Google Doc'}
+              loading={gdocsLoading}
+              error={gdocsError}
+            >
+              {gdocsConnected ? (
+                <button onClick={handleGdocsUnlink} disabled={gdocsLoading} style={unlinkStyle}>
+                  {gdocsLoading ? '…' : 'Unlink'}
                 </button>
+              ) : (
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <input
+                    value={gdocsUrl}
+                    onChange={e => setGdocsUrl(e.target.value)}
+                    placeholder="docs.google.com/document/…"
+                    style={inputStyle}
+                    onKeyDown={e => { if (e.key === 'Enter') handleGdocsLink() }}
+                  />
+                  <button
+                    onClick={handleGdocsLink}
+                    disabled={gdocsLoading || !gdocsUrl.trim()}
+                    style={{ ...linkBtnStyle, background: gdocsLoading || !gdocsUrl.trim() ? '#e5e7eb' : '#4285F4', color: gdocsLoading || !gdocsUrl.trim() ? '#9ca3af' : '#fff' }}
+                  >
+                    {gdocsLoading ? '…' : 'Link'}
+                  </button>
+                </div>
               )}
             </ConnectorRow>
           )}
 
           {/* If nothing installed */}
-          {!installed?.figma && !installed?.github && !installed?.linear && (
+          {noneInstalled && (
             <div style={{ padding: '16px 16px 12px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
               No integrations installed yet.{' '}
               <a href="/connectors" style={{ color: '#6366f1' }}>Set them up →</a>
