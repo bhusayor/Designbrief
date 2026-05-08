@@ -41,9 +41,9 @@ function GitHubLogo({ size = 32, color }) {
   )
 }
 
-function NotionLogo({ size = 32 }) {
+function NotionLogo({ size = 32, color }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="#000">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color || 'currentColor'}>
       <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86.82c-.28-.186-.654-.466-1.354-.513L3.351.006C2.605.051 1.859.326 1.858 1.373v.047l.046.093 2.555 3.695zm.746 14.226V5.234c0-.28.14-.513.42-.607l14.34-.84.047.047V18.827c0 .28-.093.513-.42.56l-13.967.84c-.42.046-.42-.187-.42-.793zm12.44-.793c.327-.047.42-.234.42-.513V6.167l-2.24.14V18.08l1.82-.44zm-11.09 1.167l12.253-2.193V7.054l-12.253.653v11.1z"/>
     </svg>
   )
@@ -114,10 +114,10 @@ const CONNECTORS = [
       'research notes, or user stories — the AI extends what you ' +
       'already have instead of starting from scratch.',
     accentColor: '#000000',
-    bgColor: 'rgba(0,0,0,0.05)',
+    bgColor: 'var(--color-surface)',
     popularity: 'Popular',
     Logo: NotionLogo,
-    logoColor: null,
+    logoColor: 'var(--color-text)',
     tools: ['page_content', 'context_injection', 'brief_enrichment', 'heading_extraction'],
     tokenLabel: 'Integration Token',
     tokenPlaceholder: 'secret_...',
@@ -454,7 +454,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    color: accentColor, textDecoration: 'none',
+                    color: '#7C3AED', textDecoration: 'none',
                     display: 'inline-flex', alignItems: 'center', gap: 3,
                     fontWeight: 600, marginLeft: 4,
                   }}
@@ -589,10 +589,10 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
         {connector.popularity && !installed && (
           <span style={{
             fontFamily: 'monospace', fontSize: 9, fontWeight: 700,
-            background: accentColor + '12',
-            border: '1px solid ' + accentColor + '25',
+            background: 'rgba(124,58,237,0.08)',
+            border: '1px solid rgba(124,58,237,0.2)',
             borderRadius: 100, padding: '1px 7px',
-            color: accentColor,
+            color: '#7C3AED',
             letterSpacing: '0.04em', textTransform: 'uppercase',
           }}>
             {connector.popularity}
