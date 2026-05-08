@@ -32,3 +32,7 @@ export async function authedFetch(url, body) {
 
   return data
 }
+
+export async function callConnector(type, body) {
+  return authedFetch('/api/connectors/' + type, { type, ...body })
+}

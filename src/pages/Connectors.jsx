@@ -143,7 +143,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
 
       if (token.trim()) saveToken(workspaceId, connector.id, token.trim())
 
-      const body = { action: 'install', workspaceId, projectId: 'workspace' }
+      const body = { type: connector.id, action: 'install', workspaceId, projectId: 'workspace' }
       if (connector.id === 'figma') body.figmaToken = token.trim() || getToken(workspaceId, 'figma')
       if (connector.id === 'github') body.githubToken = token.trim() || getToken(workspaceId, 'github')
       if (connector.id === 'linear') body.linearToken = token.trim() || getToken(workspaceId, 'linear')
@@ -177,7 +177,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
       await fetch('/api/connectors/' + connector.id, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ action: 'uninstall', workspaceId, projectId: 'workspace' }),
+        body: JSON.stringify({ type: connector.id, action: 'uninstall', workspaceId, projectId: 'workspace' }),
       })
       onUninstalled()
       onClose()

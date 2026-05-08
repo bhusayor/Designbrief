@@ -85,7 +85,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     setFigmaLoading(true); setFigmaError(null)
     try {
       const d = await authedFetch('/api/connectors/figma', {
-        action: 'connect', workspaceId, projectId,
+        type: 'figma', action: 'connect', workspaceId, projectId,
         figmaToken: token, figmaUrl: figmaUrl.trim(),
       })
       setProject(p => ({ ...(p || {}), figma_file_url: figmaUrl, figma_file_name: d.data?.fileName, figma_extracted: d.data }))
@@ -98,7 +98,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   async function handleFigmaUnlink() {
     setFigmaLoading(true); setFigmaError(null)
     try {
-      await authedFetch('/api/connectors/figma', { action: 'disconnect', workspaceId, projectId })
+      await authedFetch('/api/connectors/figma', { type: 'figma', action: 'disconnect', workspaceId, projectId })
       setProject(p => ({ ...(p || {}), figma_file_url: null, figma_file_name: null, figma_extracted: null }))
       onConnected?.()
     } catch (e) { setFigmaError(e.message) }
@@ -112,7 +112,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     setGithubLoading(true); setGithubError(null)
     try {
       const d = await authedFetch('/api/connectors/github', {
-        action: 'connect', workspaceId, projectId,
+        type: 'github', action: 'connect', workspaceId, projectId,
         githubToken: token || undefined, repoUrl: githubUrl.trim(),
       })
       setProject(p => ({ ...(p || {}), github_repo_url: githubUrl, github_repo_name: d.data?.repoName, github_extracted: d.data }))
@@ -125,7 +125,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   async function handleGithubUnlink() {
     setGithubLoading(true); setGithubError(null)
     try {
-      await authedFetch('/api/connectors/github', { action: 'disconnect', workspaceId, projectId })
+      await authedFetch('/api/connectors/github', { type: 'github', action: 'disconnect', workspaceId, projectId })
       setProject(p => ({ ...(p || {}), github_repo_url: null, github_repo_name: null, github_extracted: null }))
       onConnected?.()
     } catch (e) { setGithubError(e.message) }
@@ -139,7 +139,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     setLinearLoading(true); setLinearError(null)
     try {
       const d = await authedFetch('/api/connectors/linear', {
-        action: 'get_teams', workspaceId, linearToken: token,
+        type: 'linear', action: 'get_teams', workspaceId, linearToken: token,
       })
       setLinearTeams(d.data?.teams || [])
     } catch (e) { setLinearError(e.message) }
@@ -151,7 +151,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
     setSavingTeam(true); setLinearError(null)
     try {
       await authedFetch('/api/connectors/linear', {
-        action: 'save_team', workspaceId, projectId,
+        type: 'linear', action: 'save_team', workspaceId, projectId,
         teamId: selectedTeamId, teamName: selectedTeamName,
       })
       setProject(p => ({ ...(p || {}), linear_team_id: selectedTeamId, linear_team_name: selectedTeamName }))
@@ -164,7 +164,7 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
   async function handleLinearUnlink() {
     setLinearLoading(true); setLinearError(null)
     try {
-      await authedFetch('/api/connectors/linear', { action: 'disconnect', workspaceId, projectId })
+      await authedFetch('/api/connectors/linear', { type: 'linear', action: 'disconnect', workspaceId, projectId })
       setProject(p => ({ ...(p || {}), linear_team_id: null, linear_team_name: null }))
       setLinearTeams(null)
       onConnected?.()
