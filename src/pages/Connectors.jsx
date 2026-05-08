@@ -530,9 +530,9 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
       onMouseEnter={e => {
         e.currentTarget.style.transform = 'translateY(-2px)'
         e.currentTarget.style.boxShadow = installed
-          ? '0 0 0 3px ' + accentColor + '15, var(--shadow-md)'
+          ? '0 0 0 3px rgba(124,58,237,0.15), var(--shadow-md)'
           : 'var(--shadow-md)'
-        if (!installed) e.currentTarget.style.borderColor = accentColor + '60'
+        if (!installed) e.currentTarget.style.borderColor = 'rgba(124,58,237,0.4)'
       }}
       onMouseLeave={e => {
         e.currentTarget.style.transform = 'translateY(0)'
@@ -563,9 +563,9 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
             transition: 'all 0.15s',
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.background = accentColor + '12'
-            e.currentTarget.style.borderColor = accentColor
-            e.currentTarget.style.color = accentColor
+            e.currentTarget.style.background = 'rgba(124,58,237,0.08)'
+            e.currentTarget.style.borderColor = '#7C3AED'
+            e.currentTarget.style.color = '#7C3AED'
           }}
           onMouseLeave={e => {
             e.currentTarget.style.background = installed ? 'var(--color-surface)' : 'transparent'
