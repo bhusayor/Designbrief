@@ -11,6 +11,7 @@ import ProjectDocument from './pages/ProjectDocument';
 import TeamCollab from './pages/TeamCollab';
 import ProjectLibrary from './pages/ProjectLibrary';
 import Connectors from './pages/Connectors';
+import ProjectBuilder from './pages/ProjectBuilder';
 import Auth from './pages/Auth';
 import WorkspaceSetup from './pages/WorkspaceSetup';
 
@@ -48,6 +49,7 @@ function AppRouter() {
     team:            <TeamCollab />,
     library:         <ProjectLibrary />,
     connectors:      <Connectors />,
+    builder:         <ProjectBuilder />,
     auth:            <Auth />,
   };
 

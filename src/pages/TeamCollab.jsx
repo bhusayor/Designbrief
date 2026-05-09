@@ -3416,6 +3416,17 @@ STYLE:
                     )}
                   </div>
                 )}
+                {kanban?.tasks?.length > 0 && (
+                  <button
+                    onClick={() => navigate('builder')}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700, boxShadow: '0 1px 6px rgba(124,58,237,0.3)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#6D28D9'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#7C3AED'}
+                  >
+                    <BoltIcon style={{ width: 13, height: 13 }} />
+                    Build with AI
+                  </button>
+                )}
                 <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: customCols[0]?.id || KANBAN_COLS[0] }); setShowAddTaskModal(true) }}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700 }}>
                   <PlusIcon style={{ width: 13, height: 13 }} />
