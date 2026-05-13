@@ -1,1 +1,1 @@
-export { default as InviteModal } from './InviteModal'
+// Team components — workspace invite is at ../workspace/InviteModal
