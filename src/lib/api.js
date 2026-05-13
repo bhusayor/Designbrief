@@ -264,13 +264,31 @@ For platform:
 
 Use the detected discipline to adapt all other output sections:
 
-ROLES: Only suggest roles relevant to the discipline. A photography brief needs Photographer, Photo Editor, Art Director, Stylist — NOT a Frontend Developer.
+TEAM ROLES RULES (ALL DISCIPLINES):
+Generate roles specific to this discipline. Never suggest developer roles for non-technical briefs.
+teamRoles is a rich array alongside the flat rolesNeeded string[].
+teamRoles shape: [{ role, responsibility, timeCommitment, required, skills[] }]
+digital-product: UI/UX Designer, Frontend Developer, Backend Developer, Product Manager, QA Engineer
+brand: Brand Strategist, Logo Designer, Graphic Designer, Copywriter, Account Manager
+campaign: Creative Director, Art Director, Copywriter, Account Manager, Media Planner, Producer
+photography: Photographer, Second Shooter, Photo Editor, Stylist/Prop Stylist, Producer
+video: Director, Videographer, Editor, Motion Graphics Designer, Sound Designer, Producer
+social-media: Social Media Strategist, Content Creator, Graphic Designer, Copywriter, Community Manager
+illustration: Lead Illustrator, Art Director, Copywriter (if needed)
+print: Graphic Designer, Copywriter, Print Specialist, Account Manager
 
-BUDGET: Line items must match the discipline.
-Photography → equipment, location, talent, editing, licensing.
-Brand → strategy, logo design, guidelines, asset creation.
-Video → pre-production, filming, editing, sound, colour grade.
-Social media → content creation, copywriting, scheduling, community management.
+BUDGET RULES (ALL DISCIPLINES):
+Generate realistic budget breakdown with discipline-specific line items.
+Use NGN rates for clearly local Nigerian projects, USD for international scope.
+budgetRange.breakdown is an ARRAY of line-item objects — NOT a key/value object.
+digital-product line items: Design, Frontend development, Backend development, QA testing, Hosting/infrastructure, Project management
+brand line items: Strategy & discovery, Logo design, Brand guidelines, Collateral design, File preparation & delivery
+campaign line items: Strategy, Creative concept, Copywriting, Design/production, Media spend (if applicable), Project management
+photography line items: Photographer day rate, Second shooter, Equipment/studio hire, Styling, Post-production & retouching, Licensing fees
+video line items: Pre-production, Director/crew, Equipment & location, Talent/actors, Post-production & editing, Music licensing
+social-media line items: Strategy, Content creation, Photography/video, Copywriting, Scheduling tools, Monthly management
+print line items: Design, Copywriting, Photography, Print production, Finishing & delivery
+IMPORTANT: Use real market rates. Never return $0 or obviously fake numbers.
 
 TECH STACK:
 For non-digital disciplines rename this section:
@@ -295,6 +313,185 @@ For non-digital disciplines rename and reframe:
 - Photography/Video → 'Shot/Scene Priority' (essential shots vs nice to have)
 - Social Media → 'Content Priority' (hero content vs regular vs experimental)
 - Print → 'Design Elements Priority'
+
+PROJECT WORKFLOW RULES (ALL DISCIPLINES):
+Generate exactly 8 steps that guide the team from start to finish for THIS specific project.
+Use real details from the brief — not generic placeholders.
+Adapt the step names and descriptions to the detected discipline:
+digital-product: Discovery & Requirements → Information Architecture → Wireframes & User Flows → Visual Design → Prototype & Test → Developer Handoff → Build & QA → Launch
+brand: Brand Discovery Workshop → Competitor & Market Audit → Positioning & Strategy → Concept Exploration (3 directions) → Refinement of Chosen Direction → Brand System Build → Guidelines Document → Asset Delivery
+campaign: Brief & Objectives Alignment → Audience Research → Creative Strategy → Concept Development → Copy & Creative Production → Review & Approvals → Campaign Setup & Trafficking → Launch & Optimisation
+photography: Brief & Mood Board → Location Scouting → Shot List Finalisation → Pre-Production & Styling → Shoot Day → Culling & Selection → Editing & Retouching → Final Delivery
+video: Brief & Concept → Script & Storyboard → Pre-Production → Shoot / Production → Rough Cut Review → Edit & Motion Graphics → Sound & Colour Grade → Final Delivery
+motion: Brief & Style Frames → Storyboard → Asset Creation → Animation (Rough) → Review & Revisions → Sound Design → Final Render → Delivery Formats
+social-media: Strategy & Pillars → Content Calendar → Template Design → Content Production → Scheduling Setup → Community Guidelines → Launch & Monitor → Monthly Reporting
+illustration: Brief & Reference Gathering → Rough Sketches (3 concepts) → Client Approval of Direction → Detailed Line Work → Colour & Texture → Revisions → Final Artwork → File Delivery
+print: Brief & Specifications → Concept & Layout → Client Review → Copywriting & Photography → Final Design → Print-Ready Files → Print Proof Approval → Production & Delivery
+game: Concept & GDD → Prototype → Art Style & Assets → Core Mechanics Build → Level Design → QA & Playtesting → Polish & Optimisation → Launch
+Set milestone: true on the 2 most important approval/delivery steps. All other steps have milestone: false.
+
+COMPETITORS RULES (ALL DISCIPLINES):
+Research 3-5 real competitors relevant to this brief's discipline and market.
+digital-product: competing apps/sites
+brand: competing brand identities in the same market
+campaign: competing brands with recent campaigns and similar approach
+photography: photographers/studios doing similar work
+social-media: accounts with similar audience and content type
+Each competitor must have: { name, url (real URL), description, strength, weakness, relevance }
+IMPORTANT: Only use real companies/brands that actually exist. Never invent competitors.
+
+INSPIRATION RULES (ALL DISCIPLINES):
+Generate 4-6 specific, actionable inspiration references the creative team can actually look at.
+digital-product → websites, apps, design systems (e.g. "Linear.app for minimal SaaS UI")
+brand → brand identities, logos, style guides (e.g. "Mailchimp for friendly yet professional B2B brand")
+campaign → specific ad campaigns, marketing moments (e.g. "Nike 'You Can't Stop Us' for split-screen emotional storytelling")
+photography → photographers, shoots, visual styles (e.g. "Annie Leibovitz portrait style for dramatic environmental lighting")
+video → films, commercials, music videos with specific visual/editing style
+social-media → accounts, content styles, viral formats with real @ handles
+illustration → illustrators, art movements, styles with real artist names
+print → print campaigns, editorial design, publications with real names
+Each inspiration: { title, description, url (real URL if possible), why (why relevant to THIS brief specifically), discipline (what aspect to reference) }
+
+GANTT DATA RULES (ALL DISCIPLINES):
+Generate a structured timeline based on the projectWorkflow steps and timeframe.
+Phases map to the major workflow stages. totalDays must match timeframe.total converted to days.
+Tasks within a phase must have non-overlapping day ranges unless parallel work is explicitly logical.
+Milestones mark key approval or delivery moments (milestone: true).
+Assignee must match a role from rolesNeeded.
+Use discipline-appropriate phase colours: discovery=#7C3AED, design=#3B82F6, production=#10B981, delivery=#F59E0B, review=#EF4444.
+Schema:
+ganttData: {
+  totalDays: number,
+  startDate: "Day 1",
+  phases: [{
+    id: "phase-1",
+    name: string,
+    color: hex string,
+    startDay: number,
+    endDay: number,
+    tasks: [{
+      id: "task-1-1",
+      name: string,
+      startDay: number,
+      endDay: number,
+      duration: number,
+      assignee: string (role),
+      milestone: boolean,
+      dependencies: string[] (task ids, empty array if none)
+    }]
+  }]
+}
+
+DISCIPLINE-SPECIFIC DATA RULES:
+
+After detecting the discipline, populate the "disciplineData" object with fields relevant ONLY to that discipline.
+
+For digital-product:
+  disciplineData: {
+    features: [{ name, description, priority, effort }],
+    userFlow: string[],
+    techStack: { framework, styling, database, hosting, extras[] },
+    components: string[]
+  }
+
+For brand:
+  disciplineData: {
+    logoUsage: { dos: string[], donts: string[] },
+    brandRules: string[],
+    fileFormats: string[],
+    printSpecs: string,
+    brandPersonality: string[]
+  }
+
+For campaign:
+  disciplineData: {
+    targetAudience: { primary: string, secondary: string, psychographics: string[] },
+    campaignGoal: string,
+    messagingPillars: string[],
+    channels: string[],
+    adFormats: string[],
+    KPIs: string[],
+    callToAction: string
+  }
+
+For photography:
+  disciplineData: {
+    shotList: string[],
+    locations: string[],
+    moodReference: string[],
+    lightingStyle: string,
+    deliveryFormats: string[]
+  }
+
+For video:
+  disciplineData: {
+    videoLength: string,
+    platforms: string[],
+    scriptOutline: string[],
+    visualStyle: string,
+    music: string,
+    deliveryFormats: string[]
+  }
+
+For motion:
+  disciplineData: {
+    animationStyle: string,
+    duration: string,
+    platforms: string[],
+    deliveryFormats: string[],
+    software: string[]
+  }
+
+For social-media:
+  disciplineData: {
+    platforms: string[],
+    postFormats: string[],
+    contentMix: { educational: string, promotional: string, entertainment: string },
+    postFrequency: string,
+    hashtagStrategy: string,
+    engagementGoals: string[]
+  }
+
+For illustration:
+  disciplineData: {
+    styleReference: string[],
+    colorRestrictions: string,
+    fileFormats: string[],
+    usageRights: string,
+    technique: string
+  }
+
+For print:
+  disciplineData: {
+    dimensions: string,
+    printSpecs: string,
+    fileFormats: string[],
+    bleedMargins: string,
+    colorMode: string,
+    paperStock: string
+  }
+
+For game:
+  disciplineData: {
+    platforms: string[],
+    genre: string,
+    coreMechanics: string[],
+    artStyle: string,
+    techStack: string[]
+  }
+
+For hybrid:
+  disciplineData: {
+    primaryDisciplineData: object,
+    secondaryDisciplineData: object
+  }
+
+IMPORTANT RULES FOR disciplineData:
+- Only include fields relevant to the detected discipline
+- Do NOT include techStack in non-digital briefs
+- Do NOT include shotList in non-photography briefs
+- Keep all existing 17 fields intact — disciplineData is the 18th field
+- If a field has no relevant data from the brief, use null not empty string
 
 Respond ONLY with valid JSON.`;
   const user = `Translate this design brief into a structured strategy document.
@@ -343,15 +540,27 @@ Return JSON with these exact keys:
   "questionsToAsk": ["<question 1>", "<question 2>", "<question 3>"],
   "clarityImprovements": ["<improvement 1>", "<improvement 2>"],
   "budgetRange": {
-    "low": "<low estimate>",
-    "high": "<high estimate>",
-    "breakdown": { "<phase>": "<cost>" }
+    "low": <number>,
+    "high": <number>,
+    "currency": "<NGN or USD>",
+    "breakdown": [
+      { "item": "<line item name>", "low": <number>, "high": <number>, "notes": "<brief context>" }
+    ]
   },
   "timeframe": {
     "total": "<total weeks>",
     "taskDays": { "<task name>": <days> }
   },
   "rolesNeeded": ["<role 1>", "<role 2>"],
+  "teamRoles": [
+    {
+      "role": "<role name>",
+      "responsibility": "<what they own on this project>",
+      "timeCommitment": "<e.g. Full-time 6 weeks, Part-time 2 weeks>",
+      "required": <true|false>,
+      "skills": ["<skill 1>", "<skill 2>"]
+    }
+  ],
   "discipline": {
     "type": "<digital-product | brand | campaign | photography | video | motion | social-media | illustration | print | game | hybrid>",
     "platform": "<web | mobile | both | print | video | social | physical>",
@@ -384,8 +593,93 @@ Return JSON with these exact keys:
       "discipline": "<which creative produces this>",
       "priority": "<ESSENTIAL | IMPORTANT | OPTIONAL>"
     }
-  ]
+  ],
+  "disciplineData": {},
+  "competitors": [
+    {
+      "name": "<company or brand name>",
+      "url": "<real URL>",
+      "description": "<what they do — 1 sentence>",
+      "strength": "<what they do particularly well>",
+      "weakness": "<gap or opportunity vs this project>",
+      "relevance": "<why they are worth comparing to>"
+    }
+  ],
+  "inspiration": [
+    {
+      "title": "<reference name>",
+      "description": "<what it is>",
+      "url": "<real URL if possible, else empty string>",
+      "why": "<why specifically relevant to this brief>",
+      "discipline": "<what aspect of it to reference>"
+    }
+  ],
+  "projectWorkflow": [
+    {
+      "step": 1,
+      "title": "<step name — max 4 words>",
+      "description": "<what happens in this step — 1-2 sentences specific to this brief>",
+      "duration": "<e.g. 2 days, 1 week>",
+      "milestone": false
+    }
+  ],
+  "ganttData": {
+    "totalDays": <number>,
+    "startDate": "Day 1",
+    "phases": [
+      {
+        "id": "phase-1",
+        "name": "<phase name>",
+        "color": "<hex colour>",
+        "startDay": <number>,
+        "endDay": <number>,
+        "tasks": [
+          {
+            "id": "task-1-1",
+            "name": "<task name>",
+            "startDay": <number>,
+            "endDay": <number>,
+            "duration": <number>,
+            "assignee": "<role>",
+            "milestone": false,
+            "dependencies": []
+          }
+        ]
+      }
+    ]
+  }
 }
+
+CRITICAL projectWorkflow rules:
+- Generate EXACTLY 8 steps
+- Each step must be specific to this brief — use real project details, not generic text
+- Set milestone: true on exactly 2 steps (the most important approval/delivery moments)
+- duration must be a realistic string like "2 days", "1 week", "3 days"
+
+CRITICAL competitors rules:
+- Return 3-5 real, existing companies/brands
+- url must be a real, working URL (e.g. "https://notion.so")
+- Never invent competitor names — only use real brands that actually operate in this market
+- weakness must be a genuine gap or opportunity, not just a generic complaint
+
+CRITICAL inspiration rules:
+- Return 4-6 specific, named references the team can actually look up
+- url should be a real URL when possible; use empty string only when no URL exists
+- why must be specific to THIS brief — explain exactly what to take from the reference
+- Adapt references to the discipline: no "check Dribbble" generics — name actual works/accounts
+
+CRITICAL ganttData rules:
+- totalDays must match timeframe.total converted to working days (1 week = 5 days)
+- Tasks within the same phase must not overlap day ranges (unless intentionally parallel)
+- At least 2 tasks must have milestone: true
+- All task id values must be unique strings like "task-1-1", "task-1-2", "task-2-1"
+- dependencies must reference real task ids within the ganttData object, or be an empty array
+
+CRITICAL teamRoles rules:
+- Generate roles specific to the detected discipline — never add developer roles to non-technical briefs
+- required: true means the project cannot be delivered without this role
+- timeCommitment must be realistic (e.g. "Full-time, 8 weeks", "Part-time, 2 days/week for 4 weeks")
+- Keep rolesNeeded as a flat string[] (backwards compatibility) AND populate teamRoles
 
 CRITICAL colorPalette rules:
 - Return EXACTLY 4 colours — no more, no less
@@ -443,7 +737,7 @@ CRITICAL deliverables rules:
 Brief:
 ${briefText}`;
 
-  return callJSON(system, user, 7000);
+  return callJSON(system, user, 8000);
 }
 
 /**
@@ -607,6 +901,19 @@ export async function translateAndAnalyse(briefText) {
     userFlow: analysis?.userFlow ?? [],
   };
 
+  if (finalResult && !finalResult.disciplineData) {
+    finalResult.disciplineData = {}
+  }
+
+  if (finalResult?.discipline) {
+    finalResult.discipline = {
+      type: finalResult.discipline.type || 'digital-product',
+      platform: finalResult.discipline.platform || 'web',
+      primaryCreative: finalResult.discipline.primaryCreative || 'Designer',
+      secondaryCreatives: finalResult.discipline.secondaryCreatives || [],
+    }
+  }
+
   return { scoreData, finalResult };
 }
 
@@ -614,12 +921,19 @@ export async function translateAndAnalyse(briefText) {
  * generateKanban — generates role-assigned task board.
  * Returns: { tasks, projectTimeline, unassignedTasks, missingRoles }
  */
-export async function generateKanban(briefText, projectTitle, teamMembers = []) {
+export async function generateKanban(briefText, projectTitle, teamMembers = [], briefData = null) {
   const rolesString = teamMembers
     .map(m => m.role + (m.name ? ' (' + m.name + ')' : ''))
     .join(', ');
 
   const roleList = teamMembers.map(m => m.role);
+
+  const disciplineContext = briefData?.disciplineData
+    ? '\n\nDISCIPLINE-SPECIFIC CONTEXT:\nDiscipline: ' +
+      (briefData.discipline?.type || 'general') + '\n' +
+      'Primary creative: ' + (briefData.discipline?.primaryCreative || 'Designer') + '\n' +
+      JSON.stringify(briefData.disciplineData, null, 2)
+    : ''
 
   const schema = JSON.stringify({
     projectTimeline: 'X weeks total',
@@ -646,6 +960,7 @@ export async function generateKanban(briefText, projectTitle, teamMembers = []) 
     'Project: ' + projectTitle,
     'Brief: ' + briefText.slice(0, 1000),
     'Team roles available: ' + rolesString,
+    disciplineContext,
     '',
     'CRITICAL RULES:',
     '- Every task assignedRole MUST exactly match one of: ' + roleList.join(', '),
@@ -658,7 +973,7 @@ export async function generateKanban(briefText, projectTitle, teamMembers = []) 
   ].join('\n');
 
   const raw = await callClaude(
-    'You are a project manager. Respond ONLY with valid JSON. No markdown, no code fences. Start with { and end with }.',
+    'You are a project manager. Respond ONLY with valid JSON. No markdown, no code fences. Start with { and end with }. Generate tasks appropriate for the specified creative discipline. For copywriting/content briefs: tasks should be about writing, editing, research — not design or development. For photography briefs: tasks should be about shot planning, location scouting, editing — not code. For campaign briefs: tasks should be about strategy, copy, creative direction, channel setup — not web development. Match tasks to what that creative actually does.',
     prompt,
     3500
   );

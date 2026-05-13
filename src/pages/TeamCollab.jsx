@@ -29,7 +29,7 @@ import {
 } from '../lib/taskService'
 import { InviteModal } from '../components/team'
 import ConnectPanel from '../components/connectors/ConnectPanel'
-import AgentPicker, { getAgentKey } from '../components/build/AgentPicker'
+import { GanttSection } from '../components/brief/renderers/shared'
 import BuildInterface from '../components/build/BuildInterface'
 import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
@@ -435,23 +435,7 @@ export default function TeamCollab() {
   const [showConnectPanel, setShowConnectPanel] = useState(false)
   const [installedConnectors, setInstalledConnectors] = useState({ figma: false, github: false, linear: false })
 
-  const [selectedAgent, setSelectedAgent] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('db-selected-agent') || 'null')
-      if (!saved) return null
-      const apiKey = getAgentKey(saved.id)
-      return { ...saved, apiKey }
-    } catch { return null }
-  })
-  const [showAgentPicker, setShowAgentPicker] = useState(false)
   const [showBuildInterface, setShowBuildInterface] = useState(false)
-
-  function handleAgentSelect(agent) {
-    const { apiKey, ...rest } = agent
-    localStorage.setItem('db-selected-agent', JSON.stringify(rest))
-    setSelectedAgent(agent)
-    setShowAgentPicker(false)
-  }
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -3436,45 +3420,6 @@ STYLE:
                     )}
                   </div>
                 )}
-                {/* Agent badge */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowAgentPicker(p => !p)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '5px 12px', borderRadius: 8, cursor: 'pointer',
-                      border: `1px solid ${selectedAgent ? selectedAgent.badgeColor + '50' : 'var(--color-border)'}`,
-                      background: showAgentPicker ? 'var(--color-surface)' : 'transparent',
-                      fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600,
-                      color: selectedAgent ? selectedAgent.badgeColor : 'var(--color-text-muted)',
-                    }}
-                  >
-                    <div style={{
-                      width: 7, height: 7, borderRadius: '50%',
-                      background: selectedAgent ? selectedAgent.badgeColor : 'var(--color-border)',
-                    }} />
-                    {selectedAgent ? selectedAgent.name : 'Agent'}
-                    {selectedAgent && (
-                      <span style={{
-                        fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: 600,
-                        background: `${selectedAgent.badgeColor}18`,
-                        border: `1px solid ${selectedAgent.badgeColor}30`,
-                        borderRadius: 4, padding: '1px 5px',
-                        color: selectedAgent.badgeColor,
-                      }}>
-                        {selectedAgent.badge}
-                      </span>
-                    )}
-                  </button>
-                  {showAgentPicker && (
-                    <AgentPicker
-                      selectedAgent={selectedAgent}
-                      onSelect={handleAgentSelect}
-                      onClose={() => setShowAgentPicker(false)}
-                    />
-                  )}
-                </div>
-
                 {kanban?.tasks?.length > 0 && (
                   <button
                     onClick={() => setShowBuildInterface(true)}
@@ -3589,9 +3534,31 @@ STYLE:
         )}
 
         {/* Gantt view */}
-        {viewMode === 'gantt' && (
-          <GanttView tasks={kanban?.tasks || []} customCols={customCols} />
-        )}
+        {viewMode === 'gantt' && (() => {
+          const briefGantt = projects.find(p => p.id === activeProjectId)?.briefData?.ganttData
+          return (
+            <>
+              {briefGantt?.phases?.length > 0 && (
+                <div style={{ padding: '20px 20px 0', flexShrink: 0 }}>
+                  <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
+                      <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>
+                        Brief Timeline
+                      </div>
+                      {briefGantt.totalDays && (
+                        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>
+                          {briefGantt.totalDays} days · from brief translation
+                        </div>
+                      )}
+                    </div>
+                    <GanttSection ganttData={briefGantt} accent="#7C3AED" />
+                  </div>
+                </div>
+              )}
+              <GanttView tasks={kanban?.tasks || []} customCols={customCols} />
+            </>
+          )
+        })()}
 
         {/* Kanban board */}
         {viewMode === 'board' && (
@@ -4220,10 +4187,8 @@ STYLE:
       {showBuildInterface && (
         <BuildInterface
           tasks={kanban?.tasks || []}
-          agent={selectedAgent}
           projectName={projects.find(p => p.id === activeProjectId)?.name || activeProject?.name}
           onClose={() => setShowBuildInterface(false)}
-          onConnectAgent={() => { setShowBuildInterface(false); setShowAgentPicker(true) }}
         />
       )}
     </div>

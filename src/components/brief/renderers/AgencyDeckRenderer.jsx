@@ -1,5 +1,9 @@
 import React from 'react'
-import { Card, SectionHeading, Label, PriorityChip, safeText, safeArr } from './shared'
+import {
+  Card, SectionHeading, Label, PriorityChip, safeText, safeArr,
+  WorkflowSection, CompetitorsSection, InspirationSection,
+  GanttSection, BudgetSection, TeamRolesSection,
+} from './shared'
 
 export default function AgencyDeckRenderer({ result }) {
   if (!result) return null
@@ -204,6 +208,147 @@ export default function AgencyDeckRenderer({ result }) {
           </div>
         </Card>
       )}
+
+      {/* Project Workflow */}
+      {r.projectWorkflow?.length > 0 && (
+        <Card>
+          <SectionHeading title="Project Workflow" subtitle="Step-by-step path for this project" accent={accent} />
+          <WorkflowSection workflow={r.projectWorkflow} accent={accent} />
+        </Card>
+      )}
+
+      {/* Team Roles */}
+      {(r.teamRoles?.length > 0 || r.rolesNeeded?.length > 0) && (
+        <Card>
+          <SectionHeading title="Team" subtitle="Roles needed for this project" accent={accent} />
+          <TeamRolesSection teamRoles={r.teamRoles} rolesNeeded={r.rolesNeeded} accent={accent} />
+        </Card>
+      )}
+
+      {/* Budget */}
+      {r.budgetRange && (
+        <Card>
+          <SectionHeading title="Budget" subtitle="Estimated cost breakdown" accent={accent} />
+          <BudgetSection budgetRange={r.budgetRange} accent={accent} />
+        </Card>
+      )}
+
+      {/* Competitors */}
+      {r.competitors?.length > 0 && (
+        <Card>
+          <SectionHeading title="Competitive Landscape" subtitle="Who you're up against and where the opportunity is" accent={accent} />
+          <CompetitorsSection competitors={r.competitors} accent={accent} />
+        </Card>
+      )}
+
+      {/* Inspiration */}
+      {r.inspiration?.length > 0 && (
+        <Card>
+          <SectionHeading title="Inspiration & References" subtitle="Real examples to guide the creative direction" accent={accent} />
+          <InspirationSection inspiration={r.inspiration} accent={accent} />
+        </Card>
+      )}
+
+      {/* Gantt Timeline */}
+      {r.ganttData?.phases?.length > 0 && (
+        <Card>
+          <SectionHeading
+            title="Project Timeline"
+            subtitle={r.ganttData.totalDays ? r.ganttData.totalDays + ' day project' : 'Gantt overview'}
+            accent={accent}
+          />
+          <GanttSection ganttData={r.ganttData} accent={accent} />
+        </Card>
+      )}
+
+      {/* Discipline Details */}
+      {r.disciplineData && Object.keys(r.disciplineData).length > 0 && (
+        <Card>
+          <SectionHeading title="Discipline Details" accent={accent} />
+          <DisciplineDataSection
+            discipline={r.discipline?.type}
+            data={r.disciplineData}
+          />
+        </Card>
+      )}
+    </div>
+  )
+}
+
+function DisciplineDataSection({ discipline, data }) {
+  if (!data) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {Object.entries(data)
+        .filter(([, v]) => v !== null && v !== undefined)
+        .map(([key, value]) => (
+          <div key={key}>
+            <div style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: 'var(--color-text-muted)',
+              marginBottom: 6,
+            }}>
+              {key.replace(/([A-Z])/g, ' $1').trim()}
+            </div>
+            <DisciplineValue value={value} />
+          </div>
+        ))}
+    </div>
+  )
+}
+
+function DisciplineValue({ value }) {
+  if (!value) return null
+
+  if (Array.isArray(value)) {
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {value.map((item, i) => (
+          <span key={i} style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-full)',
+            padding: '3px 10px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            color: 'var(--color-text-soft)',
+          }}>
+            {typeof item === 'string' ? item : JSON.stringify(item)}
+          </span>
+        ))}
+      </div>
+    )
+  }
+
+  if (typeof value === 'object') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {Object.entries(value)
+          .filter(([, v]) => v)
+          .map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                color: 'var(--color-text-muted)',
+                minWidth: 120, flexShrink: 0,
+              }}>
+                {k}
+              </span>
+              <span style={{ color: 'var(--color-text-soft)', lineHeight: 1.5 }}>
+                {Array.isArray(v) ? v.join(', ') : String(v)}
+              </span>
+            </div>
+          ))}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ fontSize: 13, color: 'var(--color-text-soft)', lineHeight: 1.6 }}>
+      {String(value)}
     </div>
   )
 }

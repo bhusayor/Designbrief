@@ -1,5 +1,9 @@
 import React from 'react'
-import { Card, Label, PriorityChip, safeText, safeArr } from './shared'
+import {
+  Card, Label, PriorityChip, safeText, safeArr,
+  WorkflowSection, CompetitorsSection, InspirationSection,
+  GanttSection, BudgetSection, TeamRolesSection,
+} from './shared'
 
 export default function TechnicalSpecRenderer({ result }) {
   if (!result) return null
@@ -178,14 +182,52 @@ export default function TechnicalSpecRenderer({ result }) {
               border: '1px solid #FECACA',
               borderRadius: 'var(--radius-md)',
             }}>
-              <span style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 10, color: '#DC2626',
-                fontWeight: 700, flexShrink: 0, marginTop: 1,
-              }}>⚠</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#DC2626', fontWeight: 700, flexShrink: 0, marginTop: 1 }}>⚠</span>
               <span style={{ fontSize: 12, color: '#991B1B', lineHeight: 1.6 }}>{f}</span>
             </div>
           ))}
+        </SpecSection>
+      )}
+
+      {/* Team Roles */}
+      {(r.teamRoles?.length > 0 || safeArr(r.rolesNeeded).length > 0) && (
+        <SpecSection title="Team Roles">
+          <TeamRolesSection teamRoles={r.teamRoles} rolesNeeded={r.rolesNeeded} accent={accent} />
+        </SpecSection>
+      )}
+
+      {/* Project Workflow */}
+      {r.projectWorkflow?.length > 0 && (
+        <SpecSection title="Project Workflow">
+          <WorkflowSection workflow={r.projectWorkflow} accent={accent} />
+        </SpecSection>
+      )}
+
+      {/* Gantt Timeline */}
+      {r.ganttData?.phases?.length > 0 && (
+        <SpecSection title={'Timeline · ' + (r.ganttData.totalDays ? r.ganttData.totalDays + ' days' : '')}>
+          <GanttSection ganttData={r.ganttData} accent={accent} />
+        </SpecSection>
+      )}
+
+      {/* Budget */}
+      {r.budgetRange && (
+        <SpecSection title="Budget Estimate">
+          <BudgetSection budgetRange={r.budgetRange} accent={accent} />
+        </SpecSection>
+      )}
+
+      {/* Competitors */}
+      {r.competitors?.length > 0 && (
+        <SpecSection title="Competitive Landscape">
+          <CompetitorsSection competitors={r.competitors} accent={accent} />
+        </SpecSection>
+      )}
+
+      {/* Inspiration */}
+      {r.inspiration?.length > 0 && (
+        <SpecSection title="References & Inspiration">
+          <InspirationSection inspiration={r.inspiration} accent={accent} />
         </SpecSection>
       )}
     </div>

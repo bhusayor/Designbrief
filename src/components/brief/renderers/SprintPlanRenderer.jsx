@@ -1,5 +1,9 @@
 import React, { useState } from 'react'
-import { Card, Label, safeText, safeArr } from './shared'
+import {
+  Card, Label, safeText, safeArr,
+  WorkflowSection, CompetitorsSection, InspirationSection,
+  GanttSection, BudgetSection, TeamRolesSection,
+} from './shared'
 import { ArrowRightIcon, ClockIcon } from '@heroicons/react/24/outline'
 
 export default function SprintPlanRenderer({ result }) {
@@ -173,24 +177,51 @@ export default function SprintPlanRenderer({ result }) {
         </Card>
       )}
 
-      {/* Roles */}
-      {safeArr(r.rolesNeeded).length > 0 && (
+      {/* Gantt Timeline — prominent for sprint plan */}
+      {r.ganttData?.phases?.length > 0 && (
+        <Card style={{ marginTop: 16 }}>
+          <Label>Brief Timeline · {r.ganttData.totalDays ? r.ganttData.totalDays + ' days' : 'Gantt'}</Label>
+          <GanttSection ganttData={r.ganttData} accent={accent} />
+        </Card>
+      )}
+
+      {/* Project Workflow */}
+      {r.projectWorkflow?.length > 0 && (
+        <Card style={{ marginTop: 16 }}>
+          <Label>Project Workflow</Label>
+          <WorkflowSection workflow={r.projectWorkflow} accent={accent} />
+        </Card>
+      )}
+
+      {/* Team Roles */}
+      {(r.teamRoles?.length > 0 || safeArr(r.rolesNeeded).length > 0) && (
         <Card style={{ marginTop: 16 }}>
           <Label>Team Needed</Label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {safeArr(r.rolesNeeded).map((role, i) => (
-              <div key={i} style={{
-                background: accent + '10',
-                border: '1px solid ' + accent + '25',
-                borderRadius: 'var(--radius-full)',
-                padding: '5px 14px',
-                fontWeight: 600, fontSize: 12,
-                color: accent,
-              }}>
-                {safeText(role)}
-              </div>
-            ))}
-          </div>
+          <TeamRolesSection teamRoles={r.teamRoles} rolesNeeded={r.rolesNeeded} accent={accent} />
+        </Card>
+      )}
+
+      {/* Budget */}
+      {r.budgetRange && (
+        <Card style={{ marginTop: 16 }}>
+          <Label>Budget Estimate</Label>
+          <BudgetSection budgetRange={r.budgetRange} accent={accent} />
+        </Card>
+      )}
+
+      {/* Competitors */}
+      {r.competitors?.length > 0 && (
+        <Card style={{ marginTop: 16 }}>
+          <Label>Competitive Landscape</Label>
+          <CompetitorsSection competitors={r.competitors} accent={accent} />
+        </Card>
+      )}
+
+      {/* Inspiration */}
+      {r.inspiration?.length > 0 && (
+        <Card style={{ marginTop: 16 }}>
+          <Label>References & Inspiration</Label>
+          <InspirationSection inspiration={r.inspiration} accent={accent} />
         </Card>
       )}
     </div>

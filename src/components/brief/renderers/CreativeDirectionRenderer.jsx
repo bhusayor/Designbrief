@@ -1,5 +1,9 @@
 import React from 'react'
-import { Card, SectionHeading, Label, safeText, safeArr } from './shared'
+import {
+  Card, SectionHeading, Label, safeText, safeArr,
+  WorkflowSection, CompetitorsSection, InspirationSection,
+  GanttSection, BudgetSection, TeamRolesSection,
+} from './shared'
 
 export default function CreativeDirectionRenderer({ result }) {
   if (!result) return null
@@ -145,32 +149,74 @@ export default function CreativeDirectionRenderer({ result }) {
             <div>
               <Label color="#16a34a">Do Say</Label>
               {safeArr(r.copyVoice.doSay).map((item, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 7,
-                  marginBottom: 7, alignItems: 'flex-start',
-                }}>
+                <div key={i} style={{ display: 'flex', gap: 7, marginBottom: 7, alignItems: 'flex-start' }}>
                   <span style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }}>✓</span>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-soft)', lineHeight: 1.5 }}>
-                    {item}
-                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-soft)', lineHeight: 1.5 }}>{item}</span>
                 </div>
               ))}
             </div>
             <div>
               <Label color="#DC2626">Don't Say</Label>
               {safeArr(r.copyVoice.doNotSay).map((item, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 7,
-                  marginBottom: 7, alignItems: 'flex-start',
-                }}>
+                <div key={i} style={{ display: 'flex', gap: 7, marginBottom: 7, alignItems: 'flex-start' }}>
                   <span style={{ color: '#DC2626', flexShrink: 0, marginTop: 1 }}>✕</span>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-soft)', lineHeight: 1.5 }}>
-                    {item}
-                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-soft)', lineHeight: 1.5 }}>{item}</span>
                 </div>
               ))}
             </div>
           </div>
+        </Card>
+      )}
+
+      {/* Inspiration — prominent for creative */}
+      {r.inspiration?.length > 0 && (
+        <Card>
+          <SectionHeading title="Inspiration & References" subtitle="Real examples to guide the creative direction" accent={accent} />
+          <InspirationSection inspiration={r.inspiration} accent={accent} />
+        </Card>
+      )}
+
+      {/* Competitors */}
+      {r.competitors?.length > 0 && (
+        <Card>
+          <SectionHeading title="Competitive Landscape" subtitle="Who you're up against and where the opportunity is" accent={accent} />
+          <CompetitorsSection competitors={r.competitors} accent={accent} />
+        </Card>
+      )}
+
+      {/* Project Workflow */}
+      {r.projectWorkflow?.length > 0 && (
+        <Card>
+          <SectionHeading title="Project Workflow" subtitle="Step-by-step creative process" accent={accent} />
+          <WorkflowSection workflow={r.projectWorkflow} accent={accent} />
+        </Card>
+      )}
+
+      {/* Team Roles */}
+      {(r.teamRoles?.length > 0 || r.rolesNeeded?.length > 0) && (
+        <Card>
+          <SectionHeading title="Team" subtitle="Who you need for this project" accent={accent} />
+          <TeamRolesSection teamRoles={r.teamRoles} rolesNeeded={r.rolesNeeded} accent={accent} />
+        </Card>
+      )}
+
+      {/* Budget */}
+      {r.budgetRange && (
+        <Card>
+          <SectionHeading title="Budget" subtitle="Estimated cost breakdown" accent={accent} />
+          <BudgetSection budgetRange={r.budgetRange} accent={accent} />
+        </Card>
+      )}
+
+      {/* Gantt — minimal for creative */}
+      {r.ganttData?.phases?.length > 0 && (
+        <Card>
+          <SectionHeading
+            title="Timeline Overview"
+            subtitle={r.ganttData.totalDays ? r.ganttData.totalDays + ' day project' : undefined}
+            accent={accent}
+          />
+          <GanttSection ganttData={r.ganttData} accent={accent} />
         </Card>
       )}
     </div>

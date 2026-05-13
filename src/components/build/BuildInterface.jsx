@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useContext } from 'react'
 import JSZip from 'jszip'
 import {
   XMarkIcon, CheckCircleIcon, ArrowDownTrayIcon, BoltIcon,
 } from '@heroicons/react/24/outline'
-import { callAgentForBuild } from '../../lib/buildEngine'
+import { buildWithProxy } from '../../lib/buildEngine'
+import { supabase } from '../../lib/supabase'
+import AppContext from '../../context/AppContext'
 
 const TIPS = [
   ['Component isolation', 'Each task becomes a self-contained React component you can drop anywhere in your codebase.'],
@@ -62,7 +64,8 @@ ${task.description ? `Description: ${task.description}` : ''}
 Generate a complete, polished React component for this task. The component should look production-ready with realistic content.`
 }
 
-export default function BuildInterface({ tasks: rawTasks, agent, projectName, onClose, onConnectAgent }) {
+export default function BuildInterface({ tasks: rawTasks, projectName, onClose }) {
+  const { setCreditsUsed } = useContext(AppContext)
   const order = ['To Do', 'In Progress', 'Review', 'Done']
   const tasks = [...(rawTasks || [])].sort((a, b) => order.indexOf(a.column) - order.indexOf(b.column))
 
@@ -102,18 +105,22 @@ export default function BuildInterface({ tasks: rawTasks, agent, projectName, on
   const isComplete = currentIndex >= tasks.length
 
   async function buildCurrentTask() {
-    if (!agent?.apiKey) { setError('No API key — connect an agent first.'); return }
     if (!currentTask) return
     setError('')
     setStreamedCode('')
     setPhase('building')
 
     try {
+      const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: {} }))
+      const authHeader = session?.access_token ? 'Bearer ' + session.access_token : undefined
+
       const prompt = buildPrompt(currentTask, projectName, currentIndex, tasks.length)
-      await callAgentForBuild(prompt, agent, text => {
+      await buildWithProxy(prompt, text => {
         setStreamedCode(prev => prev + text)
-      })
+      }, authHeader)
+
       setPhase('done')
+      setCreditsUsed(prev => prev + 1)
     } catch (e) {
       setError(e.message)
       setPhase('idle')
@@ -158,8 +165,6 @@ export default function BuildInterface({ tasks: rawTasks, agent, projectName, on
     URL.revokeObjectURL(url)
   }
 
-  const agentConnected = !!agent?.apiKey
-
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 10000,
@@ -191,67 +196,18 @@ export default function BuildInterface({ tasks: rawTasks, agent, projectName, on
           </>
         )}
 
-        {/* Agent pill */}
-        {agent ? (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '3px 10px', borderRadius: 100,
-            background: `${agent.badgeColor}12`,
-            border: `1px solid ${agent.badgeColor}40`,
-            marginLeft: 'auto',
-          }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: agent.badgeColor }} />
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: agent.badgeColor, fontWeight: 600 }}>
-              {agent.name} · {agent.badge}
-            </span>
-            {!agentConnected && (
-              <button
-                onClick={onConnectAgent}
-                style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', color: agent.badgeColor, fontSize: 11, fontFamily: "'Urbanist', sans-serif", fontWeight: 700, padding: 0 }}
-              >
-                Add key →
-              </button>
-            )}
-          </div>
-        ) : (
-          <button
-            onClick={onConnectAgent}
-            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 8, border: '1px dashed var(--color-border)', background: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--color-text-muted)', fontFamily: "'Urbanist', sans-serif" }}
-          >
-            Connect agent
-          </button>
-        )}
-
         {/* Progress pill */}
         {tasks.length > 0 && !isComplete && (
           <span style={{
             fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
             background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)',
             borderRadius: 100, padding: '3px 10px', color: '#7C3AED',
-            marginLeft: agent ? 8 : 0,
+            marginLeft: 'auto',
           }}>
             {currentIndex + 1} / {tasks.length}
           </span>
         )}
       </div>
-
-      {/* No agent warning */}
-      {!agentConnected && (
-        <div style={{
-          padding: '10px 20px', background: 'rgba(234,179,8,0.08)',
-          borderBottom: '1px solid rgba(234,179,8,0.25)',
-          display: 'flex', alignItems: 'center', gap: 10,
-          fontFamily: "'Urbanist', sans-serif", fontSize: 13,
-        }}>
-          <span style={{ color: '#ca8a04' }}>⚠</span>
-          <span style={{ color: 'var(--color-text)' }}>
-            No AI agent connected.{' '}
-            <button onClick={onConnectAgent} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7C3AED', fontWeight: 700, fontSize: 13, padding: 0, fontFamily: "'Urbanist', sans-serif" }}>
-              Connect one to start building →
-            </button>
-          </span>
-        </div>
-      )}
 
       {/* Three-column body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -378,9 +334,7 @@ export default function BuildInterface({ tasks: rawTasks, agent, projectName, on
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--color-text)' }}>Ready to build</div>
                     <div style={{ fontSize: 13, color: 'var(--color-text-muted)', textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
-                      {agentConnected
-                        ? `Click "Build this task" to generate a React component for "${currentTask?.title}".`
-                        : 'Connect an AI agent to start building components.'}
+                      {`Click "Build this task" to generate a React component for "${currentTask?.title}".`}
                     </div>
                     {error && (
                       <div style={{ padding: '8px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, color: '#ef4444', fontSize: 13, maxWidth: 400, textAlign: 'center' }}>
@@ -449,19 +403,18 @@ export default function BuildInterface({ tasks: rawTasks, agent, projectName, on
           <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
             {phase === 'idle' && !isComplete && (
               <button
-                onClick={agentConnected ? buildCurrentTask : onConnectAgent}
+                onClick={buildCurrentTask}
                 style={{
                   width: '100%', padding: '9px 0', borderRadius: 9, border: 'none', cursor: 'pointer',
-                  background: agentConnected ? '#7C3AED' : 'var(--color-border)',
-                  color: agentConnected ? '#fff' : 'var(--color-text-muted)',
+                  background: '#7C3AED', color: '#fff',
                   fontFamily: "'Urbanist', sans-serif", fontSize: 13, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
-                onMouseEnter={e => { if (agentConnected) e.currentTarget.style.background = '#6D28D9' }}
-                onMouseLeave={e => { if (agentConnected) e.currentTarget.style.background = '#7C3AED' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#6D28D9' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#7C3AED' }}
               >
                 <BoltIcon style={{ width: 14, height: 14 }} />
-                {agentConnected ? 'Build this task' : 'Connect agent to build'}
+                Build this task
               </button>
             )}
 

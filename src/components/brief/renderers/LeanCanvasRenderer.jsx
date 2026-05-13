@@ -1,5 +1,9 @@
 import React from 'react'
-import { safeText, safeArr } from './shared'
+import {
+  safeText, safeArr, Card, SectionHeading,
+  WorkflowSection, CompetitorsSection, InspirationSection,
+  GanttSection, BudgetSection, TeamRolesSection,
+} from './shared'
 
 function CanvasBox({ title, content, accent }) {
   return (
@@ -135,14 +139,56 @@ export default function LeanCanvasRenderer({ result }) {
       </div>
 
       {/* Footer note */}
-      <div style={{
-        marginTop: 12,
-        fontFamily: 'var(--font-mono)',
-        fontSize: 10, color: 'var(--color-text-muted)',
-        textAlign: 'center',
-      }}>
+      <div style={{ marginTop: 12, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'center' }}>
         Generated from brief translation. Validate assumptions before building.
       </div>
+
+      {/* ── Extended fields below canvas ───────────────────────────── */}
+      {r.projectWorkflow?.length > 0 && (
+        <Card style={{ marginTop: 20 }}>
+          <SectionHeading title="Project Workflow" accent="#F59E0B" />
+          <WorkflowSection workflow={r.projectWorkflow} accent="#F59E0B" />
+        </Card>
+      )}
+
+      {(r.teamRoles?.length > 0 || r.rolesNeeded?.length > 0) && (
+        <Card>
+          <SectionHeading title="Team" accent="#F59E0B" />
+          <TeamRolesSection teamRoles={r.teamRoles} rolesNeeded={r.rolesNeeded} accent="#F59E0B" />
+        </Card>
+      )}
+
+      {r.budgetRange && (
+        <Card>
+          <SectionHeading title="Budget" accent="#F59E0B" />
+          <BudgetSection budgetRange={r.budgetRange} accent="#F59E0B" />
+        </Card>
+      )}
+
+      {r.competitors?.length > 0 && (
+        <Card>
+          <SectionHeading title="Competitive Landscape" accent="#F59E0B" />
+          <CompetitorsSection competitors={r.competitors} accent="#F59E0B" />
+        </Card>
+      )}
+
+      {r.inspiration?.length > 0 && (
+        <Card>
+          <SectionHeading title="Inspiration & References" accent="#F59E0B" />
+          <InspirationSection inspiration={r.inspiration} accent="#F59E0B" />
+        </Card>
+      )}
+
+      {r.ganttData?.phases?.length > 0 && (
+        <Card>
+          <SectionHeading
+            title="Project Timeline"
+            subtitle={r.ganttData.totalDays ? r.ganttData.totalDays + ' day project' : undefined}
+            accent="#F59E0B"
+          />
+          <GanttSection ganttData={r.ganttData} accent="#F59E0B" />
+        </Card>
+      )}
     </div>
   )
 }
