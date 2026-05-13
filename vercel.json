@@ -5,7 +5,8 @@
   "functions": {
     "api/connectors/status.js": { "memory": 256, "maxDuration": 10 },
     "api/connectors/index.js": { "memory": 512, "maxDuration": 20 },
-    "api/build-component.js": { "memory": 512, "maxDuration": 30 }
+    "api/build-component.js": { "memory": 512, "maxDuration": 30 },
+    "api/invite.js": { "memory": 512, "maxDuration": 15 }
   },
   "rewrites": [
     { "source": "/api/connectors/figma", "destination": "/api/connectors" },
@@ -15,6 +16,10 @@
     {
       "source": "/api/:path*",
       "destination": "/api/:path*"
+    },
+    {
+      "source": "/invite/:token",
+      "destination": "/index.html"
     },
     {
       "source": "/(.*)",

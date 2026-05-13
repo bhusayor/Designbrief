@@ -14,6 +14,7 @@ import Connectors from './pages/Connectors';
 import ProjectBuilder from './pages/ProjectBuilder';
 import Auth from './pages/Auth';
 import WorkspaceSetup from './pages/WorkspaceSetup';
+import AcceptInvite from './pages/AcceptInvite';
 
 function AppRouter() {
   const {
@@ -36,6 +37,13 @@ function AppRouter() {
     if (joinMatch) {
       localStorage.setItem('db-join-token', joinMatch[1]);
       navigate('join');
+      return;
+    }
+
+    const inviteMatch = path.match(/^\/invite\/([a-zA-Z0-9_-]+)$/);
+    if (inviteMatch) {
+      localStorage.setItem('db-invite-token', inviteMatch[1]);
+      navigate('accept-invite');
     }
   }, []);
 
@@ -51,6 +59,7 @@ function AppRouter() {
     connectors:      <Connectors />,
     builder:         <ProjectBuilder />,
     auth:            <Auth />,
+    'accept-invite': <AcceptInvite />,
   };
 
   // Loading — checking session or workspace
@@ -75,7 +84,7 @@ function AppRouter() {
     );
   }
 
-  const publicSections = ['auth', 'client-intake', 'join'];
+  const publicSections = ['auth', 'client-intake', 'join', 'accept-invite'];
 
   // Unauthenticated → show Auth page
   if (!authUser && !publicSections.includes(activeSection)) {
@@ -109,6 +118,11 @@ function AppRouter() {
   // Join page is public — no AppShell
   if (activeSection === 'join') {
     return <JoinPage />;
+  }
+
+  // Accept invite is public — no AppShell
+  if (activeSection === 'accept-invite') {
+    return <AcceptInvite />;
   }
 
   return (
