@@ -1,4 +1,10 @@
 import { useState, useEffect, useContext } from 'react'
+import {
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  ArrowRightIcon,
+  UserGroupIcon,
+} from '@heroicons/react/24/outline'
 import { supabase } from '../lib/supabase'
 import AppContext from '../context/AppContext'
 
@@ -153,8 +159,9 @@ export default function AcceptInvite() {
     maxWidth: 420,
     background: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: '32px',
+    fontFamily: 'var(--font-sans)',
   }
 
   if (phase === 'loading' || phase === 'accepting') {
@@ -162,17 +169,17 @@ export default function AcceptInvite() {
       <div style={bg}>
         <div style={{ ...card, textAlign: 'center' }}>
           <Logo />
-          <div
-            className="spin"
-            style={{
-              width: 36, height: 36,
-              border: '3px solid var(--color-border)',
-              borderTopColor: 'var(--color-accent)',
-              borderRadius: '50%',
-              margin: '28px auto 16px',
-            }}
-          />
-          <p style={{ color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", fontSize: 13, margin: 0 }}>
+          <div className="spin" style={{
+            width: 36, height: 36,
+            border: '3px solid var(--color-border)',
+            borderTopColor: 'var(--color-accent)',
+            borderRadius: '50%',
+            margin: '28px auto 16px',
+          }} />
+          <p style={{
+            color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)',
+            fontSize: 13, margin: 0,
+          }}>
             {phase === 'accepting' ? 'Joining workspace…' : 'Loading invite…'}
           </p>
         </div>
@@ -186,25 +193,24 @@ export default function AcceptInvite() {
         <div style={{ ...card, textAlign: 'center' }}>
           <Logo />
           <div style={{
-            width: 52, height: 52, borderRadius: '50%',
-            background: 'rgba(168,85,247,0.15)',
-            border: '2px solid var(--color-accent)',
+            width: 56, height: 56, borderRadius: '50%',
+            background: 'rgba(168,85,247,0.12)',
+            border: '1.5px solid var(--color-accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '28px auto 20px',
-            fontSize: 22, color: 'var(--color-accent)',
           }}>
-            ✓
+            <CheckCircleIcon style={{ width: 26, height: 26, color: 'var(--color-accent)' }} />
           </div>
-          <h2 style={{ color: 'var(--color-text)', fontWeight: 700, fontSize: 20, margin: '0 0 8px', letterSpacing: '-0.4px' }}>
+          <h2 style={{ color: 'var(--color-text)', fontWeight: 800, fontSize: 22, margin: '0 0 8px', letterSpacing: '-0.5px' }}>
             You're in!
           </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '0 0 6px' }}>
             Welcome to{' '}
-            <strong style={{ color: 'var(--color-text)' }}>
+            <strong style={{ color: 'var(--color-accent)' }}>
               {invite?.workspace?.name || 'your workspace'}
             </strong>
           </p>
-          <p style={{ color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, margin: 0 }}>
+          <p style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: 12, margin: 0 }}>
             Redirecting to your workspace…
           </p>
         </div>
@@ -217,7 +223,16 @@ export default function AcceptInvite() {
       <div style={bg}>
         <div style={{ ...card, textAlign: 'center' }}>
           <Logo />
-          <p style={{ color: '#f87171', fontSize: 14, margin: '28px 0 20px', lineHeight: 1.5 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%',
+            background: 'rgba(239,68,68,0.08)',
+            border: '1.5px solid rgba(239,68,68,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '28px auto 20px',
+          }}>
+            <ExclamationCircleIcon style={{ width: 26, height: 26, color: '#ef4444' }} />
+          </div>
+          <p style={{ color: '#f87171', fontSize: 14, margin: '0 0 20px', lineHeight: 1.6 }}>
             {error || 'Something went wrong.'}
           </p>
           <button onClick={() => navigate('dashboard')} style={btnStyle}>
@@ -235,25 +250,29 @@ export default function AcceptInvite() {
       <div style={card}>
         <Logo />
 
-        <div style={{ marginTop: 24, marginBottom: 24 }}>
-          <h2 style={{ color: 'var(--color-text)', fontWeight: 700, fontSize: 20, margin: '0 0 6px', letterSpacing: '-0.4px' }}>
-            You're invited to join
-          </h2>
-          <p style={{ color: 'var(--color-accent)', fontWeight: 700, fontSize: 18, margin: '0 0 10px' }}>
-            {invite?.workspace?.name}
+        {/* Invite details */}
+        <div style={{ margin: '24px 0' }}>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: '0 0 6px' }}>
+            You've been invited to join
           </p>
+          <h2 style={{ color: 'var(--color-accent)', fontWeight: 800, fontSize: 22, margin: '0 0 12px', letterSpacing: '-0.5px' }}>
+            {invite?.workspace?.name}
+          </h2>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <span style={{
-              background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)',
-              color: 'var(--color-accent)', fontSize: 11, fontFamily: "'DM Mono', monospace",
-              padding: '3px 9px', borderRadius: 20, textTransform: 'capitalize',
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)',
+              color: 'var(--color-accent)', fontSize: 12, fontWeight: 600,
+              padding: '4px 10px', borderRadius: 20,
             }}>
-              {invite?.role}
+              <UserGroupIcon style={{ width: 12, height: 12 }} />
+              As a {invite?.role || 'member'}
             </span>
             <span style={{
               background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-              color: 'var(--color-text-muted)', fontSize: 11, fontFamily: "'DM Mono', monospace",
-              padding: '3px 9px', borderRadius: 20,
+              color: 'var(--color-text-muted)', fontSize: 12,
+              padding: '4px 10px', borderRadius: 20,
+              fontFamily: 'var(--font-mono)',
             }}>
               {invite?.invitedEmail}
             </span>
@@ -262,8 +281,8 @@ export default function AcceptInvite() {
 
         {emailMismatch ? (
           <div style={{
-            background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)',
-            borderRadius: 8, padding: '12px 16px',
+            background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+            borderRadius: 10, padding: '12px 16px',
           }}>
             <p style={{ color: '#f87171', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
               You're signed in as <strong>{authUser.email}</strong>.
@@ -272,17 +291,16 @@ export default function AcceptInvite() {
             </p>
           </div>
         ) : authUser ? (
-          <button
-            onClick={() => doAccept(token, invite)}
-            style={btnStyle}
-          >
-            Accept Invitation
+          <button onClick={() => doAccept(token, invite)} style={btnStyle}>
+            Join workspace
+            <ArrowRightIcon style={{ width: 14, height: 14 }} />
           </button>
         ) : (
           <>
+            {/* Auth tab switcher */}
             <div style={{
               display: 'flex', background: 'var(--color-bg)',
-              borderRadius: 8, padding: 3, marginBottom: 20,
+              borderRadius: 10, padding: 3, marginBottom: 20,
             }}>
               {['signin', 'signup'].map(tab => (
                 <button
@@ -290,14 +308,16 @@ export default function AcceptInvite() {
                   type="button"
                   onClick={() => { setAuthTab(tab); setAuthError('') }}
                   style={{
-                    flex: 1, padding: '7px 0', border: 'none', borderRadius: 6,
-                    cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: 'all 0.15s',
+                    flex: 1, padding: '7px 0', border: 'none', borderRadius: 8,
+                    cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    fontFamily: 'var(--font-sans)',
+                    transition: 'all 0.15s',
                     background: authTab === tab ? 'var(--color-surface)' : 'transparent',
                     color: authTab === tab ? 'var(--color-text)' : 'var(--color-text-muted)',
-                    boxShadow: authTab === tab ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+                    boxShadow: authTab === tab ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
                   }}
                 >
-                  {tab === 'signin' ? 'Sign In' : 'Create Account'}
+                  {tab === 'signin' ? 'Sign in' : 'Create account'}
                 </button>
               ))}
             </div>
@@ -309,7 +329,7 @@ export default function AcceptInvite() {
                   type="email"
                   value={invite?.invitedEmail || ''}
                   readOnly
-                  style={{ ...inputStyle, opacity: 0.6, cursor: 'not-allowed' }}
+                  style={{ ...inputStyle, opacity: 0.55, cursor: 'not-allowed' }}
                 />
               </div>
 
@@ -340,21 +360,32 @@ export default function AcceptInvite() {
               </div>
 
               {authError && (
-                <p style={{ color: '#f87171', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
-                  {authError}
-                </p>
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 7,
+                  padding: '8px 12px', background: 'rgba(239,68,68,0.06)',
+                  border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8,
+                }}>
+                  <ExclamationCircleIcon style={{ width: 14, height: 14, color: '#f87171', flexShrink: 0, marginTop: 1 }} />
+                  <p style={{ color: '#f87171', fontSize: 12, margin: 0, lineHeight: 1.5 }}>{authError}</p>
+                </div>
               )}
 
               <button
                 type="submit"
                 disabled={authLoading}
-                style={{ ...btnStyle, opacity: authLoading ? 0.7 : 1, marginTop: 4 }}
+                style={{
+                  ...btnStyle,
+                  opacity: authLoading ? 0.7 : 1,
+                  marginTop: 4,
+                  cursor: authLoading ? 'not-allowed' : 'pointer',
+                }}
               >
                 {authLoading
                   ? '…'
                   : authTab === 'signin'
-                    ? 'Sign In & Accept'
-                    : 'Create Account & Accept'}
+                    ? 'Sign in & join'
+                    : 'Create account & join'}
+                {!authLoading && <ArrowRightIcon style={{ width: 14, height: 14 }} />}
               </button>
             </form>
           </>
@@ -366,17 +397,17 @@ export default function AcceptInvite() {
 
 function Logo() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-sans)' }}>
       <div style={{
         width: 32, height: 32,
         background: 'linear-gradient(135deg,#7C3AED,#A855F7)',
         borderRadius: 9,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 15, color: '#fff', fontWeight: 700,
+        fontSize: 15, color: '#fff', fontWeight: 800,
       }}>
         ✦
       </div>
-      <span style={{ color: 'var(--color-text)', fontSize: 17, fontWeight: 700, letterSpacing: '-0.4px' }}>
+      <span style={{ color: 'var(--color-text)', fontSize: 17, fontWeight: 800, letterSpacing: '-0.4px' }}>
         DesignBrief
       </span>
     </div>
@@ -385,33 +416,41 @@ function Logo() {
 
 const btnStyle = {
   width: '100%',
-  padding: '11px 0',
+  padding: '12px 0',
   background: 'linear-gradient(135deg,#7C3AED,#A855F7)',
   border: 'none',
-  borderRadius: 10,
+  borderRadius: 12,
   color: '#fff',
   fontSize: 14,
   fontWeight: 700,
+  fontFamily: 'var(--font-sans)',
   cursor: 'pointer',
   letterSpacing: '-0.2px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
 }
 
 const inputStyle = {
   width: '100%',
-  padding: '9px 12px',
+  padding: '10px 12px',
   background: 'var(--color-bg)',
   border: '1px solid var(--color-border)',
-  borderRadius: 8,
+  borderRadius: 10,
   color: 'var(--color-text)',
-  fontSize: 14,
+  fontSize: 13,
+  fontFamily: 'var(--font-sans)',
   boxSizing: 'border-box',
   outline: 'none',
+  transition: 'border-color 0.15s',
 }
 
 const labelStyle = {
   display: 'block',
   color: 'var(--color-text-muted)',
   fontSize: 12,
+  fontWeight: 500,
   marginBottom: 5,
-  fontFamily: "'DM Mono', monospace",
+  fontFamily: 'var(--font-sans)',
 }

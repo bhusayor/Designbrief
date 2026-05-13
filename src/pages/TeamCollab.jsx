@@ -272,7 +272,7 @@ function ChatBubble({ msg }) {
         border: isAI ? '1px solid var(--color-border)' : 'none',
         borderRadius: isAI ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
         padding: '10px 13px',
-        fontFamily: "'Urbanist',sans-serif",
+        fontFamily: 'var(--font-sans)',
         fontSize: 13, fontWeight: 400,
         color: isAI ? 'var(--color-text)' : 'var(--color-bg)',
         lineHeight: 1.65, wordBreak: 'break-word',
@@ -346,7 +346,7 @@ function TypingBubble({ userMessage }) {
           flexShrink: 0,
         }} />
         <span style={{
-          fontFamily: "'Urbanist',sans-serif",
+          fontFamily: 'var(--font-sans)',
           fontSize: 13, fontWeight: 500,
           color: 'var(--color-text-muted)',
           fontStyle: 'italic',
@@ -2179,7 +2179,7 @@ STYLE:
         animation: 'fadeUp 0.2s ease',
       }}>
         <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 10,
+          fontFamily: 'var(--font-mono)', fontSize: 10,
           color: accentCol, marginBottom: 8, letterSpacing: '0.06em',
         }}>NEW TASK — {col.toUpperCase()}</div>
         <input
@@ -2197,7 +2197,7 @@ STYLE:
             width: '100%', background: 'var(--color-surface)',
             border: '1px solid var(--color-border)', borderRadius: 7,
             padding: '7px 10px', color: 'var(--color-text)',
-            fontFamily: "'Urbanist', sans-serif", fontSize: 12, marginBottom: 8,
+            fontFamily: 'var(--font-sans)', fontSize: 12, marginBottom: 8,
             outline: 'none', boxSizing: 'border-box',
           }}
         />
@@ -2209,7 +2209,7 @@ STYLE:
               width: '100%', background: 'var(--color-surface)',
               border: '1px solid var(--color-border)', borderRadius: 7,
               padding: '6px 10px', color: 'var(--color-text)',
-              fontFamily: "'Urbanist', sans-serif", fontSize: 11, marginBottom: 10,
+              fontFamily: 'var(--font-sans)', fontSize: 11, marginBottom: 10,
               outline: 'none', boxSizing: 'border-box',
             }}
           >
@@ -2228,7 +2228,7 @@ STYLE:
             style={{
               flex: 1, background: accentCol, border: 'none',
               borderRadius: 7, padding: '7px 0',
-              color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif",
+              color: 'var(--color-accent-text)', fontFamily: 'var(--font-sans)',
               fontWeight: 700, fontSize: 11, cursor: title.trim() ? 'pointer' : 'default',
               opacity: !title.trim() ? 0.5 : 1,
             }}
@@ -2239,7 +2239,7 @@ STYLE:
               flex: 1, background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               borderRadius: 7, padding: '7px 0',
-              color: 'var(--color-text-soft)', fontFamily: "'Urbanist', sans-serif",
+              color: 'var(--color-text-soft)', fontFamily: 'var(--font-sans)',
               fontSize: 11, cursor: 'pointer',
             }}
           >Cancel</button>
@@ -2324,17 +2324,17 @@ STYLE:
         {/* Priority indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: priorityColor }} />
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: priorityColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{task.priority || 'MEDIUM'}</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, color: priorityColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{task.priority || 'MEDIUM'}</span>
         </div>
 
         {/* Title */}
-        <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 14, color: 'var(--color-text)', lineHeight: 1.4, marginBottom: task.description ? 6 : 12, wordBreak: 'break-word' }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, color: 'var(--color-text)', lineHeight: 1.4, marginBottom: task.description ? 6 : 12, wordBreak: 'break-word' }}>
           {task.title}
         </div>
 
         {/* Description preview */}
         {task.description && (
-          <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 12, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 12, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {task.description}
           </div>
         )}
@@ -2344,7 +2344,7 @@ STYLE:
           {/* Left: assignee */}
           {assigneeName ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
                 {assigneeName[0]?.toUpperCase()}
               </div>
             </div>
@@ -2358,7 +2358,7 @@ STYLE:
             {task.dueDate && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 5, padding: '2px 7px' }}>
                 <CalendarIcon style={{ width: 10, height: 10, color: 'var(--color-text-muted)' }} />
-                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-soft)', fontWeight: 600 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-soft)', fontWeight: 600 }}>
                   {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
               </div>
@@ -2412,14 +2412,14 @@ STYLE:
             display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
           }}>
             <div style={{ flex: 1, paddingRight: 12 }}>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6, letterSpacing: '0.08em' }}>TASK DETAIL</div>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6, letterSpacing: '0.08em' }}>TASK DETAIL</div>
               <input
                 value={editing.title}
                 onChange={e => setEditing(p => ({ ...p, title: e.target.value }))}
                 style={{
                   width: '100%', background: 'transparent', border: 'none',
                   fontSize: 17, fontWeight: 800, color: 'var(--color-text)',
-                  fontFamily: "'Urbanist', sans-serif", letterSpacing: '-0.02em', outline: 'none',
+                  fontFamily: 'var(--font-sans)', letterSpacing: '-0.02em', outline: 'none',
                 }}
               />
             </div>
@@ -2435,7 +2435,7 @@ STYLE:
           <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Description */}
             <div>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>DESCRIPTION</div>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>DESCRIPTION</div>
               <textarea
                 value={editing.description || ''}
                 onChange={e => setEditing(p => ({ ...p, description: e.target.value }))}
@@ -2443,7 +2443,7 @@ STYLE:
                   width: '100%', background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)', borderRadius: 9,
                   padding: '9px 12px', color: 'var(--color-text)',
-                  fontFamily: "'DM Mono', monospace", fontSize: 12, lineHeight: 1.7,
+                  fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.7,
                   resize: 'vertical', minHeight: 70, outline: 'none', boxSizing: 'border-box',
                 }}
               />
@@ -2452,7 +2452,7 @@ STYLE:
             {/* Priority + Days */}
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>PRIORITY</div>
+                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>PRIORITY</div>
                 <div style={{ display: 'flex', gap: 5 }}>
                   {['HIGH', 'MEDIUM', 'LOW'].map(p => (
                     <button key={p}
@@ -2462,7 +2462,7 @@ STYLE:
                         background: editing.priority === p ? PRIORITY_COLORS[p] + '22' : 'var(--color-surface)',
                         border: '1px solid ' + (editing.priority === p ? PRIORITY_COLORS[p] : 'var(--color-border)'),
                         borderRadius: 7, padding: '6px 0', fontSize: 10,
-                        fontFamily: "'DM Mono', monospace",
+                        fontFamily: 'var(--font-mono)',
                         color: editing.priority === p ? PRIORITY_COLORS[p] : 'var(--color-text-soft)',
                         cursor: 'pointer',
                       }}
@@ -2471,7 +2471,7 @@ STYLE:
                 </div>
               </div>
               <div style={{ width: 90 }}>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>DAYS</div>
+                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>DAYS</div>
                 <input
                   type="number" min={1} max={90}
                   value={editing.estimatedDays || 1}
@@ -2480,7 +2480,7 @@ STYLE:
                     width: '100%', background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)', borderRadius: 7,
                     padding: '6px 9px', color: 'var(--color-text)',
-                    fontFamily: "'DM Mono', monospace", fontSize: 13, textAlign: 'center', outline: 'none',
+                    fontFamily: 'var(--font-mono)', fontSize: 13, textAlign: 'center', outline: 'none',
                   }}
                 />
               </div>
@@ -2489,7 +2489,7 @@ STYLE:
             {/* Assign to */}
             {teamMembers.length > 0 && (
               <div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>ASSIGNED TO</div>
+                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>ASSIGNED TO</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {teamMembers.map(m => {
                     const mm = ROLE_META[m.role] || { color: 'var(--color-text-soft)', icon: '◈' }
@@ -2505,7 +2505,7 @@ STYLE:
                         }}
                       >
                         <span style={{ fontSize: 11 }}>{mm.icon}</span>
-                        <span style={{ fontSize: 11, color: active ? mm.color : 'var(--color-text-soft)', fontWeight: 600, fontFamily: "'Urbanist', sans-serif" }}>
+                        <span style={{ fontSize: 11, color: active ? mm.color : 'var(--color-text-soft)', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
                           {m.name || m.role}
                         </span>
                       </button>
@@ -2517,7 +2517,7 @@ STYLE:
 
             {/* Move to column */}
             <div>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 6 }}>MOVE TO COLUMN</div>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>MOVE TO COLUMN</div>
               <div style={{ display: 'flex', gap: 5 }}>
                 {KANBAN_COLS.map(col => {
                   const active = editing.column === col
@@ -2530,7 +2530,7 @@ STYLE:
                         background: active ? cc + '22' : 'var(--color-surface)',
                         border: '1px solid ' + (active ? cc : 'var(--color-border)'),
                         borderRadius: 7, padding: '7px 0', fontSize: 10,
-                        fontFamily: "'Urbanist', sans-serif", fontWeight: 600,
+                        fontFamily: 'var(--font-sans)', fontWeight: 600,
                         color: active ? cc : 'var(--color-text-soft)',
                         cursor: 'pointer',
                       }}
@@ -2546,13 +2546,13 @@ STYLE:
                 flex: 1, background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
                 borderRadius: 9, padding: '10px 0',
-                color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif",
+                color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
                 fontWeight: 700, fontSize: 12, cursor: 'pointer',
               }}>Cancel</button>
               <button onClick={() => { onUpdate(editing); onClose() }} style={{
                 flex: 2, background: 'var(--color-accent)',
                 border: 'none', borderRadius: 9, padding: '10px 0',
-                color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif",
+                color: 'var(--color-accent-text)', fontFamily: 'var(--font-sans)',
                 fontWeight: 700, fontSize: 12, cursor: 'pointer',
               }}>Save Changes</button>
             </div>
@@ -2586,7 +2586,7 @@ STYLE:
 
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>Add Task</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>Add Task</div>
             <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
             </button>
@@ -2604,7 +2604,7 @@ STYLE:
               style={{
                 width: '100%', background: 'transparent', border: 'none',
                 borderBottom: '1px solid var(--color-border)', borderRadius: 0,
-                padding: '8px 0', fontFamily: "'Urbanist',sans-serif",
+                padding: '8px 0', fontFamily: 'var(--font-sans)',
                 fontSize: 16, fontWeight: 600, color: 'var(--color-text)',
                 outline: 'none', boxSizing: 'border-box',
                 transition: 'border-bottom-color 0.15s',
@@ -2614,19 +2614,19 @@ STYLE:
 
           {/* Description */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Description</label>
-            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Add more details..." rows={3} style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
+            <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Description</label>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Add more details..." rows={3} style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
           </div>
 
           {/* Assignees */}
           <div style={{ marginBottom: 16, position: 'relative' }}>
-            <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Assignees</label>
+            <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Assignees</label>
             {form.assignees.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                 {form.assignees.map((a, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '3px 10px 3px 8px' }}>
-                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 9, color: 'var(--color-bg)', flexShrink: 0 }}>{a[0]?.toUpperCase()}</div>
-                    <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text)' }}>{a}</span>
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 9, color: 'var(--color-bg)', flexShrink: 0 }}>{a[0]?.toUpperCase()}</div>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text)' }}>{a}</span>
                     <button onClick={() => setForm(f => ({ ...f, assignees: f.assignees.filter((_, j) => j !== i) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--color-text-muted)' }}>
                       <XMarkIcon style={{ width: 10, height: 10 }} />
                     </button>
@@ -2636,8 +2636,8 @@ STYLE:
             )}
             <div style={{ display: 'flex', alignItems: 'center', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '8px 12px', gap: 6 }}>
               <UserIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 13, color: 'var(--color-text-muted)' }}>@</span>
-              <input value={assigneeQuery} onChange={e => { setAssigneeQuery(e.target.value); setShowSuggestions(true) }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} placeholder="Type name to assign..." style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)' }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--color-text-muted)' }}>@</span>
+              <input value={assigneeQuery} onChange={e => { setAssigneeQuery(e.target.value); setShowSuggestions(true) }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} placeholder="Type name to assign..." style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)' }} />
             </div>
             {showSuggestions && filteredSuggestions.length > 0 && (
               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, zIndex: 10, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
@@ -2647,10 +2647,10 @@ STYLE:
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                   >
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: 'var(--color-bg)' }}>{m.name[0]?.toUpperCase()}</div>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 11, color: 'var(--color-bg)' }}>{m.name[0]?.toUpperCase()}</div>
                     <div>
-                      <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{m.name}</div>
-                      {m.role && <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>{m.role}</div>}
+                      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{m.name}</div>
+                      {m.role && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>{m.role}</div>}
                     </div>
                   </div>
                 ))}
@@ -2661,17 +2661,17 @@ STYLE:
           {/* Due Date + Priority */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Due Date</label>
+              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Due Date</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '8px 12px' }}>
                 <CalendarIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: form.dueDate ? 'var(--color-text)' : 'var(--color-text-muted)', cursor: 'pointer' }} />
+                <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, color: form.dueDate ? 'var(--color-text)' : 'var(--color-text-muted)', cursor: 'pointer' }} />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Priority</label>
+              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Priority</label>
               <div style={{ display: 'flex', gap: 6 }}>
                 {[{ id: 'HIGH', color: '#EF4444' }, { id: 'MEDIUM', color: '#F59E0B' }, { id: 'LOW', color: '#6B7280' }].map(p => (
-                  <button key={p.id} onClick={() => setForm(f => ({ ...f, priority: p.id }))} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: form.priority === p.id ? '1.5px solid ' + p.color : '1px solid var(--color-border)', background: form.priority === p.id ? p.color + '15' : 'var(--color-surface)', cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 600, color: form.priority === p.id ? p.color : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
+                  <button key={p.id} onClick={() => setForm(f => ({ ...f, priority: p.id }))} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: form.priority === p.id ? '1.5px solid ' + p.color : '1px solid var(--color-border)', background: form.priority === p.id ? p.color + '15' : 'var(--color-surface)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: form.priority === p.id ? p.color : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
                     {p.id[0] + p.id.slice(1).toLowerCase()}
                   </button>
                 ))}
@@ -2681,8 +2681,8 @@ STYLE:
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 10, fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', cursor: 'pointer' }}>Cancel</button>
-            <button onClick={() => { if (!form.title.trim()) return; onSave(form); onClose() }} disabled={!form.title.trim()} style={{ padding: '9px 24px', background: form.title.trim() ? 'var(--color-text)' : 'var(--color-border)', border: 'none', borderRadius: 10, fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700, color: 'var(--color-bg)', cursor: form.title.trim() ? 'pointer' : 'default', transition: 'background 0.15s' }}>Add Task</button>
+            <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 10, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => { if (!form.title.trim()) return; onSave(form); onClose() }} disabled={!form.title.trim()} style={{ padding: '9px 24px', background: form.title.trim() ? 'var(--color-text)' : 'var(--color-border)', border: 'none', borderRadius: 10, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-bg)', cursor: form.title.trim() ? 'pointer' : 'default', transition: 'background 0.15s' }}>Add Task</button>
           </div>
         </div>
       </div>
@@ -2694,7 +2694,7 @@ STYLE:
   function TableView({ tasks, customCols: cols }) {
     if (!tasks?.length) {
       return (
-        <div style={{ padding: 40, textAlign: 'center', fontFamily: "'Urbanist',sans-serif", fontSize: 14, color: 'var(--color-text-muted)' }}>
+        <div style={{ padding: 40, textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--color-text-muted)' }}>
           No tasks yet. Add tasks to see them here.
         </div>
       )
@@ -2708,11 +2708,11 @@ STYLE:
     ]
     return (
       <div style={{ width: '100%', overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'Urbanist',sans-serif" }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-sans)' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--color-border)', background: 'var(--color-surface)' }}>
               {COLS.map(col => (
-                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'left', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', width: col.width, whiteSpace: 'nowrap' }}>{col.label}</th>
+                <th key={col.key} style={{ padding: '10px 14px', textAlign: 'left', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', width: col.width, whiteSpace: 'nowrap' }}>{col.label}</th>
               ))}
             </tr>
           </thead>
@@ -2731,35 +2731,35 @@ STYLE:
                   <td style={{ padding: '10px 14px' }}>
                     {task.assignedName || task.assignee ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
                           {(task.assignedName || task.assignee || '')[0]?.toUpperCase()}
                         </div>
                         <span style={{ fontSize: 12, color: 'var(--color-text-soft)' }}>{task.assignedName || task.assignee}</span>
                       </div>
                     ) : (
-                      <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontFamily: "'DM Mono',monospace" }}>—</span>
+                      <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>—</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
                     {task.dueDate ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'DM Mono',monospace", fontSize: 11, color: new Date(task.dueDate) < new Date() ? '#EF4444' : 'var(--color-text-soft)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-mono)', fontSize: 11, color: new Date(task.dueDate) < new Date() ? '#EF4444' : 'var(--color-text-soft)' }}>
                         <CalendarIcon style={{ width: 12, height: 12, flexShrink: 0 }} />
                         {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </div>
                     ) : (
-                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>—</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>—</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: priorityColor + '15', border: '1px solid ' + priorityColor + '30', borderRadius: 5, padding: '2px 8px' }}>
                       <div style={{ width: 5, height: 5, borderRadius: '50%', background: priorityColor }} />
-                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: priorityColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{task.priority || 'MEDIUM'}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, color: priorityColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{task.priority || 'MEDIUM'}</span>
                     </div>
                   </td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: col.color + '15', border: '1px solid ' + col.color + '30', borderRadius: 5, padding: '2px 8px' }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: col.color }} />
-                      <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 600, color: col.color }}>{col.label}</span>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: col.color }}>{col.label}</span>
                     </div>
                   </td>
                 </tr>
@@ -2814,7 +2814,7 @@ STYLE:
           <button onClick={prevMonth} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <ChevronLeftIcon style={{ width: 16, height: 16, color: 'var(--color-text)' }} />
           </button>
-          <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 20, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 20, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
             {monthNames[currentMonth]} {currentYear}
           </div>
           <button onClick={nextMonth} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2825,7 +2825,7 @@ STYLE:
         {/* Day headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, marginBottom: 4 }}>
           {dayNames.map(d => (
-            <div key={d} style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'center', padding: '4px 0', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{d}</div>
+            <div key={d} style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'center', padding: '4px 0', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{d}</div>
           ))}
         </div>
 
@@ -2838,17 +2838,17 @@ STYLE:
             const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()
             return (
               <div key={day} style={{ minHeight: 80, background: isToday ? 'rgba(59,130,246,0.06)' : 'var(--color-card)', border: isToday ? '1.5px solid #3B82F6' : '1px solid var(--color-border)', borderRadius: 10, padding: '6px 8px', transition: 'all 0.1s' }}>
-                <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: isToday ? 800 : 500, fontSize: 13, color: isToday ? '#3B82F6' : 'var(--color-text)', marginBottom: 4 }}>{day}</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: isToday ? 800 : 500, fontSize: 13, color: isToday ? '#3B82F6' : 'var(--color-text)', marginBottom: 4 }}>{day}</div>
                 {dayTasks.slice(0, 3).map((task, ti) => {
                   const col = cols?.find(c => c.id === task.column) || { color: '#6B7280' }
                   return (
-                    <div key={ti} onClick={() => setEditingTask(task)} style={{ background: col.color + '20', border: '1px solid ' + col.color + '40', borderLeft: '2px solid ' + col.color, borderRadius: '0 4px 4px 0', padding: '2px 5px', marginBottom: 2, fontFamily: "'Urbanist',sans-serif", fontSize: 10, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                    <div key={ti} onClick={() => setEditingTask(task)} style={{ background: col.color + '20', border: '1px solid ' + col.color + '40', borderLeft: '2px solid ' + col.color, borderRadius: '0 4px 4px 0', padding: '2px 5px', marginBottom: 2, fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       {task.title}
                     </div>
                   )
                 })}
                 {dayTasks.length > 3 && (
-                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)' }}>+{dayTasks.length - 3} more</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--color-text-muted)' }}>+{dayTasks.length - 3} more</div>
                 )}
               </div>
             )
@@ -2857,7 +2857,7 @@ STYLE:
 
         {/* No-due-date notice */}
         {noDateCount > 0 && (
-          <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)' }}>
+          <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)' }}>
             <ExclamationCircleIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
             {noDateCount} task{noDateCount !== 1 ? 's' : ''} have no due date and won't appear on the calendar.
           </div>
@@ -2901,8 +2901,8 @@ STYLE:
       return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40, textAlign: 'center' }}>
           <ChartBarIcon style={{ width: 32, height: 32, color: 'var(--color-text-muted)' }} />
-          <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 16, color: 'var(--color-text)', marginBottom: 4 }}>No tasks with due dates</div>
-          <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-muted)', maxWidth: 280, lineHeight: 1.6 }}>Add due dates to your tasks to see them on the Gantt chart.</div>
+          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16, color: 'var(--color-text)', marginBottom: 4 }}>No tasks with due dates</div>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)', maxWidth: 280, lineHeight: 1.6 }}>Add due dates to your tasks to see them on the Gantt chart.</div>
         </div>
       )
     }
@@ -2912,7 +2912,7 @@ STYLE:
         <div style={{ minWidth: 'max-content' }}>
           {/* Header row */}
           <div style={{ display: 'flex', position: 'sticky', top: 0, zIndex: 10, background: 'var(--color-bg)', borderBottom: '2px solid var(--color-border)' }}>
-            <div style={{ width: 200, flexShrink: 0, padding: '8px 14px', borderRight: '1px solid var(--color-border)', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', background: 'var(--color-bg)' }}>Task</div>
+            <div style={{ width: 200, flexShrink: 0, padding: '8px 14px', borderRight: '1px solid var(--color-border)', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', background: 'var(--color-bg)' }}>Task</div>
             <div style={{ display: 'flex' }}>
               {days.map((d, i) => {
                 const isToday = d.toDateString() === today.toDateString()
@@ -2921,11 +2921,11 @@ STYLE:
                 return (
                   <div key={i} style={{ width: DAY_WIDTH, flexShrink: 0, padding: '4px 2px', textAlign: 'center', background: isToday ? 'rgba(59,130,246,0.1)' : isWeekend ? 'var(--color-surface)' : 'transparent', borderLeft: isFirstOfWeek ? '1px solid var(--color-border)' : 'none' }}>
                     {(isFirstOfWeek || d.getDate() === 1 || i === 0) && (
-                      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', marginBottom: 1 }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--color-text-muted)', marginBottom: 1 }}>
                         {d.toLocaleDateString('en', { month: 'short' })}
                       </div>
                     )}
-                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: isToday ? 700 : 400, color: isToday ? '#3B82F6' : 'var(--color-text-muted)' }}>{d.getDate()}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: isToday ? 700 : 400, color: isToday ? '#3B82F6' : 'var(--color-text-muted)' }}>{d.getDate()}</div>
                   </div>
                 )
               })}
@@ -2947,7 +2947,7 @@ STYLE:
                 {/* Task name (sticky) */}
                 <div style={{ width: 200, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 7, borderRight: '1px solid var(--color-border)', background: 'var(--color-bg)', position: 'sticky', left: 0, zIndex: 5 }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
-                  <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, fontWeight: 500, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
                 </div>
 
                 {/* Timeline */}
@@ -2975,7 +2975,7 @@ STYLE:
                       style={{ position: 'absolute', left: barLeft, width: barWidth, height: 24, borderRadius: 6, background: isOverdue ? '#EF4444' : col.color, opacity: 0.85, display: 'flex', alignItems: 'center', paddingLeft: 8, cursor: 'pointer', zIndex: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}
                     >
                       {barWidth > 48 && (
-                        <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 10, fontWeight: 700, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: barWidth - 16 }}>{task.title}</span>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: barWidth - 16 }}>{task.title}</span>
                       )}
                     </div>
                   )}
@@ -3164,13 +3164,13 @@ STYLE:
                   <CheckIcon style={{ width: 10, height: 10, color: 'white' }} />
                 ) : (
                   <span style={{
-                    fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700,
+                    fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
                     color: isActive ? 'var(--color-bg)' : 'var(--color-text-muted)',
                   }}>{tab.step}</span>
                 )}
               </div>
               <span style={{
-                fontFamily: "'Urbanist',sans-serif",
+                fontFamily: 'var(--font-sans)',
                 fontWeight: isActive ? 700 : 500, fontSize: 13,
                 color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)',
               }}>
@@ -3192,7 +3192,7 @@ STYLE:
                 appearance: 'none', background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
                 borderRadius: 8, padding: '6px 32px 6px 12px',
-                fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 12,
+                fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12,
                 color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
                 maxWidth: 180,
               }}
@@ -3212,7 +3212,7 @@ STYLE:
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               borderRadius: 8, padding: '6px 12px',
-              fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 12,
+              fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12,
               color: 'var(--color-text-soft)', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 5,
             }}
@@ -3238,11 +3238,11 @@ STYLE:
               }}>
                 <div>
                   <div style={{
-                    fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 22,
+                    fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22,
                     color: 'var(--color-text)', marginBottom: 4,
                   }}>Team Members</div>
                   <div style={{
-                    fontFamily: "'DM Mono', monospace", fontSize: 12,
+                    fontFamily: 'var(--font-mono)', fontSize: 12,
                     color: 'var(--color-text-soft)',
                   }}>People working on this project</div>
                 </div>
@@ -3251,7 +3251,7 @@ STYLE:
                   style={{
                     background: 'var(--color-accent)', border: 'none',
                     borderRadius: 8, padding: '8px 14px',
-                    color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif",
+                    color: 'var(--color-accent-text)', fontFamily: 'var(--font-sans)',
                     fontWeight: 700, fontSize: 12, cursor: 'pointer',
                   }}
                 >+ Invite Member</button>
@@ -3271,14 +3271,14 @@ STYLE:
                         width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
                         background: meta.color + '22', border: '1px solid ' + meta.color + '70',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
+                        fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14,
                         color: meta.color,
                       }}>{initial}</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
+                        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
                           {member.name || member.role}
                         </div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-soft)' }}>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-soft)' }}>
                           {member.role}
                         </div>
                       </div>
@@ -3288,7 +3288,7 @@ STYLE:
                 })
               ) : (
                 <div style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 12,
+                  fontFamily: 'var(--font-mono)', fontSize: 12,
                   color: 'var(--color-text-muted)', textAlign: 'center', padding: '32px 0',
                 }}>No team members yet. Use the chat to build your team.</div>
               )}
@@ -3296,7 +3296,7 @@ STYLE:
               {invites.filter(inv => inv.status === 'pending').length > 0 && (
                 <div style={{ marginTop: 20 }}>
                   <div style={{
-                    fontFamily: "'Urbanist', sans-serif", fontWeight: 700,
+                    fontFamily: 'var(--font-sans)', fontWeight: 700,
                     fontSize: 13, color: 'var(--color-text)', marginBottom: 12,
                   }}>Pending Invites</div>
                   {invites.filter(inv => inv.status === 'pending').map(invite => {
@@ -3313,14 +3313,14 @@ STYLE:
                           background: (meta.color || 'var(--color-accent)') + '22',
                           border: '1px solid ' + (meta.color || 'var(--color-accent)') + '70',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
+                          fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14,
                           color: meta.color || 'var(--color-accent)',
                         }}>{initial}</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
+                          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
                             {invite.invitee_name}
                           </div>
-                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>
                             {invite.invitee_email}
                           </div>
                         </div>
@@ -3349,7 +3349,7 @@ STYLE:
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 20px', height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
               {/* Left: task count + progress */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 120 }}>
-                <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>
                   {totalTasks} task{totalTasks !== 1 ? 's' : ''}
                 </span>
                 {totalTasks > 0 && (
@@ -3357,7 +3357,7 @@ STYLE:
                     <div style={{ width: 60, height: 3, background: 'var(--color-border)', borderRadius: 2 }}>
                       <div style={{ width: donePercent + '%', height: '100%', background: '#16a34a', borderRadius: 2, transition: 'width 0.4s ease' }} />
                     </div>
-                    <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>{donePercent}%</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>{donePercent}%</span>
                   </div>
                 )}
               </div>
@@ -3373,7 +3373,7 @@ STYLE:
                   const isActive = viewMode === v.id
                   return (
                     <button key={v.id} onClick={() => setViewMode(v.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: 'none', background: isActive ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', transition: 'all 0.15s', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: 'none', background: isActive ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', transition: 'all 0.15s', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--color-surface)' }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                     >
@@ -3386,7 +3386,7 @@ STYLE:
               {/* Right: Team + Connect + Add Task */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120, justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowTeamModal(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: activeTab === 'team' ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: activeTab === 'team' ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
                   <UserGroupIcon style={{ width: 13, height: 13 }} />
                   Team
                 </button>
@@ -3394,7 +3394,7 @@ STYLE:
                   <div style={{ position: 'relative' }}>
                     <button
                       onClick={() => setShowConnectPanel(p => !p)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: showConnectPanel ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: showConnectPanel ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}
                     >
                       <LinkIcon style={{ width: 13, height: 13 }} />
                       Connect
@@ -3413,7 +3413,7 @@ STYLE:
                 {kanban?.tasks?.length > 0 && (
                   <button
                     onClick={() => setShowBuildInterface(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700, boxShadow: '0 1px 6px rgba(124,58,237,0.3)' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, boxShadow: '0 1px 6px rgba(124,58,237,0.3)' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#6D28D9'}
                     onMouseLeave={e => e.currentTarget.style.background = '#7C3AED'}
                   >
@@ -3422,14 +3422,14 @@ STYLE:
                   </button>
                 )}
                 <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: customCols[0]?.id || KANBAN_COLS[0] }); setShowAddTaskModal(true) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700 }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700 }}>
                   <PlusIcon style={{ width: 13, height: 13 }} />
                   Add Task
                 </button>
                 {connectorData?.linear?.teams?.length > 0 && kanban?.tasks?.length > 0 && (
                   <button
                     onClick={() => { setSelectedTeamId(connectorData.linear.teams[0]?.id || ''); setPushResult(null); setPushLinearOpen(true) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: '#5E6AD2', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 700 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: '#5E6AD2', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700 }}
                   >
                     <svg width="13" height="13" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M17.5 66.7L33.3 82.5L82.5 33.3" stroke="white" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round"/>
@@ -3446,7 +3446,7 @@ STYLE:
         {/* List view */}
         {viewMode === 'list' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 100px 100px 60px', gap: 12, padding: '8px 16px', background: 'var(--color-surface)', borderRadius: 8, marginBottom: 10, fontSize: 10, fontFamily: "'DM Mono', monospace", color: 'var(--color-text-muted)', letterSpacing: '0.06em' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 100px 100px 60px', gap: 12, padding: '8px 16px', background: 'var(--color-surface)', borderRadius: 8, marginBottom: 10, fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', letterSpacing: '0.06em' }}>
               {['TASK', 'ASSIGNEE', 'PRIORITY', 'DUE DATE', 'STATUS', 'DAYS'].map(h => <div key={h}>{h}</div>)}
             </div>
             {customCols.map(col => {
@@ -3457,8 +3457,8 @@ STYLE:
                 <div key={col.id} style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px 6px' }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: cc }} />
-                    <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{col.label}</span>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>({colTasks.length})</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{col.label}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>({colTasks.length})</span>
                   </div>
                   {colTasks.map(task => {
                     const meta = ROLE_META[task.assignedRole]
@@ -3473,25 +3473,25 @@ STYLE:
                         onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-card)'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.borderLeftColor = pc }}
                       >
                         <div>
-                          {task.blockedBy?.length > 0 && task.column !== col.id && <span style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", color: 'var(--color-red)', marginRight: 6 }}>🔒</span>}
-                          <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{task.title}</span>
-                          {task.description && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{task.description}</div>}
+                          {task.blockedBy?.length > 0 && task.column !== col.id && <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--color-red)', marginRight: 6 }}>🔒</span>}
+                          <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{task.title}</span>
+                          {task.description && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{task.description}</div>}
                         </div>
                         <div>
                           {task.assignedRole ? (
                             <div style={{ background: roleColor + '18', border: '1px solid ' + roleColor + '33', borderRadius: 5, padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <span style={{ fontSize: 9 }}>{meta?.icon}</span>
-                              <span style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", color: roleColor }}>{task.assignedName || task.assignedRole}</span>
+                              <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: roleColor }}>{task.assignedName || task.assignedRole}</span>
                             </div>
-                          ) : <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>Unassigned</span>}
+                          ) : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>Unassigned</span>}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <div style={{ width: 6, height: 6, borderRadius: '50%', background: pc }} />
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: pc }}>{task.priority}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: pc }}>{task.priority}</span>
                         </div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: dueColor }}>{dueTxt}</div>
-                        <div><div style={{ background: cc + '18', border: '1px solid ' + cc + '33', borderRadius: 5, padding: '2px 8px', display: 'inline-block', fontFamily: "'DM Mono', monospace", fontSize: 9, color: cc }}>{col.label}</div></div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>{task.estimatedDays}d</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: dueColor }}>{dueTxt}</div>
+                        <div><div style={{ background: cc + '18', border: '1px solid ' + cc + '33', borderRadius: 5, padding: '2px 8px', display: 'inline-block', fontFamily: 'var(--font-mono)', fontSize: 9, color: cc }}>{col.label}</div></div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>{task.estimatedDays}d</div>
                       </div>
                     )
                   })}
@@ -3532,11 +3532,11 @@ STYLE:
                 <div style={{ padding: '20px 20px 0', flexShrink: 0 }}>
                   <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 20, marginBottom: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
-                      <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>
                         Brief Timeline
                       </div>
                       {briefGantt.totalDays && (
-                        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>
                           {briefGantt.totalDays} days · from brief translation
                         </div>
                       )}
@@ -3636,7 +3636,7 @@ STYLE:
                           }}
                           onClick={e => e.stopPropagation()}
                           onMouseDown={e => e.stopPropagation()}
-                          style={{ background: accentCol + '15', border: '1.5px solid ' + accentCol, borderRadius: 6, outline: 'none', padding: '3px 10px', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em', minWidth: 80, maxWidth: 150 }}
+                          style={{ background: accentCol + '15', border: '1.5px solid ' + accentCol, borderRadius: 6, outline: 'none', padding: '3px 10px', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em', minWidth: 80, maxWidth: 150 }}
                         />
                       ) : (
                         <div
@@ -3648,14 +3648,14 @@ STYLE:
                           title="Click to rename"
                         >
                           <div style={{ width: 6, height: 6, borderRadius: '50%', background: accentCol, flexShrink: 0 }} />
-                          <span style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{col.label}</span>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 11, color: accentCol, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{col.label}</span>
                         </div>
                       )}
                     </div>
 
                     {/* Right: task count + three-dot menu + add button */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, position: 'relative' }} data-col-menu>
-                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, marginRight: 2 }}>{colTasks.length}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, marginRight: 2 }}>{colTasks.length}</span>
 
                       <button
                         onClick={e => { e.stopPropagation(); setOpenColMenuId(openColMenuId === col.id ? null : col.id) }}
@@ -3695,7 +3695,7 @@ STYLE:
                                 key={i}
                                 onClick={item.onClick}
                                 disabled={item.disabled}
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: 7, cursor: item.disabled ? 'not-allowed' : 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 500, color: item.disabled ? 'var(--color-text-muted)' : item.danger ? '#dc2626' : 'var(--color-text)', opacity: item.disabled ? 0.4 : 1, textAlign: 'left', transition: 'background 0.1s' }}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', background: 'transparent', border: 'none', borderRadius: 7, cursor: item.disabled ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: item.disabled ? 'var(--color-text-muted)' : item.danger ? '#dc2626' : 'var(--color-text)', opacity: item.disabled ? 0.4 : 1, textAlign: 'left', transition: 'background 0.1s' }}
                                 onMouseEnter={e => { if (!item.disabled) e.currentTarget.style.background = item.danger ? 'rgba(220,38,38,0.08)' : 'var(--color-surface)' }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                               >
@@ -3739,16 +3739,16 @@ STYLE:
                     {colTasks.map(task => <TaskCard key={task.id} task={task} />)}
                     {colTasks.length === 0 && !isTaskDropTarget && (
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
-                        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.5 }}>No tasks yet</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.5 }}>No tasks yet</div>
                       </div>
                     )}
                     {isTaskDropTarget && colTasks.length === 0 && (
-                      <div style={{ height: 60, border: '1.5px dashed #3B82F680', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono',monospace", fontSize: 11, color: '#3B82F6' }}>Drop here</div>
+                      <div style={{ height: 60, border: '1.5px dashed #3B82F680', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, color: '#3B82F6' }}>Drop here</div>
                     )}
                     <button
                       onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
                       onMouseDown={e => e.stopPropagation()}
-                      style={{ width: '100%', marginTop: 8, padding: '7px 0', background: 'transparent', border: '1px dashed var(--color-border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}
+                      style={{ width: '100%', marginTop: 8, padding: '7px 0', background: 'transparent', border: '1px dashed var(--color-border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
                     >
@@ -3768,7 +3768,7 @@ STYLE:
                   saveCustomCols(updated)
                   setTimeout(() => { setEditingColId(newCol.id); setEditingColLabel('New Group') }, 50)
                 }}
-                style={{ width: '100%', padding: '10px 16px', background: 'transparent', border: '1.5px dashed var(--color-border)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s' }}
+                style={{ width: '100%', padding: '10px 16px', background: 'transparent', border: '1.5px dashed var(--color-border)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.background = 'var(--color-surface)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
               >
@@ -3783,11 +3783,11 @@ STYLE:
         {/* Bottom bar — only when unassigned tasks exist */}
         {kanban?.unassignedTasks?.length > 0 && (
           <div style={{ height: 68, borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 20px', overflowX: 'auto', gap: 8 }}>
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 4 }}>UNASSIGNED:</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 4 }}>UNASSIGNED:</span>
             {kanban.unassignedTasks.map((ut, i) => (
               <div key={i} style={{ background: 'var(--color-card)', border: '1px solid var(--color-amber)', borderRadius: 8, padding: '6px 12px', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 11, color: 'var(--color-text)' }}>{ut.title || ut}</span>
-                {ut.suggestedRole && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-amber)' }}>→ Need: {ut.suggestedRole}</span>}
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 11, color: 'var(--color-text)' }}>{ut.title || ut}</span>
+                {ut.suggestedRole && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-amber)' }}>→ Need: {ut.suggestedRole}</span>}
               </div>
             ))}
           </div>
@@ -3804,7 +3804,7 @@ STYLE:
             display: 'flex', flexDirection: 'column',
             boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
             animation: 'slideInRight 0.25s ease',
-            fontFamily: "'Urbanist',sans-serif",
+            fontFamily: 'var(--font-sans)',
           }}>
 
             {/* ── HEADER ── */}
@@ -3823,10 +3823,10 @@ STYLE:
                   <SparklesIcon style={{ width: 15, height: 15, color: 'white' }} />
                 </div>
                 <div>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 15, color: 'var(--color-text)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>AI Assistant</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15, color: 'var(--color-text)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>AI Assistant</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
                     <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#16a34a' }} />
-                    <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)' }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)' }}>
                       Ready · {kanban?.tasks?.length || 0} tasks on board
                     </span>
                   </div>
@@ -3870,8 +3870,8 @@ STYLE:
                   }}>
                     <SparklesIcon style={{ width: 20, height: 20, color: '#8B5CF6' }} />
                   </div>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 15, color: 'var(--color-text)', letterSpacing: '-0.02em', marginBottom: 4 }}>What do you need?</div>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 220, marginBottom: 16 }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15, color: 'var(--color-text)', letterSpacing: '-0.02em', marginBottom: 4 }}>What do you need?</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 220, marginBottom: 16 }}>
                     Manage tasks, generate plans, prioritise work — just ask.
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7, width: '100%' }}>
@@ -3887,7 +3887,7 @@ STYLE:
                         <button
                           key={i}
                           onClick={() => setInput(s.prompt)}
-                          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '9px 12px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, fontWeight: 500, color: 'var(--color-text)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 9, width: '100%' }}
+                          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, color: 'var(--color-text)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 9, width: '100%' }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-card)'; e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
                         >
@@ -3914,10 +3914,10 @@ STYLE:
             {/* Role selector */}
             {phase === 'roles' && (
               <div style={{ padding: '12px 14px', borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 8, letterSpacing: '0.06em' }}>SELECT ROLES &amp; ADD NAMES</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 8, letterSpacing: '0.06em' }}>SELECT ROLES &amp; ADD NAMES</div>
                 {suggestedRoles.length > 0 && (
                   <>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--color-accent)', letterSpacing: '0.08em', marginBottom: 6 }}>AI SUGGESTED</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--color-accent)', letterSpacing: '0.08em', marginBottom: 6 }}>AI SUGGESTED</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                       {suggestedRoles.map(role => {
                         const meta = ROLE_META[role]
@@ -3925,7 +3925,7 @@ STYLE:
                         const isSelected = !!teamMembers.find(m => m.role === role)
                         return (
                           <button key={role} onClick={() => toggleRole(role)}
-                            style={{ background: isSelected ? meta.color + '22' : 'var(--color-surface)', border: '1px solid ' + (isSelected ? meta.color : meta.color + '55'), boxShadow: isSelected ? 'none' : '0 0 0 1px ' + meta.color + '38', borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer', color: isSelected ? meta.color : meta.color + 'BB', display: 'flex', gap: 5, alignItems: 'center' }}
+                            style={{ background: isSelected ? meta.color + '22' : 'var(--color-surface)', border: '1px solid ' + (isSelected ? meta.color : meta.color + '55'), boxShadow: isSelected ? 'none' : '0 0 0 1px ' + meta.color + '38', borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: 'var(--font-sans)', fontWeight: 600, cursor: 'pointer', color: isSelected ? meta.color : meta.color + 'BB', display: 'flex', gap: 5, alignItems: 'center' }}
                           >
                             {meta.icon} {role}
                             {isSelected ? <span style={{ fontSize: 10, color: meta.color }}>✓</span> : <span style={{ fontSize: 9, opacity: 0.7, color: meta.color }}>✦</span>}
@@ -3933,7 +3933,7 @@ STYLE:
                         )
                       })}
                     </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 6 }}>OTHER ROLES</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 6 }}>OTHER ROLES</div>
                   </>
                 )}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -3942,7 +3942,7 @@ STYLE:
                     const isSelected = !!teamMembers.find(m => m.role === role)
                     return (
                       <button key={role} onClick={() => toggleRole(role)}
-                        style={{ background: isSelected ? meta.color + '22' : 'transparent', border: '1px solid ' + (isSelected ? meta.color : 'var(--color-border)'), borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: "'Urbanist', sans-serif", fontWeight: 600, cursor: 'pointer', color: isSelected ? meta.color : 'var(--color-text-soft)', display: 'flex', gap: 5, alignItems: 'center' }}
+                        style={{ background: isSelected ? meta.color + '22' : 'transparent', border: '1px solid ' + (isSelected ? meta.color : 'var(--color-border)'), borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: 'var(--font-sans)', fontWeight: 600, cursor: 'pointer', color: isSelected ? meta.color : 'var(--color-text-soft)', display: 'flex', gap: 5, alignItems: 'center' }}
                       >
                         {meta.icon} {role}
                         {isSelected && <span style={{ fontSize: 10, color: meta.color }}>✓</span>}
@@ -3951,7 +3951,7 @@ STYLE:
                   })}
                 </div>
                 {teamMembers.length > 0 && (
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
                     {teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''} selected
                   </div>
                 )}
@@ -3964,14 +3964,14 @@ STYLE:
                           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--color-card)', border: '1px solid ' + meta.color + '44', borderRadius: 7, padding: '5px 10px' }}>
                             <span style={{ fontSize: 11, flexShrink: 0 }}>{meta.icon}</span>
                             <input value={m.name} onChange={e => updateMemberName(m.id, e.target.value)} placeholder={m.role}
-                              style={{ background: 'transparent', border: 'none', outline: 'none', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text)', width: 100 }}
+                              style={{ background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text)', width: 100 }}
                             />
                           </div>
                         )
                       })}
                     </div>
                     <button onClick={handleGenerateKanban} disabled={loading}
-                      style={{ width: '100%', marginTop: 10, background: loading ? 'var(--color-border)' : 'var(--color-accent)', border: 'none', borderRadius: 9, padding: '10px 0', color: 'var(--color-accent-text)', fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 12, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.6 : 1 }}
+                      style={{ width: '100%', marginTop: 10, background: loading ? 'var(--color-border)' : 'var(--color-accent)', border: 'none', borderRadius: 9, padding: '10px 0', color: 'var(--color-accent-text)', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.6 : 1 }}
                     >{loading ? 'Generating...' : 'Generate Kanban Board →'}</button>
                   </>
                 )}
@@ -3981,7 +3981,7 @@ STYLE:
             {/* File indicator */}
             {fileName && (
               <div style={{ padding: '0 14px 8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-accent-bg)', border: '1px solid var(--color-accent-border)', borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: "'DM Mono', monospace", color: 'var(--color-accent)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-accent-bg)', border: '1px solid var(--color-accent-border)', borderRadius: 7, padding: '5px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--color-accent)' }}>
                   <span>📄 {fileName}</span>
                   <button onClick={() => setFileName(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-accent)', fontSize: 13, padding: '0 0 0 6px' }}>×</button>
                 </div>
@@ -4004,7 +4004,7 @@ STYLE:
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
                     placeholder={kanban?.tasks?.length ? 'Ask anything about this project...' : 'Describe your project or paste a brief...'}
                     rows={1}
-                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: "'Urbanist', sans-serif", fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', display: 'block', boxSizing: 'border-box', overflowY: 'hidden', height: 'auto' }}
+                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', display: 'block', boxSizing: 'border-box', overflowY: 'hidden', height: 'auto' }}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '4px 10px 10px' }}>
                     <button
@@ -4035,7 +4035,7 @@ STYLE:
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 20, width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.32)', fontFamily: "'Urbanist',sans-serif" }}
+            style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 20, width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.32)', fontFamily: 'var(--font-sans)' }}
           >
             {/* Header */}
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -4044,8 +4044,8 @@ STYLE:
                   <SparklesIcon style={{ width: 18, height: 18, color: 'white' }} />
                 </div>
                 <div>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 17, color: 'var(--color-text)', letterSpacing: '-0.01em', lineHeight: 1.2 }}>Implementation Prompt</div>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2, fontWeight: 500 }}>Senior-level brief · Claude Code · Cursor · v0</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 17, color: 'var(--color-text)', letterSpacing: '-0.01em', lineHeight: 1.2 }}>Implementation Prompt</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2, fontWeight: 500 }}>Senior-level brief · Claude Code · Cursor · v0</div>
                 </div>
               </div>
               <button
@@ -4063,12 +4063,12 @@ STYLE:
               <div style={{ padding: '14px 24px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 5, height: 28, background: 'linear-gradient(180deg, #8B5CF6 0%, #3B82F6 100%)', borderRadius: 3, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>For task</div>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 14, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{promptModalTask.title}</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>For task</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{promptModalTask.title}</div>
                 </div>
                 <button
                   onClick={() => setShowPrefsPanel(prev => !prev)}
-                  style={{ padding: '7px 14px', background: showPrefsPanel ? 'var(--color-text)' : 'var(--color-bg)', color: showPrefsPanel ? 'var(--color-bg)' : 'var(--color-text)', border: '1px solid ' + (showPrefsPanel ? 'var(--color-text)' : 'var(--color-border)'), borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s', flexShrink: 0 }}
+                  style={{ padding: '7px 14px', background: showPrefsPanel ? 'var(--color-text)' : 'var(--color-bg)', color: showPrefsPanel ? 'var(--color-bg)' : 'var(--color-text)', border: '1px solid ' + (showPrefsPanel ? 'var(--color-text)' : 'var(--color-border)'), borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s', flexShrink: 0 }}
                 >
                   <AdjustmentsHorizontalIcon style={{ width: 13, height: 13 }} />
                   Customize
@@ -4087,12 +4087,12 @@ STYLE:
                   { key: 'references', label: 'Reference sites', placeholder: 'e.g. linear.app, vercel.com' },
                 ].map(field => (
                   <div key={field.key}>
-                    <label style={{ display: 'block', fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{field.label}</label>
+                    <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{field.label}</label>
                     <input
                       value={promptPrefs[field.key]}
                       onChange={e => setPromptPrefs(p => ({ ...p, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
-                      style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '7px 10px', fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '7px 10px', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
                 ))}
@@ -4103,7 +4103,7 @@ STYLE:
             {promptError && !generatingPrompt && (
               <div style={{ margin: '0 24px', marginTop: 12, padding: '10px 14px', background: '#FEF3C7', border: '1px solid #F59E0B40', borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
                 <ExclamationCircleIcon style={{ width: 14, height: 14, color: '#D97706', flexShrink: 0, marginTop: 1 }} />
-                <span style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 12, color: '#92400E', fontWeight: 500, lineHeight: 1.4 }}>{promptError}</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#92400E', fontWeight: 500, lineHeight: 1.4 }}>{promptError}</span>
                 <button onClick={() => setPromptError(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', flexShrink: 0, padding: 0 }}>
                   <XMarkIcon style={{ width: 13, height: 13 }} />
                 </button>
@@ -4119,23 +4119,23 @@ STYLE:
                       <span key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', display: 'block', animation: 'pulse 1.4s ease infinite', animationDelay: i * 0.2 + 's' }} />
                     ))}
                   </div>
-                  <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>Crafting your senior-level prompt...</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>Crafting your senior-level prompt...</div>
                 </div>
               ) : (
-                <pre style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 400, lineHeight: 1.75, color: 'var(--color-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, padding: 18, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, letterSpacing: '-0.005em' }}>{generatedPrompt}</pre>
+                <pre style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 400, lineHeight: 1.75, color: 'var(--color-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, padding: 18, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, letterSpacing: '-0.005em' }}>{generatedPrompt}</pre>
               )}
             </div>
 
             {/* Footer */}
             <div style={{ padding: '14px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0, background: 'var(--color-bg)' }}>
-              <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 500 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 500 }}>
                 {generatedPrompt.length} chars · ~{Math.ceil(generatedPrompt.length / 4)} tokens
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   onClick={() => { setPromptError(null); promptModalTask && handleGeneratePrompt(promptModalTask) }}
                   disabled={generatingPrompt}
-                  style={{ padding: '9px 16px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 9, cursor: generatingPrompt ? 'wait' : 'pointer', fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s' }}
+                  style={{ padding: '9px 16px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 9, cursor: generatingPrompt ? 'wait' : 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s' }}
                 >
                   <ArrowPathIcon style={{ width: 13, height: 13 }} />
                   Regenerate
@@ -4143,7 +4143,7 @@ STYLE:
                 <button
                   onClick={() => { navigator.clipboard.writeText(generatedPrompt); setPromptCopied(true); setTimeout(() => setPromptCopied(false), 2000) }}
                   disabled={!generatedPrompt}
-                  style={{ padding: '9px 22px', background: promptCopied ? '#16a34a' : !generatedPrompt ? 'var(--color-border)' : 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', color: 'white', border: 'none', borderRadius: 9, cursor: generatedPrompt ? 'pointer' : 'not-allowed', fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.2s', boxShadow: promptCopied ? '0 4px 12px rgba(22,163,74,0.3)' : !generatedPrompt ? 'none' : '0 4px 12px rgba(139,92,246,0.3)' }}
+                  style={{ padding: '9px 22px', background: promptCopied ? '#16a34a' : !generatedPrompt ? 'var(--color-border)' : 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)', color: 'white', border: 'none', borderRadius: 9, cursor: generatedPrompt ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.2s', boxShadow: promptCopied ? '0 4px 12px rgba(22,163,74,0.3)' : !generatedPrompt ? 'none' : '0 4px 12px rgba(139,92,246,0.3)' }}
                 >
                   {promptCopied ? (
                     <><CheckIcon style={{ width: 14, height: 14 }} />Copied</>
@@ -4166,7 +4166,7 @@ STYLE:
         >
           <SparklesIcon style={{ width: 22, height: 22, color: 'white' }} />
           {unreadCount > 0 && (
-            <div style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: '#dc2626', border: '2px solid var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: 'white' }}>
+            <div style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: '#dc2626', border: '2px solid var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, color: 'white' }}>
               {unreadCount > 9 ? '9+' : unreadCount}
             </div>
           )}
