@@ -27,7 +27,7 @@ import {
   saveTasksToDB, loadTasksFromDB, updateTaskInDB,
   calculateDueDates, calculateProgress, logActivity,
 } from '../lib/taskService'
-import { InviteModal } from '../components/team'
+import WorkspaceInviteModal from '../components/workspace/InviteModal'
 import ConnectPanel from '../components/connectors/ConnectPanel'
 import { GanttSection } from '../components/brief/renderers/shared'
 import BuildInterface from '../components/build/BuildInterface'
@@ -406,7 +406,6 @@ export default function TeamCollab() {
   const [isTyping, setIsTyping] = useState(false)
   const [fileName, setFileName] = useState(null)
   const [activeTab, setActiveTab] = useState('board')
-  const [showInviteModal, setShowInviteModal] = useState(false)
   const [invites, setInvites] = useState([])
   const [viewMode, setViewMode] = useState('board')
   const [customCols, setCustomCols] = useState(() => {
@@ -436,6 +435,7 @@ export default function TeamCollab() {
   const [installedConnectors, setInstalledConnectors] = useState({ figma: false, github: false, linear: false })
 
   const [showBuildInterface, setShowBuildInterface] = useState(false)
+  const [showTeamModal, setShowTeamModal] = useState(false)
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -3044,16 +3044,6 @@ STYLE:
         initialColumn={addTaskData.column || KANBAN_COLS[0]}
         defaultData={addTaskData}
       />
-      <InviteModal
-        open={showInviteModal}
-        onClose={() => setShowInviteModal(false)}
-        projectId={activeProject?.id}
-        projectName={projectTitle}
-        onInviteSent={result => {
-          if (result) setInvites(prev => [result.invite, ...prev])
-        }}
-        existingInvites={invites}
-      />
 
       {/* ── Push to Linear modal ── */}
       {pushLinearOpen && (
@@ -3257,7 +3247,7 @@ STYLE:
                   }}>People working on this project</div>
                 </div>
                 <button
-                  onClick={() => setShowInviteModal(true)}
+                  onClick={() => setShowTeamModal(true)}
                   style={{
                     background: 'var(--color-accent)', border: 'none',
                     borderRadius: 8, padding: '8px 14px',
@@ -3395,7 +3385,7 @@ STYLE:
               </div>
               {/* Right: Team + Connect + Add Task */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120, justifyContent: 'flex-end' }}>
-                <button onClick={() => setActiveTab('team')}
+                <button onClick={() => setShowTeamModal(true)}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: activeTab === 'team' ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
                   <UserGroupIcon style={{ width: 13, height: 13 }} />
                   Team
@@ -4181,6 +4171,11 @@ STYLE:
             </div>
           )}
         </button>
+      )}
+
+      {/* Workspace Team modal */}
+      {showTeamModal && (
+        <WorkspaceInviteModal onClose={() => setShowTeamModal(false)} />
       )}
 
       {/* Build Interface overlay */}
