@@ -415,7 +415,9 @@ export default function TeamPage({ onClose }) {
   const isOwner = members.find(m => m.id === authUser?.id)?.role === 'owner'
 
   const allRows = [
-    ...members.map(m => ({ ...m, isPending: false })),
+    ...members
+      .map(m => ({ ...m, isPending: false }))
+      .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : 0)),
     ...(tab === 'all' || tab === 'pending'
       ? pendingInvites.map(i => ({
           id: i.id, name: i.invited_email, email: i.invited_email,
@@ -460,6 +462,36 @@ export default function TeamPage({ onClose }) {
           to   { opacity: 1; transform: translateY(0); }
         }
         .tp-row:hover { background: var(--color-surface) !important; }
+        .tp-owner-role { position: relative; display: inline-flex; }
+        .tp-owner-tooltip {
+          display: none;
+          position: absolute;
+          bottom: calc(100% + 6px);
+          left: 50%;
+          transform: translateX(-50%);
+          background: #1e1e2e;
+          color: #fff;
+          font-family: var(--font-sans);
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1.5;
+          white-space: nowrap;
+          padding: 6px 10px;
+          border-radius: 7px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+          pointer-events: none;
+          z-index: 10;
+        }
+        .tp-owner-tooltip::after {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 5px solid transparent;
+          border-top-color: #1e1e2e;
+        }
+        .tp-owner-role:hover .tp-owner-tooltip { display: block; }
       `}</style>
 
       <div style={{
@@ -715,8 +747,11 @@ export default function TeamPage({ onClose }) {
               }}>
                 {/* Checkbox */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggleSelect(row.id)}
-                    style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#7C3AED' }}
+                  <input type="checkbox"
+                    checked={selected.has(row.id)}
+                    onChange={() => row.role !== 'owner' && toggleSelect(row.id)}
+                    disabled={row.role === 'owner'}
+                    style={{ width: 14, height: 14, cursor: row.role === 'owner' ? 'not-allowed' : 'pointer', accentColor: '#7C3AED', opacity: row.role === 'owner' ? 0.35 : 1 }}
                   />
                 </div>
 
@@ -753,7 +788,27 @@ export default function TeamPage({ onClose }) {
                 </div>
 
                 {/* Role */}
-                <div><RoleBadge role={row.role} /></div>
+                <div>
+                  {row.role === 'owner' ? (
+                    <span className="tp-owner-role" style={{ cursor: 'default' }}>
+                      <span style={{
+                        fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                        background: 'rgba(245,158,11,0.07)', color: '#92400E',
+                        border: '1px solid rgba(245,158,11,0.2)',
+                        borderRadius: 100, padding: '2px 9px',
+                        textTransform: 'capitalize', letterSpacing: '0.01em',
+                        opacity: 0.7,
+                      }}>
+                        owner
+                      </span>
+                      <span className="tp-owner-tooltip">
+                        Owners can manage all collaborators, projects, and connections.
+                      </span>
+                    </span>
+                  ) : (
+                    <RoleBadge role={row.role} />
+                  )}
+                </div>
 
                 {/* Joined */}
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
