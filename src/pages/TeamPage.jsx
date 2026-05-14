@@ -136,10 +136,13 @@ function InviteModal({ workspaceId, onClose, onSent }) {
         setEmails('')
         onSent?.()
       } else {
-        setError(results[0]?.value?.error || 'Failed to send invites')
+        const reason = results[0]?.value?.error
+          || results[0]?.reason?.message
+          || 'Failed to send invite — check your connection and try again'
+        setError(reason)
       }
     } catch (e) {
-      setError(e.message)
+      setError(e?.message || 'Unexpected error sending invite')
     } finally {
       setLoading(false)
     }

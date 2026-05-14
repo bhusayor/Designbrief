@@ -225,20 +225,16 @@ export default async function handler(req, res) {
 
       const inviteUrl = APP_URL + '/invite/' + inviteToken
 
-      // Send email via Resend
-      const { error: emailErr } = await resend.emails.send({
+      // Respond immediately — invite is in the DB regardless of email delivery
+      res.json({ success: true, message: 'Invite sent to ' + email, inviteUrl })
+
+      // Fire-and-forget email — never blocks the response
+      resend.emails.send({
         from: 'DesignBrief AI <onboarding@resend.dev>',
         to: email,
         subject: inviterName + ' invited you to join ' + workspace.name + ' on DesignBrief AI',
         html: inviteEmailHTML({ workspaceName: workspace.name, inviterName, inviterEmail, role, inviteUrl }),
-      })
-
-      if (emailErr) {
-        console.error('[resend error]', emailErr)
-        return res.status(500).json({ error: 'Failed to send invite email' })
-      }
-
-      return res.json({ success: true, message: 'Invite sent to ' + email })
+      }).catch(e => console.error('[resend]', e))
     }
 
     // ── CHECK INVITE ──────────────────────────────────────────────────────────
