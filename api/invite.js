@@ -134,16 +134,25 @@ export default async function handler(req, res) {
       if (!emailRegex.test(email))
         return res.status(400).json({ error: 'Invalid email address' })
 
-      // Check sender is owner or admin
-      const { data: senderMember } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', user.id)
-        .single()
+      // Check sender is owner or admin — also check workspaces.owner_id as fallback
+      const [{ data: senderMember }, { data: wsOwnerRow }] = await Promise.all([
+        supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).single(),
+        supabase.from('workspaces').select('owner_id').eq('id', workspaceId).eq('owner_id', user.id).single(),
+      ])
 
-      if (!senderMember || !['owner', 'admin'].includes(senderMember.role))
+      const isOwnerViaTable = senderMember && ['owner', 'admin'].includes(senderMember.role)
+      const isOwnerViaDirect = !!wsOwnerRow
+
+      if (!isOwnerViaTable && !isOwnerViaDirect)
         return res.status(403).json({ error: 'Only owners and admins can invite members' })
+
+      // Auto-repair: ensure workspace owner is in workspace_members
+      if (isOwnerViaDirect && !senderMember) {
+        await supabase.from('workspace_members').upsert(
+          { workspace_id: workspaceId, user_id: user.id, role: 'owner' },
+          { onConflict: 'workspace_id,user_id' }
+        )
+      }
 
       // Check if invite already exists
       const { data: existingInvite } = await supabase
@@ -358,15 +367,22 @@ export default async function handler(req, res) {
       if (!workspaceId)
         return res.status(400).json({ error: 'workspaceId required' })
 
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', user.id)
-        .single()
+      const [{ data: member }, { data: wsOwner }] = await Promise.all([
+        supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).single(),
+        supabase.from('workspaces').select('owner_id').eq('id', workspaceId).eq('owner_id', user.id).single(),
+      ])
 
-      if (!member || !['owner', 'admin'].includes(member.role))
+      const canList = (member && ['owner', 'admin'].includes(member.role)) || !!wsOwner
+      if (!canList)
         return res.status(403).json({ error: 'Access denied' })
+
+      // Auto-repair missing owner row
+      if (wsOwner && !member) {
+        await supabase.from('workspace_members').upsert(
+          { workspace_id: workspaceId, user_id: user.id, role: 'owner' },
+          { onConflict: 'workspace_id,user_id' }
+        )
+      }
 
       const { data: invites } = await supabase
         .from('workspace_invites')
@@ -410,6 +426,17 @@ export default async function handler(req, res) {
 
       if (!workspaceId)
         return res.status(400).json({ error: 'workspaceId required' })
+
+      // Auto-repair: if workspace owner is not in workspace_members, add them
+      const { data: wsOwner } = await supabase
+        .from('workspaces').select('owner_id').eq('id', workspaceId).single()
+
+      if (wsOwner?.owner_id) {
+        await supabase.from('workspace_members').upsert(
+          { workspace_id: workspaceId, user_id: wsOwner.owner_id, role: 'owner' },
+          { onConflict: 'workspace_id,user_id' }
+        )
+      }
 
       const { data: members } = await supabase
         .from('workspace_members')
