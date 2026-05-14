@@ -341,16 +341,28 @@ export default function TeamPage({ onClose }) {
   }, [onClose, showInviteModal])
 
   async function getAuthHeaders() {
+    // 1. Read from localStorage synchronously — no network, never hangs
     try {
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('auth timeout')), 5000))
-      const { data } = await Promise.race([supabase.auth.getSession(), timeout])
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          const val = JSON.parse(localStorage.getItem(key) || 'null')
+          const token = val?.access_token
+          if (token) return { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+        }
+      }
+    } catch {}
+
+    // 2. Fallback: try getSession() with a 5s timeout
+    try {
+      const { data } = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000)),
+      ])
       const token = data?.session?.access_token
-      return token
-        ? { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
-        : { 'Content-Type': 'application/json' }
-    } catch {
-      return { 'Content-Type': 'application/json' }
-    }
+      if (token) return { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+    } catch {}
+
+    return { 'Content-Type': 'application/json' }
   }
 
   async function loadData() {
