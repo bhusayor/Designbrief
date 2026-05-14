@@ -56,6 +56,7 @@ export function AppProvider({ children }) {
 
   // ── Auth state ────────────────────────────────────────────────────────────
   const [authUser, setAuthUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   // ── Workspace state ───────────────────────────────────────────────────────
@@ -111,6 +112,7 @@ export function AppProvider({ children }) {
         }
 
         if (session?.user) {
+          setSession(session);
           await handleAuthUser(session.user);
         } else {
           setWorkspaceLoading(false);
@@ -134,9 +136,13 @@ export function AppProvider({ children }) {
         if (!mounted) return;
 
         if (event === 'SIGNED_IN' && session?.user) {
+          setSession(session);
           await handleAuthUser(session.user);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          setSession(session);
         } else if (event === 'SIGNED_OUT') {
           setAuthUser(null);
+          setSession(null);
           setWorkspace(null);
           setWorkspaceLoading(false);
           setCreditsUsed(0);
@@ -637,6 +643,7 @@ export function AppProvider({ children }) {
 
     // Auth
     authUser,
+    session,
     authLoading,
     signOut,
 

@@ -113,10 +113,13 @@ function InviteModal({ workspaceId, onClose, onSent, getHeaders }) {
 
     setLoading(true); setError(''); setSuccess('')
     try {
-      // Use parent's pre-fetched headers — avoids a second getSession() that can hang
-      const authH = getHeaders
-        ? await getHeaders()
-        : {}
+      let authH = {}
+      try {
+        authH = getHeaders ? await getHeaders() : {}
+      } catch (authErr) {
+        setError(authErr.message || 'Session expired. Please refresh the page and sign in again.')
+        return
+      }
 
       const results = await Promise.allSettled(
         emailList.map(email =>
@@ -297,7 +300,7 @@ function InviteModal({ workspaceId, onClose, onSent, getHeaders }) {
 // ── Main TeamPage ─────────────────────────────────────────────────────────────
 
 export default function TeamPage({ onClose }) {
-  const { workspace, authUser } = useApp()
+  const { workspace, authUser, session } = useApp()
   const [tab, setTab] = useState('all')
   const [apiMembers, setApiMembers] = useState([])   // from API
   const [pendingInvites, setPendingInvites] = useState([])
@@ -341,28 +344,39 @@ export default function TeamPage({ onClose }) {
   }, [onClose, showInviteModal])
 
   async function getAuthHeaders() {
-    // 1. Read from localStorage synchronously — no network, never hangs
+    // 1. Use session already stored in AppContext — synchronous, always up to date
+    if (session?.access_token) {
+      return { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }
+    }
+
+    // 2. Read from localStorage — synchronous, no network
     try {
       for (const key of Object.keys(localStorage)) {
         if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
           const val = JSON.parse(localStorage.getItem(key) || 'null')
-          const token = val?.access_token
-          if (token) return { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+          if (val?.access_token) {
+            return { Authorization: 'Bearer ' + val.access_token, 'Content-Type': 'application/json' }
+          }
         }
       }
     } catch {}
 
-    // 2. Fallback: try getSession() with a 5s timeout
-    try {
-      const { data } = await Promise.race([
-        supabase.auth.getSession(),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000)),
-      ])
-      const token = data?.session?.access_token
-      if (token) return { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
-    } catch {}
+    // 3. Retry getSession() up to 3 times
+    let sess = null
+    for (let i = 0; i < 3; i++) {
+      try {
+        const { data } = await supabase.auth.getSession()
+        sess = data?.session
+        if (sess?.access_token) break
+      } catch {}
+      if (i < 2) await new Promise(r => setTimeout(r, 400))
+    }
 
-    return { 'Content-Type': 'application/json' }
+    if (sess?.access_token) {
+      return { Authorization: 'Bearer ' + sess.access_token, 'Content-Type': 'application/json' }
+    }
+
+    throw new Error('Not authenticated. Please refresh the page and sign in again.')
   }
 
   async function loadData() {

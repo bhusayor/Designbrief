@@ -111,8 +111,8 @@ export default async function handler(req, res) {
   let user = null
 
   if (action !== 'check') {
-    if (!token || token === 'undefined' || token === 'anonymous')
-      return res.status(401).json({ error: 'Unauthorised' })
+    if (!token || token === 'undefined' || token === 'null' || token === 'anonymous' || token.trim() === '')
+      return res.status(401).json({ error: 'Missing authorization token' })
 
     const { data: { user: authedUser }, error: authErr } = await supabase.auth.getUser(token)
     if (authErr || !authedUser)
