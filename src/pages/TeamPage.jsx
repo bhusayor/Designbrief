@@ -567,6 +567,7 @@ export default function TeamPage({ onClose }) {
               background: 'var(--color-card)', border: '1px solid var(--color-border)',
               borderRadius: 9, padding: '8px 12px', fontFamily: 'var(--font-sans)',
               fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
+              appearance: 'none', WebkitAppearance: 'none',
             }}>
               <option value="all">All roles</option>
               <option value="owner">Owner</option>
