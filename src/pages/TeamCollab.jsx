@@ -3137,7 +3137,6 @@ STYLE:
       }}>
         {[
           { id: 'board', step: 1, label: 'Board', isDone: !!kanban?.tasks?.length, isLocked: false },
-          { id: 'team', step: 2, label: 'Team', isDone: teamMembers.some(m => m.name?.trim()), isLocked: false },
         ].map(tab => {
           const isActive = activeTab === tab.id
           return (
@@ -3229,111 +3228,6 @@ STYLE:
       }}>
 
         {/* ── Team tab ── */}
-        {activeTab === 'team' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            <div style={{ maxWidth: 700, margin: '0 auto', padding: 24 }}>
-              <div style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-                marginBottom: 24,
-              }}>
-                <div>
-                  <div style={{
-                    fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22,
-                    color: 'var(--color-text)', marginBottom: 4,
-                  }}>Team Members</div>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 12,
-                    color: 'var(--color-text-soft)',
-                  }}>People working on this project</div>
-                </div>
-                <button
-                  onClick={() => setShowTeamModal(true)}
-                  style={{
-                    background: 'var(--color-accent)', border: 'none',
-                    borderRadius: 8, padding: '8px 14px',
-                    color: 'var(--color-accent-text)', fontFamily: 'var(--font-sans)',
-                    fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                  }}
-                >+ Invite Member</button>
-              </div>
-
-              {teamMembers.length > 0 ? (
-                teamMembers.map(member => {
-                  const meta = ROLE_META[member.role] || { color: 'var(--color-accent)', icon: '◈' }
-                  const initial = (member.name || member.role || '?')[0].toUpperCase()
-                  return (
-                    <div key={member.id} style={{
-                      display: 'flex', gap: 12, alignItems: 'center',
-                      background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                      borderRadius: 12, padding: '14px 16px', marginBottom: 8,
-                    }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                        background: meta.color + '22', border: '1px solid ' + meta.color + '70',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14,
-                        color: meta.color,
-                      }}>{initial}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
-                          {member.name || member.role}
-                        </div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-soft)' }}>
-                          {member.role}
-                        </div>
-                      </div>
-                      <Badge color={meta.color} size="sm">{meta.icon} {member.role}</Badge>
-                    </div>
-                  )
-                })
-              ) : (
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 12,
-                  color: 'var(--color-text-muted)', textAlign: 'center', padding: '32px 0',
-                }}>No team members yet. Use the chat to build your team.</div>
-              )}
-
-              {invites.filter(inv => inv.status === 'pending').length > 0 && (
-                <div style={{ marginTop: 20 }}>
-                  <div style={{
-                    fontFamily: 'var(--font-sans)', fontWeight: 700,
-                    fontSize: 13, color: 'var(--color-text)', marginBottom: 12,
-                  }}>Pending Invites</div>
-                  {invites.filter(inv => inv.status === 'pending').map(invite => {
-                    const meta = ROLE_META[invite.job_role] || {}
-                    const initial = (invite.invitee_name || invite.invitee_email || '?')[0].toUpperCase()
-                    return (
-                      <div key={invite.id} style={{
-                        display: 'flex', gap: 12, alignItems: 'center',
-                        background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                        borderRadius: 12, padding: '14px 16px', marginBottom: 8,
-                      }}>
-                        <div style={{
-                          width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                          background: (meta.color || 'var(--color-accent)') + '22',
-                          border: '1px solid ' + (meta.color || 'var(--color-accent)') + '70',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14,
-                          color: meta.color || 'var(--color-accent)',
-                        }}>{initial}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
-                            {invite.invitee_name}
-                          </div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>
-                            {invite.invitee_email}
-                          </div>
-                        </div>
-                        <Badge color="var(--color-amber)" size="sm">Awaiting</Badge>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 8, gap: 8 }}>
@@ -3386,7 +3280,7 @@ STYLE:
               {/* Right: Team + Connect + Add Task */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120, justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowTeamModal(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: activeTab === 'team' ? 'var(--color-surface)' : 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
                   <UserGroupIcon style={{ width: 13, height: 13 }} />
                   Team
                 </button>
