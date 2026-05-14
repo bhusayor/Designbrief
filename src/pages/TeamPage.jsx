@@ -307,7 +307,11 @@ export default function TeamPage({ onClose }) {
   const [copySuccess, setCopySuccess] = useState(false)
 
   useEffect(() => {
-    if (workspace?.id) loadData()
+    if (workspace?.id) {
+      loadData()
+    } else {
+      setLoading(false)
+    }
   }, [workspace?.id])
 
   // close on Escape
@@ -326,16 +330,46 @@ export default function TeamPage({ onClose }) {
 
   async function loadData() {
     setLoading(true)
+    setError('')
     try {
       const h = await getAuthHeaders()
       const [membersRes, invitesRes] = await Promise.all([
         fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify({ action: 'list_members', workspaceId: workspace.id }) }).then(r => r.json()),
         fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify({ action: 'list', workspaceId: workspace.id }) }).then(r => r.json()),
       ])
-      setMembers(membersRes.members || [])
+
+      let fetchedMembers = membersRes.members || []
+
+      // Always ensure the current user (owner) appears in the list
+      if (authUser && !fetchedMembers.find(m => m.id === authUser.id)) {
+        fetchedMembers = [{
+          id: authUser.id,
+          role: 'owner',
+          joinedAt: workspace?.created_at || null,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Owner',
+          avatar: authUser.user_metadata?.avatar_url || null,
+          isPending: false,
+        }, ...fetchedMembers]
+      }
+
+      setMembers(fetchedMembers)
       setPendingInvites(invitesRes.invites || [])
     } catch (e) {
       console.error('[team page]', e)
+      setError('Failed to load team members.')
+      // Fallback: still show the current user as owner
+      if (authUser) {
+        setMembers([{
+          id: authUser.id,
+          role: 'owner',
+          joinedAt: workspace?.created_at || null,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Owner',
+          avatar: authUser.user_metadata?.avatar_url || null,
+          isPending: false,
+        }])
+      }
     } finally {
       setLoading(false)
     }
