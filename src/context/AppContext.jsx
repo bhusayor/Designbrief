@@ -635,6 +635,7 @@ export function AppProvider({ children }) {
 
     // Theme
     theme,
+    setTheme,
     toggleTheme,
 
     // User

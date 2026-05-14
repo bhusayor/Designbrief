@@ -2,6 +2,7 @@ import { useState, useContext, useEffect, useRef } from 'react'
 import AppContext from '../../context/AppContext'
 import HistoryItem from './HistoryItem'
 import TeamPage from '../../pages/TeamPage'
+import SettingsPage from '../../pages/SettingsPage'
 import {
   PencilSquareIcon,
   MagnifyingGlassIcon,
@@ -164,6 +165,7 @@ export default function Sidebar() {
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [profileHovered, setProfileHovered] = useState(false)
   const [profileTooltipTop, setProfileTooltipTop] = useState(0)
@@ -454,6 +456,7 @@ export default function Sidebar() {
               {/* Settings + Invite buttons */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 <button
+                  onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true) }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
                   style={{
@@ -795,7 +798,7 @@ export default function Sidebar() {
               }}
             >
               <button
-                onClick={() => { showToast('Settings coming soon', 'info'); setShowProfileMenu(false) }}
+                onClick={() => { setShowSettings(true); setShowProfileMenu(false) }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
@@ -948,6 +951,7 @@ export default function Sidebar() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <button
+                onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true) }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
                 style={{
@@ -1060,6 +1064,11 @@ export default function Sidebar() {
       {/* ── Team People overlay ── */}
       {showInviteModal && (
         <TeamPage onClose={() => setShowInviteModal(false)} />
+      )}
+
+      {/* ── Settings overlay ── */}
+      {showSettings && (
+        <SettingsPage onClose={() => setShowSettings(false)} />
       )}
     </aside>
   )
