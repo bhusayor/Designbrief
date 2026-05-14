@@ -98,7 +98,7 @@ function StatusBadge({ status }) {
 
 // ── Invite Modal (inner) ──────────────────────────────────────────────────────
 
-function InviteModal({ workspaceId, onClose, onSent }) {
+function InviteModal({ workspaceId, onClose, onSent, getHeaders }) {
   const [emails, setEmails] = useState('')
   const [role, setRole] = useState('member')
   const [loading, setLoading] = useState(false)
@@ -113,9 +113,9 @@ function InviteModal({ workspaceId, onClose, onSent }) {
 
     setLoading(true); setError(''); setSuccess('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const authH = session?.access_token
-        ? { Authorization: 'Bearer ' + session.access_token }
+      // Use parent's pre-fetched headers — avoids a second getSession() that can hang
+      const authH = getHeaders
+        ? await getHeaders()
         : {}
 
       const results = await Promise.allSettled(
@@ -341,10 +341,16 @@ export default function TeamPage({ onClose }) {
   }, [onClose, showInviteModal])
 
   async function getAuthHeaders() {
-    const { data: { session } } = await supabase.auth.getSession()
-    return session?.access_token
-      ? { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }
-      : { 'Content-Type': 'application/json' }
+    try {
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('auth timeout')), 5000))
+      const { data } = await Promise.race([supabase.auth.getSession(), timeout])
+      const token = data?.session?.access_token
+      return token
+        ? { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+        : { 'Content-Type': 'application/json' }
+    } catch {
+      return { 'Content-Type': 'application/json' }
+    }
   }
 
   async function loadData() {
@@ -880,6 +886,7 @@ export default function TeamPage({ onClose }) {
           workspaceId={workspace?.id}
           onClose={() => setShowInviteModal(false)}
           onSent={loadData}
+          getHeaders={getAuthHeaders}
         />
       )}
     </>
