@@ -475,7 +475,7 @@ export default function TeamPage({ onClose }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7C3AED' }} />
             <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', color: 'var(--color-text)' }}>
-              People
+              Team members
             </span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>
               {workspace?.name}
@@ -501,7 +501,7 @@ export default function TeamPage({ onClose }) {
           {/* Page header */}
           <div style={{ marginBottom: 24 }}>
             <h1 style={{ fontWeight: 800, fontSize: 24, letterSpacing: '-0.04em', color: 'var(--color-text)', margin: '0 0 6px' }}>
-              People
+              Team members
             </h1>
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.6 }}>
               Inviting people to{' '}
