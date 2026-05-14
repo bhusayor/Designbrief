@@ -296,9 +296,9 @@ function InviteModal({ workspaceId, onClose, onSent }) {
 export default function TeamPage({ onClose }) {
   const { workspace, authUser } = useApp()
   const [tab, setTab] = useState('all')
-  const [members, setMembers] = useState([])
+  const [apiMembers, setApiMembers] = useState([])   // from API
   const [pendingInvites, setPendingInvites] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)       // API loading only
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [selected, setSelected] = useState(new Set())
@@ -306,12 +306,28 @@ export default function TeamPage({ onClose }) {
   const [error, setError] = useState('')
   const [copySuccess, setCopySuccess] = useState(false)
 
+  // Owner is always available from auth context — no API call needed
+  const ownerRow = authUser ? {
+    id: authUser.id,
+    role: 'owner',
+    joinedAt: workspace?.created_at || null,
+    email: authUser.email || '',
+    name:
+      authUser.user_metadata?.full_name ||
+      authUser.user_metadata?.name ||
+      authUser.email?.split('@')[0] ||
+      'Owner',
+    isPending: false,
+  } : null
+
+  // Derived member list: owner always first, then other API members
+  const members = [
+    ...(ownerRow ? [ownerRow] : []),
+    ...apiMembers.filter(m => m.id !== authUser?.id),
+  ]
+
   useEffect(() => {
-    if (workspace?.id) {
-      loadData()
-    } else {
-      setLoading(false)
-    }
+    if (workspace?.id) loadData()
   }, [workspace?.id])
 
   // close on Escape
@@ -329,6 +345,7 @@ export default function TeamPage({ onClose }) {
   }
 
   async function loadData() {
+    if (!workspace?.id) return
     setLoading(true)
     setError('')
     try {
@@ -337,39 +354,10 @@ export default function TeamPage({ onClose }) {
         fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify({ action: 'list_members', workspaceId: workspace.id }) }).then(r => r.json()),
         fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify({ action: 'list', workspaceId: workspace.id }) }).then(r => r.json()),
       ])
-
-      let fetchedMembers = membersRes.members || []
-
-      // Always ensure the current user (owner) appears in the list
-      if (authUser && !fetchedMembers.find(m => m.id === authUser.id)) {
-        fetchedMembers = [{
-          id: authUser.id,
-          role: 'owner',
-          joinedAt: workspace?.created_at || null,
-          email: authUser.email || '',
-          name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Owner',
-          avatar: authUser.user_metadata?.avatar_url || null,
-          isPending: false,
-        }, ...fetchedMembers]
-      }
-
-      setMembers(fetchedMembers)
+      setApiMembers(membersRes.members || [])
       setPendingInvites(invitesRes.invites || [])
     } catch (e) {
       console.error('[team page]', e)
-      setError('Failed to load team members.')
-      // Fallback: still show the current user as owner
-      if (authUser) {
-        setMembers([{
-          id: authUser.id,
-          role: 'owner',
-          joinedAt: workspace?.created_at || null,
-          email: authUser.email || '',
-          name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Owner',
-          avatar: authUser.user_metadata?.avatar_url || null,
-          isPending: false,
-        }])
-      }
     } finally {
       setLoading(false)
     }
@@ -383,7 +371,7 @@ export default function TeamPage({ onClose }) {
         method: 'POST', headers: h,
         body: JSON.stringify({ action: 'remove_member', workspaceId: workspace.id, userId }),
       })
-      setMembers(prev => prev.filter(m => m.id !== userId))
+      setApiMembers(prev => prev.filter(m => m.id !== userId))
       setSelected(prev => { const next = new Set(prev); next.delete(userId); return next })
     } catch (e) { setError(e.message) }
   }
@@ -761,7 +749,7 @@ export default function TeamPage({ onClose }) {
             </div>
 
             {/* Rows */}
-            {loading ? (
+            {loading && members.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
                 Loading members...
               </div>
