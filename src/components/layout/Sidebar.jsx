@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect, useRef } from 'react'
 import AppContext from '../../context/AppContext'
 import HistoryItem from './HistoryItem'
+import TeamPage from '../../pages/TeamPage'
 import {
   PencilSquareIcon,
   MagnifyingGlassIcon,
@@ -161,6 +162,7 @@ export default function Sidebar() {
 
   const [collapsed, setCollapsed] = useState(false)
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [profileHovered, setProfileHovered] = useState(false)
@@ -451,28 +453,35 @@ export default function Sidebar() {
 
               {/* Settings + Invite buttons */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                {[
-                  { icon: Cog6ToothIcon, label: 'Settings' },
-                  { icon: UserPlusIcon, label: 'Invite' },
-                ].map(item => (
-                  <button
-                    key={item.label}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                      padding: '7px 8px',
-                      background: 'var(--color-bg)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 'var(--radius-md)', cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                      color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
-                    }}
-                  >
-                    <item.icon style={{ width: 12, height: 12 }} />
-                    {item.label}
-                  </button>
-                ))}
+                <button
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    padding: '7px 8px', background: 'var(--color-bg)',
+                    border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                    color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
+                  }}
+                >
+                  <Cog6ToothIcon style={{ width: 12, height: 12 }} />
+                  Settings
+                </button>
+                <button
+                  onClick={() => { setShowWorkspaceMenu(false); setShowInviteModal(true) }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    padding: '7px 8px', background: 'var(--color-bg)',
+                    border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                    color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
+                  }}
+                >
+                  <UserPlusIcon style={{ width: 12, height: 12 }} />
+                  Invite
+                </button>
               </div>
             </div>
 
@@ -938,28 +947,35 @@ export default function Sidebar() {
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              {[
-                { icon: Cog6ToothIcon, label: 'Settings' },
-                { icon: UserPlusIcon, label: 'Invite' },
-              ].map(item => (
-                <button
-                  key={item.label}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                    padding: '7px 8px',
-                    background: 'var(--color-bg)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-md)', cursor: 'pointer',
-                    fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                    color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
-                  }}
-                >
-                  <item.icon style={{ width: 12, height: 12 }} />
-                  {item.label}
-                </button>
-              ))}
+              <button
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                  padding: '7px 8px', background: 'var(--color-bg)',
+                  border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                  color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
+                }}
+              >
+                <Cog6ToothIcon style={{ width: 12, height: 12 }} />
+                Settings
+              </button>
+              <button
+                onClick={() => { setShowWorkspaceMenu(false); setShowInviteModal(true) }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                  padding: '7px 8px', background: 'var(--color-bg)',
+                  border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                  color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
+                }}
+              >
+                <UserPlusIcon style={{ width: 12, height: 12 }} />
+                Invite
+              </button>
             </div>
           </div>
           {/* All Workspaces */}
@@ -1039,6 +1055,11 @@ export default function Sidebar() {
           setActiveProject={setActiveProject}
           navigate={navigate}
         />
+      )}
+
+      {/* ── Team People overlay ── */}
+      {showInviteModal && (
+        <TeamPage onClose={() => setShowInviteModal(false)} />
       )}
     </aside>
   )

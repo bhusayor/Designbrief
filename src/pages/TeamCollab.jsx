@@ -27,7 +27,7 @@ import {
   saveTasksToDB, loadTasksFromDB, updateTaskInDB,
   calculateDueDates, calculateProgress, logActivity,
 } from '../lib/taskService'
-import WorkspaceInviteModal from '../components/workspace/InviteModal'
+import TeamPage from './TeamPage'
 import ConnectPanel from '../components/connectors/ConnectPanel'
 import { GanttSection } from '../components/brief/renderers/shared'
 import BuildInterface from '../components/build/BuildInterface'
@@ -4173,9 +4173,9 @@ STYLE:
         </button>
       )}
 
-      {/* Workspace Team modal */}
+      {/* Team People overlay */}
       {showTeamModal && (
-        <WorkspaceInviteModal onClose={() => setShowTeamModal(false)} />
+        <TeamPage onClose={() => setShowTeamModal(false)} />
       )}
 
       {/* Build Interface overlay */}
