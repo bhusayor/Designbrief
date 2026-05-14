@@ -13,6 +13,7 @@ import {
   ClockIcon,
   ExclamationCircleIcon,
   EnvelopeIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -563,17 +564,20 @@ export default function TeamPage({ onClose }) {
               />
             </div>
 
-            <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{
-              background: 'var(--color-card)', border: '1px solid var(--color-border)',
-              borderRadius: 9, padding: '8px 12px', fontFamily: 'var(--font-sans)',
-              fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
-              appearance: 'none', WebkitAppearance: 'none',
-            }}>
-              <option value="all">All roles</option>
-              <option value="owner">Owner</option>
-              <option value="admin">Admin</option>
-              <option value="member">Member</option>
-            </select>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{
+                background: 'var(--color-card)', border: '1px solid var(--color-border)',
+                borderRadius: 9, padding: '8px 32px 8px 12px', fontFamily: 'var(--font-sans)',
+                fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
+                appearance: 'none', WebkitAppearance: 'none',
+              }}>
+                <option value="all">All roles</option>
+                <option value="owner">Owner</option>
+                <option value="admin">Admin</option>
+                <option value="member">Member</option>
+              </select>
+              <ChevronDownIcon style={{ position: 'absolute', right: 10, width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+            </div>
 
             <button onClick={handleExport} style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
