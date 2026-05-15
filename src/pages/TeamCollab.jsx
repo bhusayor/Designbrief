@@ -452,8 +452,10 @@ export default function TeamCollab() {
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [showMoreViews, setShowMoreViews] = useState(false)
   const [showProjectMenu, setShowProjectMenu] = useState(false)
-  const [renamingProject, setRenamingProject] = useState(false)
+  const [renamingProjectId, setRenamingProjectId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
+  const [projectActionMenuId, setProjectActionMenuId] = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -544,12 +546,22 @@ export default function TeamCollab() {
     function handleClick(e) {
       if (projectMenuRef.current && !projectMenuRef.current.contains(e.target)) {
         setShowProjectMenu(false)
-        setRenamingProject(false)
+        setRenamingProjectId(null)
+        setProjectActionMenuId(null)
       }
     }
     setTimeout(() => document.addEventListener('click', handleClick), 0)
     return () => document.removeEventListener('click', handleClick)
   }, [showProjectMenu])
+
+  useEffect(() => {
+    if (!projectActionMenuId) return
+    function handleClick(e) {
+      if (!e.target.closest('[data-project-action]')) setProjectActionMenuId(null)
+    }
+    setTimeout(() => document.addEventListener('click', handleClick), 0)
+    return () => document.removeEventListener('click', handleClick)
+  }, [projectActionMenuId])
 
   useEffect(() => {
     if (!activeProject?.id || !authUser) return
@@ -1714,30 +1726,32 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     if (proj?.title) setProjectTitle(proj.title)
   }
 
-  function handleRenameProject(newTitle) {
+  function handleRenameProject(projectId, newTitle) {
     if (!newTitle.trim()) return
-    const updated = projects.map(p => p.id === activeProjectId ? { ...p, title: newTitle.trim() } : p)
+    const updated = projects.map(p => p.id === projectId ? { ...p, title: newTitle.trim() } : p)
     setProjects(updated)
     saveProjects(updated)
-    setProjectTitle(newTitle.trim())
-    setRenamingProject(false)
-    setShowProjectMenu(false)
+    if (projectId === activeProjectId) setProjectTitle(newTitle.trim())
+    setRenamingProjectId(null)
   }
 
-  function handleDeleteProject() {
+  function handleDeleteProject(projectId) {
     if (projects.length <= 1) return
-    const updated = projects.filter(p => p.id !== activeProjectId)
+    const updated = projects.filter(p => p.id !== projectId)
     setProjects(updated)
     saveProjects(updated)
-    const nextId = updated[0].id
-    setActiveProjectId(nextId)
-    localStorage.setItem('teamcollab-active-project', nextId)
-    const next = updated.find(p => p.id === nextId)
-    if (next?.title) setProjectTitle(next.title)
-    setKanban(null)
-    setTeamMembers([])
-    setChatHistory([])
-    setMessages([])
+    if (projectId === activeProjectId) {
+      const nextId = updated[0].id
+      setActiveProjectId(nextId)
+      localStorage.setItem('teamcollab-active-project', nextId)
+      const next = updated.find(p => p.id === nextId)
+      if (next?.title) setProjectTitle(next.title)
+      setKanban(null)
+      setTeamMembers([])
+      setChatHistory([])
+      setMessages([])
+    }
+    setConfirmDeleteId(null)
     setShowProjectMenu(false)
   }
 
@@ -3202,7 +3216,7 @@ STYLE:
         {isMobile && (
           <div ref={projectMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
-              onClick={() => { setShowProjectMenu(p => !p); setRenamingProject(false) }}
+              onClick={() => setShowProjectMenu(p => !p)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '4px 10px', borderRadius: 8,
@@ -3217,51 +3231,59 @@ STYLE:
               <ChevronDownIcon style={{ width: 12, height: 12, color: 'var(--color-text-muted)', flexShrink: 0, transition: 'transform 0.15s', transform: showProjectMenu ? 'rotate(180deg)' : 'none' }} />
             </button>
             {showProjectMenu && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, boxShadow: 'var(--shadow-lg)', zIndex: 600, minWidth: 220, overflow: 'hidden', animation: 'dropIn 0.15s ease' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, boxShadow: 'var(--shadow-lg)', zIndex: 600, minWidth: 240, overflow: 'visible', animation: 'dropIn 0.15s ease' }}>
                 <div style={{ padding: '10px 16px 8px', borderBottom: '1px solid var(--color-divider)' }}>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Projects</span>
                 </div>
-                <div style={{ maxHeight: 160, overflowY: 'auto' }}>
+                <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                   {projects.map(p => (
-                    <button key={p.id} onClick={() => { handleSwitchProject(p.id); setShowProjectMenu(false) }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 16px', border: 'none', background: p.id === activeProjectId ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: p.id === activeProjectId ? 600 : 400, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.id === activeProjectId ? 'var(--color-accent)' : 'var(--color-border)', flexShrink: 0 }} />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
-                      {p.id === activeProjectId && <CheckIcon style={{ width: 12, height: 12, color: 'var(--color-accent)', flexShrink: 0 }} />}
-                    </button>
+                    <div key={p.id} style={{ position: 'relative' }}>
+                      {renamingProjectId === p.id ? (
+                        <div style={{ padding: '8px 12px' }}>
+                          <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleRenameProject(p.id, renameValue); if (e.key === 'Escape') setRenamingProjectId(null) }}
+                            style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', marginBottom: 6 }} />
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => handleRenameProject(p.id, renameValue)} style={{ flex: 1, padding: '6px', borderRadius: 6, background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700, minHeight: 'unset' }}>Save</button>
+                            <button onClick={() => setRenamingProjectId(null)} style={{ flex: 1, padding: '6px', borderRadius: 6, background: 'transparent', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, minHeight: 'unset' }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', background: p.id === activeProjectId ? 'var(--color-surface)' : 'transparent' }}>
+                          <button onClick={() => { handleSwitchProject(p.id); setShowProjectMenu(false) }}
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 8px 9px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: p.id === activeProjectId ? 600 : 400, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.id === activeProjectId ? 'var(--color-accent)' : 'var(--color-border)', flexShrink: 0 }} />
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                            {p.id === activeProjectId && <CheckIcon style={{ width: 12, height: 12, color: 'var(--color-accent)', flexShrink: 0 }} />}
+                          </button>
+                          <button data-project-action onClick={e => { e.stopPropagation(); setProjectActionMenuId(id => id === p.id ? null : p.id) }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 6, borderRadius: 6, minHeight: 'unset' }}>
+                            <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
+                          </button>
+                          {projectActionMenuId === p.id && (
+                            <div data-project-action style={{ position: 'absolute', right: 6, top: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8, boxShadow: 'var(--shadow-md)', zIndex: 700, overflow: 'hidden', minWidth: 130 }}>
+                              <button onClick={e => { e.stopPropagation(); setRenamingProjectId(p.id); setRenameValue(p.title); setProjectActionMenuId(null) }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
+                                <PencilIcon style={{ width: 13, height: 13 }} /> Rename
+                              </button>
+                              <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(p.id); setProjectActionMenuId(null); setShowProjectMenu(false) }}
+                                disabled={projects.length <= 1}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: projects.length <= 1 ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: projects.length <= 1 ? 'var(--color-text-muted)' : 'var(--color-red)', textAlign: 'left', minHeight: 'unset' }}>
+                                <TrashIcon style={{ width: 13, height: 13 }} /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
                 <div style={{ height: 1, background: 'var(--color-divider)' }} />
-                {renamingProject ? (
-                  <div style={{ padding: '10px 16px 12px' }}>
-                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 6 }}>Rename project</div>
-                    <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') handleRenameProject(renameValue); if (e.key === 'Escape') setRenamingProject(false) }}
-                      style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', marginBottom: 8 }} />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => handleRenameProject(renameValue)} style={{ flex: 1, padding: '7px', borderRadius: 6, background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700, minHeight: 'unset' }}>Save</button>
-                      <button onClick={() => setRenamingProject(false)} style={{ flex: 1, padding: '7px', borderRadius: 6, background: 'transparent', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, minHeight: 'unset' }}>Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <button onClick={() => { handleNewProject(); setShowProjectMenu(false) }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
-                      <PlusIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                      Add new project
-                    </button>
-                    <button onClick={() => { setRenamingProject(true); setRenameValue(projects.find(p => p.id === activeProjectId)?.title || '') }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
-                      <PencilIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                      Rename project
-                    </button>
-                    <button onClick={handleDeleteProject} disabled={projects.length <= 1}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px 12px', border: 'none', background: 'transparent', cursor: projects.length <= 1 ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: projects.length <= 1 ? 'var(--color-text-muted)' : 'var(--color-red)', textAlign: 'left', minHeight: 'unset' }}>
-                      <TrashIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
-                      Delete project
-                    </button>
-                  </>
-                )}
+                <button onClick={() => { handleNewProject(); setShowProjectMenu(false) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px 12px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
+                  <PlusIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                  Add new project
+                </button>
               </div>
             )}
           </div>
@@ -3338,7 +3360,7 @@ STYLE:
         {!isMobile && (
           <div ref={projectMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
-              onClick={() => { setShowProjectMenu(p => !p); setRenamingProject(false) }}
+              onClick={() => setShowProjectMenu(p => !p)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '6px 12px', borderRadius: 8,
@@ -3353,51 +3375,59 @@ STYLE:
               <ChevronDownIcon style={{ width: 12, height: 12, color: 'var(--color-text-muted)', flexShrink: 0, transition: 'transform 0.15s', transform: showProjectMenu ? 'rotate(180deg)' : 'none' }} />
             </button>
             {showProjectMenu && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, boxShadow: 'var(--shadow-lg)', zIndex: 600, minWidth: 220, overflow: 'hidden', animation: 'dropIn 0.15s ease' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, boxShadow: 'var(--shadow-lg)', zIndex: 600, minWidth: 240, overflow: 'visible', animation: 'dropIn 0.15s ease' }}>
                 <div style={{ padding: '10px 16px 8px', borderBottom: '1px solid var(--color-divider)' }}>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Projects</span>
                 </div>
-                <div style={{ maxHeight: 160, overflowY: 'auto' }}>
+                <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                   {projects.map(p => (
-                    <button key={p.id} onClick={() => { handleSwitchProject(p.id); setShowProjectMenu(false) }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 16px', border: 'none', background: p.id === activeProjectId ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: p.id === activeProjectId ? 600 : 400, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.id === activeProjectId ? 'var(--color-accent)' : 'var(--color-border)', flexShrink: 0 }} />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
-                      {p.id === activeProjectId && <CheckIcon style={{ width: 12, height: 12, color: 'var(--color-accent)', flexShrink: 0 }} />}
-                    </button>
+                    <div key={p.id} style={{ position: 'relative' }}>
+                      {renamingProjectId === p.id ? (
+                        <div style={{ padding: '8px 12px' }}>
+                          <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleRenameProject(p.id, renameValue); if (e.key === 'Escape') setRenamingProjectId(null) }}
+                            style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', marginBottom: 6 }} />
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => handleRenameProject(p.id, renameValue)} style={{ flex: 1, padding: '6px', borderRadius: 6, background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700, minHeight: 'unset' }}>Save</button>
+                            <button onClick={() => setRenamingProjectId(null)} style={{ flex: 1, padding: '6px', borderRadius: 6, background: 'transparent', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, minHeight: 'unset' }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', background: p.id === activeProjectId ? 'var(--color-surface)' : 'transparent' }}>
+                          <button onClick={() => { handleSwitchProject(p.id); setShowProjectMenu(false) }}
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 8px 9px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: p.id === activeProjectId ? 600 : 400, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.id === activeProjectId ? 'var(--color-accent)' : 'var(--color-border)', flexShrink: 0 }} />
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                            {p.id === activeProjectId && <CheckIcon style={{ width: 12, height: 12, color: 'var(--color-accent)', flexShrink: 0 }} />}
+                          </button>
+                          <button data-project-action onClick={e => { e.stopPropagation(); setProjectActionMenuId(id => id === p.id ? null : p.id) }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 6, borderRadius: 6, minHeight: 'unset' }}>
+                            <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
+                          </button>
+                          {projectActionMenuId === p.id && (
+                            <div data-project-action style={{ position: 'absolute', right: 6, top: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8, boxShadow: 'var(--shadow-md)', zIndex: 700, overflow: 'hidden', minWidth: 130 }}>
+                              <button onClick={e => { e.stopPropagation(); setRenamingProjectId(p.id); setRenameValue(p.title); setProjectActionMenuId(null) }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
+                                <PencilIcon style={{ width: 13, height: 13 }} /> Rename
+                              </button>
+                              <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(p.id); setProjectActionMenuId(null); setShowProjectMenu(false) }}
+                                disabled={projects.length <= 1}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: projects.length <= 1 ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: projects.length <= 1 ? 'var(--color-text-muted)' : 'var(--color-red)', textAlign: 'left', minHeight: 'unset' }}>
+                                <TrashIcon style={{ width: 13, height: 13 }} /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
                 <div style={{ height: 1, background: 'var(--color-divider)' }} />
-                {renamingProject ? (
-                  <div style={{ padding: '10px 16px 12px' }}>
-                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 6 }}>Rename project</div>
-                    <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') handleRenameProject(renameValue); if (e.key === 'Escape') setRenamingProject(false) }}
-                      style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', marginBottom: 8 }} />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => handleRenameProject(renameValue)} style={{ flex: 1, padding: '7px', borderRadius: 6, background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700, minHeight: 'unset' }}>Save</button>
-                      <button onClick={() => setRenamingProject(false)} style={{ flex: 1, padding: '7px', borderRadius: 6, background: 'transparent', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, minHeight: 'unset' }}>Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <button onClick={() => { handleNewProject(); setShowProjectMenu(false) }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
-                      <PlusIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                      Add new project
-                    </button>
-                    <button onClick={() => { setRenamingProject(true); setRenameValue(projects.find(p => p.id === activeProjectId)?.title || '') }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
-                      <PencilIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                      Rename project
-                    </button>
-                    <button onClick={handleDeleteProject} disabled={projects.length <= 1}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px 12px', border: 'none', background: 'transparent', cursor: projects.length <= 1 ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: projects.length <= 1 ? 'var(--color-text-muted)' : 'var(--color-red)', textAlign: 'left', minHeight: 'unset' }}>
-                      <TrashIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
-                      Delete project
-                    </button>
-                  </>
-                )}
+                <button onClick={() => { handleNewProject(); setShowProjectMenu(false) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px 12px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
+                  <PlusIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                  Add new project
+                </button>
               </div>
             )}
           </div>
@@ -4318,6 +4348,31 @@ STYLE:
             </div>
           )}
         </button>
+      )}
+
+      {/* Delete project confirmation */}
+      {confirmDeleteId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}>
+          <div style={{ background: 'var(--color-card)', borderRadius: 16, padding: '28px 28px 24px', maxWidth: 360, width: 'calc(100% - 40px)', boxShadow: 'var(--shadow-xl)', animation: 'fadeUp 0.2s ease' }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(196,26,26,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <TrashIcon style={{ width: 20, height: 20, color: 'var(--color-red)' }} />
+            </div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 17, color: 'var(--color-text)', marginBottom: 8, letterSpacing: '-0.02em' }}>Delete project?</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--color-text-soft)', lineHeight: 1.6, marginBottom: 24 }}>
+              <strong style={{ color: 'var(--color-text)' }}>{projects.find(p => p.id === confirmDeleteId)?.title || 'This project'}</strong> and all its tasks will be permanently removed. This cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmDeleteId(null)}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', color: 'var(--color-text)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, minHeight: 'unset' }}>
+                Cancel
+              </button>
+              <button onClick={() => handleDeleteProject(confirmDeleteId)}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'var(--color-red)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 700, minHeight: 'unset' }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Team People overlay */}
