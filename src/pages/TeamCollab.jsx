@@ -456,6 +456,7 @@ export default function TeamCollab() {
   const [renameValue, setRenameValue] = useState('')
   const [projectActionMenuId, setProjectActionMenuId] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [projectFlash, setProjectFlash] = useState(false)
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -1718,12 +1719,18 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     setActiveTab('board')
   }
 
+  function triggerFlash() {
+    setProjectFlash(true)
+    setTimeout(() => setProjectFlash(false), 700)
+  }
+
   function handleSwitchProject(id) {
     setActiveProjectId(id)
     localStorage.setItem('teamcollab-active-project', id)
     setChatHistory([])
     const proj = projects.find(p => p.id === id)
     if (proj?.title) setProjectTitle(proj.title)
+    triggerFlash()
   }
 
   function handleRenameProject(projectId, newTitle) {
@@ -1733,6 +1740,7 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     saveProjects(updated)
     if (projectId === activeProjectId) setProjectTitle(newTitle.trim())
     setRenamingProjectId(null)
+    triggerFlash()
   }
 
   function handleDeleteProject(projectId) {
@@ -3223,6 +3231,7 @@ STYLE:
                 background: 'transparent', border: '1.5px solid var(--color-border-strong)',
                 cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
                 color: 'var(--color-text)', minHeight: 'unset',
+                boxShadow: projectFlash ? '0 0 0 3px var(--color-accent-soft), 0 0 0 1.5px var(--color-accent)' : 'none',
               }}
             >
               <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -3254,7 +3263,6 @@ STYLE:
                             style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 8px 9px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: p.id === activeProjectId ? 600 : 400, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
                             <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.id === activeProjectId ? 'var(--color-accent)' : 'var(--color-border)', flexShrink: 0 }} />
                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
-                            {p.id === activeProjectId && <CheckIcon style={{ width: 12, height: 12, color: 'var(--color-accent)', flexShrink: 0 }} />}
                           </button>
                           <button onClick={e => { e.stopPropagation(); setRenamingProjectId(p.id); setRenameValue(p.title) }}
                             title="Rename"
@@ -3360,6 +3368,7 @@ STYLE:
                 background: 'var(--color-surface)', border: '1px solid var(--color-border)',
                 cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12,
                 color: 'var(--color-text)', minHeight: 'unset', maxWidth: 200,
+                boxShadow: projectFlash ? '0 0 0 3px var(--color-accent-soft), 0 0 0 1px var(--color-accent)' : 'none',
               }}
             >
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -3391,7 +3400,6 @@ STYLE:
                             style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 8px 9px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: p.id === activeProjectId ? 600 : 400, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
                             <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.id === activeProjectId ? 'var(--color-accent)' : 'var(--color-border)', flexShrink: 0 }} />
                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
-                            {p.id === activeProjectId && <CheckIcon style={{ width: 12, height: 12, color: 'var(--color-accent)', flexShrink: 0 }} />}
                           </button>
                           <button onClick={e => { e.stopPropagation(); setRenamingProjectId(p.id); setRenameValue(p.title) }}
                             title="Rename"
