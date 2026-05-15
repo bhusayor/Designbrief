@@ -3154,22 +3154,6 @@ STYLE:
         background: isMobile ? 'transparent' : 'var(--color-bg)',
         overflowX: 'visible',
       }}>
-        {/* New Project icon — mobile only, sits right after hamburger */}
-        {isMobile && (
-          <button
-            onClick={handleNewProject}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 30, height: 30, borderRadius: 8,
-              background: 'transparent', border: 'none',
-              cursor: 'pointer', color: 'var(--color-text-muted)',
-              minHeight: 'unset', flexShrink: 0,
-            }}
-          >
-            <PlusIcon style={{ width: 17, height: 17 }} />
-          </button>
-        )}
-
         {/* Board tab — desktop/tablet only */}
         {!isMobile && (() => {
           const isDone = !!kanban?.tasks?.length
@@ -3239,28 +3223,43 @@ STYLE:
 
         <div style={{ flex: 1 }} />
 
-        {/* Project switcher */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <select
-            value={activeProjectId}
-            onChange={e => handleSwitchProject(e.target.value)}
+        {/* Project switcher + New Project */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <select
+              value={activeProjectId}
+              onChange={e => handleSwitchProject(e.target.value)}
+              style={{
+                appearance: 'none', background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8, padding: '6px 32px 6px 12px',
+                fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12,
+                color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
+                maxWidth: isMobile ? 120 : 180,
+              }}
+            >
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+            <ChevronDownIcon style={{
+              width: 12, height: 12, color: 'var(--color-text-muted)',
+              position: 'absolute', right: 10, pointerEvents: 'none',
+            }} />
+          </div>
+          <button
+            onClick={handleNewProject}
+            title="New project"
             style={{
-              appearance: 'none', background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8, padding: '6px 32px 6px 12px',
-              fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12,
-              color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
-              maxWidth: isMobile ? 130 : 180,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 28, height: 28, borderRadius: 7,
+              background: 'transparent', border: '1px solid var(--color-border)',
+              cursor: 'pointer', color: 'var(--color-text-muted)',
+              minHeight: 'unset', flexShrink: 0,
             }}
           >
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.title}</option>
-            ))}
-          </select>
-          <ChevronDownIcon style={{
-            width: 12, height: 12, color: 'var(--color-text-muted)',
-            position: 'absolute', right: 10, pointerEvents: 'none',
-          }} />
+            <PlusIcon style={{ width: 14, height: 14 }} />
+          </button>
         </div>
       </div>
 
@@ -3358,7 +3357,7 @@ STYLE:
                       <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
                     </button>
                     {showMoreViews && (
-                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 200, overflow: 'hidden', minWidth: 130 }}>
+                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 200, overflow: 'hidden', minWidth: 130 }}>
                         {[
                           { id: 'table', icon: TableCellsIcon, label: 'Table' },
                           { id: 'calendar', icon: CalendarDaysIcon, label: 'Calendar' },
