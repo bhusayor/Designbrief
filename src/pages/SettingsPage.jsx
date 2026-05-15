@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -13,6 +13,7 @@ import {
   ClipboardDocumentIcon,
   SunIcon,
   MoonIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline'
 
 // ── SettingRow layout ─────────────────────────────────────────────────────────
@@ -43,6 +44,64 @@ function SettingRow({ label, description, children }) {
   )
 }
 
+// ── Save button with animated checkmark ──────────────────────────────────────
+
+function SaveButton({ saving, saved, disabled, onClick, label = 'Update' }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || saving}
+      style={{
+        position: 'relative',
+        padding: '8px 18px',
+        background: saved
+          ? 'rgba(22,163,74,0.1)'
+          : saving
+            ? 'var(--color-surface)'
+            : 'var(--color-surface)',
+        border: '1px solid ' + (saved ? 'rgba(22,163,74,0.4)' : 'var(--color-border)'),
+        borderRadius: 9,
+        cursor: (disabled || saving) ? 'not-allowed' : 'pointer',
+        fontFamily: 'var(--font-sans)',
+        fontSize: 13,
+        fontWeight: 600,
+        color: saved ? '#16a34a' : 'var(--color-text)',
+        transition: 'all 0.2s ease',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        overflow: 'hidden',
+        minWidth: 80,
+        justifyContent: 'center',
+      }}
+    >
+      {saving ? (
+        <>
+          <span style={{
+            display: 'inline-block',
+            width: 11, height: 11,
+            border: '2px solid var(--color-border)',
+            borderTopColor: '#7C3AED',
+            borderRadius: '50%',
+            animation: 'settingsSpin 0.6s linear infinite',
+            flexShrink: 0,
+          }} />
+          Saving
+        </>
+      ) : saved ? (
+        <>
+          <span style={{ animation: 'settingsCheckPop 0.3s ease', display: 'flex' }}>
+            <CheckCircleIcon style={{ width: 13, height: 13, color: '#16a34a' }} />
+          </span>
+          Saved!
+        </>
+      ) : (
+        label
+      )}
+    </button>
+  )
+}
+
 // ── Input styles ──────────────────────────────────────────────────────────────
 
 const inputBase = {
@@ -69,7 +128,7 @@ function blurInput(e) {
 
 // ── Section: Profile ──────────────────────────────────────────────────────────
 
-function ProfileSection({ callSettings }) {
+function ProfileSection({ callSettings, onSaved }) {
   const { authUser, updateUser, user } = useApp()
   const [name, setName] = useState(
     user?.name ||
@@ -93,6 +152,7 @@ function ProfileSection({ callSettings }) {
       await callSettings({ action: 'update_name', name: name.trim() })
       updateUser({ name: name.trim(), firstName: name.trim().split(' ')[0] })
       setSaved(true)
+      onSaved?.('Display name updated')
       setTimeout(() => setSaved(false), 3000)
     } catch (e) {
       setError(e.message)
@@ -147,21 +207,12 @@ function ProfileSection({ callSettings }) {
               style={{ ...inputBase, width: 200 }}
               onFocus={focusInput} onBlur={blurInput}
             />
-            <button
+            <SaveButton
+              saving={saving}
+              saved={saved}
+              disabled={!name.trim()}
               onClick={handleUpdateName}
-              disabled={saving || !name.trim()}
-              style={{
-                padding: '8px 16px',
-                background: saved ? '#16a34a' : 'var(--color-surface)',
-                border: '1px solid ' + (saved ? '#BBF7D0' : 'var(--color-border)'),
-                borderRadius: 9, cursor: saving ? 'not-allowed' : 'pointer',
-                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
-                color: saved ? '#16a34a' : 'var(--color-text)',
-                transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 5,
-              }}
-            >
-              {saved ? (<><CheckCircleIcon style={{ width: 13, height: 13 }} />Saved</>) : saving ? 'Saving...' : 'Update'}
-            </button>
+            />
           </div>
           {error && (
             <div style={{ fontSize: 12, color: '#DC2626', display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -187,7 +238,7 @@ function ProfileSection({ callSettings }) {
 
 // ── Section: Appearance ───────────────────────────────────────────────────────
 
-function AppearanceSection() {
+function AppearanceSection({ onSaved }) {
   const { theme, setTheme } = useApp()
 
   return (
@@ -213,7 +264,7 @@ function AppearanceSection() {
             return (
               <button
                 key={opt.value}
-                onClick={() => setTheme(opt.value)}
+                onClick={() => { setTheme(opt.value); onSaved?.(opt.label + ' theme applied') }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 7,
                   padding: '8px 16px',
@@ -239,7 +290,7 @@ function AppearanceSection() {
 
 // ── Section: Workspace General ────────────────────────────────────────────────
 
-function WorkspaceGeneralSection({ callSettings }) {
+function WorkspaceGeneralSection({ callSettings, onSaved }) {
   const { workspace, setWorkspace } = useApp()
   const [wsName, setWsName] = useState(workspace?.name || '')
   const [saving, setSaving] = useState(false)
@@ -256,6 +307,7 @@ function WorkspaceGeneralSection({ callSettings }) {
       await callSettings({ action: 'update_workspace_name', workspaceId: workspace.id, name: wsName.trim() })
       setWorkspace(prev => ({ ...prev, name: wsName.trim() }))
       setSaved(true)
+      onSaved?.('Workspace name updated')
       setTimeout(() => setSaved(false), 3000)
     } catch (e) {
       setError(e.message)
@@ -301,21 +353,12 @@ function WorkspaceGeneralSection({ callSettings }) {
               style={{ ...inputBase, width: 200 }}
               onFocus={focusInput} onBlur={blurInput}
             />
-            <button
+            <SaveButton
+              saving={saving}
+              saved={saved}
+              disabled={!wsName.trim() || wsName.trim() === workspace?.name}
               onClick={handleUpdateName}
-              disabled={saving || !wsName.trim() || wsName.trim() === workspace?.name}
-              style={{
-                padding: '8px 16px',
-                background: saved ? '#16a34a' : 'var(--color-surface)',
-                border: '1px solid ' + (saved ? '#BBF7D0' : 'var(--color-border)'),
-                borderRadius: 9, cursor: 'pointer',
-                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
-                color: saved ? '#16a34a' : 'var(--color-text)',
-                display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s',
-              }}
-            >
-              {saved ? (<><CheckCircleIcon style={{ width: 13, height: 13 }} />Saved</>) : saving ? 'Saving...' : 'Update'}
-            </button>
+            />
           </div>
           {error && (
             <div style={{ fontSize: 12, color: '#DC2626', display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -662,6 +705,14 @@ const NAV = [
 export default function SettingsPage({ onClose }) {
   const { session } = useApp()
   const [activeSection, setActiveSection] = useState('profile')
+  const [toast, setToast] = useState(null) // { msg, key }
+  const toastTimer = useRef(null)
+
+  function showSaveToast(msg = 'Changes saved') {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToast({ msg, key: Date.now() })
+    toastTimer.current = setTimeout(() => setToast(null), 2800)
+  }
 
   // Close on Escape
   useEffect(() => {
@@ -697,9 +748,9 @@ export default function SettingsPage({ onClose }) {
 
   function renderSection() {
     switch (activeSection) {
-      case 'profile':    return <ProfileSection callSettings={callSettings} />
-      case 'appearance': return <AppearanceSection />
-      case 'general':    return <WorkspaceGeneralSection callSettings={callSettings} />
+      case 'profile':    return <ProfileSection callSettings={callSettings} onSaved={showSaveToast} />
+      case 'appearance': return <AppearanceSection onSaved={showSaveToast} />
+      case 'general':    return <WorkspaceGeneralSection callSettings={callSettings} onSaved={showSaveToast} />
       case 'plans':      return <PlansSection />
       case 'danger':
         return (
@@ -709,7 +760,7 @@ export default function SettingsPage({ onClose }) {
             onWorkspaceLeft={() => window.location.reload()}
           />
         )
-      default: return <ProfileSection callSettings={callSettings} />
+      default: return <ProfileSection callSettings={callSettings} onSaved={showSaveToast} />
     }
   }
 
@@ -718,6 +769,18 @@ export default function SettingsPage({ onClose }) {
       <style>{`
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes settingsSpin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes settingsCheckPop {
+          0%   { transform: scale(0.4); opacity: 0; }
+          60%  { transform: scale(1.25); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes settingsToastIn {
+          from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
@@ -733,14 +796,8 @@ export default function SettingsPage({ onClose }) {
         <div style={{
           height: 52, borderBottom: '1px solid var(--color-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 28px', flexShrink: 0, background: 'var(--color-card)',
+          padding: '0 24px', flexShrink: 0, background: 'var(--color-card)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7C3AED' }} />
-            <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', color: 'var(--color-text)' }}>
-              Settings
-            </span>
-          </div>
           <button
             onClick={onClose}
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.borderColor = 'var(--color-border-strong, #555)' }}
@@ -753,9 +810,15 @@ export default function SettingsPage({ onClose }) {
               fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s',
             }}
           >
-            <XMarkIcon style={{ width: 14, height: 14 }} />
-            Close
+            <ArrowLeftIcon style={{ width: 13, height: 13 }} />
+            Back
           </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#7C3AED' }} />
+            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: 'var(--color-text-muted)' }}>
+              Settings
+            </span>
+          </div>
         </div>
 
         {/* Body: left nav + content */}
@@ -827,6 +890,38 @@ export default function SettingsPage({ onClose }) {
             {renderSection()}
           </div>
         </div>
+
+        {/* Save toast */}
+        {toast && (
+          <div
+            key={toast.key}
+            style={{
+              position: 'absolute',
+              bottom: 28,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 18px',
+              background: 'var(--color-card)',
+              border: '1px solid rgba(22,163,74,0.35)',
+              borderRadius: 12,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#16a34a',
+              animation: 'settingsToastIn 0.25s ease',
+              zIndex: 10,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <CheckCircleIcon style={{ width: 15, height: 15, flexShrink: 0 }} />
+            {toast.msg}
+          </div>
+        )}
       </div>
     </>
   )
