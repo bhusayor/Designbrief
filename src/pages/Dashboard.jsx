@@ -794,16 +794,16 @@ The flow should be realistic for this product. Return only the JSON array.`,
           {/* Input footer */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 14px', borderTop: '1px solid var(--color-divider)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {/* Attach button */}
+              {/* Attach button — no border, icon-only */}
               <div style={{ position: 'relative' }} ref={plusMenuRef}>
 
                 <button
                   onClick={() => setShowPlusMenu(v => !v)}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.borderColor = 'var(--color-border-strong)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--color-border)' }}
-                  style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)', background: 'transparent', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <PlusIcon style={{ width: '15px', height: '15px', color: 'var(--color-text-soft)' }} />
+                  <PlusIcon style={{ width: '18px', height: '18px', color: 'var(--color-text)', strokeWidth: 2 }} />
                 </button>
                 {showPlusMenu && (
                   <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '5px', minWidth: '190px', boxShadow: 'var(--shadow-lg)', animation: 'fadeUp 0.15s ease', zIndex: 100 }}>
@@ -819,60 +819,44 @@ The flow should be realistic for this product. Return only the JSON array.`,
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => { handleFileAttach(e.target.files[0]); e.target.value = '' }} />
               </div>
 
-              {/* Divider */}
-              <div style={{ width: 1, height: 20, background: 'var(--color-divider)', flexShrink: 0 }} />
-
-              {/* Brief Template pill */}
+              {/* Brief Template dropdown — template name + chevron only, like a model selector */}
               <div ref={stylePickerRef}>
                 <button
                   onClick={() => setShowStylePicker(v => !v)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 5,
-                    padding: '5px 10px 5px 10px',
+                    gap: 4,
+                    padding: '5px 8px',
                     background: showStylePicker ? currentTemplate.accent + '12' : 'transparent',
-                    border: '1px solid ' + (showStylePicker ? currentTemplate.accent + '50' : 'var(--color-border)'),
-                    borderRadius: 'var(--radius-full)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
                     cursor: 'pointer',
                     fontFamily: 'var(--font-sans)',
                     fontSize: 12,
                     transition: 'var(--transition-fast)',
                   }}
                   onMouseEnter={e => {
-                    if (!showStylePicker) {
-                      e.currentTarget.style.borderColor = 'var(--color-border-strong)'
-                      e.currentTarget.style.background = 'var(--color-surface)'
-                    }
+                    if (!showStylePicker) e.currentTarget.style.background = 'var(--color-surface)'
                   }}
                   onMouseLeave={e => {
-                    if (!showStylePicker) {
-                      e.currentTarget.style.borderColor = 'var(--color-border)'
-                      e.currentTarget.style.background = 'transparent'
-                    }
+                    if (!showStylePicker) e.currentTarget.style.background = 'transparent'
                   }}
                 >
-                  <span style={{
-                    fontWeight: 500,
-                    color: 'var(--color-text-muted)',
-                    letterSpacing: '-0.01em',
-                  }}>
-                    Brief Template
-                  </span>
-                  <div style={{ width: 1, height: 12, background: 'var(--color-divider)', margin: '0 3px', flexShrink: 0 }} />
                   {(() => {
                     const IconComp = ICON_MAP[currentTemplate.icon] || SwatchIcon
-                    return <IconComp style={{ width: 11, height: 11, color: currentTemplate.accent, flexShrink: 0 }} />
+                    return <IconComp style={{ width: 13, height: 13, color: currentTemplate.accent, flexShrink: 0 }} />
                   })()}
                   <span style={{
-                    fontWeight: 700,
-                    color: currentTemplate.accent,
+                    fontWeight: 600,
+                    color: 'var(--color-text-soft)',
                     letterSpacing: '-0.01em',
+                    whiteSpace: 'nowrap',
                   }}>
                     {currentTemplate.name}
                   </span>
                   <ChevronDownIcon style={{
-                    width: 11, height: 11,
+                    width: 12, height: 12,
                     color: 'var(--color-text-muted)',
                     transform: showStylePicker ? 'rotate(180deg)' : 'none',
                     transition: 'transform 0.2s',
@@ -1000,27 +984,28 @@ The flow should be realistic for this product. Return only the JSON array.`,
               </div>
             </div>
 
-            {/* Translate button */}
+            {/* Send button — icon only, active when content exists */}
             <button
               onClick={handleTranslate}
               disabled={!hasContent}
               style={{
-                display: 'flex', alignItems: 'center', gap: 7,
-                padding: '9px 18px',
-                background: hasContent ? 'var(--color-primary)' : 'var(--color-surface-2)',
+                width: 34, height: 34,
+                borderRadius: '50%',
+                background: hasContent
+                  ? 'var(--color-primary)'
+                  : 'var(--color-surface-2)',
                 color: hasContent ? 'var(--color-primary-text)' : 'var(--color-text-muted)',
-                border: 'none', borderRadius: 'var(--radius-md)',
+                border: 'none',
                 cursor: hasContent ? 'pointer' : 'default',
-                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
-                letterSpacing: '-0.01em',
-                boxShadow: hasContent ? 'var(--shadow-sm)' : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
                 transition: 'all var(--transition-fast)',
+                boxShadow: hasContent ? 'var(--shadow-sm)' : 'none',
               }}
-              onMouseEnter={e => { if (hasContent) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' } }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = hasContent ? 'var(--shadow-sm)' : 'none' }}
+              onMouseEnter={e => { if (hasContent) { e.currentTarget.style.transform = 'scale(1.07)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' } }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = hasContent ? 'var(--shadow-sm)' : 'none' }}
             >
-              <SparklesIcon style={{ width: 14, height: 14 }} />
-              Translate Brief
+              <ArrowUpIcon style={{ width: 16, height: 16, strokeWidth: 2.5 }} />
             </button>
           </div>
         </div>
