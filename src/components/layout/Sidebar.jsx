@@ -23,6 +23,8 @@ import {
   CheckIcon,
   PlusIcon,
   LinkIcon,
+  XMarkIcon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline'
 
 function PanelLeftClose({ size = 15, color = 'currentColor' }) {
@@ -146,7 +148,7 @@ function NavItem({ icon: Icon, label, active, onClick, collapsed, badge }) {
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-export default function Sidebar() {
+export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, setMobileSidebarOpen }) {
   const {
     activeSection, navigate, history,
     activeChat, setActiveChat,
@@ -159,9 +161,23 @@ export default function Sidebar() {
     creditsUsed, creditsLimit,
   } = useContext(AppContext)
 
+  // Desktop: auto-collapse on tablet width
+  const [collapsedDesktop, setCollapsedDesktop] = useState(() => !isMobile && window.innerWidth < 1024)
+  useEffect(() => {
+    if (isMobile) return
+    function onResize() {
+      const w = window.innerWidth
+      if (w < 1024) setCollapsedDesktop(true)
+      else setCollapsedDesktop(false)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [isMobile])
+
   const readyCount = (intakeForms || []).filter(f => f.status === 'complete').length
 
-  const [collapsed, setCollapsed] = useState(false)
+  // On mobile the sidebar is always expanded (never icon-collapsed)
+  const collapsed = isMobile ? false : collapsedDesktop
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
@@ -229,36 +245,90 @@ export default function Sidebar() {
     return 'Free'
   }
 
+  // Mobile: fixed drawer sliding in from the left, not in the flex flow
+  // Desktop/tablet: normal flex item
+  const asideStyle = isMobile ? {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: 270,
+    height: '100vh',
+    zIndex: 499,
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'var(--color-sidebar)',
+    borderRight: '1px solid var(--color-sidebar-border)',
+    overflow: 'hidden',
+    transform: mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+    transition: 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: mobileSidebarOpen ? '4px 0 24px rgba(0,0,0,0.18)' : 'none',
+  } : {
+    width: collapsed ? 56 : 220,
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'var(--color-sidebar)',
+    borderRight: '1px solid var(--color-sidebar-border)',
+    overflow: 'hidden',
+    flexShrink: 0,
+    transition: 'width 0.25s ease',
+    position: 'relative',
+  }
+
   return (
-    <aside
-      style={{
-        width: collapsed ? '56px' : '220px',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--color-sidebar)',
-        borderRight: '1px solid var(--color-sidebar-border)',
-        overflow: 'hidden',
-        flexShrink: 0,
-        transition: 'width 0.25s ease',
-        position: 'relative',
-      }}
-    >
-      {/* ── Row 1: Logo + app name + collapse button ── */}
+    <aside style={asideStyle}>
+      {/* ── Row 1: Logo + collapse/close button ── */}
       <div ref={workspaceAreaRef} style={{ flexShrink: 0 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+
+        {/* Mobile header row: logo text on left, X close on right */}
+        {isMobile ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 14px 10px',
-          }}
-        >
-          {/* Logo mark */}
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: 8,
+                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
+              }}>
+                <SparklesIcon style={{ width: 13, height: 13, color: 'white' }} />
+              </div>
+              <span style={{
+                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 14,
+                letterSpacing: '-0.03em', color: 'var(--color-text)',
+              }}>
+                DesignBrief
+              </span>
+            </div>
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              style={{
+                width: 28, height: 28, borderRadius: 7, border: '1px solid var(--color-border)',
+                background: 'var(--color-surface)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              <XMarkIcon style={{ width: 14, height: 14 }} />
+            </button>
+          </div>
+        ) : (
+          /* Desktop header row: logo mark + collapse button */
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 14px 10px',
+            }}
+          >
+          {/* Logo mark — collapsed shows expand icon on hover */}
           {collapsed ? (
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
               <button
-                onClick={() => setCollapsed(false)}
+                onClick={() => setCollapsedDesktop(false)}
                 onMouseEnter={() => setLogoHovered(true)}
                 onMouseLeave={() => setLogoHovered(false)}
                 title="Expand sidebar"
@@ -288,10 +358,10 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* Collapse button — only visible when expanded */}
+          {/* Collapse button — only when expanded on desktop */}
           {!collapsed && (
             <button
-              onClick={() => setCollapsed(true)}
+              onClick={() => setCollapsedDesktop(true)}
               title="Collapse sidebar"
               onMouseEnter={e => {
                 e.currentTarget.style.background = 'var(--color-sidebar-item-hover)'
@@ -314,7 +384,8 @@ export default function Sidebar() {
               <PanelLeftClose size={16} color="currentColor" />
             </button>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Collapsed workspace avatar */}
         {collapsed && (
@@ -569,21 +640,21 @@ export default function Sidebar() {
           icon={PencilSquareIcon}
           label="New Chat"
           active={activeSection === 'dashboard'}
-          onClick={() => navigate('dashboard')}
+          onClick={() => { navigate('dashboard'); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
         <NavItem
           icon={MagnifyingGlassIcon}
           label="Search"
           active={false}
-          onClick={() => setShowSearch(true)}
+          onClick={() => { setShowSearch(true); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
         <NavItem
           icon={ClipboardDocumentListIcon}
           label="Client Intake"
           active={activeSection === 'intake'}
-          onClick={() => navigate('intake')}
+          onClick={() => { navigate('intake'); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
           badge={readyCount}
         />
@@ -591,21 +662,21 @@ export default function Sidebar() {
           icon={RectangleStackIcon}
           label="Projects"
           active={activeSection === 'library'}
-          onClick={() => navigate('library')}
+          onClick={() => { navigate('library'); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
         <NavItem
           icon={UserGroupIcon}
           label="Team Collab"
           active={activeSection === 'team'}
-          onClick={() => navigate('team')}
+          onClick={() => { navigate('team'); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
         <NavItem
           icon={LinkIcon}
           label="Connectors"
           active={activeSection === 'connectors'}
-          onClick={() => navigate('connectors')}
+          onClick={() => { navigate('connectors'); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
       </div>
@@ -636,7 +707,7 @@ export default function Sidebar() {
                   key={item.id}
                   item={item}
                   active={activeChat === item.id}
-                  onClick={h => { setActiveChat(h.id); navigate(h.section) }}
+                  onClick={h => { setActiveChat(h.id); navigate(h.section); if (isMobile) setMobileSidebarOpen(false) }}
                   onDelete={deleteHistory}
                   onPin={pinHistory}
                   onRename={renameHistory}

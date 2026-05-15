@@ -723,7 +723,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
       background: 'var(--gradient-hero)',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      padding: '40px 24px',
+      padding: 'clamp(32px, 6vh, 60px) clamp(16px, 5vw, 40px)',
       position: 'relative',
     }}>
       {/* Grid texture overlay */}
@@ -888,13 +888,14 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     left: '50%',
                     transform: 'translateX(-50%)',
                     zIndex: 100,
+                    width: 'min(620px, calc(100vw - 32px))',
                   }}>
                   <div style={{
                     background: 'var(--color-card)',
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-xl)',
                     padding: '16px',
-                    width: 620,
+                    width: '100%',
                     boxShadow: 'var(--shadow-lg)',
                   }}>
                     {/* Header */}
@@ -904,7 +905,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     </div>
 
                     {/* Template grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
                       {BRIEF_TEMPLATES.map(tmpl => {
                         const IconComp = ICON_MAP[tmpl.icon] || SwatchIcon
                         const isSel = selectedBriefTemplate === tmpl.id
