@@ -83,7 +83,7 @@ function Toggle({ enabled, onChange }) {
       onClick={e => { e.stopPropagation(); onChange(!enabled); }}
       style={{
         width: 32, height: 18, borderRadius: 9, flexShrink: 0,
-        background: enabled ? 'var(--color-text)' : 'var(--color-border)',
+        background: enabled ? 'var(--color-accent)' : 'var(--color-border)',
         position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
         border: 'none',
       }}
@@ -646,19 +646,10 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
             borderRadius: 16, padding: 20, boxShadow: 'var(--shadow-card)',
           }}>
             <div style={{ paddingBottom: 16, marginBottom: 16, borderBottom: '1px solid var(--color-border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                <SparklesIcon style={{ width: 14, height: 14, color: 'var(--color-accent)' }} />
-                <span style={{
-                  fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 13,
-                  color: 'var(--color-text-muted)',
-                }}>
-                  DesignBrief AI
-                </span>
-              </div>
-
               <div style={{
-                fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 18,
-                letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: projectType ? 8 : 0,
+                fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 20,
+                letterSpacing: '-0.025em', color: 'var(--color-text)', marginBottom: projectType ? 8 : 0,
+                lineHeight: 1.2,
               }}>
                 {projectName || 'Your Project'}
               </div>
@@ -666,9 +657,9 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
               {projectType && (
                 <div style={{
                   display: 'inline-block',
-                  background: 'var(--color-surface)', color: 'var(--color-text-soft)',
-                  fontFamily: "'DM Mono', monospace", fontSize: 11,
-                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-accent-soft)', color: 'var(--color-accent)',
+                  fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 11,
+                  border: '1px solid var(--color-accent-border)',
                   borderRadius: 100, padding: '3px 10px',
                 }}>
                   {projectType.label}
@@ -678,7 +669,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
 
             {enabledSections.length === 0 && (
               <div style={{
-                marginTop: 20, fontFamily: "'DM Mono', monospace", fontSize: 11,
+                marginTop: 20, fontFamily: "'Urbanist', sans-serif", fontSize: 13,
                 color: 'var(--color-text-muted)', textAlign: 'center', padding: '20px 0',
               }}>
                 Enable at least one section
@@ -686,22 +677,33 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
             )}
 
             {enabledSections.map(section => (
-              <div key={section.id} style={{ marginBottom: 16 }}>
+              <div key={section.id} style={{ marginBottom: 18 }}>
                 <div style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 11,
-                  color: 'var(--color-text-soft)', textTransform: 'uppercase',
-                  letterSpacing: '0.06em', marginBottom: 8, fontWeight: 600,
+                  fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 12,
+                  color: 'var(--color-accent)', textTransform: 'uppercase',
+                  letterSpacing: '0.07em', marginBottom: 8,
                 }}>
                   {section.label}
                 </div>
                 {section.questions.map((q, qi) => (
                   <div key={qi} style={{
-                    background: 'var(--color-surface)', borderRadius: 7,
-                    padding: '8px 12px', marginBottom: 4,
-                    fontFamily: "'Urbanist', sans-serif", fontSize: 13,
-                    color: 'var(--color-text)', lineHeight: 1.4,
+                    display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6,
                   }}>
-                    {q || '(empty question)'}
+                    <span style={{
+                      flexShrink: 0, width: 18, height: 18, borderRadius: '50%',
+                      background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 10,
+                      color: 'var(--color-text-muted)', marginTop: 2,
+                    }}>
+                      {qi + 1}
+                    </span>
+                    <span style={{
+                      fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 13,
+                      color: 'var(--color-text)', lineHeight: 1.4,
+                    }}>
+                      {q || '(empty question)'}
+                    </span>
                   </div>
                 ))}
               </div>

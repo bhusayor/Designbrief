@@ -58,7 +58,7 @@ function InvalidView() {
         This form link is invalid or has expired.
       </div>
       <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: '13px',
+        fontFamily: "'Urbanist', sans-serif", fontSize: '15px',
         color: 'var(--color-text-soft)',
       }}>
         Please ask your designer to send you a new link.
@@ -85,7 +85,7 @@ function SubmittingView({ loadMsg }) {
         }}
       />
       <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: '13px',
+        fontFamily: "'Urbanist', sans-serif", fontSize: '15px',
         color: 'var(--color-text-soft)',
       }}>
         {loadMsg}
@@ -150,7 +150,7 @@ function DoneView({ designerName }) {
         }} />
 
         <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: '12px',
+          fontFamily: "'Urbanist', sans-serif", fontSize: '14px',
           color: '#9b9b9b', lineHeight: 1.6,
         }}>
           You can close this tab now.
@@ -164,8 +164,8 @@ function DoneView({ designerName }) {
         }}>
           <span style={{ fontSize: '14px', color: '#111111' }}>✦</span>
           <span style={{
-            fontFamily: "'DM Mono', monospace", fontSize: '11px',
-            color: '#111111', letterSpacing: '0.04em',
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 500, fontSize: '13px',
+            color: '#111111',
           }}>
             Powered by DesignBrief AI
           </span>
@@ -218,7 +218,7 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
           </h1>
 
           <p style={{
-            fontFamily: "'DM Mono', monospace", fontSize: '12px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: '15px',
             color: 'var(--color-text-soft)', lineHeight: 1.7,
             marginBottom: '8px',
           }}>
@@ -227,7 +227,7 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
           </p>
 
           <div style={{
-            fontFamily: "'DM Mono', monospace", fontSize: '11px',
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 500, fontSize: '13px',
             color: 'var(--color-text-muted)', marginBottom: '8px',
           }}>
             {answeredCount} of {totalQuestions} answered
@@ -250,16 +250,16 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
           <div key={section.id}>
             {/* Section header */}
             <div style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
+              background: 'var(--color-accent-soft)',
+              border: '1px solid var(--color-accent-border)',
               borderRadius: '10px 10px 0 0',
-              padding: '12px 16px',
-              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '10px 16px',
+              display: 'flex', alignItems: 'center', gap: '8px',
             }}>
-              <span style={{ fontSize: '16px' }}>{section.icon}</span>
+              <span style={{ fontSize: '15px' }}>{section.icon}</span>
               <span style={{
-                fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px',
-                color: 'var(--color-text)',
+                fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '13px',
+                color: 'var(--color-accent)', letterSpacing: '-0.01em',
               }}>
                 {section.label}
               </span>
@@ -280,12 +280,23 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
                 const isAssets = section.id === 'assets';
 
                 return (
-                  <div key={i} style={{ marginBottom: i < section.questions.length - 1 ? '16px' : 0 }}>
-                    <div style={{
-                      fontFamily: "'Urbanist', sans-serif", fontWeight: 500, fontSize: '13px',
-                      color: 'var(--color-text)', marginBottom: '6px',
-                    }}>
-                      {q}
+                  <div key={i} style={{ marginBottom: i < section.questions.length - 1 ? '20px' : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                      <span style={{
+                        flexShrink: 0, width: '20px', height: '20px', borderRadius: '50%',
+                        background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '11px',
+                        color: 'var(--color-text-muted)', marginTop: '1px',
+                      }}>
+                        {i + 1}
+                      </span>
+                      <span style={{
+                        fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '15px',
+                        color: 'var(--color-text)', lineHeight: 1.4, letterSpacing: '-0.01em',
+                      }}>
+                        {q}
+                      </span>
                     </div>
 
                     <Input
@@ -300,7 +311,7 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
                     {isMoodboardLast && (
                       <div style={{ marginTop: '12px' }}>
                         <div style={{
-                          fontFamily: "'DM Mono', monospace", fontSize: '11px',
+                          fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px',
                           color: 'var(--color-text-muted)', marginBottom: '6px',
                         }}>
                           Paste image URLs (one per line):
@@ -312,7 +323,6 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
                           placeholder={'https://dribbble.com/shots/...\nhttps://behance.net/...'}
                           value={moodUrls}
                           onChange={e => setMoodUrls(e.target.value)}
-                          style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px' }}
                         />
                         {moodUrls.trim() && (
                           <div style={{
@@ -342,7 +352,7 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
 
                     {isAssets && (
                       <div style={{
-                        fontFamily: "'DM Mono', monospace", fontSize: '10px',
+                        fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
                         color: 'var(--color-text-muted)', fontStyle: 'italic',
                         marginTop: '4px',
                       }}>
@@ -372,7 +382,7 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{
-            fontFamily: "'DM Mono', monospace", fontSize: '12px',
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 500, fontSize: '13px',
             color: remaining === 0 ? 'var(--color-green)' : 'var(--color-text-muted)',
           }}>
             {remaining === 0
