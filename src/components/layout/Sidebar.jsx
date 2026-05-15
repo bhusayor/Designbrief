@@ -1149,7 +1149,17 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
 
 function SearchModal({ onClose, history, setActiveProject, navigate }) {
   const [query, setQuery] = useState('')
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth)
   const inputRef = useRef()
+
+  useEffect(() => {
+    function onResize() { setWindowWidth(window.innerWidth) }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const isMobile = windowWidth <= 480
+  const isTablet = windowWidth > 480 && windowWidth <= 768
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 50)
@@ -1186,20 +1196,47 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
     return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
   }
 
+  const panelStyle = isMobile ? {
+    position: 'fixed',
+    bottom: 0, left: 0, right: 0,
+    maxHeight: '85vh',
+    background: 'var(--color-card)',
+    border: '1px solid var(--color-border)',
+    borderRadius: '20px 20px 0 0',
+    boxShadow: 'var(--shadow-modal)',
+    zIndex: 301,
+    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    animation: 'slideUp 0.26s cubic-bezier(0.4,0,0.2,1)',
+  } : {
+    position: 'fixed',
+    top: '18%', left: '50%', transform: 'translateX(-50%)',
+    width: isTablet ? 'calc(100vw - 32px)' : 580,
+    maxWidth: isTablet ? 'none' : '90vw',
+    maxHeight: '60vh',
+    background: 'var(--color-card)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 16,
+    boxShadow: 'var(--shadow-modal)',
+    zIndex: 301,
+    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+  }
+
   return (
     <>
       <div
         onClick={onClose}
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, backdropFilter: 'blur(2px)' }}
       />
-      <div style={{
-        position: 'fixed', top: '18%', left: '50%', transform: 'translateX(-50%)',
-        width: 580, maxWidth: '90vw', maxHeight: '60vh',
-        background: 'var(--color-card)', border: '1px solid var(--color-border)',
-        borderRadius: 16, boxShadow: 'var(--shadow-modal)', zIndex: 301,
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--color-border)' }}>
+      <div style={panelStyle}>
+        {/* Drag handle on mobile */}
+        {isMobile && (
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 4, background: 'var(--color-border-strong)', borderRadius: 2 }} />
+          </div>
+        )}
+
+        {/* Search input row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isMobile ? '10px 16px 12px' : '14px 16px', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
           <MagnifyingGlassIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)', flexShrink: 0 }} />
           <input
             ref={inputRef}
@@ -1208,22 +1245,39 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
             placeholder="Search projects and briefs..."
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              fontFamily: "'Urbanist', sans-serif", fontSize: 15, color: 'var(--color-text)',
+              fontFamily: "'Urbanist', sans-serif",
+              fontSize: isMobile ? 16 : 15,
+              color: 'var(--color-text)',
             }}
           />
-          <button
-            onClick={onClose}
-            style={{
-              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-              borderRadius: 7, padding: '3px 8px', cursor: 'pointer',
-              fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
-            }}
-          >
-            Esc
-          </button>
+          {isMobile ? (
+            <button
+              onClick={onClose}
+              style={{
+                width: 30, height: 30, minHeight: 'unset', borderRadius: '50%',
+                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--color-text-muted)', flexShrink: 0,
+              }}
+            >
+              <XMarkIcon style={{ width: 15, height: 15 }} />
+            </button>
+          ) : (
+            <button
+              onClick={onClose}
+              style={{
+                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                borderRadius: 7, padding: '3px 8px', cursor: 'pointer', minHeight: 'unset',
+                fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
+              }}
+            >
+              Esc
+            </button>
+          )}
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
+        {/* Results list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '6px', paddingBottom: isMobile ? 24 : 6 }}>
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 0', fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--color-text-muted)' }}>
               {query ? `No results for "${query}"` : 'No projects yet'}
@@ -1237,12 +1291,13 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  gap: 12, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', transition: 'background 0.1s',
+                  gap: 12, padding: isMobile ? '13px 14px' : '10px 12px',
+                  borderRadius: 9, cursor: 'pointer', transition: 'background 0.1s',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                   <DocumentTextIcon style={{ width: 16, height: 16, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                  <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 14, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: isMobile ? 15 : 14, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.title}
                   </span>
                 </div>
