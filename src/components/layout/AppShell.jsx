@@ -2,7 +2,6 @@ import { useContext, useState, useEffect } from 'react';
 import AppContext from '../../context/AppContext';
 import Sidebar from './Sidebar';
 import Toast from '../ui/Toast';
-import { Bars3Icon, SparklesIcon } from '@heroicons/react/24/outline';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -14,12 +13,23 @@ function useIsMobile() {
   return isMobile;
 }
 
+// Same icon used by the desktop sidebar expand button
+function PanelLeftOpen() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m14 9 3 3-3 3" />
+    </svg>
+  )
+}
+
 export default function AppShell({ children }) {
   const { notification } = useContext(AppContext);
   const isMobile = useIsMobile();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Close sidebar when switching to desktop
   useEffect(() => {
     if (!isMobile) setMobileSidebarOpen(false);
   }, [isMobile]);
@@ -30,7 +40,6 @@ export default function AppShell({ children }) {
       {/* ── Mobile: sidebar as fixed overlay drawer ── */}
       {isMobile ? (
         <>
-          {/* Backdrop */}
           {mobileSidebarOpen && (
             <div
               onClick={() => setMobileSidebarOpen(false)}
@@ -41,7 +50,6 @@ export default function AppShell({ children }) {
               }}
             />
           )}
-          {/* Drawer — not in flex flow, position:fixed */}
           <Sidebar
             isMobile={true}
             mobileSidebarOpen={mobileSidebarOpen}
@@ -49,7 +57,6 @@ export default function AppShell({ children }) {
           />
         </>
       ) : (
-        /* ── Desktop/Tablet: sidebar as normal flex item ── */
         <Sidebar isMobile={false} />
       )}
 
@@ -62,57 +69,31 @@ export default function AppShell({ children }) {
         minWidth: 0,
       }}>
 
-        {/* Mobile top bar */}
+        {/* Mobile top bar — expand button only, no branding */}
         {isMobile && (
           <div style={{
             height: 52,
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
-            padding: '0 16px',
+            padding: '0 14px',
             background: 'var(--color-sidebar)',
             borderBottom: '1px solid var(--color-sidebar-border)',
-            gap: 12,
           }}>
             <button
               onClick={() => setMobileSidebarOpen(true)}
               style={{
-                width: 36, height: 36,
-                borderRadius: 9,
+                width: 30, height: 30,
+                borderRadius: 8,
                 background: 'transparent',
-                border: '1px solid var(--color-border)',
+                border: 'none',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--color-text-soft)',
-                flexShrink: 0,
+                color: 'var(--color-text-muted)',
               }}
             >
-              <Bars3Icon style={{ width: 18, height: 18 }} />
+              <PanelLeftOpen />
             </button>
-
-            {/* Logo wordmark */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, justifyContent: 'center' }}>
-              <div style={{
-                width: 22, height: 22, borderRadius: 7,
-                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
-              }}>
-                <SparklesIcon style={{ width: 12, height: 12, color: 'white' }} />
-              </div>
-              <span style={{
-                fontFamily: 'var(--font-sans)',
-                fontWeight: 800,
-                fontSize: 15,
-                letterSpacing: '-0.03em',
-                color: 'var(--color-text)',
-              }}>
-                DesignBrief
-              </span>
-            </div>
-
-            {/* Spacer to balance hamburger */}
-            <div style={{ width: 36, flexShrink: 0 }} />
           </div>
         )}
 
