@@ -3146,7 +3146,7 @@ STYLE:
       <div style={{
         height: 48, borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center',
-        padding: isMobile ? '0 8px' : '0 20px',
+        padding: isMobile ? '0 8px 0 54px' : '0 20px',
         gap: isMobile ? 2 : 4,
         flexShrink: 0,
         background: 'var(--color-bg)',
@@ -3249,14 +3249,15 @@ STYLE:
             style={{
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
-              borderRadius: 8, padding: '6px 12px',
+              borderRadius: 8, padding: isMobile ? '6px 10px' : '6px 12px',
               fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12,
               color: 'var(--color-text-soft)', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 5,
+              minHeight: 'unset',
             }}
           >
             <span style={{ fontSize: 14 }}>+</span>
-            New Project
+            {!isMobile && 'New Project'}
           </button>
         </div>
       </div>
@@ -3279,7 +3280,7 @@ STYLE:
           const doneTasks = (kanban?.tasks || []).filter(t => t.column === (doneCol?.id || 'Done')).length
           const donePercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
           return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 20px', height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8, padding: isMobile ? '0 12px' : '0 20px', height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0, overflowX: isMobile ? 'auto' : 'visible' }}>
               {/* Left: task count + progress */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 120 }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>
@@ -3294,8 +3295,9 @@ STYLE:
                   </div>
                 )}
               </div>
-              {/* View tabs */}
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+              {/* View tabs — hidden on mobile, scrollable on tablet */}
+              {!isMobile && (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, overflowX: isTablet ? 'auto' : 'visible' }}>
                 {[
                   { id: 'board', icon: Squares2X2Icon, label: 'Board' },
                   { id: 'list', icon: ListBulletIcon, label: 'List' },
@@ -3306,7 +3308,7 @@ STYLE:
                   const isActive = viewMode === v.id
                   return (
                     <button key={v.id} onClick={() => setViewMode(v.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: 'none', background: isActive ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', transition: 'all 0.15s', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: 'none', background: isActive ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', transition: 'all 0.15s', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', flexShrink: 0, minHeight: 'unset' }}
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--color-surface)' }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                     >
@@ -3316,14 +3318,15 @@ STYLE:
                   )
                 })}
               </div>
+              )}
               {/* Right: Team + Connect + Add Task */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120, justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, minWidth: isMobile ? 'auto' : 120, justifyContent: 'flex-end', marginLeft: 'auto', flexShrink: 0 }}>
                 <button onClick={() => setShowTeamModal(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: isMobile ? '5px 8px' : '5px 12px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', minHeight: 'unset' }}>
                   <UserGroupIcon style={{ width: 13, height: 13 }} />
-                  Team
+                  {!isMobile && 'Team'}
                 </button>
-                {(installedConnectors.figma || installedConnectors.github || installedConnectors.linear) && (
+                {!isMobile && (installedConnectors.figma || installedConnectors.github || installedConnectors.linear) && (
                   <div style={{ position: 'relative' }}>
                     <button
                       onClick={() => setShowConnectPanel(p => !p)}
@@ -3346,20 +3349,20 @@ STYLE:
                 {kanban?.tasks?.length > 0 && (
                   <button
                     onClick={() => setShowBuildInterface(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, boxShadow: '0 1px 6px rgba(124,58,237,0.3)' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: isMobile ? '5px 8px' : '5px 14px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, boxShadow: '0 1px 6px rgba(124,58,237,0.3)', minHeight: 'unset' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#6D28D9'}
                     onMouseLeave={e => e.currentTarget.style.background = '#7C3AED'}
                   >
                     <BoltIcon style={{ width: 13, height: 13 }} />
-                    Build with AI
+                    {!isMobile && 'Build with AI'}
                   </button>
                 )}
                 <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: customCols[0]?.id || KANBAN_COLS[0] }); setShowAddTaskModal(true) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700 }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: isMobile ? '5px 10px' : '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, minHeight: 'unset' }}>
                   <PlusIcon style={{ width: 13, height: 13 }} />
-                  Add Task
+                  {isMobile ? '' : 'Add Task'}
                 </button>
-                {connectorData?.linear?.teams?.length > 0 && kanban?.tasks?.length > 0 && (
+                {!isMobile && connectorData?.linear?.teams?.length > 0 && kanban?.tasks?.length > 0 && (
                   <button
                     onClick={() => { setSelectedTeamId(connectorData.linear.teams[0]?.id || ''); setPushResult(null); setPushLinearOpen(true) }}
                     style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: '#5E6AD2', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700 }}
@@ -3743,9 +3746,22 @@ STYLE:
 
         </div> {/* closes kanban card */}
 
-        {/* AI panel — flex sibling */}
+        {/* AI panel — flex sibling on desktop, bottom sheet on mobile */}
+        {chatOpen && isMobile && (
+          <div
+            onClick={() => setChatOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 498, backdropFilter: 'blur(2px)' }}
+          />
+        )}
         {chatOpen && (
-          <div style={{
+          <div style={isMobile ? {
+            position: 'fixed', bottom: 0, left: 0, right: 0, height: '75vh',
+            background: 'var(--color-bg)', borderRadius: '20px 20px 0 0',
+            zIndex: 499, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: '0 -4px 32px rgba(0,0,0,0.14)',
+            animation: 'slideUp 0.26s cubic-bezier(0.4,0,0.2,1)',
+            fontFamily: 'var(--font-sans)',
+          } : {
             width: 380, flexShrink: 0,
             background: 'var(--color-bg)', borderRadius: 14,
             border: '1px solid var(--color-border)', overflow: 'hidden',
@@ -3974,6 +3990,35 @@ STYLE:
 
         </>)}
       </div>
+
+      {/* Floating AI button — mobile only, when panel is closed */}
+      {isMobile && !chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          style={{
+            position: 'fixed', bottom: 24, right: 16, zIndex: 300,
+            width: 50, height: 50, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 20px rgba(139,92,246,0.4)',
+            minHeight: 'unset',
+          }}
+        >
+          <SparklesIcon style={{ width: 20, height: 20, color: 'white' }} />
+          {unreadCount > 0 && (
+            <div style={{
+              position: 'absolute', top: -2, right: -2,
+              width: 16, height: 16, borderRadius: '50%',
+              background: '#ef4444', border: '2px solid var(--color-bg)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 9, color: 'white',
+            }}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </div>
+          )}
+        </button>
+      )}
 
       {/* Prompt Modal */}
       {promptModalOpen && (
