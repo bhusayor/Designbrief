@@ -793,7 +793,8 @@ The flow should be realistic for this product. Return only the JSON array.`,
 
           {/* Input footer */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 14px', borderTop: '1px solid var(--color-divider)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Left: attach only */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
               {/* Attach button — no border, icon-only */}
               <div style={{ position: 'relative' }} ref={plusMenuRef}>
 
@@ -803,7 +804,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                   style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <PlusIcon style={{ width: '18px', height: '18px', color: 'var(--color-text)', strokeWidth: 2 }} />
+                  <PlusIcon style={{ width: '18px', height: '18px', color: 'var(--color-text-muted)', strokeWidth: 2 }} />
                 </button>
                 {showPlusMenu && (
                   <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '5px', minWidth: '190px', boxShadow: 'var(--shadow-lg)', animation: 'fadeUp 0.15s ease', zIndex: 100 }}>
@@ -819,7 +820,12 @@ The flow should be realistic for this product. Return only the JSON array.`,
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => { handleFileAttach(e.target.files[0]); e.target.value = '' }} />
               </div>
 
-              {/* Brief Template dropdown — template name + chevron only, like a model selector */}
+              {/* end left group — template + send are on the right */}
+            </div>
+
+            {/* Right: template selector + send button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* Brief Template dropdown */}
               <div ref={stylePickerRef}>
                 <button
                   onClick={() => setShowStylePicker(v => !v)}
@@ -982,15 +988,14 @@ The flow should be realistic for this product. Return only the JSON array.`,
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Send button — icon only, active when content exists */}
+            {/* Send button — square with border-radius, active when content exists */}
             <button
               onClick={handleTranslate}
               disabled={!hasContent}
               style={{
-                width: 34, height: 34,
-                borderRadius: '50%',
+                width: 32, height: 32,
+                borderRadius: 8,
                 background: hasContent
                   ? 'var(--color-primary)'
                   : 'var(--color-surface-2)',
@@ -1002,11 +1007,12 @@ The flow should be realistic for this product. Return only the JSON array.`,
                 transition: 'all var(--transition-fast)',
                 boxShadow: hasContent ? 'var(--shadow-sm)' : 'none',
               }}
-              onMouseEnter={e => { if (hasContent) { e.currentTarget.style.transform = 'scale(1.07)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' } }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = hasContent ? 'var(--shadow-sm)' : 'none' }}
+              onMouseEnter={e => { if (hasContent) { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' } }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.boxShadow = hasContent ? 'var(--shadow-sm)' : 'none' }}
             >
-              <ArrowUpIcon style={{ width: 16, height: 16, strokeWidth: 2.5 }} />
+              <ArrowUpIcon style={{ width: 15, height: 15, strokeWidth: 2.5 }} />
             </button>
+            </div>{/* end right group */}
           </div>
         </div>
 
