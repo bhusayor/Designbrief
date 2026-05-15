@@ -360,8 +360,22 @@ function TypingBubble({ userMessage }) {
 
 // ─── TeamCollab ───────────────────────────────────────────────────────────────
 
+function useWindowWidth() {
+  const [width, setWidth] = React.useState(() => window.innerWidth)
+  React.useEffect(() => {
+    function onResize() { setWidth(window.innerWidth) }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return width
+}
+
 export default function TeamCollab() {
   const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
+
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth <= 480
+  const isTablet = windowWidth > 480 && windowWidth <= 768
 
   const websiteTemplate = getWebsiteTemplate(selectedWebsiteTemplate || 'saas-landing')
 
@@ -3132,8 +3146,11 @@ STYLE:
       <div style={{
         height: 48, borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center',
-        padding: '0 20px', gap: 4, flexShrink: 0,
+        padding: isMobile ? '0 8px' : '0 20px',
+        gap: isMobile ? 2 : 4,
+        flexShrink: 0,
         background: 'var(--color-bg)',
+        overflowX: isMobile ? 'auto' : 'visible',
       }}>
         {/* Board tab */}
         {(() => {
@@ -3468,8 +3485,21 @@ STYLE:
 
         {/* Kanban board */}
         {viewMode === 'board' && (
-        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', padding: '16px 20px', background: 'var(--color-surface)' }}>
-          <div style={{ display: 'flex', gap: 12, height: '100%', alignItems: 'flex-start', minWidth: 'max-content' }}>
+        <div style={{
+          flex: 1,
+          overflowX: isMobile ? 'hidden' : 'auto',
+          overflowY: isMobile ? 'auto' : 'hidden',
+          padding: isMobile ? '12px 12px' : '16px 20px',
+          background: 'var(--color-surface)',
+        }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? 10 : 12,
+            height: isMobile ? 'auto' : '100%',
+            alignItems: 'flex-start',
+            minWidth: isMobile ? 'unset' : isTablet ? 'unset' : 'max-content',
+          }}>
             {customCols.map((col) => {
               const colTasks = (kanban?.tasks || []).filter(t => t.column === col.id)
               const isTaskDropTarget = dragOverCol === col.id && draggedTask !== null && !dragOverTaskId
@@ -3513,7 +3543,9 @@ STYLE:
                     }
                   }}
                   style={{
-                    width: 280, flexShrink: 0, borderRadius: 12,
+                    width: isMobile ? '100%' : isTablet ? 220 : 280,
+                    flexShrink: isMobile ? undefined : 0,
+                    borderRadius: 12,
                     transition: 'background 0.15s, border-left 0.15s',
                     background: isTaskDropTarget ? 'rgba(59,130,246,0.05)' : 'rgba(0,0,0,0.03)',
                     outline: isTaskDropTarget ? '2px dashed #3B82F6' : 'none',

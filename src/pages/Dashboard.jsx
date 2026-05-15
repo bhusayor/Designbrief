@@ -250,6 +250,18 @@ function TypewriterHeading() {
   )
 }
 
+// ─── Responsive hook ─────────────────────────────────────────────────────────
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(() => window.innerWidth)
+  useEffect(() => {
+    function onResize() { setWidth(window.innerWidth) }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return width
+}
+
 // ─── Dashboard (main) ─────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -260,6 +272,9 @@ export default function Dashboard() {
     setActiveProjectBriefResult,
     connectorData,
   } = useContext(AppContext)
+
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth <= 480
 
   const [phase, setPhase] = useState('input')
   const [input, setInput] = useState('')
@@ -643,7 +658,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          padding: '12px 24px 0',
+          padding: isMobile ? '12px 14px 0' : '12px 24px 0',
           flexWrap: 'wrap',
         }}>
           <span style={{
@@ -702,7 +717,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
             onLoadCompetitors={handleLoadCompetitors}
           />
         ) : (
-          <div style={{ padding: '24px 32px' }}>
+          <div style={{ padding: isMobile ? '16px 14px' : '24px 32px' }}>
             <BriefRenderer
               result={result}
               templateId={selectedBriefTemplate}
@@ -723,9 +738,17 @@ The flow should be realistic for this product. Return only the JSON array.`,
       background: 'var(--gradient-hero)',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      padding: 'clamp(32px, 6vh, 60px) clamp(16px, 5vw, 40px)',
+      padding: isMobile ? '64px 16px 32px' : 'clamp(32px, 6vh, 60px) clamp(16px, 5vw, 40px)',
       position: 'relative',
     }}>
+      {/* Mobile template-picker backdrop */}
+      {isMobile && showStylePicker && (
+        <div
+          onClick={() => setShowStylePicker(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 599, backdropFilter: 'blur(2px)' }}
+        />
+      )}
+
       {/* Grid texture overlay */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
@@ -743,9 +766,9 @@ The flow should be realistic for this product. Return only the JSON array.`,
 
         {/* Subheading */}
         <p style={{
-          fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 400,
+          fontFamily: 'var(--font-sans)', fontSize: isMobile ? 13 : 15, fontWeight: 400,
           color: 'var(--color-text-muted)', textAlign: 'center',
-          lineHeight: 1.7, marginBottom: 40, maxWidth: 400,
+          lineHeight: 1.7, marginBottom: isMobile ? 24 : 40, maxWidth: 400,
         }}>
           Paste a client brief. Get deliverables, timelines, colors, and team roles in seconds.
         </p>
@@ -853,14 +876,16 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     const IconComp = ICON_MAP[currentTemplate.icon] || SwatchIcon
                     return <IconComp style={{ width: 13, height: 13, color: currentTemplate.accent, flexShrink: 0 }} />
                   })()}
-                  <span style={{
-                    fontWeight: 600,
-                    color: 'var(--color-text-soft)',
-                    letterSpacing: '-0.01em',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {currentTemplate.name}
-                  </span>
+                  {!isMobile && (
+                    <span style={{
+                      fontWeight: 600,
+                      color: 'var(--color-text-soft)',
+                      letterSpacing: '-0.01em',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {currentTemplate.name}
+                    </span>
+                  )}
                   <ChevronDownIcon style={{
                     width: 12, height: 12,
                     color: 'var(--color-text-muted)',
@@ -870,9 +895,13 @@ The flow should be realistic for this product. Return only the JSON array.`,
                   }} />
                 </button>
 
-                {/* Downward popover */}
+                {/* Template picker — bottom sheet on mobile, popover on desktop */}
                 {showStylePicker && (
-                  <div style={{
+                  <div style={isMobile ? {
+                    position: 'fixed',
+                    bottom: 0, left: 0, right: 0,
+                    zIndex: 600,
+                  } : {
                     position: 'absolute',
                     top: 'calc(100% + 8px)',
                     left: '50%',
@@ -880,7 +909,15 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     zIndex: 100,
                     width: 'min(620px, calc(100vw - 32px))',
                   }}>
-                  <div style={{
+                  <div style={isMobile ? {
+                    background: 'var(--color-card)',
+                    borderRadius: '20px 20px 0 0',
+                    padding: '0 16px 40px',
+                    boxShadow: '0 -4px 32px rgba(0,0,0,0.14)',
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                    animation: 'slideUp 0.26s cubic-bezier(0.4,0,0.2,1)',
+                  } : {
                     background: 'var(--color-card)',
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-xl)',
@@ -888,14 +925,15 @@ The flow should be realistic for this product. Return only the JSON array.`,
                     width: '100%',
                     boxShadow: 'var(--shadow-lg)',
                   }}>
+                    {isMobile && <div style={{ width: 36, height: 4, background: 'var(--color-border-strong)', borderRadius: 2, margin: '12px auto 16px' }} />}
                     {/* Header */}
                     <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--color-divider)' }}>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 3 }}>Brief Template</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: isMobile ? 15 : 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 3 }}>Brief Template</div>
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>Choose how your output will be structured and formatted</div>
                     </div>
 
                     {/* Template grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
                       {BRIEF_TEMPLATES.map(tmpl => {
                         const IconComp = ICON_MAP[tmpl.icon] || SwatchIcon
                         const isSel = selectedBriefTemplate === tmpl.id

@@ -1,5 +1,15 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import AppContext from '../context/AppContext';
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(() => window.innerWidth)
+  useEffect(() => {
+    function onResize() { setWidth(window.innerWidth) }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return width
+}
 import { Button, Badge } from '../components/ui';
 import { ROLE_META } from '../lib/constants';
 import {
@@ -412,6 +422,10 @@ export default function ProjectLibrary() {
     intakeForms, loadIntakeForms, showToast,
   } = useContext(AppContext);
 
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth <= 480
+  const isTablet = windowWidth > 480 && windowWidth <= 768
+
   const [query, setQuery]       = useState('');
   const [activeTab, setActiveTab] = useState('projects');
 
@@ -463,13 +477,21 @@ export default function ProjectLibrary() {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 40px 60px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: isMobile ? '0 16px 40px' : isTablet ? '0 24px 50px' : '0 40px 60px' }}>
 
         {/* Header */}
-        <div style={{ padding: '32px 0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{
+          padding: '32px 0 24px',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          justifyContent: 'space-between',
+          gap: isMobile ? 12 : 0,
+        }}>
           <div>
             <h1 style={{
-              fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '26px',
+              fontFamily: "'Urbanist', sans-serif", fontWeight: 800,
+              fontSize: isMobile ? '22px' : '26px',
               color: 'var(--color-text)', letterSpacing: '-0.02em', margin: '0 0 4px',
             }}>
               Project Library
@@ -487,7 +509,7 @@ export default function ProjectLibrary() {
 
           {/* Search — only on projects tab */}
           {activeTab === 'projects' && history.length > 0 && (
-            <div style={{ position: 'relative', width: '240px' }}>
+            <div style={{ position: 'relative', width: isMobile ? '100%' : '240px' }}>
               <span style={{
                 position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
                 color: 'var(--color-text-muted)', fontSize: '13px', pointerEvents: 'none',
@@ -500,7 +522,7 @@ export default function ProjectLibrary() {
                 placeholder="Search projects..."
                 style={{
                   width: '100%', paddingLeft: '32px', paddingRight: '12px',
-                  height: '36px', background: 'var(--color-surface)',
+                  height: '40px', background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)', borderRadius: '9px',
                   color: 'var(--color-text)', fontFamily: "'DM Mono', monospace",
                   fontSize: '12px', outline: 'none', boxSizing: 'border-box',
@@ -594,7 +616,7 @@ export default function ProjectLibrary() {
           <div>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
+              gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 1fr 1fr',
               gap: 16,
             }}>
               <StatusColumn

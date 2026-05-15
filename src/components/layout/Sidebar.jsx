@@ -251,7 +251,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     position: 'fixed',
     top: 0,
     left: 0,
-    width: 270,
+    width: 'min(80vw, 300px)',
     height: '100vh',
     zIndex: 499,
     display: 'flex',

@@ -395,3 +395,56 @@ button, a, input, textarea, select {
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
+
+/* ─── Responsive utilities ─────────────────────────────────────────────────── */
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 599;
+  backdrop-filter: blur(2px);
+}
+
+.bottom-sheet {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--color-card);
+  border-radius: 20px 20px 0 0;
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 600;
+  box-shadow: 0 -4px 32px rgba(0,0,0,0.14);
+  padding: 0 16px 40px;
+  animation: slideUp 0.26s cubic-bezier(0.4,0,0.2,1);
+}
+
+.bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--color-border-strong);
+  border-radius: 2px;
+  margin: 12px auto 16px;
+}
+
+/* Disable hover effects on touch devices */
+@media (hover: none) {
+  button:hover { opacity: 1 !important; }
+}
+
+/* ─── Mobile layout overrides (≤480px) ─────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Ensure all interactive elements are at least 44px tall */
+  button, a, select, [role="button"] {
+    min-height: 44px;
+  }
+  /* Override for very small icon-only buttons (explicit opt-out via class) */
+  button.icon-btn {
+    min-height: unset;
+  }
+}
