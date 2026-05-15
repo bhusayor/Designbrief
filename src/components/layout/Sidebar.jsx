@@ -276,6 +276,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
   }
 
   return (
+  <>
     <aside style={asideStyle}>
       {/* ── Row 1: Logo + collapse/close button ── */}
       <div ref={workspaceAreaRef} style={{ flexShrink: 0 }}>
@@ -1122,16 +1123,6 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         </div>
       )}
 
-      {/* ── Search Modal ── */}
-      {showSearch && (
-        <SearchModal
-          onClose={() => setShowSearch(false)}
-          history={history}
-          setActiveProject={setActiveProject}
-          navigate={navigate}
-        />
-      )}
-
       {/* ── Team People overlay ── */}
       {showInviteModal && (
         <TeamPage onClose={() => setShowInviteModal(false)} />
@@ -1142,6 +1133,18 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         <SettingsPage onClose={() => setShowSettings(false)} />
       )}
     </aside>
+
+    {/* SearchModal is a sibling to <aside> so it escapes the sidebar's
+        CSS transform and renders against the true viewport on mobile */}
+    {showSearch && (
+      <SearchModal
+        onClose={() => setShowSearch(false)}
+        history={history}
+        setActiveProject={setActiveProject}
+        navigate={navigate}
+      />
+    )}
+  </>
   )
 }
 
@@ -1198,15 +1201,13 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
 
   const panelStyle = isMobile ? {
     position: 'fixed',
-    bottom: 0, left: 0, right: 0,
-    maxHeight: '85vh',
+    inset: 0,
     background: 'var(--color-card)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '20px 20px 0 0',
-    boxShadow: 'var(--shadow-modal)',
-    zIndex: 301,
+    border: 'none',
+    borderRadius: 0,
+    boxShadow: 'none',
+    zIndex: 400,
     display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    animation: 'slideUp 0.26s cubic-bezier(0.4,0,0.2,1)',
   } : {
     position: 'fixed',
     top: '18%', left: '50%', transform: 'translateX(-50%)',
@@ -1223,20 +1224,15 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
 
   return (
     <>
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, backdropFilter: 'blur(2px)' }}
-      />
+      {!isMobile && (
+        <div
+          onClick={onClose}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, backdropFilter: 'blur(2px)' }}
+        />
+      )}
       <div style={panelStyle}>
-        {/* Drag handle on mobile */}
-        {isMobile && (
-          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
-            <div style={{ width: 36, height: 4, background: 'var(--color-border-strong)', borderRadius: 2 }} />
-          </div>
-        )}
-
         {/* Search input row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isMobile ? '10px 16px 12px' : '14px 16px', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isMobile ? '14px 16px' : '14px 16px', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
           <MagnifyingGlassIcon style={{ width: 18, height: 18, color: 'var(--color-text-muted)', flexShrink: 0 }} />
           <input
             ref={inputRef}
