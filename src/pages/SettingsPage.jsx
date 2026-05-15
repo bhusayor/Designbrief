@@ -109,7 +109,7 @@ function ProfileSection() {
       await callSettings({ action: 'update_name', name: name.trim() })
       updateUser({ name: name.trim(), firstName: name.trim().split(' ')[0] })
       setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
+      setTimeout(() => setSaved(false), 3000)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -272,7 +272,7 @@ function WorkspaceGeneralSection() {
       await callSettings({ action: 'update_workspace_name', workspaceId: workspace.id, name: wsName.trim() })
       setWorkspace(prev => ({ ...prev, name: wsName.trim() }))
       setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
+      setTimeout(() => setSaved(false), 3000)
     } catch (e) {
       setError(e.message)
     } finally {

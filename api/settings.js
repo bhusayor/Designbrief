@@ -60,7 +60,7 @@ export default async function handler(req, res) {
 
       const { error } = await supabase
         .from('workspaces')
-        .update({ name: name.trim(), updated_at: new Date().toISOString() })
+        .update({ name: name.trim() })
         .eq('id', workspaceId)
 
       if (error) throw error
