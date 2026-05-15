@@ -3154,7 +3154,33 @@ STYLE:
         background: isMobile ? 'transparent' : 'var(--color-bg)',
         overflowX: 'visible',
       }}>
-        {/* Board tab — desktop/tablet only */}
+        {/* Mobile: project select sits left, right beside the hamburger */}
+        {isMobile && (
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <select
+              value={activeProjectId}
+              onChange={e => handleSwitchProject(e.target.value)}
+              style={{
+                appearance: 'none', background: 'transparent',
+                border: 'none',
+                borderRadius: 8, padding: '6px 24px 6px 0',
+                fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
+                color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
+                maxWidth: 160,
+              }}
+            >
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+            <ChevronDownIcon style={{
+              width: 12, height: 12, color: 'var(--color-text-muted)',
+              position: 'absolute', right: 4, pointerEvents: 'none',
+            }} />
+          </div>
+        )}
+
+        {/* Desktop/tablet: Board + Team step tabs on the left */}
         {!isMobile && (() => {
           const isDone = !!kanban?.tasks?.length
           const isActive = activeTab === 'board'
@@ -3187,8 +3213,6 @@ STYLE:
             </button>
           )
         })()}
-
-        {/* Team tab — desktop/tablet only */}
         {!isMobile && (() => {
           const isDone = teamMembers.some(m => m.name?.trim())
           return (
@@ -3223,9 +3247,9 @@ STYLE:
 
         <div style={{ flex: 1 }} />
 
-        {/* Project switcher + New Project */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {/* Desktop/tablet: project select on the right */}
+        {!isMobile && (
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <select
               value={activeProjectId}
               onChange={e => handleSwitchProject(e.target.value)}
@@ -3235,7 +3259,7 @@ STYLE:
                 borderRadius: 8, padding: '6px 32px 6px 12px',
                 fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12,
                 color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
-                maxWidth: isMobile ? 120 : 180,
+                maxWidth: 180,
               }}
             >
               {projects.map(p => (
@@ -3247,20 +3271,7 @@ STYLE:
               position: 'absolute', right: 10, pointerEvents: 'none',
             }} />
           </div>
-          <button
-            onClick={handleNewProject}
-            title="New project"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 28, height: 28, borderRadius: 7,
-              background: 'transparent', border: '1px solid var(--color-border)',
-              cursor: 'pointer', color: 'var(--color-text-muted)',
-              minHeight: 'unset', flexShrink: 0,
-            }}
-          >
-            <PlusIcon style={{ width: 14, height: 14 }} />
-          </button>
-        </div>
+        )}
       </div>
 
       {/* ── Main content ── */}
