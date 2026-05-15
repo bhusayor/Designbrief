@@ -1,4 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+function useWindowWidth() {
+  const [w, setW] = useState(() => window.innerWidth)
+  useEffect(() => {
+    const fn = () => setW(window.innerWidth)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+  return w
+}
 import { useApp } from '../context/AppContext';
 import { INTAKE_SECTIONS } from '../lib/constants';
 import {
@@ -95,11 +105,14 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
   const [nameFocused, setNameFocused] = useState(false);
   const [clientNameFocused, setClientNameFocused] = useState(false);
   const [clientEmailFocused, setClientEmailFocused] = useState(false);
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth <= 480
 
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      padding: '48px 24px 80px', overflowY: 'auto', height: '100%',
+      padding: isMobile ? '32px 16px 60px' : '48px 24px 80px',
+      overflowY: 'auto', height: '100%',
       background: 'var(--color-bg)', boxSizing: 'border-box',
     }}>
 
@@ -117,7 +130,8 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
 
       {/* Heading */}
       <h1 style={{
-        fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 40,
+        fontFamily: "'Urbanist', sans-serif", fontWeight: 800,
+        fontSize: isMobile ? 28 : 40,
         letterSpacing: '-0.03em', color: 'var(--color-text)',
         textAlign: 'center', marginBottom: 8, maxWidth: 500, lineHeight: 1.1, margin: '0 0 8px',
       }}>
@@ -222,7 +236,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
           Project type
         </div>
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10,
+          display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 10,
         }}>
           {LOCAL_PROJECT_TYPES.map(pt => {
             const selected = projectType?.id === pt.id;
@@ -321,6 +335,11 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
 
 function Screen2({ projectName, projectType, sections, setSections, onBack, onGenerate, generating }) {
   const [dragIdx, setDragIdx] = useState(null);
+  const [activePanel, setActivePanel] = useState('edit');
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth <= 480
+  const isTablet = windowWidth > 480 && windowWidth <= 768
+  const isNarrow = isMobile || isTablet
 
   const enabledSections = sections.filter(s => s.enabled);
   const totalQuestions = enabledSections.reduce((acc, s) => acc + s.questions.length, 0);
@@ -373,7 +392,8 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         height: 56, flexShrink: 0,
         borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 24px', background: 'var(--color-bg)',
+        padding: isMobile ? '0 14px' : '0 24px',
+        background: 'var(--color-bg)', gap: 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <button
@@ -416,15 +436,48 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         </div>
       </div>
 
-      {/* Two-column body */}
+      {/* Mobile/tablet panel tab toggle */}
+      {isNarrow && (
+        <div style={{
+          display: 'flex', flexShrink: 0,
+          borderBottom: '1px solid var(--color-border)',
+          background: 'var(--color-bg)',
+        }}>
+          {['edit', 'preview'].map(panel => {
+            const isActive = activePanel === panel
+            return (
+              <button
+                key={panel}
+                onClick={() => setActivePanel(panel)}
+                style={{
+                  flex: 1, height: 40, minHeight: 'unset',
+                  background: 'transparent', border: 'none',
+                  borderBottom: `2px solid ${isActive ? 'var(--color-text)' : 'transparent'}`,
+                  fontFamily: "'Urbanist', sans-serif", fontWeight: isActive ? 700 : 500,
+                  fontSize: 13, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)',
+                  cursor: 'pointer', transition: 'all 0.15s', marginBottom: -1,
+                }}
+              >
+                {panel === 'edit' ? 'Edit Sections' : 'Preview'}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Body: two-column on desktop, single panel on mobile/tablet */}
       <div style={{
-        flex: 1, overflow: 'hidden', display: 'grid', gridTemplateColumns: '1fr 1fr',
+        flex: 1, overflow: 'hidden',
+        display: isNarrow ? 'flex' : 'grid',
+        gridTemplateColumns: '1fr 1fr',
       }}>
 
         {/* Left: sections list */}
+        {(!isNarrow || activePanel === 'edit') && (
         <div style={{
-          padding: 24, overflowY: 'auto',
-          borderRight: '1px solid var(--color-border)',
+          flex: isNarrow ? 1 : undefined,
+          padding: isMobile ? 16 : 24, overflowY: 'auto',
+          borderRight: isNarrow ? 'none' : '1px solid var(--color-border)',
         }}>
           <div style={{
             fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 15,
@@ -555,9 +608,11 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
             );
           })}
         </div>
+        )}
 
         {/* Right: client preview */}
-        <div style={{ padding: 24, overflowY: 'auto', background: 'var(--color-preview-bg)' }}>
+        {(!isNarrow || activePanel === 'preview') && (
+        <div style={{ flex: isNarrow ? 1 : undefined, padding: isNarrow ? 16 : 24, overflowY: 'auto', background: 'var(--color-preview-bg)' }}>
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             marginBottom: 14,
@@ -653,6 +708,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
             ))}
           </div>
         </div>
+        )}
       </div>
 
       {/* Footer bar */}
@@ -660,7 +716,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         height: 64, flexShrink: 0, background: 'var(--color-bg)',
         borderTop: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 24px',
+        padding: isMobile ? '0 14px' : '0 24px',
       }}>
         <span style={{
           fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--color-text-muted)',
@@ -673,7 +729,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
           style={{
             background: (enabledSections.length === 0 || generating) ? 'var(--color-border)' : 'var(--color-text)',
             color: (enabledSections.length === 0 || generating) ? 'var(--color-text-muted)' : 'var(--color-bg)',
-            border: 'none', borderRadius: 10, padding: '10px 22px',
+            border: 'none', borderRadius: 10, padding: isMobile ? '10px 14px' : '10px 22px',
             fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14,
             cursor: (enabledSections.length === 0 || generating) ? 'not-allowed' : 'pointer',
             boxShadow: (enabledSections.length === 0 || generating) ? 'none' : '0 2px 8px rgba(0,0,0,0.15)',
@@ -694,6 +750,8 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
 
 function Screen3({ shareLink, onReset, onViewProjects }) {
   const [copied, setCopied] = useState(false);
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth <= 480
   console.log('[IntakeBuilder] Generated link:', shareLink);
 
   function copyLink() {
@@ -730,7 +788,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: '100%', padding: '40px 24px',
+      justifyContent: 'center', height: '100%', padding: isMobile ? '32px 16px 60px' : '40px 24px',
       textAlign: 'center', overflowY: 'auto', background: 'var(--color-bg)',
       boxSizing: 'border-box',
     }}>
@@ -792,7 +850,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
 
       {/* Feature cards */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12,
+        display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12,
         width: '100%', maxWidth: 520, marginBottom: 32,
       }}>
         {featureCards.map(({ Icon, bg, color, title, desc }) => (
@@ -829,7 +887,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, width: isMobile ? '100%' : 'auto', maxWidth: isMobile ? 520 : 'none' }}>
         <button
           onClick={onReset}
           style={{

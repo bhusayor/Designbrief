@@ -3,6 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 import AppContext from '../context/AppContext';
 import { Button, Input } from '../components/ui';
 
+function useWindowWidth() {
+  const [w, setW] = useState(() => window.innerWidth)
+  useEffect(() => {
+    const fn = () => setW(window.innerWidth)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+  return w
+}
+
 // Dedicated public client — never carries an auth session so anon RLS policies apply
 const publicSupabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -169,6 +179,8 @@ function DoneView({ designerName }) {
 // ─── Filling View ──────────────────────────────────────────────────────────────
 
 function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, onSubmit }) {
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth <= 480
   const totalQuestions = intakeData.sections.flatMap(s => s.questions).length;
   const answeredCount = Object.values(answers).filter(v => v && v.trim()).length;
   const pct = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
@@ -180,7 +192,7 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
-      <div style={{ maxWidth: '680px', margin: '0 auto', padding: '40px 24px 100px' }}>
+      <div style={{ maxWidth: '680px', margin: '0 auto', padding: isMobile ? '24px 16px 100px' : '40px 24px 100px' }}>
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
@@ -198,7 +210,7 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
           </div>
 
           <h1 style={{
-            fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '28px',
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: isMobile ? '22px' : '28px',
             color: 'var(--color-text)', letterSpacing: '-0.02em',
             margin: '0 0 8px',
           }}>
@@ -351,7 +363,7 @@ function FillingView({ intakeData, answers, setAnswers, moodUrls, setMoodUrls, o
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'var(--color-bg)',
         borderTop: '1px solid var(--color-border)',
-        padding: '14px 24px',
+        padding: isMobile ? '12px 16px' : '14px 24px',
         display: 'flex', justifyContent: 'center',
         zIndex: 100,
       }}>
