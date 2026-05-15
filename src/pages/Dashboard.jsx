@@ -864,7 +864,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
                 {showStylePicker && (
                   <div style={{
                     position: 'absolute',
-                    bottom: 'calc(100% + 6px)',
+                    top: 'calc(100% + 6px)',
                     right: 0,
                     zIndex: 200,
                     width: 240,
