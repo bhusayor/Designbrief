@@ -17,7 +17,6 @@ import {
   generateSubtasks,
 } from '../lib/api'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
-import { ICON_MAP } from '../components/brief/TemplatePicker'
 import { getBriefTemplate, getWebsiteTemplate, BRIEF_TEMPLATES } from '../lib/templates'
 import BriefRenderer from '../components/brief/BriefRenderer'
 
@@ -741,14 +740,6 @@ The flow should be realistic for this product. Return only the JSON array.`,
       padding: isMobile ? '64px 16px 32px' : 'clamp(32px, 6vh, 60px) clamp(16px, 5vw, 40px)',
       position: 'relative',
     }}>
-      {/* Mobile template-picker backdrop */}
-      {isMobile && showStylePicker && (
-        <div
-          onClick={() => setShowStylePicker(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 599, backdropFilter: 'blur(2px)' }}
-        />
-      )}
-
       {/* Grid texture overlay */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
@@ -849,180 +840,67 @@ The flow should be realistic for this product. Return only the JSON array.`,
             {/* Right: template selector + send button */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {/* Brief Template dropdown */}
-              <div ref={stylePickerRef}>
+              <div ref={stylePickerRef} style={{ position: 'relative' }}>
                 <button
                   onClick={() => setShowStylePicker(v => !v)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '5px 8px',
-                    background: showStylePicker ? currentTemplate.accent + '12' : 'transparent',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 12,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    height: 32, minHeight: 'unset',
+                    padding: '0 8px',
+                    background: showStylePicker ? 'var(--color-surface)' : 'transparent',
+                    border: 'none', borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12,
                     transition: 'var(--transition-fast)',
                   }}
-                  onMouseEnter={e => {
-                    if (!showStylePicker) e.currentTarget.style.background = 'var(--color-surface)'
-                  }}
-                  onMouseLeave={e => {
-                    if (!showStylePicker) e.currentTarget.style.background = 'transparent'
-                  }}
+                  onMouseEnter={e => { if (!showStylePicker) e.currentTarget.style.background = 'var(--color-surface)' }}
+                  onMouseLeave={e => { if (!showStylePicker) e.currentTarget.style.background = 'transparent' }}
                 >
-                  {(() => {
-                    const IconComp = ICON_MAP[currentTemplate.icon] || SwatchIcon
-                    return <IconComp style={{ width: 13, height: 13, color: currentTemplate.accent, flexShrink: 0 }} />
-                  })()}
-                  {!isMobile && (
-                    <span style={{
-                      fontWeight: 600,
-                      color: 'var(--color-text-soft)',
-                      letterSpacing: '-0.01em',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {currentTemplate.name}
-                    </span>
-                  )}
-                  <ChevronDownIcon style={{
-                    width: 12, height: 12,
-                    color: 'var(--color-text-muted)',
-                    transform: showStylePicker ? 'rotate(180deg)' : 'none',
-                    transition: 'transform 0.2s',
-                    flexShrink: 0,
-                  }} />
+                  <span style={{ fontWeight: 600, color: 'var(--color-text-soft)', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+                    {currentTemplate.name}
+                  </span>
+                  <ChevronDownIcon style={{ width: 11, height: 11, color: 'var(--color-text-muted)', transform: showStylePicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
                 </button>
 
-                {/* Template picker — bottom sheet on mobile, popover on desktop */}
                 {showStylePicker && (
-                  <div style={isMobile ? {
-                    position: 'fixed',
-                    bottom: 0, left: 0, right: 0,
-                    zIndex: 600,
-                  } : {
+                  <div style={{
                     position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    zIndex: 100,
-                    width: 'min(620px, calc(100vw - 32px))',
-                  }}>
-                  <div style={isMobile ? {
-                    background: 'var(--color-card)',
-                    borderRadius: '20px 20px 0 0',
-                    padding: '0 16px 40px',
-                    boxShadow: '0 -4px 32px rgba(0,0,0,0.14)',
-                    maxHeight: '90vh',
-                    overflowY: 'auto',
-                    animation: 'slideUp 0.26s cubic-bezier(0.4,0,0.2,1)',
-                  } : {
+                    bottom: 'calc(100% + 6px)',
+                    right: 0,
+                    zIndex: 200,
+                    width: 240,
                     background: 'var(--color-card)',
                     border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-xl)',
-                    padding: '16px',
-                    width: '100%',
+                    borderRadius: 'var(--radius-lg)',
                     boxShadow: 'var(--shadow-lg)',
+                    padding: '4px',
+                    animation: 'dropIn 0.15s ease',
                   }}>
-                    {isMobile && <div style={{ width: 36, height: 4, background: 'var(--color-border-strong)', borderRadius: 2, margin: '12px auto 16px' }} />}
-                    {/* Header */}
-                    <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--color-divider)' }}>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: isMobile ? 15 : 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 3 }}>Brief Template</div>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>Choose how your output will be structured and formatted</div>
-                    </div>
-
-                    {/* Template grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-                      {BRIEF_TEMPLATES.map(tmpl => {
-                        const IconComp = ICON_MAP[tmpl.icon] || SwatchIcon
-                        const isSel = selectedBriefTemplate === tmpl.id
-                        return (
-                          <button
-                            key={tmpl.id}
-                            onClick={() => { setSelectedBriefTemplate(tmpl.id); setShowStylePicker(false) }}
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'flex-start',
-                              gap: 8,
-                              padding: '12px',
-                              background: isSel ? tmpl.accent + '10' : 'var(--color-surface)',
-                              border: '1.5px solid ' + (isSel ? tmpl.accent : 'var(--color-border)'),
-                              borderRadius: 'var(--radius-lg)',
-                              cursor: 'pointer',
-                              textAlign: 'left',
-                              transition: 'var(--transition-fast)',
-                              boxShadow: isSel ? '0 0 0 3px ' + tmpl.accent + '18' : 'none',
-                            }}
-                            onMouseEnter={e => {
-                              if (!isSel) {
-                                e.currentTarget.style.borderColor = tmpl.accent + '80'
-                                e.currentTarget.style.background = tmpl.accent + '08'
-                              }
-                            }}
-                            onMouseLeave={e => {
-                              if (!isSel) {
-                                e.currentTarget.style.borderColor = 'var(--color-border)'
-                                e.currentTarget.style.background = 'var(--color-surface)'
-                              }
-                            }}
-                          >
-                            {/* Icon */}
-                            <div style={{
-                              width: 36, height: 36,
-                              borderRadius: 'var(--radius-md)',
-                              background: tmpl.accent + '15',
-                              border: '1px solid ' + tmpl.accent + '25',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              <IconComp style={{ width: 18, height: 18, color: tmpl.accent }} />
-                            </div>
-
-                            {/* Name */}
-                            <div style={{
-                              fontFamily: 'var(--font-sans)',
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: isSel ? tmpl.accent : 'var(--color-text)',
-                              letterSpacing: '-0.01em',
-                              lineHeight: 1.2,
-                            }}>
-                              {tmpl.name}
-                            </div>
-
-                            {/* Tagline */}
-                            <div style={{
-                              fontFamily: 'var(--font-sans)',
-                              fontSize: 10,
-                              fontWeight: 500,
-                              color: tmpl.accent,
-                              background: tmpl.accent + '12',
-                              border: '1px solid ' + tmpl.accent + '25',
-                              borderRadius: 'var(--radius-full)',
-                              padding: '2px 8px',
-                              letterSpacing: '0.01em',
-                              whiteSpace: 'nowrap',
-                            }}>
-                              {tmpl.tagline}
-                            </div>
-
-                            {/* Description */}
-                            <p style={{
-                              fontFamily: 'var(--font-sans)',
-                              fontSize: 11,
-                              fontWeight: 400,
-                              color: 'var(--color-text-muted)',
-                              lineHeight: 1.55,
-                              margin: 0,
-                            }}>
-                              {tmpl.description}
-                            </p>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
+                    {BRIEF_TEMPLATES.map(tmpl => {
+                      const isSel = selectedBriefTemplate === tmpl.id
+                      return (
+                        <button
+                          key={tmpl.id}
+                          onClick={() => { setSelectedBriefTemplate(tmpl.id); setShowStylePicker(false) }}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                            width: '100%', gap: 2, padding: '8px 10px', minHeight: 'unset',
+                            background: isSel ? 'var(--color-accent-soft)' : 'transparent',
+                            border: 'none', borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer', textAlign: 'left',
+                            transition: 'var(--transition-fast)',
+                          }}
+                          onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--color-surface)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = isSel ? 'var(--color-accent-soft)' : 'transparent' }}
+                        >
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: isSel ? 700 : 500, color: isSel ? 'var(--color-accent)' : 'var(--color-text)' }}>
+                            {tmpl.name}
+                          </span>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.3 }}>
+                            {tmpl.tagline}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -1032,7 +910,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
               onClick={handleTranslate}
               disabled={!hasContent}
               style={{
-                width: 32, height: 32,
+                width: 32, height: 32, minHeight: 'unset',
                 borderRadius: 8,
                 background: hasContent
                   ? 'var(--color-primary)'

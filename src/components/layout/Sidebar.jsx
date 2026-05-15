@@ -305,7 +305,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
             <button
               onClick={() => setMobileSidebarOpen(false)}
               style={{
-                width: 28, height: 28, borderRadius: 7, border: '1px solid var(--color-border)',
+                width: 28, height: 28, minHeight: 'unset', borderRadius: 7, border: '1px solid var(--color-border)',
                 background: 'var(--color-surface)', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--color-text-muted)',

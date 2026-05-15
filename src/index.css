@@ -437,14 +437,3 @@ button, a, input, textarea, select {
   button:hover { opacity: 1 !important; }
 }
 
-/* ─── Mobile layout overrides (≤480px) ─────────────────────────────────────── */
-@media (max-width: 480px) {
-  /* Ensure all interactive elements are at least 44px tall */
-  button, a, select, [role="button"] {
-    min-height: 44px;
-  }
-  /* Override for very small icon-only buttons (explicit opt-out via class) */
-  button.icon-btn {
-    min-height: unset;
-  }
-}

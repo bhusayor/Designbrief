@@ -79,6 +79,7 @@ export default function AppShell({ children }) {
               zIndex: 10,
               width: 30,
               height: 30,
+              minHeight: 'unset',
               borderRadius: 8,
               background: 'transparent',
               border: 'none',
