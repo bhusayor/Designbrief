@@ -3220,8 +3220,23 @@ STYLE:
 
         <div style={{ flex: 1 }} />
 
-        {/* Project switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* AI toggle + Project switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <button
+            onClick={() => setChatOpen(c => !c)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '5px 12px', borderRadius: 8,
+              background: chatOpen ? 'var(--color-text)' : 'transparent',
+              border: `1px solid ${chatOpen ? 'var(--color-text)' : 'var(--color-border)'}`,
+              cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13,
+              fontWeight: 600, color: chatOpen ? 'var(--color-bg)' : 'var(--color-text)',
+              minHeight: 'unset', transition: 'all 0.15s',
+            }}
+          >
+            <SparklesIcon style={{ width: 13, height: 13 }} />
+            {!isMobile && 'AI'}
+          </button>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <select
               value={activeProjectId}
@@ -3232,7 +3247,7 @@ STYLE:
                 borderRadius: 8, padding: '6px 32px 6px 12px',
                 fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12,
                 color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
-                maxWidth: 180,
+                maxWidth: isMobile ? 120 : 180,
               }}
             >
               {projects.map(p => (
@@ -3244,21 +3259,6 @@ STYLE:
               position: 'absolute', right: 10, pointerEvents: 'none',
             }} />
           </div>
-          <button
-            onClick={handleNewProject}
-            style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8, padding: isMobile ? '6px 10px' : '6px 12px',
-              fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12,
-              color: 'var(--color-text-soft)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 5,
-              minHeight: 'unset',
-            }}
-          >
-            <span style={{ fontSize: 14 }}>+</span>
-            {!isMobile && 'New Project'}
-          </button>
         </div>
       </div>
 
@@ -3271,7 +3271,7 @@ STYLE:
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 8, gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: chatOpen ? 'none' : 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
 
         {/* ── ClickUp-style toolbar ── */}
         {(() => {
@@ -3490,18 +3490,18 @@ STYLE:
         {viewMode === 'board' && (
         <div style={{
           flex: 1,
-          overflowX: isMobile ? 'hidden' : 'auto',
-          overflowY: isMobile ? 'auto' : 'hidden',
-          padding: isMobile ? '12px 12px' : '16px 20px',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          padding: '12px 16px',
           background: 'var(--color-surface)',
         }}>
           <div style={{
             display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: isMobile ? 10 : 12,
-            height: isMobile ? 'auto' : '100%',
+            flexDirection: 'row',
+            gap: 12,
+            height: '100%',
             alignItems: 'flex-start',
-            minWidth: isMobile ? 'unset' : isTablet ? 'unset' : 'max-content',
+            minWidth: 'max-content',
           }}>
             {customCols.map((col) => {
               const colTasks = (kanban?.tasks || []).filter(t => t.column === col.id)
@@ -3546,8 +3546,8 @@ STYLE:
                     }
                   }}
                   style={{
-                    width: isMobile ? '100%' : isTablet ? 220 : 280,
-                    flexShrink: isMobile ? undefined : 0,
+                    width: 260,
+                    flexShrink: 0,
                     borderRadius: 12,
                     transition: 'background 0.15s, border-left 0.15s',
                     background: isTaskDropTarget ? 'rgba(59,130,246,0.05)' : 'rgba(0,0,0,0.03)',
@@ -3746,23 +3746,10 @@ STYLE:
 
         </div> {/* closes kanban card */}
 
-        {/* AI panel — flex sibling on desktop, bottom sheet on mobile */}
-        {chatOpen && isMobile && (
-          <div
-            onClick={() => setChatOpen(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 498, backdropFilter: 'blur(2px)' }}
-          />
-        )}
+        {/* AI panel — full width, replaces board when open */}
         {chatOpen && (
-          <div style={isMobile ? {
-            position: 'fixed', bottom: 0, left: 0, right: 0, height: '75vh',
-            background: 'var(--color-bg)', borderRadius: '20px 20px 0 0',
-            zIndex: 499, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            boxShadow: '0 -4px 32px rgba(0,0,0,0.14)',
-            animation: 'slideUp 0.26s cubic-bezier(0.4,0,0.2,1)',
-            fontFamily: 'var(--font-sans)',
-          } : {
-            width: 380, flexShrink: 0,
+          <div style={{
+            flex: 1, minWidth: 0,
             background: 'var(--color-bg)', borderRadius: 14,
             border: '1px solid var(--color-border)', overflow: 'hidden',
             display: 'flex', flexDirection: 'column',
@@ -3773,7 +3760,7 @@ STYLE:
 
             {/* ── HEADER ── */}
             <div style={{
-              padding: '14px 16px', borderBottom: '1px solid var(--color-border)',
+              padding: '14px 24px', borderBottom: '1px solid var(--color-border)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               flexShrink: 0, background: 'var(--color-bg)',
             }}>
@@ -3822,7 +3809,7 @@ STYLE:
             {/* ── MESSAGES AREA ── */}
             <div
               ref={messagesEndRef}
-              style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 4, scrollBehavior: 'smooth' }}
+              style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 4, scrollBehavior: 'smooth', alignItems: 'stretch' }}
             >
               {messages.length === 0 && !isTyping && (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '20px 4px', textAlign: 'center' }}>
@@ -3954,7 +3941,7 @@ STYLE:
 
             {/* ── INPUT AREA ── */}
             {(phase === 'brief' || phase === 'kanban') && (
-              <div style={{ padding: '10px 12px 12px', borderTop: 'none', background: 'var(--color-bg)', flexShrink: 0 }}>
+              <div style={{ padding: '10px 24px 16px', borderTop: 'none', background: 'var(--color-bg)', flexShrink: 0 }}>
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => handleFileUpload(e.target.files[0])} />
                 <div
                   style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 14, overflow: 'visible', transition: 'border-color 0.15s, box-shadow 0.15s' }}
@@ -3991,34 +3978,6 @@ STYLE:
         </>)}
       </div>
 
-      {/* Floating AI button — mobile only, when panel is closed */}
-      {isMobile && !chatOpen && (
-        <button
-          onClick={() => setChatOpen(true)}
-          style={{
-            position: 'fixed', bottom: 24, right: 16, zIndex: 300,
-            width: 50, height: 50, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
-            border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(139,92,246,0.4)',
-            minHeight: 'unset',
-          }}
-        >
-          <SparklesIcon style={{ width: 20, height: 20, color: 'white' }} />
-          {unreadCount > 0 && (
-            <div style={{
-              position: 'absolute', top: -2, right: -2,
-              width: 16, height: 16, borderRadius: '50%',
-              background: '#ef4444', border: '2px solid var(--color-bg)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 9, color: 'white',
-            }}>
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </div>
-          )}
-        </button>
-      )}
 
       {/* Prompt Modal */}
       {promptModalOpen && (
