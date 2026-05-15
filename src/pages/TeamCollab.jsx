@@ -450,6 +450,7 @@ export default function TeamCollab() {
 
   const [showBuildInterface, setShowBuildInterface] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
+  const [showMoreViews, setShowMoreViews] = useState(false)
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -3144,16 +3145,33 @@ STYLE:
 
       {/* ── Top bar ── */}
       <div style={{
-        height: 48, borderBottom: '1px solid var(--color-border)',
+        height: 48,
+        borderBottom: isMobile ? 'none' : '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center',
-        padding: isMobile ? '0 8px 0 54px' : '0 20px',
-        gap: isMobile ? 2 : 4,
+        padding: isMobile ? '0 12px 0 54px' : '0 20px',
+        gap: isMobile ? 4 : 4,
         flexShrink: 0,
-        background: 'var(--color-bg)',
-        overflowX: isMobile ? 'auto' : 'visible',
+        background: isMobile ? 'transparent' : 'var(--color-bg)',
+        overflowX: 'visible',
       }}>
-        {/* Board tab */}
-        {(() => {
+        {/* New Project icon — mobile only, sits right after hamburger */}
+        {isMobile && (
+          <button
+            onClick={handleNewProject}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 30, height: 30, borderRadius: 8,
+              background: 'transparent', border: 'none',
+              cursor: 'pointer', color: 'var(--color-text-muted)',
+              minHeight: 'unset', flexShrink: 0,
+            }}
+          >
+            <PlusIcon style={{ width: 17, height: 17 }} />
+          </button>
+        )}
+
+        {/* Board tab — desktop/tablet only */}
+        {!isMobile && (() => {
           const isDone = !!kanban?.tasks?.length
           const isActive = activeTab === 'board'
           return (
@@ -3185,8 +3203,9 @@ STYLE:
             </button>
           )
         })()}
-        {/* Team tab — opens TeamPage overlay */}
-        {(() => {
+
+        {/* Team tab — desktop/tablet only */}
+        {!isMobile && (() => {
           const isDone = teamMembers.some(m => m.name?.trim())
           return (
             <button
@@ -3220,45 +3239,28 @@ STYLE:
 
         <div style={{ flex: 1 }} />
 
-        {/* AI toggle + Project switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <button
-            onClick={() => setChatOpen(c => !c)}
+        {/* Project switcher */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <select
+            value={activeProjectId}
+            onChange={e => handleSwitchProject(e.target.value)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '5px 12px', borderRadius: 8,
-              background: chatOpen ? 'var(--color-text)' : 'transparent',
-              border: `1px solid ${chatOpen ? 'var(--color-text)' : 'var(--color-border)'}`,
-              cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13,
-              fontWeight: 600, color: chatOpen ? 'var(--color-bg)' : 'var(--color-text)',
-              minHeight: 'unset', transition: 'all 0.15s',
+              appearance: 'none', background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8, padding: '6px 32px 6px 12px',
+              fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12,
+              color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
+              maxWidth: isMobile ? 130 : 180,
             }}
           >
-            <SparklesIcon style={{ width: 13, height: 13 }} />
-            {!isMobile && 'AI'}
-          </button>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <select
-              value={activeProjectId}
-              onChange={e => handleSwitchProject(e.target.value)}
-              style={{
-                appearance: 'none', background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 8, padding: '6px 32px 6px 12px',
-                fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12,
-                color: 'var(--color-text)', cursor: 'pointer', outline: 'none',
-                maxWidth: isMobile ? 120 : 180,
-              }}
-            >
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.title}</option>
-              ))}
-            </select>
-            <ChevronDownIcon style={{
-              width: 12, height: 12, color: 'var(--color-text-muted)',
-              position: 'absolute', right: 10, pointerEvents: 'none',
-            }} />
-          </div>
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+          </select>
+          <ChevronDownIcon style={{
+            width: 12, height: 12, color: 'var(--color-text-muted)',
+            position: 'absolute', right: 10, pointerEvents: 'none',
+          }} />
         </div>
       </div>
 
@@ -3280,35 +3282,64 @@ STYLE:
           const doneTasks = (kanban?.tasks || []).filter(t => t.column === (doneCol?.id || 'Done')).length
           const donePercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
           return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8, padding: isMobile ? '0 12px' : '0 20px', height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0, overflowX: isMobile ? 'auto' : 'visible' }}>
-              {/* Left: task count + progress */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 120 }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>
-                  {totalTasks} task{totalTasks !== 1 ? 's' : ''}
-                </span>
-                {totalTasks > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 60, height: 3, background: 'var(--color-border)', borderRadius: 2 }}>
-                      <div style={{ width: donePercent + '%', height: '100%', background: '#16a34a', borderRadius: 2, transition: 'width 0.4s ease' }} />
-                    </div>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>{donePercent}%</span>
-                  </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, padding: isMobile ? '0 12px' : '0 20px', height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
+              {/* Left: Board+Team steps (mobile) + task count + progress */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 10, flexShrink: 0 }}>
+                {isMobile && (() => {
+                  const boardDone = !!kanban?.tasks?.length
+                  const teamDone = teamMembers.some(m => m.name?.trim())
+                  return (
+                    <>
+                      <button onClick={() => setActiveTab('board')}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 7, border: activeTab === 'board' ? '1px solid var(--color-border)' : '1px solid transparent', background: activeTab === 'board' ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', minHeight: 'unset' }}>
+                        <div style={{ width: 15, height: 15, borderRadius: '50%', background: boardDone ? '#16a34a' : activeTab === 'board' ? 'var(--color-text)' : 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {boardDone ? <CheckIcon style={{ width: 8, height: 8, color: 'white' }} /> : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 700, color: activeTab === 'board' ? 'var(--color-bg)' : 'var(--color-text-muted)' }}>1</span>}
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: activeTab === 'board' ? 700 : 500, fontSize: 12, color: activeTab === 'board' ? 'var(--color-text)' : 'var(--color-text-muted)' }}>Board</span>
+                      </button>
+                      <button onClick={() => setShowTeamModal(true)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 7, border: '1px solid transparent', background: 'transparent', cursor: 'pointer', minHeight: 'unset' }}>
+                        <div style={{ width: 15, height: 15, borderRadius: '50%', background: teamDone ? '#16a34a' : 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {teamDone ? <CheckIcon style={{ width: 8, height: 8, color: 'white' }} /> : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 700, color: 'var(--color-text-muted)' }}>2</span>}
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 12, color: 'var(--color-text-muted)' }}>Team</span>
+                      </button>
+                      <div style={{ width: 1, height: 16, background: 'var(--color-border)', flexShrink: 0 }} />
+                    </>
+                  )
+                })()}
+                {!isMobile && (
+                  <>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>
+                      {totalTasks} task{totalTasks !== 1 ? 's' : ''}
+                    </span>
+                    {totalTasks > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 60, height: 3, background: 'var(--color-border)', borderRadius: 2 }}>
+                          <div style={{ width: donePercent + '%', height: '100%', background: '#16a34a', borderRadius: 2, transition: 'width 0.4s ease' }} />
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>{donePercent}%</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
-              {/* View tabs — hidden on mobile, scrollable on tablet */}
-              {!isMobile && (
+
+              {/* View tabs — 2 visible on mobile (+ more), all on desktop */}
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, overflowX: isTablet ? 'auto' : 'visible' }}>
                 {[
                   { id: 'board', icon: Squares2X2Icon, label: 'Board' },
                   { id: 'list', icon: ListBulletIcon, label: 'List' },
-                  { id: 'table', icon: TableCellsIcon, label: 'Table' },
-                  { id: 'calendar', icon: CalendarDaysIcon, label: 'Calendar' },
-                  { id: 'gantt', icon: ChartBarIcon, label: 'Gantt' },
+                  ...(!isMobile ? [
+                    { id: 'table', icon: TableCellsIcon, label: 'Table' },
+                    { id: 'calendar', icon: CalendarDaysIcon, label: 'Calendar' },
+                    { id: 'gantt', icon: ChartBarIcon, label: 'Gantt' },
+                  ] : []),
                 ].map(v => {
                   const isActive = viewMode === v.id
                   return (
                     <button key={v.id} onClick={() => setViewMode(v.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: 'none', background: isActive ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', transition: 'all 0.15s', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', flexShrink: 0, minHeight: 'unset' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: isMobile ? '5px 8px' : '5px 12px', borderRadius: 7, border: 'none', background: isActive ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: isMobile ? 12 : 13, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', transition: 'all 0.15s', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', flexShrink: 0, minHeight: 'unset' }}
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--color-surface)' }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                     >
@@ -3317,15 +3348,39 @@ STYLE:
                     </button>
                   )
                 })}
+                {/* More views dropdown — mobile only */}
+                {isMobile && (
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setShowMoreViews(p => !p)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 7, border: 'none', background: showMoreViews || ['table','calendar','gantt'].includes(viewMode) ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', color: ['table','calendar','gantt'].includes(viewMode) ? 'var(--color-text)' : 'var(--color-text-muted)', minHeight: 'unset' }}
+                    >
+                      <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
+                    </button>
+                    {showMoreViews && (
+                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 200, overflow: 'hidden', minWidth: 130 }}>
+                        {[
+                          { id: 'table', icon: TableCellsIcon, label: 'Table' },
+                          { id: 'calendar', icon: CalendarDaysIcon, label: 'Calendar' },
+                          { id: 'gantt', icon: ChartBarIcon, label: 'Gantt' },
+                        ].map(v => {
+                          const isActive = viewMode === v.id
+                          return (
+                            <button key={v.id} onClick={() => { setViewMode(v.id); setShowMoreViews(false) }}
+                              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', border: 'none', background: isActive ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', textAlign: 'left', minHeight: 'unset' }}>
+                              <v.icon style={{ width: 14, height: 14 }} />
+                              {v.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              )}
-              {/* Right: Team + Connect + Add Task */}
+
+              {/* Right: Connect + Build with AI + Add Task + Push to Linear */}
               <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, minWidth: isMobile ? 'auto' : 120, justifyContent: 'flex-end', marginLeft: 'auto', flexShrink: 0 }}>
-                <button onClick={() => setShowTeamModal(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: isMobile ? '5px 8px' : '5px 12px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', minHeight: 'unset' }}>
-                  <UserGroupIcon style={{ width: 13, height: 13 }} />
-                  {!isMobile && 'Team'}
-                </button>
                 {!isMobile && (installedConnectors.figma || installedConnectors.github || installedConnectors.linear) && (
                   <div style={{ position: 'relative' }}>
                     <button
