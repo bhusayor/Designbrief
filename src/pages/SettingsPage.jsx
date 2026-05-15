@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
-import { getAuthHeader } from '../lib/getAuthHeader'
 import {
   XMarkIcon,
   UserIcon,
@@ -15,21 +14,6 @@ import {
   SunIcon,
   MoonIcon,
 } from '@heroicons/react/24/outline'
-
-// ── Shared callSettings ───────────────────────────────────────────────────────
-
-async function callSettings(body) {
-  const h = await getAuthHeader()
-  if (!h) throw new Error('Session expired. Please refresh.')
-  const res = await fetch('/api/settings', {
-    method: 'POST',
-    headers: h,
-    body: JSON.stringify(body),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Request failed')
-  return data
-}
 
 // ── SettingRow layout ─────────────────────────────────────────────────────────
 
@@ -85,7 +69,7 @@ function blurInput(e) {
 
 // ── Section: Profile ──────────────────────────────────────────────────────────
 
-function ProfileSection() {
+function ProfileSection({ callSettings }) {
   const { authUser, updateUser, user } = useApp()
   const [name, setName] = useState(
     user?.name ||
@@ -255,7 +239,7 @@ function AppearanceSection() {
 
 // ── Section: Workspace General ────────────────────────────────────────────────
 
-function WorkspaceGeneralSection() {
+function WorkspaceGeneralSection({ callSettings }) {
   const { workspace, setWorkspace } = useApp()
   const [wsName, setWsName] = useState(workspace?.name || '')
   const [saving, setSaving] = useState(false)
@@ -453,7 +437,7 @@ function PlansSection() {
 
 // ── Section: Danger Zone ──────────────────────────────────────────────────────
 
-function DangerSection({ onWorkspaceDeleted, onWorkspaceLeft }) {
+function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
   const { workspace, authUser } = useApp()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
@@ -676,6 +660,7 @@ const NAV = [
 // ── Main SettingsPage ─────────────────────────────────────────────────────────
 
 export default function SettingsPage({ onClose }) {
+  const { session } = useApp()
   const [activeSection, setActiveSection] = useState('profile')
 
   // Close on Escape
@@ -685,20 +670,46 @@ export default function SettingsPage({ onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  async function callSettings(body) {
+    // Use session from AppContext — already populated from onAuthStateChange, no async wait
+    let token = session?.access_token
+
+    // Fallback: try getSession() if context session not yet populated
+    if (!token) {
+      const { data } = await supabase.auth.getSession()
+      token = data?.session?.access_token
+    }
+
+    if (!token) throw new Error('Not authenticated. Please sign in again.')
+
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Request failed')
+    return data
+  }
+
   function renderSection() {
     switch (activeSection) {
-      case 'profile':    return <ProfileSection />
+      case 'profile':    return <ProfileSection callSettings={callSettings} />
       case 'appearance': return <AppearanceSection />
-      case 'general':    return <WorkspaceGeneralSection />
+      case 'general':    return <WorkspaceGeneralSection callSettings={callSettings} />
       case 'plans':      return <PlansSection />
       case 'danger':
         return (
           <DangerSection
+            callSettings={callSettings}
             onWorkspaceDeleted={() => supabase.auth.signOut().then(() => window.location.reload())}
             onWorkspaceLeft={() => window.location.reload()}
           />
         )
-      default: return <ProfileSection />
+      default: return <ProfileSection callSettings={callSettings} />
     }
   }
 
