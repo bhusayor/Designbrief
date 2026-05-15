@@ -400,7 +400,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         height: 56, flexShrink: 0,
         borderBottom: '1px solid var(--color-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: isMobile ? '0 14px' : '0 24px',
+        padding: isMobile ? '0 14px 0 52px' : '0 24px',
         background: 'var(--color-bg)', gap: 8,
       }}>
         <button
