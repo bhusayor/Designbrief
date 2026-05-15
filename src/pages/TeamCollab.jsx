@@ -3256,23 +3256,16 @@ STYLE:
                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                             {p.id === activeProjectId && <CheckIcon style={{ width: 12, height: 12, color: 'var(--color-accent)', flexShrink: 0 }} />}
                           </button>
-                          <button data-project-action onClick={e => { e.stopPropagation(); setProjectActionMenuId(id => id === p.id ? null : p.id) }}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 6, borderRadius: 6, minHeight: 'unset' }}>
-                            <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
+                          <button onClick={e => { e.stopPropagation(); setRenamingProjectId(p.id); setRenameValue(p.title) }}
+                            title="Rename"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, borderRadius: 6, minHeight: 'unset' }}>
+                            <PencilIcon style={{ width: 13, height: 13 }} />
                           </button>
-                          {projectActionMenuId === p.id && (
-                            <div data-project-action style={{ position: 'absolute', right: 6, top: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8, boxShadow: 'var(--shadow-md)', zIndex: 700, overflow: 'hidden', minWidth: 130 }}>
-                              <button onClick={e => { e.stopPropagation(); setRenamingProjectId(p.id); setRenameValue(p.title); setProjectActionMenuId(null) }}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
-                                <PencilIcon style={{ width: 13, height: 13 }} /> Rename
-                              </button>
-                              <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(p.id); setProjectActionMenuId(null); setShowProjectMenu(false) }}
-                                disabled={projects.length <= 1}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: projects.length <= 1 ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: projects.length <= 1 ? 'var(--color-text-muted)' : 'var(--color-red)', textAlign: 'left', minHeight: 'unset' }}>
-                                <TrashIcon style={{ width: 13, height: 13 }} /> Delete
-                              </button>
-                            </div>
-                          )}
+                          <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(p.id); setShowProjectMenu(false) }}
+                            title="Delete" disabled={projects.length <= 1}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, border: 'none', background: 'transparent', cursor: projects.length <= 1 ? 'not-allowed' : 'pointer', color: projects.length <= 1 ? 'var(--color-border)' : 'var(--color-red)', flexShrink: 0, marginRight: 8, borderRadius: 6, minHeight: 'unset' }}>
+                            <TrashIcon style={{ width: 13, height: 13 }} />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -3400,23 +3393,16 @@ STYLE:
                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                             {p.id === activeProjectId && <CheckIcon style={{ width: 12, height: 12, color: 'var(--color-accent)', flexShrink: 0 }} />}
                           </button>
-                          <button data-project-action onClick={e => { e.stopPropagation(); setProjectActionMenuId(id => id === p.id ? null : p.id) }}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 6, borderRadius: 6, minHeight: 'unset' }}>
-                            <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
+                          <button onClick={e => { e.stopPropagation(); setRenamingProjectId(p.id); setRenameValue(p.title) }}
+                            title="Rename"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', flexShrink: 0, borderRadius: 6, minHeight: 'unset' }}>
+                            <PencilIcon style={{ width: 13, height: 13 }} />
                           </button>
-                          {projectActionMenuId === p.id && (
-                            <div data-project-action style={{ position: 'absolute', right: 6, top: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 8, boxShadow: 'var(--shadow-md)', zIndex: 700, overflow: 'hidden', minWidth: 130 }}>
-                              <button onClick={e => { e.stopPropagation(); setRenamingProjectId(p.id); setRenameValue(p.title); setProjectActionMenuId(null) }}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textAlign: 'left', minHeight: 'unset' }}>
-                                <PencilIcon style={{ width: 13, height: 13 }} /> Rename
-                              </button>
-                              <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(p.id); setProjectActionMenuId(null); setShowProjectMenu(false) }}
-                                disabled={projects.length <= 1}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: projects.length <= 1 ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: projects.length <= 1 ? 'var(--color-text-muted)' : 'var(--color-red)', textAlign: 'left', minHeight: 'unset' }}>
-                                <TrashIcon style={{ width: 13, height: 13 }} /> Delete
-                              </button>
-                            </div>
-                          )}
+                          <button onClick={e => { e.stopPropagation(); setConfirmDeleteId(p.id); setShowProjectMenu(false) }}
+                            title="Delete" disabled={projects.length <= 1}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, border: 'none', background: 'transparent', cursor: projects.length <= 1 ? 'not-allowed' : 'pointer', color: projects.length <= 1 ? 'var(--color-border)' : 'var(--color-red)', flexShrink: 0, marginRight: 8, borderRadius: 6, minHeight: 'unset' }}>
+                            <TrashIcon style={{ width: 13, height: 13 }} />
+                          </button>
                         </div>
                       )}
                     </div>
