@@ -3623,11 +3623,13 @@ STYLE:
                     {!isMobile && 'Build with AI'}
                   </button>
                 )}
-                <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: customCols[0]?.id || KANBAN_COLS[0] }); setShowAddTaskModal(true) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: isMobile ? '5px 10px' : '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, minHeight: 'unset' }}>
-                  <PlusIcon style={{ width: 13, height: 13 }} />
-                  {isMobile ? '' : 'Add Task'}
-                </button>
+                {!isMobile && (
+                  <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: customCols[0]?.id || KANBAN_COLS[0] }); setShowAddTaskModal(true) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, minHeight: 'unset' }}>
+                    <PlusIcon style={{ width: 13, height: 13 }} />
+                    Add Task
+                  </button>
+                )}
                 {!isMobile && connectorData?.linear?.teams?.length > 0 && kanban?.tasks?.length > 0 && (
                   <button
                     onClick={() => { setSelectedTeamId(connectorData.linear.teams[0]?.id || ''); setPushResult(null); setPushLinearOpen(true) }}
