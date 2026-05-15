@@ -311,7 +311,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
                 color: 'var(--color-text-muted)',
               }}
             >
-              <XMarkIcon style={{ width: 14, height: 14 }} />
+              <PanelLeftClose size={14} color="currentColor" />
             </button>
           </div>
         ) : (
