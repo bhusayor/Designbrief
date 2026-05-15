@@ -109,11 +109,12 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
   const isMobile = windowWidth <= 480
 
   return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--color-bg)', overflow: 'hidden' }}>
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      padding: isMobile ? '32px 16px 60px' : '48px 24px 80px',
-      overflowY: 'auto', height: '100%',
-      background: 'var(--color-bg)', boxSizing: 'border-box',
+      padding: isMobile ? '32px 16px 24px' : '48px 24px 32px',
+      overflowY: 'auto', flex: 1,
+      boxSizing: 'border-box',
     }}>
 
       {/* Step pill */}
@@ -307,7 +308,14 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
         </div>
       </div>
 
-      {/* Continue button */}
+    </div>
+
+    {/* Fixed Continue footer */}
+    <div style={{
+      flexShrink: 0, padding: isMobile ? '12px 16px 24px' : '16px 24px 28px',
+      background: 'var(--color-bg)', borderTop: '1px solid var(--color-border)',
+      display: 'flex', justifyContent: 'center',
+    }}>
       <button
         onClick={() => { if (projectName.trim() && projectType) onContinue(); }}
         disabled={!projectName.trim() || !projectType}
@@ -326,7 +334,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
         Continue
         <ArrowRightIcon style={{ width: 16, height: 16 }} />
       </button>
-
+    </div>
     </div>
   );
 }
@@ -395,44 +403,38 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         padding: isMobile ? '0 14px' : '0 24px',
         background: 'var(--color-bg)', gap: 8,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <button
-            onClick={onBack}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-soft)')}
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
-              fontFamily: "'Urbanist', sans-serif", fontSize: 13,
-              color: 'var(--color-text-soft)', padding: '6px 0', transition: 'color 0.15s',
-            }}
-          >
-            <ArrowLeftIcon style={{ width: 16, height: 16 }} />
-            Back
-          </button>
-          <div style={{ width: 1, height: 16, background: 'var(--color-border)', margin: '0 12px' }} />
+        <button
+          onClick={onBack}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-soft)')}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontFamily: "'Urbanist', sans-serif", fontSize: 13,
+            color: 'var(--color-text-soft)', padding: '6px 0', transition: 'color 0.15s',
+            flexShrink: 0,
+          }}
+        >
+          <ArrowLeftIcon style={{ width: 16, height: 16 }} />
+          Back
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{
             fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 14,
-            color: 'var(--color-text)',
+            color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {projectName}
           </span>
           {projectType && (
             <div style={{
               background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-              borderRadius: 100, padding: '3px 10px', marginLeft: 8,
-              fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
+              borderRadius: 100, padding: '3px 10px', flexShrink: 0,
+              fontFamily: "'Urbanist', sans-serif", fontWeight: 500, fontSize: 11, color: 'var(--color-text-muted)',
             }}>
               {projectType.label}
             </div>
           )}
-        </div>
-        <div style={{
-          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-          borderRadius: 8, padding: '5px 12px',
-          fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
-        }}>
-          {totalQuestions} questions
         </div>
       </div>
 
