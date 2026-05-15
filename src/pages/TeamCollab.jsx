@@ -3147,9 +3147,10 @@ STYLE:
       <div style={{
         height: 48,
         borderBottom: isMobile ? 'none' : '1px solid var(--color-border)',
-        display: 'flex', alignItems: 'center',
-        padding: isMobile ? '0 12px 0 54px' : '0 20px',
-        gap: isMobile ? 4 : 4,
+        display: 'flex',
+        alignItems: isMobile ? 'flex-start' : 'center',
+        padding: isMobile ? '14px 12px 0 54px' : '0 20px',
+        gap: 4,
         flexShrink: 0,
         background: isMobile ? 'transparent' : 'var(--color-bg)',
         overflowX: 'visible',
