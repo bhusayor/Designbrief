@@ -457,6 +457,7 @@ export default function TeamCollab() {
   const [projectActionMenuId, setProjectActionMenuId] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [projectFlash, setProjectFlash] = useState(false)
+  const [boardTransitioning, setBoardTransitioning] = useState(false)
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -563,6 +564,15 @@ export default function TeamCollab() {
     setTimeout(() => document.addEventListener('click', handleClick), 0)
     return () => document.removeEventListener('click', handleClick)
   }, [projectActionMenuId])
+
+  // Auto-persist per-project state whenever the board data changes
+  useEffect(() => {
+    if (!activeProjectId) return
+    try {
+      const state = { kanban, teamMembers, phase, projectTitle, briefText }
+      localStorage.setItem('tc-project-' + activeProjectId, JSON.stringify(state))
+    } catch(e) {}
+  }, [kanban, teamMembers])
 
   useEffect(() => {
     if (!activeProject?.id || !authUser) return
@@ -1702,20 +1712,48 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     return lines.join('\n')
   }
 
-  function handleNewProject() {
-    const newProj = { id: uid(), title: 'New Project' }
-    const updated = [...projects, newProj]
-    setProjects(updated)
-    saveProjects(updated)
-    setActiveProjectId(newProj.id)
-    localStorage.setItem('teamcollab-active-project', newProj.id)
+  const DEFAULT_COLS = [
+    { id: 'To Do', label: 'To Do', color: '#6B7280' },
+    { id: 'In Progress', label: 'In Progress', color: '#3B82F6' },
+    { id: 'Review', label: 'Review', color: '#F59E0B' },
+    { id: 'Done', label: 'Done', color: '#16a34a' },
+  ]
+
+  function saveCurrentProjectState() {
+    if (!activeProjectId) return
+    try {
+      const state = { kanban, teamMembers, phase, projectTitle, briefText }
+      localStorage.setItem('tc-project-' + activeProjectId, JSON.stringify(state))
+    } catch(e) {}
+  }
+
+  function loadProjectStateById(id) {
+    try {
+      const saved = localStorage.getItem('tc-project-' + id)
+      if (saved) {
+        const s = JSON.parse(saved)
+        setKanban(s.kanban || null)
+        setTeamMembers(s.teamMembers || [])
+        setPhase(s.phase || 'brief')
+        setProjectTitle(s.projectTitle || '')
+        setBriefText(s.briefText || '')
+      } else {
+        setKanban(null)
+        setTeamMembers([])
+        setPhase('brief')
+        setProjectTitle(projects.find(p => p.id === id)?.title || '')
+        setBriefText('')
+      }
+      const savedCols = localStorage.getItem('tc-cols-' + id)
+      setCustomCols(savedCols ? JSON.parse(savedCols) : DEFAULT_COLS)
+    } catch(e) {
+      setKanban(null)
+      setTeamMembers([])
+      setPhase('brief')
+      setCustomCols(DEFAULT_COLS)
+    }
     setMessages([])
     setChatHistory([])
-    setKanban(null)
-    setTeamMembers([])
-    setPhase('brief')
-    setProjectTitle('')
-    setBriefText('')
     setActiveTab('board')
   }
 
@@ -1724,13 +1762,29 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     setTimeout(() => setProjectFlash(false), 700)
   }
 
+  function switchWithTransition(id, updatedProjects) {
+    setBoardTransitioning(true)
+    saveCurrentProjectState()
+    setTimeout(() => {
+      setActiveProjectId(id)
+      localStorage.setItem('teamcollab-active-project', id)
+      loadProjectStateById(id)
+      triggerFlash()
+      setBoardTransitioning(false)
+    }, 200)
+  }
+
+  function handleNewProject() {
+    const newProj = { id: uid(), title: 'New Project' }
+    const updated = [...projects, newProj]
+    setProjects(updated)
+    saveProjects(updated)
+    switchWithTransition(newProj.id, updated)
+  }
+
   function handleSwitchProject(id) {
-    setActiveProjectId(id)
-    localStorage.setItem('teamcollab-active-project', id)
-    setChatHistory([])
-    const proj = projects.find(p => p.id === id)
-    if (proj?.title) setProjectTitle(proj.title)
-    triggerFlash()
+    if (id === activeProjectId) return
+    switchWithTransition(id, projects)
   }
 
   function handleRenameProject(projectId, newTitle) {
@@ -1748,19 +1802,12 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     const updated = projects.filter(p => p.id !== projectId)
     setProjects(updated)
     saveProjects(updated)
-    if (projectId === activeProjectId) {
-      const nextId = updated[0].id
-      setActiveProjectId(nextId)
-      localStorage.setItem('teamcollab-active-project', nextId)
-      const next = updated.find(p => p.id === nextId)
-      if (next?.title) setProjectTitle(next.title)
-      setKanban(null)
-      setTeamMembers([])
-      setChatHistory([])
-      setMessages([])
-    }
+    localStorage.removeItem('tc-project-' + projectId)
     setConfirmDeleteId(null)
     setShowProjectMenu(false)
+    if (projectId === activeProjectId) {
+      switchWithTransition(updated[0].id, updated)
+    }
   }
 
   function handleAddManualTask(columnId) {
@@ -3437,7 +3484,7 @@ STYLE:
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 8, gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: chatOpen ? 'none' : 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: chatOpen ? 'none' : 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', opacity: boardTransitioning ? 0 : 1, transform: boardTransitioning ? 'translateY(8px) scale(0.99)' : 'translateY(0) scale(1)', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
 
         {/* ── ClickUp-style toolbar ── */}
         {(() => {
