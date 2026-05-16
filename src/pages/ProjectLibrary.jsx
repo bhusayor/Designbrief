@@ -484,7 +484,7 @@ export default function ProjectLibrary() {
           padding: '32px 0 24px',
           display: 'flex',
           flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'flex-start' : 'center',
+          alignItems: isMobile ? 'center' : 'center',
           justifyContent: 'space-between',
           gap: isMobile ? 12 : 0,
         }}>
@@ -496,15 +496,17 @@ export default function ProjectLibrary() {
             }}>
               Project Library
             </h1>
-            <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: '12px',
-              color: 'var(--color-text-muted)',
-            }}>
-              {activeTab === 'projects'
-                ? `${history.length} project${history.length !== 1 ? 's' : ''}`
-                : `${intakeForms.length} intake form${intakeForms.length !== 1 ? 's' : ''}`
-              }
-            </div>
+            {!isMobile && (
+              <div style={{
+                fontFamily: "'DM Mono', monospace", fontSize: '12px',
+                color: 'var(--color-text-muted)',
+              }}>
+                {activeTab === 'projects'
+                  ? `${history.length} project${history.length !== 1 ? 's' : ''}`
+                  : `${intakeForms.length} intake form${intakeForms.length !== 1 ? 's' : ''}`
+                }
+              </div>
+            )}
           </div>
 
           {/* Search — only on projects tab */}
