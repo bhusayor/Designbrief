@@ -4014,17 +4014,17 @@ STYLE:
 
         </div> {/* closes kanban card */}
 
-        {/* AI panel — full width on mobile, fixed right panel on desktop/tablet */}
+        {/* AI panel — full width on mobile, inline right panel on desktop/tablet */}
         {chatOpen && (
           <div style={{
             ...(isMobile
               ? { flex: 1, minWidth: 0 }
-              : { position: 'fixed', right: 16, top: 60, bottom: 16, width: 400, zIndex: 200 }
+              : { width: 400, flexShrink: 0 }
             ),
             background: 'var(--color-bg)', borderRadius: 14,
             border: '1px solid var(--color-border)', overflow: 'hidden',
             display: 'flex', flexDirection: 'column',
-            boxShadow: isMobile ? '0 4px 24px rgba(0,0,0,0.08)' : '0 8px 40px rgba(0,0,0,0.20)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
             animation: 'slideInRight 0.25s ease',
             fontFamily: 'var(--font-sans)',
           }}>
