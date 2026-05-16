@@ -1,45 +1,38 @@
-const TYPE_COLORS = {
-  success: 'var(--color-green)',
-  error:   'var(--color-red)',
-  warning: 'var(--color-amber)',
-  info:    'var(--color-blue)',
-};
-
 export default function Toast({ message, type = 'info' }) {
-  const color = TYPE_COLORS[type] ?? TYPE_COLORS.info;
-
   return (
     <div
       style={{
         position: 'fixed',
-        bottom: '24px',
-        right: '24px',
+        top: '20px',
+        right: '20px',
         background: 'var(--color-card)',
-        border: `1px solid ${color}70`,
-        borderRadius: '10px',
-        padding: '11px 18px',
+        border: '1px solid rgba(124,58,237,0.3)',
+        borderRadius: '12px',
+        padding: '12px 18px',
         display: 'flex',
-        gap: '8px',
+        gap: '10px',
         alignItems: 'center',
         zIndex: 9999,
-        boxShadow: 'var(--shadow-dropdown)',
-        animation: 'fadeUp 0.3s ease',
+        boxShadow: '0 8px 32px rgba(124,58,237,0.15), 0 2px 8px rgba(0,0,0,0.1)',
+        animation: 'toastSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1) both',
         maxWidth: '320px',
+        pointerEvents: 'none',
       }}
     >
       <span
         style={{
-          width: '6px',
-          height: '6px',
+          width: '7px',
+          height: '7px',
           borderRadius: '50%',
-          background: color,
+          background: 'var(--color-accent)',
           flexShrink: 0,
         }}
       />
       <span
         style={{
-          fontSize: '12px',
-          fontFamily: "'Urbanist', sans-serif",
+          fontSize: '13px',
+          fontFamily: 'var(--font-sans)',
+          fontWeight: 600,
           color: 'var(--color-text)',
           lineHeight: 1.4,
         }}

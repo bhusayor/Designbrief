@@ -1029,10 +1029,6 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
           60%  { transform: scale(1.25); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
         }
-        @keyframes settingsToastIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
       `}</style>
 
       <div style={{
@@ -1200,29 +1196,28 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
           <div
             key={toast.key}
             style={{
-              position: 'absolute',
-              bottom: 28,
-              left: '50%',
-              transform: 'translateX(-50%)',
+              position: 'fixed',
+              top: 20,
+              right: 20,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              padding: '10px 18px',
+              gap: 10,
+              padding: '12px 18px',
               background: 'var(--color-card)',
-              border: '1px solid rgba(22,163,74,0.35)',
+              border: '1px solid rgba(124,58,237,0.3)',
               borderRadius: 12,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+              boxShadow: '0 8px 32px rgba(124,58,237,0.15), 0 2px 8px rgba(0,0,0,0.1)',
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 600,
-              color: '#16a34a',
-              animation: 'settingsToastIn 0.25s ease',
-              zIndex: 10,
+              color: 'var(--color-text)',
+              animation: 'toastSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1) both',
+              zIndex: 9999,
               pointerEvents: 'none',
               whiteSpace: 'nowrap',
             }}
           >
-            <CheckCircleIcon style={{ width: 15, height: 15, flexShrink: 0 }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-accent)', flexShrink: 0 }} />
             {toast.msg}
           </div>
         )}
