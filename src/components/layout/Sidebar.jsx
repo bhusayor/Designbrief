@@ -641,21 +641,21 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           icon={PencilSquareIcon}
           label="New Chat"
           active={activeSection === 'dashboard'}
-          onClick={() => { navigate('dashboard'); if (isMobile) setMobileSidebarOpen(false) }}
+          onClick={() => { navigate('dashboard'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
         <NavItem
           icon={MagnifyingGlassIcon}
           label="Search"
           active={false}
-          onClick={() => { setShowSearch(true); if (isMobile) setMobileSidebarOpen(false) }}
+          onClick={() => { setShowSearch(true); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
         <NavItem
           icon={ClipboardDocumentListIcon}
           label="Client Intake"
           active={activeSection === 'intake'}
-          onClick={() => { navigate('intake'); if (isMobile) setMobileSidebarOpen(false) }}
+          onClick={() => { navigate('intake'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
           badge={readyCount}
         />
@@ -663,21 +663,21 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           icon={RectangleStackIcon}
           label="Projects"
           active={activeSection === 'library'}
-          onClick={() => { navigate('library'); if (isMobile) setMobileSidebarOpen(false) }}
+          onClick={() => { navigate('library'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
         <NavItem
           icon={UserGroupIcon}
           label="Team Collab"
           active={activeSection === 'team'}
-          onClick={() => { navigate('team'); if (isMobile) setMobileSidebarOpen(false) }}
+          onClick={() => { navigate('team'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
         <NavItem
           icon={LinkIcon}
           label="Connectors"
           active={activeSection === 'connectors'}
-          onClick={() => { navigate('connectors'); if (isMobile) setMobileSidebarOpen(false) }}
+          onClick={() => { navigate('connectors'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
       </div>
@@ -708,7 +708,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
                   key={item.id}
                   item={item}
                   active={activeChat === item.id}
-                  onClick={h => { setActiveChat(h.id); navigate(h.section); if (isMobile) setMobileSidebarOpen(false) }}
+                  onClick={h => { setActiveChat(h.id); navigate(h.section); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
                   onDelete={deleteHistory}
                   onPin={pinHistory}
                   onRename={renameHistory}
