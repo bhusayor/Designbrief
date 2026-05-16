@@ -528,7 +528,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               {/* Settings + Invite buttons */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 <button
-                  onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true) }}
+                  onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true); if (isMobile) setMobileSidebarOpen(false) }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
                   style={{
@@ -870,7 +870,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               }}
             >
               <button
-                onClick={() => { setShowSettings(true); setShowProfileMenu(false) }}
+                onClick={() => { setShowSettings(true); setShowProfileMenu(false); if (isMobile) setMobileSidebarOpen(false) }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
@@ -1023,7 +1023,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <button
-                onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true) }}
+                onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true); if (isMobile) setMobileSidebarOpen(false) }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
                 style={{
