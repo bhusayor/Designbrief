@@ -29,10 +29,24 @@ export default function AppShell({ children }) {
   const { notification } = useContext(AppContext);
   const isMobile = useIsMobile();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [displayed, setDisplayed] = useState(null);
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     if (!isMobile) setMobileSidebarOpen(false);
   }, [isMobile]);
+
+  // Keep toast in DOM during exit animation before unmounting
+  useEffect(() => {
+    if (notification) {
+      setExiting(false);
+      setDisplayed(notification);
+    } else if (displayed) {
+      setExiting(true);
+      const t = setTimeout(() => { setDisplayed(null); setExiting(false); }, 320);
+      return () => clearTimeout(t);
+    }
+  }, [notification]);
 
   return (
     <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--color-bg)' }}>
@@ -97,7 +111,7 @@ export default function AppShell({ children }) {
         {children}
       </main>
 
-      {notification && <Toast message={notification.msg} type={notification.type} />}
+      {displayed && <Toast message={displayed.msg} type={displayed.type} exiting={exiting} />}
     </div>
   );
 }

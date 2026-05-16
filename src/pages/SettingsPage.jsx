@@ -942,12 +942,22 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
   const [activeSection, setActiveSection] = useState('profile')
   const [mobileView, setMobileView] = useState('nav') // 'nav' | 'content'
   const [toast, setToast] = useState(null) // { msg, key }
+  const [toastExiting, setToastExiting] = useState(false)
   const toastTimer = useRef(null)
+  const toastExitTimer = useRef(null)
 
   function showSaveToast(msg = 'Changes saved') {
     if (toastTimer.current) clearTimeout(toastTimer.current)
+    if (toastExitTimer.current) clearTimeout(toastExitTimer.current)
+    setToastExiting(false)
     setToast({ msg, key: Date.now() })
-    toastTimer.current = setTimeout(() => setToast(null), 2800)
+    toastTimer.current = setTimeout(() => {
+      setToastExiting(true)
+      toastExitTimer.current = setTimeout(() => {
+        setToast(null)
+        setToastExiting(false)
+      }, 320)
+    }, 2800)
   }
 
   // Close on Escape
@@ -1202,22 +1212,24 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '12px 18px',
+              padding: '12px 16px',
               background: 'var(--color-card)',
-              border: '1px solid rgba(124,58,237,0.3)',
-              borderRadius: 12,
-              boxShadow: '0 8px 32px rgba(124,58,237,0.15), 0 2px 8px rgba(0,0,0,0.1)',
+              border: '1px solid rgba(124,58,237,0.25)',
+              borderRadius: 14,
+              boxShadow: '0 8px 32px rgba(124,58,237,0.12), 0 2px 8px rgba(0,0,0,0.08)',
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 600,
               color: 'var(--color-text)',
-              animation: 'toastSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1) both',
+              animation: toastExiting
+                ? 'toastSlideOut 0.28s cubic-bezier(0.4,0,1,1) forwards'
+                : 'toastSlideIn 0.32s cubic-bezier(0.34,1.56,0.64,1) both',
               zIndex: 9999,
               pointerEvents: 'none',
               whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-accent)', flexShrink: 0 }} />
+            <CheckCircleIcon style={{ width: 18, height: 18, color: '#22c55e', flexShrink: 0 }} />
             {toast.msg}
           </div>
         )}
