@@ -744,7 +744,7 @@ function getSectionLabel(id) {
 
 // ── Main SettingsPage ─────────────────────────────────────────────────────────
 
-export default function SettingsPage({ onClose }) {
+export default function SettingsPage({ onClose, onOpenSidebar }) {
   const isMobile = useIsMobile()
   const { session } = useApp()
   const [activeSection, setActiveSection] = useState('profile')
@@ -853,7 +853,7 @@ export default function SettingsPage({ onClose }) {
                   padding: '6px 8px', background: 'transparent',
                   border: 'none', borderRadius: 8,
                   cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                  fontSize: 13, fontWeight: 600, color: 'white',
+                  fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)',
                   transition: 'all 0.15s',
                 }}
               >
@@ -862,12 +862,12 @@ export default function SettingsPage({ onClose }) {
               </button>
             ) : (
               <button
-                onClick={onClose}
+                onClick={onOpenSidebar || onClose}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: '6px 8px', background: 'transparent',
                   border: 'none', borderRadius: 8,
-                  cursor: 'pointer', color: 'white', transition: 'all 0.15s',
+                  cursor: 'pointer', color: 'var(--color-text-muted)', transition: 'all 0.15s',
                 }}
               >
                 <PanelLeftClose size={18} />

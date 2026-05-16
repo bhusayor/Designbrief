@@ -43,7 +43,7 @@ export default function AppShell({ children }) {
             <div
               onClick={() => setMobileSidebarOpen(false)}
               style={{
-                position: 'fixed', inset: 0, zIndex: 498,
+                position: 'fixed', inset: 0, zIndex: 501,
                 background: 'rgba(0,0,0,0.45)',
                 backdropFilter: 'blur(2px)',
               }}

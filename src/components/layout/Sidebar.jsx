@@ -253,7 +253,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     left: 0,
     width: 'min(80vw, 300px)',
     height: '100vh',
-    zIndex: 499,
+    zIndex: 502,
     display: 'flex',
     flexDirection: 'column',
     background: 'var(--color-sidebar)',
@@ -1137,6 +1137,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           setShowSettings(false)
           if (isMobile) setMobileSidebarOpen(true)
         }}
+        onOpenSidebar={isMobile ? () => setMobileSidebarOpen(true) : undefined}
       />
     )}
 
