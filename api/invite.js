@@ -275,12 +275,15 @@ export default async function handler(req, res) {
         })
       }
 
+      const isLinkInvite = invite.invited_email?.startsWith('link:')
+
       return res.json({
         valid: true,
+        isLinkInvite,
         invite: {
           id: invite.id,
           role: invite.role,
-          invitedEmail: invite.invited_email,
+          invitedEmail: isLinkInvite ? null : invite.invited_email,
           workspace: invite.workspace,
         },
       })
@@ -313,14 +316,17 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Invite has expired', code: 'EXPIRED' })
       }
 
-      // Verify accepting user's email matches invite
-      const { data: { user: acceptingUser } } = await supabase.auth.admin.getUserById(user.id)
+      const isLinkInvite = invite.invited_email?.startsWith('link:')
 
-      if (acceptingUser?.email?.toLowerCase() !== invite.invited_email.toLowerCase())
-        return res.status(403).json({
-          error: 'This invite was sent to ' + invite.invited_email + '. Please sign in with that email.',
-          code: 'EMAIL_MISMATCH',
-        })
+      // Verify email match only for email-specific invites
+      if (!isLinkInvite) {
+        const { data: { user: acceptingUser } } = await supabase.auth.admin.getUserById(user.id)
+        if (acceptingUser?.email?.toLowerCase() !== invite.invited_email.toLowerCase())
+          return res.status(403).json({
+            error: 'This invite was sent to ' + invite.invited_email + '. Please sign in with that email.',
+            code: 'EMAIL_MISMATCH',
+          })
+      }
 
       // Check if already a member
       const { data: existing } = await supabase
@@ -356,6 +362,104 @@ export default async function handler(req, res) {
       return res.json({ success: true, workspace, role: invite.role })
     }
 
+    // ── CREATE WORKSPACE INVITE LINK (no specific email) ─────────────────────
+    if (action === 'create_link') {
+      const { workspaceId, role = 'member' } = req.body
+      if (!workspaceId) return res.status(400).json({ error: 'workspaceId required' })
+
+      const [{ data: senderMember }, { data: wsOwnerRow }] = await Promise.all([
+        supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).single(),
+        supabase.from('workspaces').select('owner_id').eq('id', workspaceId).eq('owner_id', user.id).single(),
+      ])
+      if (!senderMember && !wsOwnerRow)
+        return res.status(403).json({ error: 'Only owners and admins can create invite links' })
+      if (senderMember && !['owner', 'admin'].includes(senderMember.role) && !wsOwnerRow)
+        return res.status(403).json({ error: 'Only owners and admins can create invite links' })
+
+      // Sentinel email identifies this as a link-type invite (not email-specific)
+      const sentinelEmail = 'link:' + role
+
+      // Return existing valid link if present
+      const { data: existing } = await supabase
+        .from('workspace_invites')
+        .select('token, expires_at')
+        .eq('workspace_id', workspaceId)
+        .eq('invited_email', sentinelEmail)
+        .eq('status', 'pending')
+        .gte('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (existing) {
+        return res.json({
+          token: existing.token,
+          expiresAt: existing.expires_at,
+          link: APP_URL + '/invite/' + existing.token,
+        })
+      }
+
+      // Create new link invite
+      const { data: created, error: createErr } = await supabase
+        .from('workspace_invites')
+        .insert({
+          workspace_id: workspaceId,
+          invited_by: user.id,
+          invited_email: sentinelEmail,
+          role,
+        })
+        .select('token, expires_at')
+        .single()
+
+      if (createErr) return res.status(500).json({ error: 'Failed to create invite link' })
+
+      return res.json({
+        token: created.token,
+        expiresAt: created.expires_at,
+        link: APP_URL + '/invite/' + created.token,
+      })
+    }
+
+    // ── RESEND INVITE ─────────────────────────────────────────────────────────
+    if (action === 'resend') {
+      const { inviteId, workspaceId } = req.body
+      if (!inviteId || !workspaceId) return res.status(400).json({ error: 'inviteId and workspaceId required' })
+
+      const [{ data: member }, { data: wsOwner }] = await Promise.all([
+        supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).single(),
+        supabase.from('workspaces').select('owner_id').eq('id', workspaceId).eq('owner_id', user.id).single(),
+      ])
+      const canResend = (member && ['owner', 'admin'].includes(member.role)) || !!wsOwner
+      if (!canResend) return res.status(403).json({ error: 'Access denied' })
+
+      const { data: invite } = await supabase
+        .from('workspace_invites')
+        .select('*, workspace:workspaces(name)')
+        .eq('id', inviteId)
+        .single()
+      if (!invite) return res.status(404).json({ error: 'Invite not found' })
+
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      await supabase
+        .from('workspace_invites')
+        .update({ status: 'pending', expires_at: expiresAt })
+        .eq('id', inviteId)
+
+      const inviteUrl = APP_URL + '/invite/' + invite.token
+      const { data: { user: inviterUser } } = await supabase.auth.admin.getUserById(user.id)
+      const inviterName = inviterUser?.user_metadata?.name || inviterUser?.user_metadata?.full_name || inviterUser?.email?.split('@')[0] || 'Someone'
+      const inviterEmail = inviterUser?.email || ''
+
+      resend.emails.send({
+        from: 'DesignBrief AI <onboarding@resend.dev>',
+        to: invite.invited_email,
+        subject: inviterName + ' invited you to join ' + invite.workspace.name + ' on DesignBrief AI',
+        html: inviteEmailHTML({ workspaceName: invite.workspace.name, inviterName, inviterEmail, role: invite.role, inviteUrl }),
+      }).catch(e => console.error('[resend email]', e))
+
+      return res.json({ success: true })
+    }
+
     // ── LIST INVITES ──────────────────────────────────────────────────────────
     if (action === 'list') {
       const { workspaceId } = req.body
@@ -385,6 +489,7 @@ export default async function handler(req, res) {
         .select('*')
         .eq('workspace_id', workspaceId)
         .eq('status', 'pending')
+        .not('invited_email', 'like', 'link:%')
         .order('created_at', { ascending: false })
 
       return res.json({ invites: invites || [] })

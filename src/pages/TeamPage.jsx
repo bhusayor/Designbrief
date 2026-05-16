@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -8,12 +8,12 @@ import {
   LinkIcon,
   UserPlusIcon,
   TrashIcon,
-  EllipsisHorizontalIcon,
   CheckCircleIcon,
   ClockIcon,
   ExclamationCircleIcon,
   EnvelopeIcon,
   ChevronDownIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -297,6 +297,148 @@ function InviteModal({ workspaceId, onClose, onSent, getHeaders }) {
   )
 }
 
+// ── Invite Link Popup ─────────────────────────────────────────────────────────
+
+function InviteLinkPopup({ workspaceId, workspaceName, getHeaders, onClose }) {
+  const [role, setRole] = useState('member')
+  const [linkData, setLinkData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const popupRef = useRef(null)
+
+  useEffect(() => {
+    function handler(e) {
+      if (popupRef.current && !popupRef.current.contains(e.target)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  const generateLink = useCallback(async (r) => {
+    setLoading(true)
+    setLinkData(null)
+    try {
+      const h = await getHeaders()
+      const res = await fetch('/api/invite', {
+        method: 'POST', headers: h,
+        body: JSON.stringify({ action: 'create_link', workspaceId, role: r }),
+      })
+      const data = await res.json()
+      if (res.ok) setLinkData(data)
+    } catch {}
+    finally { setLoading(false) }
+  }, [workspaceId, getHeaders])
+
+  useEffect(() => { generateLink(role) }, [role])
+
+  async function copyLink() {
+    if (!linkData?.link) return
+    try { await navigator.clipboard.writeText(linkData.link) } catch {
+      const el = document.createElement('input')
+      el.value = linkData.link
+      document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function daysLeft(expiresAt) {
+    if (!expiresAt) return ''
+    const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000)
+    if (days <= 0) return 'Expired'
+    if (days === 1) return 'Expires tomorrow'
+    return `Expires in ${days} days`
+  }
+
+  return (
+    <div ref={popupRef} style={{
+      position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+      width: 300, background: 'var(--color-card)',
+      border: '1px solid var(--color-border)', borderRadius: 14,
+      boxShadow: 'var(--shadow-lg)', zIndex: 100, padding: '18px 18px 16px',
+      fontFamily: 'var(--font-sans)',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(124,58,237,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <LinkIcon style={{ width: 14, height: 14, color: '#7C3AED' }} />
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>Invite link</span>
+        </div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 2, display: 'flex' }}>
+          <XMarkIcon style={{ width: 14, height: 14 }} />
+        </button>
+      </div>
+
+      {/* Description */}
+      <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '0 0 14px', lineHeight: 1.6 }}>
+        Anyone with this link can join <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{workspaceName}</strong> as the selected role.
+      </p>
+
+      {/* Role dropdown */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          Join as
+        </label>
+        <div style={{ position: 'relative' }}>
+          <select value={role} onChange={e => setRole(e.target.value)} style={{
+            width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+            borderRadius: 9, padding: '8px 32px 8px 12px', fontFamily: 'var(--font-sans)',
+            fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
+            appearance: 'none', WebkitAppearance: 'none', boxSizing: 'border-box',
+          }}>
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+          <ChevronDownIcon style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+        </div>
+      </div>
+
+      {/* Link preview */}
+      <div style={{
+        background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+        borderRadius: 9, padding: '8px 12px', marginBottom: 8,
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <LinkIcon style={{ width: 12, height: 12, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+        <span style={{
+          fontSize: 11, color: loading ? 'var(--color-text-muted)' : 'var(--color-text)',
+          flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          fontFamily: 'var(--font-mono)',
+        }}>
+          {loading ? 'Generating link…' : (linkData?.link || '—')}
+        </span>
+      </div>
+
+      {/* Expiry */}
+      {linkData?.expiresAt && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 12 }}>
+          <ClockIcon style={{ width: 11, height: 11, color: 'var(--color-text-muted)' }} />
+          <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{daysLeft(linkData.expiresAt)}</span>
+        </div>
+      )}
+
+      {/* Copy button */}
+      <button onClick={copyLink} disabled={loading || !linkData} style={{
+        width: '100%', padding: '9px 16px',
+        background: copied ? 'rgba(34,197,94,0.1)' : 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
+        color: copied ? '#16a34a' : 'white',
+        border: copied ? '1px solid rgba(34,197,94,0.3)' : 'none',
+        borderRadius: 9, cursor: loading || !linkData ? 'not-allowed' : 'pointer',
+        fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        opacity: loading || !linkData ? 0.6 : 1, transition: 'all 0.15s',
+        boxSizing: 'border-box',
+      }}>
+        {copied
+          ? <><CheckCircleIcon style={{ width: 14, height: 14 }} /> Copied!</>
+          : <><LinkIcon style={{ width: 14, height: 14 }} /> Copy invite link</>}
+      </button>
+    </div>
+  )
+}
+
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 function useIsMobile() {
@@ -322,8 +464,11 @@ export default function TeamPage({ onClose }) {
   const [roleFilter, setRoleFilter] = useState('all')
   const [selected, setSelected] = useState(new Set())
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showInviteLinkPopup, setShowInviteLinkPopup] = useState(false)
   const [error, setError] = useState('')
   const [copySuccess, setCopySuccess] = useState(false)
+  const [resendingId, setResendingId] = useState(null)
+  const [memberCredits, setMemberCredits] = useState({})
 
   // Owner is always available from auth context — no API call needed
   const ownerRow = authUser ? {
@@ -402,8 +547,10 @@ export default function TeamPage({ onClose }) {
         fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify({ action: 'list_members', workspaceId: workspace.id }) }).then(r => r.json()),
         fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify({ action: 'list', workspaceId: workspace.id }) }).then(r => r.json()),
       ])
-      setApiMembers(membersRes.members || [])
+      const fetchedMembers = membersRes.members || []
+      setApiMembers(fetchedMembers)
       setPendingInvites(invitesRes.invites || [])
+      loadCredits(fetchedMembers.map(m => m.id))
     } catch (e) {
       console.error('[team page]', e)
     } finally {
@@ -422,6 +569,31 @@ export default function TeamPage({ onClose }) {
       setApiMembers(prev => prev.filter(m => m.id !== userId))
       setSelected(prev => { const next = new Set(prev); next.delete(userId); return next })
     } catch (e) { setError(e.message) }
+  }
+
+  async function loadCredits(ids) {
+    if (!ids.length) return
+    try {
+      const { data } = await supabase.from('profiles').select('id, credits_used').in('id', ids)
+      if (data?.length) {
+        const map = {}
+        data.forEach(p => { if (p.credits_used !== undefined) map[p.id] = p.credits_used })
+        setMemberCredits(map)
+      }
+    } catch {}
+  }
+
+  async function handleResendInvite(row) {
+    setResendingId(row.inviteId)
+    try {
+      const h = await getAuthHeaders()
+      const res = await fetch('/api/invite', {
+        method: 'POST', headers: h,
+        body: JSON.stringify({ action: 'resend', workspaceId: workspace.id, inviteId: row.inviteId }),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error || 'Failed to resend') }
+    } catch (e) { setError(e.message) }
+    finally { setResendingId(null) }
   }
 
   async function handleCancelInvite(inviteId) {
@@ -640,80 +812,101 @@ export default function TeamPage({ onClose }) {
             ))}
           </div>
 
-          {/* Toolbar */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-            {/* Row 1: Search + Role filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <MagnifyingGlassIcon style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
-                <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search members..."
-                  style={{
-                    width: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                    borderRadius: 9, padding: '8px 12px 8px 30px', fontFamily: 'var(--font-sans)',
-                    fontSize: 13, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = '#7C3AED' }}
-                  onBlur={e => { e.target.style.borderColor = 'var(--color-border)' }}
-                />
-              </div>
-
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
-                <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{
+          {/* Toolbar — single row on desktop, wraps on mobile */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+            {/* Search */}
+            <div style={{ position: 'relative', flex: isMobile ? '1 1 100%' : '1 1 auto', minWidth: 140 }}>
+              <MagnifyingGlassIcon style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search members..."
+                style={{
                   width: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                  borderRadius: 9, padding: '8px 32px 8px 12px', fontFamily: 'var(--font-sans)',
-                  fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
-                  appearance: 'none', WebkitAppearance: 'none', boxSizing: 'border-box',
-                }}>
-                  <option value="all">All roles</option>
-                  <option value="owner">Owner</option>
-                  <option value="admin">Admin</option>
-                  <option value="member">Member</option>
-                </select>
-                <ChevronDownIcon style={{ position: 'absolute', right: 10, width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
-              </div>
+                  borderRadius: 9, padding: '8px 12px 8px 30px', fontFamily: 'var(--font-sans)',
+                  fontSize: 13, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
+                }}
+                onFocus={e => { e.target.style.borderColor = '#7C3AED' }}
+                onBlur={e => { e.target.style.borderColor = 'var(--color-border)' }}
+              />
             </div>
 
-            {/* Row 2: Export + Invite link + Invite button */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button onClick={handleExport} style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px',
-                background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
-              >
-                <ArrowDownTrayIcon style={{ width: 14, height: 14 }} />
-                {selected.size > 0 ? 'Export ' + selected.size + ' selected' : 'Export'}
-              </button>
-
-              <button onClick={handleCopyInviteLink} style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px',
-                background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                fontSize: 13, fontWeight: 600,
-                color: copySuccess ? '#16a34a' : 'var(--color-text-muted)', transition: 'all 0.15s',
+            {/* Role filter */}
+            <div style={{ position: 'relative', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto', minWidth: 120 }}>
+              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{
+                width: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)',
+                borderRadius: 9, padding: '8px 32px 8px 12px', fontFamily: 'var(--font-sans)',
+                fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
+                appearance: 'none', WebkitAppearance: 'none', boxSizing: 'border-box',
               }}>
-                <LinkIcon style={{ width: 14, height: 14 }} />
-                {copySuccess ? 'Link copied!' : 'Invite link'}
-              </button>
-
-              <button onClick={() => setShowInviteModal(true)} style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 16px',
-                background: 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
-                color: 'white', border: 'none', borderRadius: 9, cursor: 'pointer',
-                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
-                boxShadow: '0 2px 8px rgba(124,58,237,0.3)', transition: 'all 0.15s',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(124,58,237,0.4)' }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)' }}
-              >
-                <UserPlusIcon style={{ width: 14, height: 14 }} />
-                Invite members
-              </button>
+                <option value="all">All roles</option>
+                <option value="owner">Owner</option>
+                <option value="admin">Admin</option>
+                <option value="member">Member</option>
+              </select>
+              <ChevronDownIcon style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
             </div>
+
+            {/* Spacer — pushes action buttons right on desktop */}
+            {!isMobile && <div style={{ flex: 1 }} />}
+
+            {/* Export */}
+            <button onClick={handleExport} style={{
+              flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px',
+              background: 'var(--color-card)', border: '1px solid var(--color-border)',
+              borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+              fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s', whiteSpace: 'nowrap',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+            >
+              <ArrowDownTrayIcon style={{ width: 14, height: 14 }} />
+              {selected.size > 0 ? `Export ${selected.size}` : 'Export'}
+            </button>
+
+            {/* Invite link — triggers popup */}
+            <div style={{ position: 'relative', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
+              <button
+                onClick={() => setShowInviteLinkPopup(v => !v)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px',
+                  background: showInviteLinkPopup ? 'rgba(124,58,237,0.08)' : 'var(--color-card)',
+                  border: `1px solid ${showInviteLinkPopup ? '#7C3AED' : 'var(--color-border)'}`,
+                  borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  fontSize: 13, fontWeight: 600,
+                  color: showInviteLinkPopup ? '#7C3AED' : 'var(--color-text-muted)',
+                  transition: 'all 0.15s', whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => { if (!showInviteLinkPopup) { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' } }}
+                onMouseLeave={e => { if (!showInviteLinkPopup) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' } }}
+              >
+                <LinkIcon style={{ width: 14, height: 14 }} />
+                Invite link
+              </button>
+              {showInviteLinkPopup && (
+                <InviteLinkPopup
+                  workspaceId={workspace?.id}
+                  workspaceName={workspace?.name}
+                  getHeaders={getAuthHeaders}
+                  onClose={() => setShowInviteLinkPopup(false)}
+                />
+              )}
+            </div>
+
+            {/* Invite members */}
+            <button onClick={() => setShowInviteModal(true)} style={{
+              flex: isMobile ? '1 1 100%' : '0 0 auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 16px',
+              background: 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
+              color: 'white', border: 'none', borderRadius: 9, cursor: 'pointer',
+              fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+              boxShadow: '0 2px 8px rgba(124,58,237,0.3)', transition: 'all 0.15s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(124,58,237,0.4)' }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)' }}
+            >
+              <UserPlusIcon style={{ width: 14, height: 14 }} />
+              Invite members
+            </button>
           </div>
 
           {/* Bulk action bar */}
@@ -768,11 +961,11 @@ export default function TeamPage({ onClose }) {
 
           {/* Table */}
           <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflowX: 'auto' }}>
-            <div style={{ minWidth: 600, paddingRight: 8, boxSizing: 'border-box' }}>
+            <div style={{ minWidth: 720, paddingRight: 8, boxSizing: 'border-box' }}>
             {/* Header row */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '36px minmax(200px, 1fr) 80px 90px 80px 32px',
+              gridTemplateColumns: '36px minmax(180px, 1fr) 80px 90px 75px 75px 160px',
               padding: '8px 16px', background: 'var(--color-surface)',
               borderBottom: '1px solid var(--color-border)',
             }}>
@@ -783,7 +976,7 @@ export default function TeamPage({ onClose }) {
                   style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#7C3AED' }}
                 />
               </div>
-              {['Name', 'Role', 'Joined', 'Status', ''].map(h => (
+              {['Name', 'Role', 'Joined', 'Status', 'Credits', ''].map(h => (
                 <div key={h} style={{
                   fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
                   letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -808,7 +1001,7 @@ export default function TeamPage({ onClose }) {
             ) : filteredRows.map((row, i) => (
               <div key={row.id || i} className="tp-row" style={{
                 display: 'grid',
-                gridTemplateColumns: '36px minmax(200px, 1fr) 80px 90px 80px 32px',
+                gridTemplateColumns: '36px minmax(180px, 1fr) 80px 90px 75px 75px 160px',
                 padding: '10px 16px', alignItems: 'center',
                 borderBottom: i < filteredRows.length - 1 ? '1px solid var(--color-border)' : 'none',
                 background: selected.has(row.id) ? 'rgba(124,58,237,0.04)' : 'transparent',
@@ -887,26 +1080,57 @@ export default function TeamPage({ onClose }) {
                 {/* Status */}
                 <div><StatusBadge status={row.isPending ? 'pending' : 'active'} /></div>
 
+                {/* Credits */}
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  {row.isPending ? '—' : (memberCredits[row.id] !== undefined ? memberCredits[row.id] : '—')}
+                </div>
+
                 {/* Actions */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                   {row.isPending ? (
-                    <button onClick={() => handleCancelInvite(row.inviteId)} title="Cancel invite" style={{
-                      width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: 'var(--color-text-muted)', transition: 'all 0.15s',
-                    }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = '#FEF2F2' }}
-                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
-                    >
-                      <XMarkIcon style={{ width: 13, height: 13 }} />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleResendInvite(row)}
+                        disabled={resendingId === row.inviteId}
+                        title="Resend invite"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '4px 10px', borderRadius: 7, border: '1px solid var(--color-border)',
+                          background: 'transparent', cursor: resendingId === row.inviteId ? 'not-allowed' : 'pointer',
+                          fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                          color: 'var(--color-text-muted)', transition: 'all 0.15s',
+                          opacity: resendingId === row.inviteId ? 0.5 : 1,
+                        }}
+                        onMouseEnter={e => { if (resendingId !== row.inviteId) { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' } }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+                      >
+                        <ArrowPathIcon style={{ width: 11, height: 11 }} />
+                        {resendingId === row.inviteId ? '…' : 'Resend'}
+                      </button>
+                      <button
+                        onClick={() => handleCancelInvite(row.inviteId)}
+                        title="Cancel invite"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '4px 10px', borderRadius: 7, border: '1px solid var(--color-border)',
+                          background: 'transparent', cursor: 'pointer',
+                          fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                          color: 'var(--color-text-muted)', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#dc2626'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = 'rgba(220,38,38,0.06)' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <XMarkIcon style={{ width: 11, height: 11 }} />
+                        Cancel
+                      </button>
+                    </>
                   ) : isOwner && row.id !== authUser?.id ? (
                     <button onClick={() => handleRemoveMember(row.id)} title="Remove member" style={{
                       width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: 'var(--color-text-muted)', transition: 'all 0.15s',
                     }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = '#FEF2F2' }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = 'rgba(220,38,38,0.06)' }}
                       onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
                     >
                       <TrashIcon style={{ width: 13, height: 13 }} />

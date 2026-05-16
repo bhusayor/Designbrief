@@ -21,6 +21,7 @@ export default function AcceptInvite() {
   const [authTab, setAuthTab] = useState('signin')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [authEmail, setAuthEmail] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
 
@@ -54,7 +55,9 @@ export default function AcceptInvite() {
       setInvite(data.invite)
 
       if (authUser) {
-        if (authUser.email?.toLowerCase() === data.invite.invitedEmail?.toLowerCase()) {
+        // Link-type invites (no specific email) — any signed-in user can accept
+        const isLinkInvite = !data.invite.invitedEmail
+        if (isLinkInvite || authUser.email?.toLowerCase() === data.invite.invitedEmail?.toLowerCase()) {
           await doAccept(token, data.invite)
         } else {
           setPhase('valid')
@@ -114,20 +117,21 @@ export default function AcceptInvite() {
     setAuthLoading(true)
     setAuthError('')
 
+    const resolvedEmail = isLinkInvite ? authEmail : (invite?.invitedEmail || '')
     try {
       if (authTab === 'signin') {
         const { data, error: err } = await supabase.auth.signInWithPassword({
-          email: invite?.invitedEmail || '',
+          email: resolvedEmail,
           password,
         })
         if (err) { setAuthError(err.message); return }
         if (!data.session) { setAuthError('Sign-in failed. Please try again.'); return }
       } else {
         const { data, error: err } = await supabase.auth.signUp({
-          email: invite?.invitedEmail || '',
+          email: resolvedEmail,
           password,
           options: {
-            data: { full_name: name || (invite?.invitedEmail || '').split('@')[0] },
+            data: { full_name: name || resolvedEmail.split('@')[0] },
           },
         })
         if (err) { setAuthError(err.message); return }
@@ -243,7 +247,8 @@ export default function AcceptInvite() {
     )
   }
 
-  const emailMismatch = authUser && authUser.email?.toLowerCase() !== invite?.invitedEmail?.toLowerCase()
+  const isLinkInvite = !invite?.invitedEmail
+  const emailMismatch = authUser && !isLinkInvite && authUser.email?.toLowerCase() !== invite?.invitedEmail?.toLowerCase()
 
   return (
     <div style={bg}>
@@ -268,14 +273,16 @@ export default function AcceptInvite() {
               <UserGroupIcon style={{ width: 12, height: 12 }} />
               As a {invite?.role || 'member'}
             </span>
-            <span style={{
-              background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-              color: 'var(--color-text-muted)', fontSize: 12,
-              padding: '4px 10px', borderRadius: 20,
-              fontFamily: 'var(--font-mono)',
-            }}>
-              {invite?.invitedEmail}
-            </span>
+            {invite?.invitedEmail && (
+              <span style={{
+                background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                color: 'var(--color-text-muted)', fontSize: 12,
+                padding: '4px 10px', borderRadius: 20,
+                fontFamily: 'var(--font-mono)',
+              }}>
+                {invite.invitedEmail}
+              </span>
+            )}
           </div>
         </div>
 
@@ -327,9 +334,12 @@ export default function AcceptInvite() {
                 <label style={labelStyle}>Email</label>
                 <input
                   type="email"
-                  value={invite?.invitedEmail || ''}
-                  readOnly
-                  style={{ ...inputStyle, opacity: 0.55, cursor: 'not-allowed' }}
+                  value={isLinkInvite ? authEmail : (invite?.invitedEmail || '')}
+                  readOnly={!isLinkInvite}
+                  onChange={isLinkInvite ? e => setAuthEmail(e.target.value) : undefined}
+                  placeholder={isLinkInvite ? 'your@email.com' : undefined}
+                  required
+                  style={isLinkInvite ? inputStyle : { ...inputStyle, opacity: 0.55, cursor: 'not-allowed' }}
                 />
               </div>
 
