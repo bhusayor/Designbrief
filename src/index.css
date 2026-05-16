@@ -1,5 +1,5 @@
 /* ─── Google Fonts ─────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -92,7 +92,7 @@
 
   /* Typography */
   --font-sans:    'Urbanist', sans-serif;
-  --font-mono:    'DM Mono', monospace;
+  --font-mono:    'Urbanist', sans-serif;
 
   /* Transitions */
   --transition-fast:   120ms ease;
@@ -206,7 +206,7 @@
   --radius-xl:   20px;
   --radius-full: 9999px;
   --font-sans:   'Urbanist', sans-serif;
-  --font-mono:   'DM Mono', monospace;
+  --font-mono:   'Urbanist', sans-serif;
   --transition-fast:   120ms ease;
   --transition-base:   200ms ease;
   --transition-slow:   350ms cubic-bezier(0.4,0,0.2,1);

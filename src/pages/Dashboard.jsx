@@ -1100,7 +1100,7 @@ function CreativeConceptSection({ statement }) {
         <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 22, color: 'var(--color-text)', lineHeight: 1.5, letterSpacing: '-0.01em', marginBottom: 14 }}>
           {statement}
         </div>
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
           Creative Concept
         </div>
       </div>
@@ -1113,12 +1113,12 @@ function CreativeConceptSection({ statement }) {
 function BrandVoiceSection({ copyVoice }) {
   return (
     <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
-      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>Brand Voice</div>
+      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>Brand Voice</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
 
         {/* Personality + Principles */}
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 }}>
-          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Voice Personality</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Voice Personality</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
             {(copyVoice.personality || '').split(',').map(p => p.trim()).filter(Boolean).map((trait, i) => (
               <div key={i} style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '5px 14px', fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{trait}</div>
@@ -1126,7 +1126,7 @@ function BrandVoiceSection({ copyVoice }) {
           </div>
           {copyVoice.writingPrinciples?.length > 0 && (
             <div>
-              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.06em', marginBottom: 8, textTransform: 'uppercase' }}>Principles</div>
+              <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.06em', marginBottom: 8, textTransform: 'uppercase' }}>Principles</div>
               {copyVoice.writingPrinciples.map((p, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
                   <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-text)', flexShrink: 0, marginTop: 6 }} />
@@ -1141,7 +1141,7 @@ function BrandVoiceSection({ copyVoice }) {
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} />
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: '#16a34a', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>Say this</div>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: '#16a34a', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>Say this</div>
           </div>
           {copyVoice.doSay?.map((ex, i) => (
             <div key={i} style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.15)', borderLeft: '3px solid #16a34a', borderRadius: '0 8px 8px 0', padding: '8px 12px', marginBottom: 8, fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)', lineHeight: 1.55 }}>{ex}</div>
@@ -1152,7 +1152,7 @@ function BrandVoiceSection({ copyVoice }) {
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#dc2626' }} />
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: '#dc2626', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>Avoid this</div>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: '#dc2626', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>Avoid this</div>
           </div>
           {copyVoice.doNotSay?.map((ex, i) => (
             <div key={i} style={{ background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.15)', borderLeft: '3px solid #dc2626', borderRadius: '0 8px 8px 0', padding: '8px 12px', marginBottom: 8, fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)', lineHeight: 1.55 }}>{ex}</div>
@@ -1170,14 +1170,14 @@ function DeliverablesSection({ deliverables }) {
   return (
     <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24 }}>
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Deliverables</div>
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>{deliverables.length} items</div>
+        <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Deliverables</div>
+        <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)' }}>{deliverables.length} items</div>
       </div>
 
       {/* Table header */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 120px 100px', gap: 12, padding: '8px 16px', background: 'var(--color-surface)', borderRadius: 8, marginBottom: 8 }}>
         {['Deliverable', 'Format', 'Qty', 'Who', 'Priority'].map(h => (
-          <div key={h} style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{h}</div>
+          <div key={h} style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{h}</div>
         ))}
       </div>
 
@@ -1189,12 +1189,12 @@ function DeliverablesSection({ deliverables }) {
         return (
           <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 120px 100px', gap: 12, padding: '12px 16px', background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, marginBottom: 6, alignItems: 'center' }}>
             <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{d.item}</div>
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>{d.format}</div>
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-soft)' }}>{d.quantity}</div>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)' }}>{d.format}</div>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{d.quantity}</div>
             <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{d.discipline}</div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: priorityColor + '10', border: '1px solid ' + priorityColor + '25', borderRadius: 5, padding: '3px 9px' }}>
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: priorityColor }} />
-              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: priorityColor, letterSpacing: '0.04em' }}>{d.priority}</span>
+              <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, fontWeight: 700, color: priorityColor, letterSpacing: '0.04em' }}>{d.priority}</span>
             </div>
           </div>
         )
@@ -1222,11 +1222,11 @@ function HeroSection({ r, s }) {
         </h1>
         {r.discipline && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div style={{ background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 100, padding: '4px 14px', fontFamily: "'DM Mono',monospace", fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            <div style={{ background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               {r.discipline.type?.replace(/-/g, ' ')}
             </div>
             {r.discipline.platform && (
-              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
+              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
                 {r.discipline.platform}
               </div>
             )}
@@ -1265,20 +1265,20 @@ function HeroSection({ r, s }) {
                   </svg>
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 26, color, lineHeight: 1 }}>{score}</span>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>/10</span>
+                    <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)' }}>/10</span>
                   </div>
                 </div>
               )
             })()}
 
             <div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>
+              <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>
                 Brief Score
               </div>
               <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 22, color: s.overall >= 7 ? '#16a34a' : s.overall >= 4 ? '#d97706' : '#dc2626', marginBottom: 4 }}>
                 {s.verdict || 'FAIR'}
               </div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-soft)', lineHeight: 1.5, maxWidth: 180 }}>
+              <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', lineHeight: 1.5, maxWidth: 180 }}>
                 {s.summary || ''}
               </div>
             </div>
@@ -1294,8 +1294,8 @@ function HeroSection({ r, s }) {
             return (
               <div key={m.label} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-soft)' }}>{m.label}</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: barColor, fontWeight: 700 }}>{m.value}/10</span>
+                  <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{m.label}</span>
+                  <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: barColor, fontWeight: 700 }}>{m.value}/10</span>
                 </div>
                 <div style={{ height: 5, background: 'var(--color-border)', borderRadius: 3, overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: 3, background: barColor, width: scoreRevealed ? `${(m.value / 10) * 100}%` : '0%', transition: scoreRevealed ? `width 1s ease ${0.3 + i * 0.15}s` : 'none' }} />
@@ -1328,7 +1328,7 @@ function ChaosBannerSection({ r, s }) {
       )}
       {r.chaosSolutions.map((sol, i) => (
         <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', padding: '10px 0', borderBottom: i < r.chaosSolutions.length - 1 ? '1px solid rgba(124,58,237,0.15)' : 'none' }}>
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: '#7c3aed', fontWeight: 700, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: '#7c3aed', fontWeight: 700, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
           <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '14px', color: 'var(--color-text)', lineHeight: 1.6 }}>{sol}</span>
         </div>
       ))}
@@ -1395,7 +1395,7 @@ function IssuesBannerSection({ r, scoring }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    fontFamily: "'DM Mono',monospace",
+                    fontFamily: "'Urbanist', sans-serif",
                     fontSize: 9,
                     fontWeight: 700,
                     color: '#dc2626',
@@ -1424,7 +1424,7 @@ function IssuesBannerSection({ r, scoring }) {
             border: '1px solid var(--color-border)',
             borderRadius: 12, padding: '16px 18px',
           }}>
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Recommended fixes</div>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Recommended fixes</div>
             {r.chaosSolutions.map((sol, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: i < r.chaosSolutions.length - 1 ? 10 : 0 }}>
                 <div style={{
@@ -1433,7 +1433,7 @@ function IssuesBannerSection({ r, scoring }) {
                   border: '1px solid rgba(22,163,74,0.3)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
-                  fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: '#16a34a',
+                  fontFamily: "'Urbanist', sans-serif", fontSize: 9, fontWeight: 700, color: '#16a34a',
                 }}>{i + 1}</div>
                 <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text-soft)', lineHeight: 1.6 }}>{sol}</div>
               </div>
@@ -1482,7 +1482,7 @@ function DesignDirectionSection({ r, showToast }) {
 
   return (
     <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>
+      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>
         Design Direction
       </div>
 
@@ -1491,7 +1491,7 @@ function DesignDirectionSection({ r, showToast }) {
 
         {/* Left: swatches + tint scale */}
         <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 16, textTransform: 'uppercase' }}>Colour Palette</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 16, textTransform: 'uppercase' }}>Colour Palette</div>
           {colors.map((color, ci) => {
             const tints = generateTints(color.hex)
             return (
@@ -1506,9 +1506,9 @@ function DesignDirectionSection({ r, showToast }) {
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 14, color: 'var(--color-text)', marginBottom: 2 }}>{color.name}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>{color.hex}</div>
+                    <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>{color.hex}</div>
                     {color.usage && (
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{color.usage}</div>
+                      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{color.usage}</div>
                     )}
                   </div>
                 </div>
@@ -1528,7 +1528,7 @@ function DesignDirectionSection({ r, showToast }) {
         <div>
           {/* Header row with mode toggle */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Live Brand Preview</div>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Live Brand Preview</div>
             <div style={{ display: 'flex', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 3, gap: 3 }}>
               {['light', 'dark'].map(mode => (
                 <button
@@ -1539,7 +1539,7 @@ function DesignDirectionSection({ r, showToast }) {
                     border: paletteMode === mode ? '1px solid var(--color-border)' : '1px solid transparent',
                     borderRadius: 6,
                     padding: '4px 10px',
-                    fontFamily: "'DM Mono',monospace",
+                    fontFamily: "'Urbanist', sans-serif",
                     fontSize: 9,
                     fontWeight: paletteMode === mode ? 700 : 400,
                     color: paletteMode === mode ? 'var(--color-text)' : 'var(--color-text-muted)',
@@ -1579,7 +1579,7 @@ function DesignDirectionSection({ r, showToast }) {
                   </div>
                   <div style={{ display: 'flex', gap: 14 }}>
                     {['Projects', 'Clients', 'Invoices'].map(l => (
-                      <span key={l} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>{l}</span>
+                      <span key={l} style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>{l}</span>
                     ))}
                   </div>
                 </div>
@@ -1613,7 +1613,7 @@ function DesignDirectionSection({ r, showToast }) {
 
         {/* Tone & Mood */}
         <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase' }}>Tone & Mood</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase' }}>Tone & Mood</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             {(r?.toneWords ?? []).map((w, wi) => (
               <div key={wi} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '6px 14px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{w}</div>
@@ -1623,7 +1623,7 @@ function DesignDirectionSection({ r, showToast }) {
             <div style={{ height: 5, borderRadius: 3, marginBottom: 8, background: `linear-gradient(90deg, ${colors.map(c => c.hex).join(',')})` }} />
           )}
           {typeof r?.colorDirection === 'string' && r.colorDirection && (
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
               {r.colorDirection.slice(0, 140)}{r.colorDirection.length > 140 ? '…' : ''}
             </div>
           )}
@@ -1631,7 +1631,7 @@ function DesignDirectionSection({ r, showToast }) {
 
         {/* Brand Personality — coloured axis sliders */}
         <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase' }}>Brand Personality</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase' }}>Brand Personality</div>
           {(r?.brandAxes ?? []).map((axis, i) => {
             const pct = axis.value ?? 50
             const color = AXIS_COLORS[i % AXIS_COLORS.length]
@@ -1661,7 +1661,7 @@ function TypographyMoodboardSection({ r }) {
     <div style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px' }}>
         <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '20px' }}>Typography Direction</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '20px' }}>Typography Direction</div>
           {r.typography && (
             <div style={{ background: 'var(--color-surface)', borderLeft: '3px solid var(--color-border)', padding: '12px 16px', borderRadius: '0 8px 8px 0' }}>
               <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '14px', color: 'var(--color-text-soft)', lineHeight: 1.7, margin: 0, fontStyle: 'normal' }}>
@@ -1673,7 +1673,7 @@ function TypographyMoodboardSection({ r }) {
           )}
         </div>
         <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '16px' }}>Moodboard Direction</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '16px' }}>Moodboard Direction</div>
           {(() => {
             const mColors = extractColors(r)
             const keywords = r?.moodboardKeywords || r?.toneWords || []
@@ -1707,7 +1707,7 @@ function TypographyMoodboardSection({ r }) {
                   <div style={{ position: 'absolute', top: 18, right: 22, width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' }}/>
                   {keywords[0] && (
                     <div style={{ position: 'relative', zIndex: 1 }}>
-                      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>mood · direction</div>
+                      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>mood · direction</div>
                       <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 22, color: 'rgba(255,255,255,0.95)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
                         {keywords.slice(0, 2).join(' & ')}
                       </div>
@@ -1723,7 +1723,7 @@ function TypographyMoodboardSection({ r }) {
                     <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 12, color: onC0, marginBottom: 3 }}>
                       {mColors[0]?.name || 'Primary'}
                     </div>
-                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: isDark(c0) ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)', letterSpacing: '0.04em' }}>
+                    <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: isDark(c0) ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)', letterSpacing: '0.04em' }}>
                       {c0.toUpperCase()}
                     </div>
                   </div>
@@ -1748,15 +1748,15 @@ function TypographyMoodboardSection({ r }) {
 
                 {/* Tile 4 — Typography preview (col 2, row 2) */}
                 <div style={{ gridColumn: '2', gridRow: '2', borderRadius: 14, overflow: 'hidden', background: 'var(--color-card)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', padding: '14px 16px', gap: 4 }}>
-                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 8, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>typography</div>
+                  <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 8, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>typography</div>
                   <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 32, color: c0, lineHeight: 1, letterSpacing: '-0.03em' }}>Aa</div>
-                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 8, color: 'var(--color-text-muted)' }}>Display · Body</div>
+                  <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 8, color: 'var(--color-text-muted)' }}>Display · Body</div>
                 </div>
 
                 {/* Tile 5 — Keywords (col 3, rows 2-3) */}
                 <div style={{ gridColumn: '3', gridRow: '2 / 4', borderRadius: 14, overflow: 'hidden', background: c1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px 14px', gap: 7, position: 'relative' }}>
                   <div style={{ position: 'absolute', top: -10, left: -10, width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', filter: 'blur(10px)' }}/>
-                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 8, color: isDark(c1) ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>keywords</div>
+                  <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 8, color: isDark(c1) ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>keywords</div>
                   {keywords.slice(0, 5).map((kw, ki) => (
                     <div key={ki} style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: ki === 0 ? 700 : 500, fontSize: ki === 0 ? 13 : 11, color: isDark(c1) ? `rgba(255,255,255,${0.95 - ki * 0.12})` : `rgba(0,0,0,${0.85 - ki * 0.1})`, lineHeight: 1.2 }}>
                       {ki === 0 ? '→ ' : '· '}{kw}
@@ -1770,7 +1770,7 @@ function TypographyMoodboardSection({ r }) {
                     <div key={ci} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 0 10px 10px', background: color.hex, position: 'relative' }}>
                       {ci === 0 && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.35))' }}/>}
                       <div style={{ position: 'relative', zIndex: 1 }}>
-                        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 8, fontWeight: 700, color: isDark(color.hex) ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.7)', letterSpacing: '0.04em' }}>
+                        <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 8, fontWeight: 700, color: isDark(color.hex) ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.7)', letterSpacing: '0.04em' }}>
                           {color.hex.toUpperCase()}
                         </div>
                         <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 9, fontWeight: 600, color: isDark(color.hex) ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)', marginTop: 1 }}>
@@ -1870,7 +1870,7 @@ function TypographySection({ typography }) {
 
   return (
     <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
-      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>Typography</div>
+      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>Typography</div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         {/* Left: Font preview cards */}
@@ -1879,22 +1879,22 @@ function TypographySection({ typography }) {
           <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '20px 22px', overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Display Font</div>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Display Font</div>
                 <div style={{ fontFamily: `"${displayFont}",Urbanist,sans-serif`, fontWeight: 700, fontSize: 16, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>{displayFont}</div>
               </div>
-              <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '3px 8px', fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Headings</div>
+              <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '3px 8px', fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Headings</div>
             </div>
             <div style={{ fontFamily: `"${displayFont}",Urbanist,sans-serif`, fontWeight: 800, fontSize: 30, color: 'var(--color-text)', lineHeight: 1.1, letterSpacing: '-0.02em', marginBottom: 12, fontStyle: 'normal' }}>
               The quick brown fox
             </div>
             {displayUse && (
-              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 12 }}>{displayUse}</div>
+              <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 12 }}>{displayUse}</div>
             )}
             <div style={{ display: 'flex', gap: 12, paddingTop: 12, borderTop: '1px solid var(--color-border)' }}>
               {[{ w: 300, l: 'Light' }, { w: 400, l: 'Regular' }, { w: 600, l: 'Semi' }, { w: 800, l: 'Bold' }].map(({ w, l }) => (
                 <div key={w} style={{ flex: 1, textAlign: 'center' }}>
                   <div style={{ fontFamily: `"${displayFont}",Urbanist,sans-serif`, fontWeight: w, fontSize: 20, color: 'var(--color-text)', lineHeight: 1, marginBottom: 4, fontStyle: 'normal' }}>Aa</div>
-                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)' }}>{l}</div>
+                  <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)' }}>{l}</div>
                 </div>
               ))}
             </div>
@@ -1904,19 +1904,19 @@ function TypographySection({ typography }) {
           <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '20px 22px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Body Font</div>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Body Font</div>
                 <div style={{ fontFamily: `"${bodyFont}",Urbanist,sans-serif`, fontWeight: 700, fontSize: 16, color: 'var(--color-text)' }}>{bodyFont}</div>
               </div>
-              <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '3px 8px', fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Body copy</div>
+              <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '3px 8px', fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Body copy</div>
             </div>
             <div style={{ fontFamily: `"${bodyFont}",Urbanist,sans-serif`, fontWeight: 400, fontSize: 14, color: 'var(--color-text-soft)', lineHeight: 1.75, marginBottom: 10, fontStyle: 'normal' }}>
               Body text designed for comfortable reading at length. Clear hierarchy and generous spacing make content easy to scan across all screen sizes.
             </div>
             {bodyUse && (
-              <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: rationale ? 10 : 0 }}>{bodyUse}</div>
+              <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: rationale ? 10 : 0 }}>{bodyUse}</div>
             )}
             {rationale && (
-              <div style={{ paddingTop: 10, borderTop: '1px solid var(--color-border)', fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.65, fontStyle: 'normal' }}>
+              <div style={{ paddingTop: 10, borderTop: '1px solid var(--color-border)', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.65, fontStyle: 'normal' }}>
                 {rationale}
               </div>
             )}
@@ -1925,7 +1925,7 @@ function TypographySection({ typography }) {
 
         {/* Right: Type scale table */}
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '20px 22px', height: 'fit-content' }}>
-          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Type Scale</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Type Scale</div>
 
           {/* Platform tabs — show only when both exist */}
           {hasWeb && hasMobile && (
@@ -1939,7 +1939,7 @@ function TypographySection({ typography }) {
                     border: scaleView === tab.id ? '1px solid var(--color-border)' : '1px solid transparent',
                     borderRadius: 7,
                     padding: '4px 10px',
-                    fontFamily: "'DM Mono',monospace",
+                    fontFamily: "'Urbanist', sans-serif",
                     fontSize: 10,
                     color: scaleView === tab.id ? 'var(--color-text)' : 'var(--color-text-muted)',
                     cursor: 'pointer',
@@ -1952,16 +1952,16 @@ function TypographySection({ typography }) {
 
           {/* Single platform badge */}
           {hasMobile && !hasWeb && (
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', marginBottom: 10, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 5, padding: '3px 8px', display: 'inline-block' }}>📱 Mobile</div>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', marginBottom: 10, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 5, padding: '3px 8px', display: 'inline-block' }}>📱 Mobile</div>
           )}
           {hasWeb && !hasMobile && (
-            <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', marginBottom: 10, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 5, padding: '3px 8px', display: 'inline-block' }}>🖥 Web</div>
+            <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', marginBottom: 10, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 5, padding: '3px 8px', display: 'inline-block' }}>🖥 Web</div>
           )}
 
           {/* Header row */}
           <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 48px 52px 52px 60px', gap: 8, paddingBottom: 8, marginBottom: 4, borderBottom: '2px solid var(--color-border)' }}>
             {['Style', 'Preview', 'Size', 'Weight', 'Line H', 'Spacing'].map(h => (
-              <div key={h} style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{h}</div>
+              <div key={h} style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{h}</div>
             ))}
           </div>
 
@@ -1973,14 +1973,14 @@ function TypographySection({ typography }) {
             const previewSize = Math.min(sizeNum * 0.55, 28)
             return (
               <div key={ri} style={{ display: 'grid', gridTemplateColumns: '44px 1fr 48px 52px 52px 60px', gap: 8, padding: '10px 0', borderBottom: ri < activeScale.length - 1 ? '1px solid var(--color-border)' : 'none', alignItems: 'center' }}>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{row.label}</div>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{row.label}</div>
                 <div style={{ fontFamily: `"${fontToUse}",Urbanist,sans-serif`, fontWeight: weightNum, fontSize: previewSize, color: 'var(--color-text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: 'normal' }}>
                   {row.label === 'Label' ? 'LABEL' : row.label === 'Small' ? 'Caption' : row.label === 'Body' ? 'Body copy' : 'Heading'}
                 </div>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-soft)' }}>{row.size}</div>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-soft)' }}>{row.weight}</div>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-soft)' }}>{row.lineHeight}</div>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-soft)' }}>{row.spacing}</div>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-soft)' }}>{row.size}</div>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-soft)' }}>{row.weight}</div>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-soft)' }}>{row.lineHeight}</div>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-soft)' }}>{row.spacing}</div>
               </div>
             )
           })}
@@ -2035,7 +2035,7 @@ function GanttSection({ phases, timeframe, projectTitle }) {
         <CalendarDaysIcon style={{ width: '18px', height: '18px', color: 'var(--color-text-muted)' }} />
         <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '20px', color: 'var(--color-text)' }}>Product Roadmap</span>
       </div>
-      <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '32px' }}>
+      <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '32px' }}>
         {timeframe?.total || `${totalWeeks} weeks`} total · click any task for details
       </p>
 
@@ -2044,7 +2044,7 @@ function GanttSection({ phases, timeframe, projectTitle }) {
         {weeks.map(w => {
           const showLabel = totalWeeks <= 10 || w % 2 === 0
           return (
-            <div key={w} style={{ width: `${100 / totalWeeks}%`, flexShrink: 0, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: '10px', color: showLabel ? 'var(--color-text-muted)' : 'transparent', borderRight: '1px solid var(--color-border)', paddingBottom: '4px' }}>
+            <div key={w} style={{ width: `${100 / totalWeeks}%`, flexShrink: 0, textAlign: 'center', fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: showLabel ? 'var(--color-text-muted)' : 'transparent', borderRight: '1px solid var(--color-border)', paddingBottom: '4px' }}>
               Wk{w}
             </div>
           )
@@ -2059,7 +2059,7 @@ function GanttSection({ phases, timeframe, projectTitle }) {
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '3px' }}>
               <div style={{ width: '180px', flexShrink: 0, paddingRight: '16px' }}>
                 <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', color: 'var(--color-text)' }}>{phase.name}</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>{phase.tasks.length} tasks · {phase.totalDays}d</div>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>{phase.tasks.length} tasks · {phase.totalDays}d</div>
               </div>
               <div style={{ flex: 1, position: 'relative', height: '36px' }}>
                 <div style={{ position: 'absolute', left: `${phase.startPct}%`, width: `${phase.widthPct}%`, height: '36px', background: phase.color, borderRadius: '6px', display: 'flex', alignItems: 'center', paddingLeft: '12px', overflow: 'hidden' }}>
@@ -2108,7 +2108,7 @@ function GanttSection({ phases, timeframe, projectTitle }) {
         {phases.map((p, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-text-muted)' }}>{p.name}</span>
+            <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-text-muted)' }}>{p.name}</span>
           </div>
         ))}
       </div>
@@ -2125,7 +2125,7 @@ function GanttSection({ phases, timeframe, projectTitle }) {
           >
             <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: ganttTask.phaseColor, letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: ganttTask.phaseColor, letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>
                   {ganttTask.phaseName}
                 </div>
                 <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
@@ -2145,7 +2145,7 @@ function GanttSection({ phases, timeframe, projectTitle }) {
             <div style={{ padding: '18px 20px' }}>
               <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
                 <div style={{ background: ganttTask.phaseColor + '15', border: '1px solid ' + ganttTask.phaseColor + '30', borderRadius: 8, padding: '8px 14px' }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 3, letterSpacing: '0.06em' }}>DURATION</div>
+                  <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 3, letterSpacing: '0.06em' }}>DURATION</div>
                   <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 16, color: ganttTask.phaseColor }}>
                     {ganttTask.task.days === 1 ? '1 day' : ganttTask.task.days + ' days'}
                   </div>
@@ -2157,7 +2157,7 @@ function GanttSection({ phases, timeframe, projectTitle }) {
                     : generatedSubtasks[taskKey] || []
                   return activeSubtasks.length > 0 ? (
                     <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '8px 14px' }}>
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 3, letterSpacing: '0.06em' }}>SUBTASKS</div>
+                      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 3, letterSpacing: '0.06em' }}>SUBTASKS</div>
                       <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 16, color: 'var(--color-text)' }}>{activeSubtasks.length}</div>
                     </div>
                   ) : null
@@ -2169,18 +2169,18 @@ function GanttSection({ phases, timeframe, projectTitle }) {
                   ? ganttTask.task.subtasks
                   : generatedSubtasks[taskKey] || []
                 return loadingSubtasks ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0', fontFamily: "'DM Mono',monospace", fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0', fontFamily: "'Urbanist', sans-serif", fontSize: 12, color: 'var(--color-text-muted)' }}>
                     <div style={{ width: 14, height: 14, border: '2px solid var(--color-border)', borderTopColor: 'var(--color-text)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                     Generating subtasks...
                   </div>
                 ) : (
                   <div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 10, textTransform: 'uppercase' }}>Subtasks</div>
+                    <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 10, textTransform: 'uppercase' }}>Subtasks</div>
                     {activeSubtasks.map((sub, si) => {
                       const subText = typeof sub === 'string' ? sub : sub.description || sub.title || sub.name || sub.task || JSON.stringify(sub)
                       return (
                         <div key={si} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0', borderBottom: si < activeSubtasks.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: ganttTask.phaseColor + '18', border: '1px solid ' + ganttTask.phaseColor + '40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono',monospace", fontSize: 10, fontWeight: 700, color: ganttTask.phaseColor, flexShrink: 0 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: ganttTask.phaseColor + '18', border: '1px solid ' + ganttTask.phaseColor + '40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Urbanist', sans-serif", fontSize: 10, fontWeight: 700, color: ganttTask.phaseColor, flexShrink: 0 }}>
                             {si + 1}
                           </div>
                           <div style={{ flex: 1, fontFamily: "'Urbanist',sans-serif", fontSize: 13, color: 'var(--color-text)', lineHeight: 1.65 }}>
@@ -2292,7 +2292,7 @@ function BudgetSection({ budgetRange: br }) {
                   ? '$' + Math.round(items[hoveredBudget]?.amount || 0).toLocaleString()
                   : total > 999 ? '$' + (total / 1000).toFixed(0) + 'k' : '$' + Math.round(total).toLocaleString()}
               </text>
-              <text x={CX} y={CY + 8} textAnchor="middle" fontFamily="'DM Mono',monospace" fontSize="9" fill="var(--color-text-muted)">
+              <text x={CX} y={CY + 8} textAnchor="middle" fontFamily="'Urbanist', sans-serif" fontSize="9" fill="var(--color-text-muted)">
                 {hoveredBudget !== null
                   ? (items[hoveredBudget]?.role || '').split(' ').slice(0, 2).join(' ')
                   : 'total budget'}
@@ -2310,8 +2310,8 @@ function BudgetSection({ budgetRange: br }) {
                 >
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
                   <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 13, color: 'var(--color-text)', flex: 1, fontWeight: isHovered ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{item.role}</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: item.color, fontWeight: 700, flexShrink: 0 }}>{pct}%</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0, marginLeft: 4 }}>{formatCostDisplay(item.originalCost)}</span>
+                  <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: item.color, fontWeight: 700, flexShrink: 0 }}>{pct}%</span>
+                  <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0, marginLeft: 4 }}>{formatCostDisplay(item.originalCost)}</span>
                 </div>
               )
             })}
@@ -2331,7 +2331,7 @@ function RolesSection({ rolesNeeded }) {
         <UsersIcon style={{ width: '18px', height: '18px', color: 'var(--color-text-muted)' }} />
         <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '20px', color: 'var(--color-text)' }}>Roles Needed</span>
       </div>
-      <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '24px' }}>All roles below are required for this project</p>
+      <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '24px' }}>All roles below are required for this project</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
         {rolesNeeded.map((role, i) => {
           const RoleIcon = getRoleIcon(role)
@@ -2346,7 +2346,7 @@ function RolesSection({ rolesNeeded }) {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--color-text)', lineHeight: 1.3, wordBreak: 'break-word' }}>{role}</div>
                   {meta.description && (
-                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                    <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, lineHeight: 1.4 }}>
                       {meta.description.slice(0, 80)}{meta.description.length > 80 ? '…' : ''}
                     </div>
                   )}
@@ -2354,7 +2354,7 @@ function RolesSection({ rolesNeeded }) {
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: roleColor + '10', border: '1px solid ' + roleColor + '25', borderRadius: 5, padding: '3px 9px', alignSelf: 'flex-start' }}>
                 <div style={{ width: 5, height: 5, borderRadius: '50%', background: roleColor }} />
-                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: roleColor, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Required</span>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, fontWeight: 700, color: roleColor, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Required</span>
               </div>
             </div>
           )
@@ -2424,7 +2424,7 @@ function TechStackSection({ techStack, discipline }) {
           return (
             <div key={layer.key} style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0 }}>
               <div style={{ background: layer.color + '12', border: '1.5px solid ' + layer.color + '40', borderRadius: 14, padding: '16px 14px', minWidth: 150, maxWidth: 180 }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 700, color: layer.color, letterSpacing: '0.08em', textAlign: 'center', marginBottom: 14, textTransform: 'uppercase' }}>
+                <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, fontWeight: 700, color: layer.color, letterSpacing: '0.08em', textAlign: 'center', marginBottom: 14, textTransform: 'uppercase' }}>
                   {layer.label}
                 </div>
                 {tools.slice(0, 7).map((tool, ti) => (
@@ -2501,7 +2501,7 @@ function FeaturesSection({ features, discipline }) {
 
       {features.length > 0 && (
         <div style={{ marginBottom: 32 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase' }}>Priority Scatter Plot</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase' }}>Priority Scatter Plot</div>
           <div style={{ overflowX: 'auto', background: 'var(--color-surface)', borderRadius: 14, border: '1px solid var(--color-border)', padding: 16 }}>
             <svg width={W} height={H} style={{ display: 'block' }}>
               {/* Quadrant tints */}
@@ -2518,15 +2518,15 @@ function FeaturesSection({ features, discipline }) {
                   <g key={t}>
                     <line x1={sx} y1={PAD.top} x2={sx} y2={PAD.top + plotH} stroke="var(--color-border)" strokeWidth="0.5" strokeDasharray="3 3" />
                     <line x1={PAD.left} y1={sy} x2={PAD.left + plotW} y2={sy} stroke="var(--color-border)" strokeWidth="0.5" strokeDasharray="3 3" />
-                    <text x={sx} y={PAD.top + plotH + 14} textAnchor="middle" fontFamily="DM Mono" fontSize="9" fill="var(--color-text-muted)">{t}</text>
-                    {t > 0 && <text x={PAD.left - 8} y={sy + 3} textAnchor="end" fontFamily="DM Mono" fontSize="9" fill="var(--color-text-muted)">{t}</text>}
+                    <text x={sx} y={PAD.top + plotH + 14} textAnchor="middle" fontFamily="Urbanist" fontSize="9" fill="var(--color-text-muted)">{t}</text>
+                    {t > 0 && <text x={PAD.left - 8} y={sy + 3} textAnchor="end" fontFamily="Urbanist" fontSize="9" fill="var(--color-text-muted)">{t}</text>}
                   </g>
                 )
               })}
 
               {/* Axis labels */}
-              <text x={PAD.left + plotW / 2} y={H - 4} textAnchor="middle" fontFamily="DM Mono" fontSize="10" fill="var(--color-text-muted)">Implementation Effort →</text>
-              <text x={12} y={PAD.top + plotH / 2} textAnchor="middle" fontFamily="DM Mono" fontSize="10" fill="var(--color-text-muted)" transform={`rotate(-90, 12, ${PAD.top + plotH / 2})`}>Business Impact →</text>
+              <text x={PAD.left + plotW / 2} y={H - 4} textAnchor="middle" fontFamily="Urbanist" fontSize="10" fill="var(--color-text-muted)">Implementation Effort →</text>
+              <text x={12} y={PAD.top + plotH / 2} textAnchor="middle" fontFamily="Urbanist" fontSize="10" fill="var(--color-text-muted)" transform={`rotate(-90, 12, ${PAD.top + plotH / 2})`}>Business Impact →</text>
 
               {/* Bubbles */}
               {features.map((f, i) => {
@@ -2545,12 +2545,12 @@ function FeaturesSection({ features, discipline }) {
                     onMouseLeave={() => setHoveredFeature(null)}>
                     {isHovered && <circle cx={sx} cy={sy} r="18" fill={col} opacity="0.2" />}
                     <circle cx={sx} cy={sy} r="10" fill={col} opacity={isHovered ? 1 : 0.8} />
-                    <text x={sx} y={sy + 4} textAnchor="middle" fontFamily="DM Mono" fontSize="9" fill="white" fontWeight="700">{i + 1}</text>
+                    <text x={sx} y={sy + 4} textAnchor="middle" fontFamily="Urbanist" fontSize="9" fill="white" fontWeight="700">{i + 1}</text>
                     {isHovered && (
                       <g>
                         <rect x={sx + 14} y={sy - 28} width="140" height="44" rx="6" fill="var(--color-card)" stroke={col} strokeWidth="1" filter="drop-shadow(0 2px 6px rgba(0,0,0,0.3))" />
                         <text x={sx + 22} y={sy - 12} fontFamily="Urbanist" fontSize="11" fontWeight="700" fill="var(--color-text)">{f.name?.slice(0, 18)}{f.name?.length > 18 ? '…' : ''}</text>
-                        <text x={sx + 22} y={sy + 4} fontFamily="DM Mono" fontSize="9" fill="var(--color-text-muted)">Effort {effort.toFixed(1)} · Impact {impact.toFixed(1)}</text>
+                        <text x={sx + 22} y={sy + 4} fontFamily="Urbanist" fontSize="9" fill="var(--color-text-muted)">Effort {effort.toFixed(1)} · Impact {impact.toFixed(1)}</text>
                       </g>
                     )}
                   </g>
@@ -2564,7 +2564,7 @@ function FeaturesSection({ features, discipline }) {
             {[['#FF4D6A', 'Must Have'], ['#FFB84D', 'Should Have'], ['#8B8BA0', 'Nice to Have']].map(([col, label]) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: col }} />
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>{label}</span>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)' }}>{label}</span>
               </div>
             ))}
           </div>
@@ -2580,18 +2580,18 @@ function FeaturesSection({ features, discipline }) {
             <div key={group.key}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: group.color, flexShrink: 0 }} />
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', fontWeight: 700, color: group.color }}>{group.label}</span>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>({items.length})</span>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', fontWeight: 700, color: group.color }}>{group.label}</span>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>({items.length})</span>
               </div>
               {items.map((feat, i) => (
                 <div key={i} style={{ background: 'var(--color-surface)', border: `1px solid ${group.color}28`, borderLeft: `3px solid ${group.color}`, borderRadius: '10px', padding: '14px', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
                     <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '13px', color: 'var(--color-text)', flex: 1 }}>{feat.name}</div>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '9px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: `${group.color}20`, color: group.color, flexShrink: 0 }}>{group.label}</span>
+                    <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '9px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: `${group.color}20`, color: group.color, flexShrink: 0 }}>{group.label}</span>
                   </div>
                   {feat.description && <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text-soft)', lineHeight: 1.6, margin: '0 0 8px' }}>{feat.description}</p>}
-                  {feat.userValue && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-text)', marginBottom: '8px' }}>→ {feat.userValue}</div>}
-                  {feat.complexity && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '9px', padding: '2px 7px', borderRadius: '4px', background: 'var(--color-border)', color: 'var(--color-text-muted)' }}>{feat.complexity}</span>}
+                  {feat.userValue && <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-text)', marginBottom: '8px' }}>→ {feat.userValue}</div>}
+                  {feat.complexity && <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '9px', padding: '2px 7px', borderRadius: '4px', background: 'var(--color-border)', color: 'var(--color-text-muted)' }}>{feat.complexity}</span>}
                 </div>
               ))}
             </div>
@@ -2656,7 +2656,7 @@ function UserFlowSection({ userFlow, discipline }) {
   if (!steps.length) {
     return (
       <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>{getSectionLabel('User Flow', { discipline })}</div>
+        <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>{getSectionLabel('User Flow', { discipline })}</div>
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '32px', textAlign: 'center' }}>
           <div style={{ fontFamily: "'Urbanist',sans-serif", fontSize: 14, color: 'var(--color-text-muted)' }}>User flow not generated for this brief</div>
         </div>
@@ -2707,14 +2707,14 @@ function UserFlowSection({ userFlow, discipline }) {
     <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>{getSectionLabel('User Flow', { discipline })}</div>
-          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)' }}>{steps.length} steps · drag to pan · scroll to zoom</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>{getSectionLabel('User Flow', { discipline })}</div>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)' }}>{steps.length} steps · drag to pan · scroll to zoom</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={() => setViewScale(s => Math.max(0.25, s - 0.1))} style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 16, fontWeight: 700, color: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--color-text-muted)', minWidth: 40, textAlign: 'center' }}>{Math.round(viewScale * 100)}%</span>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', minWidth: 40, textAlign: 'center' }}>{Math.round(viewScale * 100)}%</span>
           <button onClick={() => setViewScale(s => Math.min(2.5, s + 0.1))} style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: "'Urbanist',sans-serif", fontSize: 16, fontWeight: 700, color: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-          <button onClick={() => { setViewScale(0.8); setOffset({ x: 32, y: 0 }) }} style={{ height: 28, borderRadius: 7, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', padding: '0 10px' }}>Fit</button>
+          <button onClick={() => { setViewScale(0.8); setOffset({ x: 32, y: 0 }) }} style={{ height: 28, borderRadius: 7, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', padding: '0 10px' }}>Fit</button>
         </div>
       </div>
 
@@ -2772,7 +2772,7 @@ function UserFlowSection({ userFlow, discipline }) {
                   {/* YES label on main flow out of decision */}
                   {node.isDecision && (
                     <text x={(ex1 + ex2) / 2} y={y - 6}
-                      textAnchor="middle" fontFamily="'DM Mono',monospace" fontSize="9" fontWeight="700" fill="#22C55E">
+                      textAnchor="middle" fontFamily="'Urbanist', sans-serif" fontSize="9" fontWeight="700" fill="#22C55E">
                       YES
                     </text>
                   )}
@@ -2792,14 +2792,14 @@ function UserFlowSection({ userFlow, discipline }) {
                     stroke={BLUE} strokeWidth="1.5" strokeDasharray="5 3" markerEnd="url(#fc-arr-blue)"/>
                   {/* NO label */}
                   <text x={bx + 6} y={topY + 16}
-                    fontFamily="'DM Mono',monospace" fontSize="9" fontWeight="700" fill={BLUE}>
+                    fontFamily="'Urbanist', sans-serif" fontSize="9" fontWeight="700" fill={BLUE}>
                     NO
                   </text>
                   {/* Branch condition pill */}
                   <rect x={bx - 64} y={labelY} width={128} height={26} rx="6"
                     fill={BLUE + '10'} stroke={BLUE + '50'} strokeWidth="1.5"/>
                   <foreignObject x={bx - 58} y={labelY + 4} width={116} height={18}>
-                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: '9px', color: BLUE, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                    <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '9px', color: BLUE, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
                       {node.branch.slice(0, 28)}
                     </div>
                   </foreignObject>
@@ -2896,7 +2896,7 @@ function UserFlowSection({ userFlow, discipline }) {
                           fill="white" stroke={BLUE} strokeWidth="1"
                           style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.12))' }}/>
                         <foreignObject x={node.cx - 64} y={node.y - 48} width={128} height={36}>
-                          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: '9px', color: '#475569', lineHeight: 1.5 }}>
+                          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '9px', color: '#475569', lineHeight: 1.5 }}>
                             {node.action.slice(0, 70)}
                           </div>
                         </foreignObject>
@@ -2927,7 +2927,7 @@ function UserFlowSection({ userFlow, discipline }) {
                   {/* Action subtitle */}
                   {node.action && (
                     <foreignObject x={node.x + 10} y={node.y + 42} width={node.w - 20} height={18}>
-                      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: '8px', color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '8px', color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {node.action.slice(0, 42)}{node.action.length > 42 ? '…' : ''}
                       </div>
                     </foreignObject>
@@ -2935,7 +2935,7 @@ function UserFlowSection({ userFlow, discipline }) {
                   {/* Outcome dot */}
                   {node.outcome && (
                     <foreignObject x={node.x + 10} y={node.y + node.h - 19} width={node.w - 20} height={14}>
-                      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: '8px', color: '#22C55E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '8px', color: '#22C55E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         ✓ {node.outcome.slice(0, 36)}
                       </div>
                     </foreignObject>
@@ -2948,8 +2948,8 @@ function UserFlowSection({ userFlow, discipline }) {
                         style={{ filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.12))' }}/>
                       <foreignObject x={node.x + 8} y={node.y - 66} width={node.w - 16} height={54}>
                         <div>
-                          {node.action && <div style={{ fontFamily: "'DM Mono',monospace", fontSize: '9px', color: '#475569', lineHeight: 1.6, marginBottom: 3 }}>{node.action.slice(0, 90)}</div>}
-                          {node.outcome && <div style={{ fontFamily: "'DM Mono',monospace", fontSize: '9px', color: '#22C55E' }}>✓ {node.outcome.slice(0, 60)}</div>}
+                          {node.action && <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '9px', color: '#475569', lineHeight: 1.6, marginBottom: 3 }}>{node.action.slice(0, 90)}</div>}
+                          {node.outcome && <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '9px', color: '#22C55E' }}>✓ {node.outcome.slice(0, 60)}</div>}
                         </div>
                       </foreignObject>
                     </g>
@@ -2965,23 +2965,23 @@ function UserFlowSection({ userFlow, discipline }) {
       <div style={{ display: 'flex', gap: 24, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <svg width="36" height="18"><rect x="1" y="1" width="34" height="16" rx="8" fill={BLUE}/></svg>
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>Start / End</span>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)' }}>Start / End</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <svg width="32" height="18"><rect x="1" y="1" width="30" height="16" rx="4" fill="white" stroke="#E2E8F0" strokeWidth="1.5"/></svg>
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>Process / Action</span>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)' }}>Process / Action</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <svg width="22" height="18"><polygon points="11,1 21,9 11,17 1,9" fill="white" stroke="#93C5FD" strokeWidth="1.5"/></svg>
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>Decision</span>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)' }}>Decision</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <svg width="32" height="12"><line x1="2" y1="6" x2="24" y2="6" stroke="#CBD5E1" strokeWidth="2"/><polygon points="22,3 30,6 22,9" fill="#CBD5E1"/></svg>
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>Flow</span>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)' }}>Flow</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <svg width="32" height="12"><line x1="2" y1="6" x2="24" y2="6" stroke={BLUE} strokeWidth="1.5" strokeDasharray="4 3"/><polygon points="22,3 30,6 22,9" fill={BLUE}/></svg>
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)' }}>Alternate path</span>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)' }}>Alternate path</span>
         </div>
       </div>
     </section>
@@ -3012,7 +3012,7 @@ function CompetitorsSection({ result, loadingCompetitors, onLoad }) {
           <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 15, color: 'var(--color-text)', marginBottom: 6 }}>
             Analyse your competitors
           </div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
+          <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
             Find real competitors via web search and get strategic differentiation insights
           </div>
           <button
@@ -3081,14 +3081,14 @@ function CompetitorsSection({ result, loadingCompetitors, onLoad }) {
                     </div>
                     {/* Gap tag */}
                     {comp.weakness && (
-                      <div style={{ display: 'inline-block', background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)', borderRadius: 5, padding: '3px 9px', fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: '#FF4D6A', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'inline-block', background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)', borderRadius: 5, padding: '3px 9px', fontFamily: "'Urbanist', sans-serif", fontSize: 9, fontWeight: 700, color: '#FF4D6A', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                         {comp.weakness.split('.')[0].slice(0, 25).toUpperCase()}
                       </div>
                     )}
                     {/* URL */}
                     {comp.url && (
                       <a href={comp.url} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, textDecoration: 'none', fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--color-text-muted)', transition: 'color 0.15s' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, textDecoration: 'none', fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', transition: 'color 0.15s' }}
                         onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
                         onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
                       >
@@ -3122,18 +3122,18 @@ function CompetitorsSection({ result, loadingCompetitors, onLoad }) {
                   </div>
                 </div>
               ))}
-              <div style={{ display: 'inline-block', marginTop: 10, background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)', borderRadius: 5, padding: '3px 9px', fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 700, color: '#FF4D6A', letterSpacing: '0.04em', textTransform: 'uppercase' }}>BUILT FOR DESIGNERS +</div>
+              <div style={{ display: 'inline-block', marginTop: 10, background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)', borderRadius: 5, padding: '3px 9px', fontFamily: "'Urbanist', sans-serif", fontSize: 9, fontWeight: 700, color: '#FF4D6A', letterSpacing: '0.04em', textTransform: 'uppercase' }}>BUILT FOR DESIGNERS +</div>
             </div>
           </div>
           {/* Comparison table */}
           {competitors.length > 1 && (
             <div style={{ marginTop: 28, overflowX: 'auto' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Comparison</div>
+              <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Comparison</div>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                     {['Competitor', 'Category', 'Rating', 'Pricing', 'Market Share', 'User Base'].map(col => (
-                      <th key={col} style={{ textAlign: 'left', padding: '6px 12px', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      <th key={col} style={{ textAlign: 'left', padding: '6px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                         {col}
                       </th>
                     ))}
@@ -3144,7 +3144,7 @@ function CompetitorsSection({ result, loadingCompetitors, onLoad }) {
                     <tr key={i} style={{ borderBottom: '1px solid var(--color-border)', background: i % 2 === 1 ? 'var(--color-surface)' : 'transparent' }}>
                       <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}>{c.name}</td>
                       <td style={{ padding: '8px 12px' }}>
-                        {c.category && <span style={{ background: catStyle(c.category).bg, color: catStyle(c.category).color, fontSize: 9, fontFamily: "'DM Mono', monospace", fontWeight: 700, borderRadius: 4, padding: '2px 6px' }}>{c.category}</span>}
+                        {c.category && <span style={{ background: catStyle(c.category).bg, color: catStyle(c.category).color, fontSize: 9, fontFamily: "'Urbanist', sans-serif", fontWeight: 700, borderRadius: 4, padding: '2px 6px' }}>{c.category}</span>}
                       </td>
                       <td style={{ padding: '8px 12px' }}>
                         <div style={{ display: 'flex', gap: 1 }}>
@@ -3153,9 +3153,9 @@ function CompetitorsSection({ result, loadingCompetitors, onLoad }) {
                           ))}
                         </div>
                       </td>
-                      <td style={{ padding: '8px 12px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.pricing || '—'}</td>
-                      <td style={{ padding: '8px 12px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.marketShare || '—'}</td>
-                      <td style={{ padding: '8px 12px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.userBase || '—'}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.pricing || '—'}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.marketShare || '—'}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.userBase || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -3184,7 +3184,7 @@ function ClarityFlagsSection({ r }) {
             </div>
             {r.clarityImprovements.map((item, i) => (
               <div key={i} style={{ display: 'flex', gap: '12px', padding: '10px 0', borderBottom: i < r.clarityImprovements.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-blue)', fontWeight: 700, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-blue)', fontWeight: 700, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
                 <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6 }}>{item}</span>
               </div>
             ))}
@@ -3195,7 +3195,7 @@ function ClarityFlagsSection({ r }) {
             <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '15px', color: 'var(--color-text)', marginBottom: '14px' }}>Questions for Client</div>
             {r.questionsToAsk.map((q, i) => (
               <div key={i} style={{ display: 'flex', gap: '12px', padding: '10px 0', borderBottom: i < r.questionsToAsk.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 700, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 700, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
                 <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text-soft)', lineHeight: 1.6 }}>{q}</span>
               </div>
             ))}
@@ -3236,13 +3236,13 @@ function InspirationsSection({ inspirations, loadingInspi, onFetch, inspiSearche
       {loadingInspi ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '32px 0' }}>
           <div style={{ width: '20px', height: '20px', border: '2px solid var(--color-border)', borderTopColor: 'var(--color-text)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: 'var(--color-text-soft)' }}>Searching for inspiration...</span>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text-soft)' }}>Searching for inspiration...</span>
         </div>
       ) : inspirations.length === 0 && !inspiSearched ? (
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '16px', padding: '40px', textAlign: 'center' }}>
           <SparklesIcon style={{ width: '32px', height: '32px', color: 'var(--color-text-muted)', margin: '0 auto 12px', display: 'block' }} />
           <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '16px', color: 'var(--color-text)', marginBottom: '8px' }}>Find inspiration for this brief</div>
-          <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
+          <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
             Search for design references tailored to your project's tone and industry
           </p>
           <button onClick={onFetch} style={{ background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: '10px', padding: '10px 24px', fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
@@ -3253,7 +3253,7 @@ function InspirationsSection({ inspirations, loadingInspi, onFetch, inspiSearche
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '16px', padding: '40px', textAlign: 'center' }}>
           <SparklesIcon style={{ width: '32px', height: '32px', color: 'var(--color-text-muted)', margin: '0 auto 12px', display: 'block' }} />
           <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '16px', color: 'var(--color-text)', marginBottom: '8px' }}>No inspiration found</div>
-          <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
+          <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
             Try adding more specific tone or industry context to your brief
           </p>
           <button onClick={onFetch} style={{ background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: '10px', padding: '10px 24px', fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
@@ -3276,10 +3276,10 @@ function InspirationsSection({ inspirations, loadingInspi, onFetch, inspiSearche
                     {faviconUrl && <img src={faviconUrl} width={16} height={16} alt="" style={{ borderRadius: '3px' }} onError={e => { e.target.style.display = 'none' }} />}
                     <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '13px', color: 'var(--color-text)' }}>{ins.name}</span>
                   </div>
-                  {ins.category && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: `${catColor}20`, color: catColor }}>{ins.category}</span>}
+                  {ins.category && <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: `${catColor}20`, color: catColor }}>{ins.category}</span>}
                 </div>
                 {ins.why && <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-soft)', lineHeight: 1.5, margin: 0 }}>{ins.why}</p>}
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ins.url}</span>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ins.url}</span>
               </a>
             )
           })}

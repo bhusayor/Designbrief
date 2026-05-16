@@ -347,7 +347,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
                     background: '#F0FDF4',
                     border: '1px solid #BBF7D0',
                     borderRadius: 100, padding: '2px 9px',
-                    fontFamily: 'monospace',
+                    fontFamily: "'Urbanist', sans-serif",
                     fontSize: 9, fontWeight: 700, color: '#16a34a',
                     letterSpacing: '0.06em', textTransform: 'uppercase',
                   }}>
@@ -377,7 +377,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
                 Tools
               </span>
               <span style={{
-                fontFamily: 'monospace', fontSize: 11,
+                fontFamily: "'Urbanist', sans-serif", fontSize: 11,
                 color: 'var(--color-text-muted)',
                 background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
@@ -389,7 +389,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
               {connector.tools.map(tool => (
                 <span key={tool} style={{
-                  fontFamily: 'monospace', fontSize: 11, fontWeight: 500,
+                  fontFamily: "'Urbanist', sans-serif", fontSize: 11, fontWeight: 500,
                   color: 'var(--color-text-soft)',
                   background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
@@ -409,7 +409,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
             <div>
               <label style={{
                 display: 'block',
-                fontFamily: 'monospace',
+                fontFamily: "'Urbanist', sans-serif",
                 fontSize: 10, fontWeight: 700,
                 letterSpacing: '0.08em', textTransform: 'uppercase',
                 color: 'var(--color-text-muted)',
@@ -603,7 +603,7 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
 
         {connector.popularity && !installed && (
           <span style={{
-            fontFamily: 'monospace', fontSize: 9, fontWeight: 700,
+            fontFamily: "'Urbanist', sans-serif", fontSize: 9, fontWeight: 700,
             background: 'rgba(124,58,237,0.08)',
             border: '1px solid rgba(124,58,237,0.2)',
             borderRadius: 100, padding: '1px 7px',
@@ -617,7 +617,7 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
         {installed && (
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
-            fontFamily: 'monospace', fontSize: 9, fontWeight: 700,
+            fontFamily: "'Urbanist', sans-serif", fontSize: 9, fontWeight: 700,
             background: '#F0FDF4', border: '1px solid #BBF7D0',
             borderRadius: 100, padding: '1px 7px',
             color: '#16a34a',
@@ -638,7 +638,7 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
         {connector.tools.slice(0, 3).map(t => (
           <span key={t} style={{
-            fontFamily: 'monospace', fontSize: 10,
+            fontFamily: "'Urbanist', sans-serif", fontSize: 10,
             color: 'var(--color-text-muted)',
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
@@ -648,7 +648,7 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
           </span>
         ))}
         {connector.tools.length > 3 && (
-          <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--color-text-muted)', padding: '2px 4px' }}>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', padding: '2px 4px' }}>
             +{connector.tools.length - 3}
           </span>
         )}
@@ -714,7 +714,7 @@ export default function Connectors({ embedded = false }) {
               Connect your tools to supercharge AI-generated briefs.
               {installedCount > 0 && (
                 <span style={{
-                  marginLeft: 8, fontFamily: 'monospace',
+                  marginLeft: 8, fontFamily: "'Urbanist', sans-serif",
                   fontSize: 11, fontWeight: 700,
                   background: 'rgba(22,163,74,0.08)',
                   border: '1px solid rgba(22,163,74,0.2)',

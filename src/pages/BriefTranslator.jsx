@@ -113,7 +113,7 @@ export default function BriefTranslator() {
       >
         <div
           style={{
-            fontFamily: "'DM Mono', monospace",
+            fontFamily: "'Urbanist', sans-serif",
             fontSize: '13px',
             color: 'var(--color-text-muted)',
           }}
@@ -303,7 +303,7 @@ export default function BriefTranslator() {
                 </div>
                 <p
                   style={{
-                    fontFamily: "'DM Mono', monospace",
+                    fontFamily: "'Urbanist', sans-serif",
                     fontSize: '11px',
                     color: 'var(--color-text-soft)',
                     margin: 0,
@@ -315,7 +315,7 @@ export default function BriefTranslator() {
             ) : (
               <p
                 style={{
-                  fontFamily: "'DM Mono', monospace",
+                  fontFamily: "'Urbanist', sans-serif",
                   fontSize: '12px',
                   color: 'var(--color-text-soft)',
                   lineHeight: 1.7,
@@ -330,7 +330,7 @@ export default function BriefTranslator() {
           <Card title="Typography Direction">
             <p
               style={{
-                fontFamily: "'DM Mono', monospace",
+                fontFamily: "'Urbanist', sans-serif",
                 fontSize: '12px',
                 color: 'var(--color-text-soft)',
                 lineHeight: 1.7,
@@ -396,7 +396,7 @@ export default function BriefTranslator() {
                     border: '1px solid var(--color-border)',
                     borderRadius: '6px',
                     padding: '4px 12px',
-                    fontFamily: "'DM Mono', monospace",
+                    fontFamily: "'Urbanist', sans-serif",
                     fontSize: '12px',
                     color: 'var(--color-text)',
                   }}

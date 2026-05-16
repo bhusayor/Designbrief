@@ -15,7 +15,7 @@ export default function Badge({
         borderRadius: '5px',
         padding: sm ? '3px 9px' : '4px 11px',
         fontSize: sm ? '9px' : '10px',
-        fontFamily: "'DM Mono', monospace",
+        fontFamily: "'Urbanist', sans-serif",
         fontWeight: 700,
         color,
         letterSpacing: '0.05em',

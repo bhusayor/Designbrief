@@ -106,7 +106,7 @@ export function LoadingView({ msg }) {
         borderTopColor: 'var(--color-accent)',
         borderRadius: '50%',
       }} />
-      <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: 'var(--color-text-soft)' }}>
+      <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text-soft)' }}>
         {msg}
       </p>
       <div style={{ display: 'flex', gap: '6px' }}>
@@ -135,7 +135,7 @@ export function NumberedList({ items, color, dimText }) {
           borderBottom: i < items.length - 1 ? '1px solid var(--color-border)' : 'none',
         }}>
           <span style={{
-            fontFamily: "'DM Mono', monospace", fontSize: '11px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: '11px',
             color, fontWeight: 700, flexShrink: 0, minWidth: '20px',
           }}>
             {String(i + 1).padStart(2, '0')}
@@ -181,10 +181,10 @@ export function ScoreStrip({ s }) {
         {bars.map(bar => (
           <div key={bar.label} style={{ flex: 1, minWidth: '120px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>
+              <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>
                 {bar.label}
               </span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-soft)' }}>
+              <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-soft)' }}>
                 {bar.value}/10
               </span>
             </div>
@@ -224,7 +224,7 @@ export function ChaosBanner({ r, s }) {
       </div>
       {s?.chaosReason && (
         <p style={{
-          fontFamily: "'DM Mono', monospace", fontSize: '12px',
+          fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
           color: 'var(--color-text-soft)', marginBottom: '14px', lineHeight: 1.6,
         }}>
           {s.chaosReason}
@@ -236,7 +236,7 @@ export function ChaosBanner({ r, s }) {
           padding: '10px 0',
           borderBottom: i < r.chaosSolutions.length - 1 ? '1px solid rgba(184,127,255,0.2)' : 'none',
         }}>
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-accent)', fontWeight: 700, flexShrink: 0 }}>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-accent)', fontWeight: 700, flexShrink: 0 }}>
             {String(i + 1).padStart(2, '0')}
           </span>
           <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.6 }}>
@@ -264,7 +264,7 @@ export function BudgetCard({ budgetRange: br }) {
           {br.low} – {br.high}
         </span>
         <span style={{
-          fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-accent)',
+          fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-accent)',
           background: 'var(--color-accent-bg)', border: '1px solid var(--color-accent-border)',
           borderRadius: '4px', padding: '2px 7px',
         }}>USD</span>
@@ -342,7 +342,7 @@ export function RoadmapCard({ phases, timeframe }) {
                   width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
                   background: `${phase.color}38`, border: `2px solid ${phase.color}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: "'DM Mono', monospace", fontWeight: 700, fontSize: '12px',
+                  fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '12px',
                   color: phase.color, zIndex: 1, position: 'relative',
                 }}>
                   {pi + 1}
@@ -351,7 +351,7 @@ export function RoadmapCard({ phases, timeframe }) {
                   <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '14px', color: 'var(--color-text)' }}>
                     {phase.name}
                   </span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>
+                  <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>
                     {phase.totalDays} days
                   </span>
                 </div>
@@ -379,7 +379,7 @@ export function RoadmapCard({ phases, timeframe }) {
                           </span>
                         </div>
                         <span style={{
-                          fontFamily: "'DM Mono', monospace", fontSize: '10px',
+                          fontFamily: "'Urbanist', sans-serif", fontSize: '10px',
                           color: phase.color, background: `${phase.color}22`,
                           borderRadius: '4px', padding: '2px 6px', flexShrink: 0,
                         }}>
@@ -405,7 +405,7 @@ export function RoadmapCard({ phases, timeframe }) {
       {timeframe?.total && (
         <div style={{
           marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--color-border)',
-          fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-text-muted)',
+          fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-text-muted)',
         }}>
           Estimated total: <span style={{ color: 'var(--color-accent)' }}>{timeframe.total}</span>
         </div>
@@ -419,7 +419,7 @@ export function RoadmapCard({ phases, timeframe }) {
 export function RolesCard({ rolesNeeded }) {
   return (
     <Card title="Roles Needed" style={{ marginBottom: '14px' }}>
-      <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'var(--color-text-soft)', marginBottom: '14px' }}>
+      <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-soft)', marginBottom: '14px' }}>
         All roles below are required for this project.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -455,7 +455,7 @@ export function RolesCard({ rolesNeeded }) {
                   {role}
                 </div>
                 {meta?.description && (
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-text-soft)' }}>
+                  <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-text-soft)' }}>
                     {meta.description}
                   </div>
                 )}
@@ -497,7 +497,7 @@ export function TechStackCard({ techStack }) {
                       <span style={{
                         background: `${color}38`, border: `1px solid ${color}70`,
                         borderRadius: '6px', padding: '3px 9px',
-                        fontFamily: "'DM Mono', monospace", fontSize: '11px',
+                        fontFamily: "'Urbanist', sans-serif", fontSize: '11px',
                         fontWeight: 600, color, flexShrink: 0,
                       }}>
                         {name}
@@ -537,10 +537,10 @@ export function FeaturesCard({ features }) {
               marginBottom: '10px',
             }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: group.color, display: 'block' }} />
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', fontWeight: 700, color: group.color, letterSpacing: '0.05em' }}>
+              <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', fontWeight: 700, color: group.color, letterSpacing: '0.05em' }}>
                 {group.label}
               </span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>
+              <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>
                 ({items.length})
               </span>
             </div>
@@ -615,7 +615,7 @@ export function UserFlowCard({ userFlow }) {
               </div>
               {step.description && (
                 <p style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: '12px',
+                  fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
                   color: 'var(--color-text-soft)', lineHeight: 1.6, margin: 0,
                 }}>
                   {step.description}
@@ -640,14 +640,14 @@ export function InspirationsCard({ r, inspirations, loadingInspi, onFetch }) {
             width: '28px', height: '28px',
             border: '2px solid var(--color-border)', borderTopColor: 'var(--color-accent)', borderRadius: '50%',
           }} />
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'var(--color-text-soft)' }}>
+          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-soft)' }}>
             Searching the web for inspirations...
           </span>
         </div>
       ) : inspirations.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <p style={{
-            fontFamily: "'DM Mono', monospace", fontSize: '13px',
+            fontFamily: "'Urbanist', sans-serif", fontSize: '13px',
             color: 'var(--color-text-soft)', marginBottom: '14px', lineHeight: 1.7,
           }}>
             Let Claude search the web for real design references that match your brief's tone and keywords.
@@ -720,7 +720,7 @@ export function InspirationsCard({ r, inspirations, loadingInspi, onFetch }) {
                       </p>
                     )}
                     <span style={{
-                      fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)',
+                      fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       display: 'block',
                     }}>

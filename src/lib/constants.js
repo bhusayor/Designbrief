@@ -236,7 +236,7 @@ export const DESIGN_TOKENS = {
   },
   fonts: {
     display: "'Urbanist', sans-serif",
-    mono: "'DM Mono', monospace",
+    mono: "'Urbanist', sans-serif",
   },
   radii: {
     sm: "6px",

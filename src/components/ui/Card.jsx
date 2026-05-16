@@ -27,7 +27,7 @@ export default function Card({
           style={{
             fontSize: '10px',
             color: 'var(--color-text-muted)',
-            fontFamily: "'DM Mono', monospace",
+            fontFamily: "'Urbanist', sans-serif",
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             marginBottom: subtitle ? '6px' : '14px',

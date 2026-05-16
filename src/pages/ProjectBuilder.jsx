@@ -36,7 +36,7 @@ function buildPreviewHtml(code) {
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>body{margin:0;padding:16px;font-family:sans-serif;background:#fff}</style>
+  <style>body{margin:0;padding:16px;font-family:'Urbanist',sans-serif;background:#fff}</style>
 </head>
 <body>
   <div id="root"></div>
@@ -266,7 +266,7 @@ export default function ProjectBuilder() {
         {/* Progress pill */}
         {tasks.length > 0 && !isComplete && (
           <span style={{
-            marginLeft: 'auto', fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+            marginLeft: 'auto', fontFamily: "'Urbanist', sans-serif", fontSize: 11, fontWeight: 700,
             background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)',
             borderRadius: 100, padding: '3px 10px', color: '#7C3AED',
           }}>
@@ -344,7 +344,7 @@ export default function ProjectBuilder() {
                       </div>
                       <div style={{
                         fontSize: 10, color: 'var(--color-text-muted)',
-                        marginTop: 2, fontFamily: 'monospace',
+                        marginTop: 2, fontFamily: "'Urbanist', sans-serif",
                       }}>
                         {task.column}
                       </div>
@@ -418,7 +418,7 @@ export default function ProjectBuilder() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--color-card)' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7C3AED', animation: 'pulse 1s ease-in-out infinite' }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: "'Urbanist', sans-serif" }}>
                   Generating {currentTask?.title}…
                 </span>
               </div>
@@ -427,7 +427,7 @@ export default function ProjectBuilder() {
                 style={{
                   flex: 1, margin: 0, padding: '16px 20px',
                   fontSize: 12, lineHeight: 1.7,
-                  fontFamily: "'DM Mono', 'Fira Code', monospace",
+                  fontFamily: "'Urbanist', sans-serif",
                   color: '#7C3AED', background: 'var(--color-bg)',
                   overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
                 }}
@@ -441,7 +441,7 @@ export default function ProjectBuilder() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--color-card)' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: "'Urbanist', sans-serif" }}>
                   {currentTask?.title} — preview
                 </span>
               </div>
@@ -466,7 +466,7 @@ export default function ProjectBuilder() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
               <KeyIcon style={{ width: 14, height: 14, color: hasKey ? '#7C3AED' : 'var(--color-text-muted)' }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif", textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Anthropic API Key
               </span>
             </div>
@@ -491,7 +491,7 @@ export default function ProjectBuilder() {
                         width: '100%', padding: '8px 32px 8px 10px',
                         borderRadius: 8, border: '1.5px solid var(--color-border)',
                         background: 'var(--color-surface)', color: 'var(--color-text)',
-                        fontFamily: 'monospace', fontSize: 11,
+                        fontFamily: "'Urbanist', sans-serif", fontSize: 11,
                         outline: 'none', boxSizing: 'border-box', transition: 'all 0.15s',
                       }}
                       onFocus={e => { e.target.style.borderColor = '#7C3AED'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.12)' }}
@@ -521,7 +521,7 @@ export default function ProjectBuilder() {
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 8 }}>
                 <CheckCircleIcon style={{ width: 14, height: 14, color: '#7C3AED', flexShrink: 0 }} />
-                <span style={{ flex: 1, fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text)' }}>
+                <span style={{ flex: 1, fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text)' }}>
                   ••••••{apiKey.slice(-4)}
                 </span>
                 <button onClick={() => { setEditingKey(true); setKeyDraft('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>
@@ -610,7 +610,7 @@ export default function ProjectBuilder() {
           {/* Tips (visible while building) */}
           {phase === 'building' && (
             <div style={{ padding: '12px 14px', background: 'rgba(124,58,237,0.04)', border: '1px solid rgba(124,58,237,0.12)', borderRadius: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', color: '#7C3AED', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, fontFamily: "'Urbanist', sans-serif", color: '#7C3AED', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                 💡 {TIPS[tipIndex][0]}
               </div>
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
@@ -622,7 +622,7 @@ export default function ProjectBuilder() {
           {/* Task detail (idle/done) */}
           {(phase === 'idle' || phase === 'done') && currentTask && (
             <div style={{ padding: '12px 14px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, fontFamily: "'Urbanist', sans-serif", color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                 Current task
               </div>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 4, lineHeight: 1.4 }}>
@@ -634,10 +634,10 @@ export default function ProjectBuilder() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: 10, padding: '2px 7px', borderRadius: 6, border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', background: 'var(--color-card)' }}>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, padding: '2px 7px', borderRadius: 6, border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', background: 'var(--color-card)' }}>
                   {currentTask.column}
                 </span>
-                <span style={{ fontFamily: 'monospace', fontSize: 10, padding: '2px 7px', borderRadius: 6, border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', background: 'var(--color-card)' }}>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, padding: '2px 7px', borderRadius: 6, border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', background: 'var(--color-card)' }}>
                   {currentTask.priority}
                 </span>
               </div>

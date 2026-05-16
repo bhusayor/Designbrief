@@ -197,7 +197,7 @@ function ApprovalStat({ value, label, color }) {
         {value}
       </div>
       <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: '11px',
+        fontFamily: "'Urbanist', sans-serif", fontSize: '11px',
         color: 'var(--color-text-muted)',
       }}>
         {label}
@@ -223,7 +223,7 @@ function EmptyState({ navigate }) {
         No project selected
       </div>
       <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: '12px',
+        fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
         color: 'var(--color-text-soft)', marginBottom: '12px',
       }}>
         Go to the Brief Translator or Project Library to open a project.
@@ -507,12 +507,12 @@ export default function ProjectDocument() {
                           />
                         ))}
                       </div>
-                      <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'var(--color-text-soft)', margin: 0 }}>
+                      <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-text-soft)', margin: 0 }}>
                         {r.colorDirection}
                       </p>
                     </>
                   ) : (
-                    <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'var(--color-text-soft)', lineHeight: 1.7, margin: 0 }}>
+                    <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-soft)', lineHeight: 1.7, margin: 0 }}>
                       {r.colorDirection}
                     </p>
                   )}
@@ -522,7 +522,7 @@ export default function ProjectDocument() {
               {/* Typography */}
               {r?.typography && wrap('typography', (
                 <Card title="Typography Direction">
-                  <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'var(--color-text-soft)', lineHeight: 1.7, margin: 0 }}>
+                  <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-soft)', lineHeight: 1.7, margin: 0 }}>
                     {r.typography}
                   </p>
                 </Card>
@@ -535,8 +535,8 @@ export default function ProjectDocument() {
                     {r.brandAxes.map((axis, i) => (
                       <div key={i}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>{axis.left ?? axis.label}</span>
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>{axis.right ?? ''}</span>
+                          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>{axis.left ?? axis.label}</span>
+                          <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>{axis.right ?? ''}</span>
                         </div>
                         <div style={{ position: 'relative', height: '3px', background: 'var(--color-border)', borderRadius: '2px' }}>
                           <div style={{
@@ -562,7 +562,7 @@ export default function ProjectDocument() {
                       <span key={kw} style={{
                         background: 'var(--color-surface)', border: '1px solid var(--color-border)',
                         borderRadius: '6px', padding: '4px 12px',
-                        fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'var(--color-text)',
+                        fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text)',
                       }}>{kw}</span>
                     ))}
                   </div>
@@ -648,7 +648,7 @@ export default function ProjectDocument() {
                   Brief Review Progress
                 </div>
                 <div style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: '11px',
+                  fontFamily: "'Urbanist', sans-serif", fontSize: '11px',
                   color: 'var(--color-text-muted)', marginBottom: '8px',
                 }}>
                   {approvedCount} of {approvableSections.length} sections approved
@@ -684,7 +684,7 @@ export default function ProjectDocument() {
                       display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px',
                     }}>
                       <span style={{
-                        flex: 1, fontFamily: "'DM Mono', monospace", fontSize: '12px',
+                        flex: 1, fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
                         color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
                         {shareLink}
@@ -694,7 +694,7 @@ export default function ProjectDocument() {
                       </Button>
                     </div>
                     <div style={{
-                      fontFamily: "'DM Mono', monospace", fontSize: '12px',
+                      fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
                       color: 'var(--color-text-soft)',
                     }}>
                       Send this link to your client. They can review and approve each section of the brief.
@@ -709,7 +709,7 @@ export default function ProjectDocument() {
                       Send brief to client for approval
                     </div>
                     <div style={{
-                      fontFamily: "'DM Mono', monospace", fontSize: '12px',
+                      fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
                       color: 'var(--color-text-soft)', marginBottom: '14px',
                     }}>
                       Generate a shareable link your client can use to review and sign off on the brief.
@@ -749,7 +749,7 @@ export default function ProjectDocument() {
                           </div>
                           {comments[sec.id] && (
                             <div style={{
-                              fontFamily: "'DM Mono', monospace", fontSize: '12px',
+                              fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
                               color: 'var(--color-text-soft)', fontStyle: 'italic', marginTop: '4px',
                             }}>
                               {comments[sec.id]}

@@ -96,7 +96,7 @@ function ProjectCard({ item, onClick }) {
           ? toneWords.map(w => (
               <span key={w} style={{
                 background: 'var(--color-surface)', borderRadius: '5px', padding: '2px 9px',
-                fontSize: '11px', fontFamily: "'DM Mono', monospace", color: 'var(--color-text-soft)',
+                fontSize: '11px', fontFamily: "'Urbanist', sans-serif", color: 'var(--color-text-soft)',
               }}>
                 {w}
               </span>
@@ -104,7 +104,7 @@ function ProjectCard({ item, onClick }) {
           : (
             <span style={{
               background: 'var(--color-surface)', borderRadius: '5px', padding: '2px 9px',
-              fontSize: '11px', fontFamily: "'DM Mono', monospace", color: 'var(--color-text-muted)',
+              fontSize: '11px', fontFamily: "'Urbanist', sans-serif", color: 'var(--color-text-muted)',
             }}>
               {item.section ?? 'brief'}
             </span>
@@ -129,7 +129,7 @@ function ProjectCard({ item, onClick }) {
             );
           })}
         </div>
-        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'var(--color-text-muted)' }}>
+        <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>
           {shortDate(item.ts)}
         </span>
       </div>
@@ -162,7 +162,7 @@ function EmptyState({ navigate }) {
         No projects yet
       </div>
       <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: '13px',
+        fontFamily: "'Urbanist', sans-serif", fontSize: '13px',
         color: 'var(--color-text-soft)', maxWidth: '360px', lineHeight: 1.7,
         marginBottom: '8px',
       }}>
@@ -233,7 +233,7 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
               border: '1px solid var(--color-border)',
               borderRadius: 100,
               padding: '2px 8px',
-              fontFamily: "'DM Mono', monospace",
+              fontFamily: "'Urbanist', sans-serif",
               fontSize: 10,
               color: 'var(--color-text-muted)',
             }}>
@@ -241,7 +241,7 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
             </span>
           )}
           <span style={{
-            fontFamily: "'DM Mono', monospace",
+            fontFamily: "'Urbanist', sans-serif",
             fontSize: 10,
             color: 'var(--color-text-muted)',
           }}>
@@ -293,7 +293,7 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
           animation: !isComplete ? 'pulse 2s infinite' : 'none',
         }} />
         <span style={{
-          fontFamily: "'DM Mono', monospace",
+          fontFamily: "'Urbanist', sans-serif",
           fontSize: 10, fontWeight: 700,
           color: isComplete ? '#16a34a' : '#d97706',
           letterSpacing: '0.04em',
@@ -303,7 +303,7 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
         </span>
         {isComplete && submission?.submitted_at && (
           <span style={{
-            fontFamily: "'DM Mono', monospace",
+            fontFamily: "'Urbanist', sans-serif",
             fontSize: 9,
             color: 'var(--color-text-muted)',
             marginLeft: 'auto',
@@ -379,7 +379,7 @@ function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink }) {
           {title}
         </span>
         <span style={{
-          fontFamily: "'DM Mono', monospace",
+          fontFamily: "'Urbanist', sans-serif",
           fontSize: 11,
           color: 'var(--color-text-muted)',
           marginLeft: 'auto',
@@ -396,7 +396,7 @@ function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink }) {
           borderRadius: 12,
           padding: '24px 16px',
           textAlign: 'center',
-          fontFamily: "'DM Mono', monospace",
+          fontFamily: "'Urbanist', sans-serif",
           fontSize: 12,
           color: 'var(--color-text-muted)',
         }}>
@@ -498,7 +498,7 @@ export default function ProjectLibrary() {
             </h1>
             {!isMobile && (
               <div style={{
-                fontFamily: "'DM Mono', monospace", fontSize: '12px',
+                fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
                 color: 'var(--color-text-muted)',
               }}>
                 {activeTab === 'projects'
@@ -526,7 +526,7 @@ export default function ProjectLibrary() {
                   width: '100%', paddingLeft: '32px', paddingRight: '12px',
                   height: '40px', background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)', borderRadius: '9px',
-                  color: 'var(--color-text)', fontFamily: "'DM Mono', monospace",
+                  color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif",
                   fontSize: '12px', outline: 'none', boxSizing: 'border-box',
                 }}
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--color-accent)')}
@@ -569,7 +569,7 @@ export default function ProjectLibrary() {
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     width: 16, height: 16, borderRadius: '50%',
                     background: 'var(--color-text)', color: 'var(--color-bg)',
-                    fontFamily: "'DM Mono', monospace", fontWeight: 700, fontSize: 9,
+                    fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 9,
                     marginLeft: 6, flexShrink: 0,
                   }}>
                     {tab.badge}
@@ -588,7 +588,7 @@ export default function ProjectLibrary() {
             {history.length > 0 && filtered.length === 0 && (
               <div style={{
                 padding: '60px 0', textAlign: 'center',
-                fontFamily: "'DM Mono', monospace", fontSize: '13px',
+                fontFamily: "'Urbanist', sans-serif", fontSize: '13px',
                 color: 'var(--color-text-muted)',
               }}>
                 No projects match "{query}"

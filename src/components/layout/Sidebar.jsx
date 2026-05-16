@@ -106,7 +106,7 @@ function NavItem({ icon: Icon, label, active, onClick, collapsed, badge }) {
             borderRadius: '50%',
             width: 16, height: 16,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: "'DM Mono', monospace",
+            fontFamily: "'Urbanist', sans-serif",
             fontSize: 9, fontWeight: 700,
             marginLeft: 'auto',
             flexShrink: 0,
@@ -551,7 +551,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               ))
             : (
               <div style={{
-                fontFamily: "'DM Mono', monospace",
+                fontFamily: "'Urbanist', sans-serif",
                 fontSize: '11px',
                 color: 'var(--color-text-muted)',
                 padding: '12px 8px',
@@ -1071,7 +1071,7 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
               style={{
                 background: 'var(--color-surface)', border: '1px solid var(--color-border)',
                 borderRadius: 7, padding: '3px 8px', cursor: 'pointer', minHeight: 'unset',
-                fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
+                fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)',
               }}
             >
               Esc
@@ -1082,7 +1082,7 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
         {/* Results list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '6px', paddingBottom: isMobile ? 24 : 6 }}>
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--color-text-muted)' }}>
+            <div style={{ textAlign: 'center', padding: '32px 0', fontFamily: "'Urbanist', sans-serif", fontSize: 13, color: 'var(--color-text-muted)' }}>
               {query ? `No results for "${query}"` : 'No projects yet'}
             </div>
           ) : (
@@ -1104,7 +1104,7 @@ function SearchModal({ onClose, history, setActiveProject, navigate }) {
                     {item.title}
                   </span>
                 </div>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', flexShrink: 0 }}>
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', flexShrink: 0 }}>
                   {formatDate(item.ts)}
                 </span>
               </div>

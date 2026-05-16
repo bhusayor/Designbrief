@@ -49,7 +49,7 @@ function OptionCard({ icon, iconColor, title, description, tag, borderHover, onC
 
       {/* Description */}
       <p style={{
-        fontFamily: "'DM Mono', monospace", fontSize: '12px',
+        fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
         color: 'var(--color-text-soft)', lineHeight: 1.7,
         flex: 1,
       }}>
@@ -67,7 +67,7 @@ function OptionCard({ icon, iconColor, title, description, tag, borderHover, onC
             borderRadius: '6px',
             padding: '2px 9px',
             fontSize: '11px',
-            fontFamily: "'DM Mono', monospace",
+            fontFamily: "'Urbanist', sans-serif",
           }}>
             {tag}
           </span>
@@ -110,7 +110,7 @@ export default function NewProjectModal({ open, onClose }) {
           borderTop: '1px solid var(--color-border)',
           paddingTop: '16px',
           textAlign: 'center',
-          fontFamily: "'DM Mono', monospace",
+          fontFamily: "'Urbanist', sans-serif",
           fontSize: '11px',
           color: 'var(--color-text-muted)',
         }}>

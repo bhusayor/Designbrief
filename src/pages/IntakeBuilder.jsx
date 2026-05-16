@@ -122,7 +122,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
         display: 'inline-flex', alignItems: 'center', gap: 6,
         background: 'var(--color-surface)', border: '1px solid var(--color-border)',
         borderRadius: 100, padding: '4px 14px', marginBottom: 28,
-        fontFamily: "'DM Mono', monospace", fontSize: 11,
+        fontFamily: "'Urbanist', sans-serif", fontSize: 11,
         color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase',
       }}>
         <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-accent)' }} />
@@ -139,7 +139,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
         Set up your intake form
       </h1>
       <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: 13,
+        fontFamily: "'Urbanist', sans-serif", fontSize: 13,
         color: 'var(--color-text-muted)', textAlign: 'center', marginBottom: 40,
       }}>
         Tell us about the project to get started
@@ -148,7 +148,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
       {/* Project name input */}
       <div style={{ width: '100%', maxWidth: 520, marginBottom: 16 }}>
         <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 11,
+          fontFamily: "'Urbanist', sans-serif", fontSize: 11,
           color: 'var(--color-text-muted)', letterSpacing: '0.06em',
           textTransform: 'uppercase', marginBottom: 8,
         }}>
@@ -175,7 +175,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
       {/* Client name */}
       <div style={{ width: '100%', maxWidth: 520, marginBottom: 16 }}>
         <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 11,
+          fontFamily: "'Urbanist', sans-serif", fontSize: 11,
           color: 'var(--color-text-muted)', letterSpacing: '0.06em',
           textTransform: 'uppercase', marginBottom: 8,
         }}>
@@ -202,7 +202,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
       {/* Client email */}
       <div style={{ width: '100%', maxWidth: 520, marginBottom: 28 }}>
         <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 11,
+          fontFamily: "'Urbanist', sans-serif", fontSize: 11,
           color: 'var(--color-text-muted)', letterSpacing: '0.06em',
           textTransform: 'uppercase', marginBottom: 8,
         }}>
@@ -230,7 +230,7 @@ function Screen1({ projectName, setProjectName, projectType, setProjectType, onC
       {/* Project type grid */}
       <div style={{ width: '100%', maxWidth: 520, marginBottom: 36 }}>
         <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 11,
+          fontFamily: "'Urbanist', sans-serif", fontSize: 11,
           color: 'var(--color-text-muted)', textTransform: 'uppercase',
           letterSpacing: '0.06em', marginBottom: 12,
         }}>
@@ -488,7 +488,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
             Form Sections
           </div>
           <div style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 11,
+            fontFamily: "'Urbanist', sans-serif", fontSize: 11,
             color: 'var(--color-text-muted)', marginBottom: 20,
           }}>
             Toggle sections on or off
@@ -544,7 +544,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
                       {section.label}
                     </div>
                     <div style={{
-                      fontFamily: "'DM Mono', monospace", fontSize: 11,
+                      fontFamily: "'Urbanist', sans-serif", fontSize: 11,
                       color: 'var(--color-text-muted)',
                     }}>
                       {section.questions.length} questions
@@ -598,7 +598,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
                       onClick={e => { e.stopPropagation(); addQuestion(i); }}
                       style={{
                         background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'var(--color-accent)', fontFamily: "'DM Mono', monospace",
+                        color: 'var(--color-accent)', fontFamily: "'Urbanist', sans-serif",
                         fontSize: 12, padding: '6px 0', marginTop: 4,
                       }}
                     >
@@ -620,7 +620,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
             marginBottom: 14,
           }}>
             <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)',
+              fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)',
               textTransform: 'uppercase', letterSpacing: '0.08em',
             }}>
               Client Preview
@@ -635,7 +635,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
                 animation: 'pulse 2s infinite',
               }} />
               <span style={{
-                fontFamily: "'DM Mono', monospace", fontSize: 10,
+                fontFamily: "'Urbanist', sans-serif", fontSize: 10,
                 color: '#16a34a', fontWeight: 700,
               }}>
                 Live
@@ -723,7 +723,7 @@ function Screen2({ projectName, projectType, sections, setSections, onBack, onGe
         padding: isMobile ? '0 14px' : '0 24px',
       }}>
         <span style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--color-text-muted)',
+          fontFamily: "'Urbanist', sans-serif", fontSize: 12, color: 'var(--color-text-muted)',
         }}>
           {enabledSections.length} sections · {totalQuestions} questions
         </span>
@@ -815,7 +815,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
         Your intake form is ready
       </h2>
       <p style={{
-        fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--color-text-muted)',
+        fontFamily: "'Urbanist', sans-serif", fontSize: 13, color: 'var(--color-text-muted)',
         maxWidth: 480, lineHeight: 1.7, marginBottom: 32,
       }}>
         Send this link to your client. They can fill it out without creating an account — DesignBrief AI will automatically translate it into a full design brief.
@@ -833,7 +833,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
           value={shareLink || ''}
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            padding: '14px 16px', fontFamily: "'DM Mono', monospace", fontSize: 12,
+            padding: '14px 16px', fontFamily: "'Urbanist', sans-serif", fontSize: 12,
             color: 'var(--color-text-soft)',
           }}
         />
@@ -881,7 +881,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
               {title}
             </div>
             <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 11,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 11,
               color: 'var(--color-text-muted)', lineHeight: 1.5,
             }}>
               {desc}

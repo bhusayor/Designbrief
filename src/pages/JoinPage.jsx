@@ -106,7 +106,7 @@ export default function JoinPage() {
               margin: '0 auto 16px',
             }} />
             <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 12,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 12,
               color: 'var(--color-text-soft)',
             }}>
               Loading your invitation...
@@ -132,7 +132,7 @@ export default function JoinPage() {
               {error || 'This invitation is invalid or has expired.'}
             </div>
             <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 12,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 12,
               color: 'var(--color-text-soft)', marginBottom: 20,
             }}>
               Please ask your team lead to send a new invite.
@@ -164,7 +164,7 @@ export default function JoinPage() {
               You're invited!
             </h1>
             <p style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 12,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 12,
               color: 'var(--color-text-soft)', textAlign: 'center',
               margin: '0 0 24px', lineHeight: 1.7,
             }}>
@@ -181,7 +181,7 @@ export default function JoinPage() {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 10,
+                  fontFamily: "'Urbanist', sans-serif", fontSize: 10,
                   color: 'var(--color-text-muted)',
                 }}>PROJECT</span>
                 <span style={{
@@ -191,7 +191,7 @@ export default function JoinPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 10,
+                  fontFamily: "'Urbanist', sans-serif", fontSize: 10,
                   color: 'var(--color-text-muted)',
                 }}>YOUR ROLE</span>
                 {roleMeta ? (
@@ -200,7 +200,7 @@ export default function JoinPage() {
                   </Badge>
                 ) : (
                   <span style={{
-                    fontFamily: "'DM Mono', monospace", fontSize: 12,
+                    fontFamily: "'Urbanist', sans-serif", fontSize: 12,
                     color: 'var(--color-text-soft)',
                   }}>{invite.job_role}</span>
                 )}
@@ -211,7 +211,7 @@ export default function JoinPage() {
             {!authUser ? (
               <div>
                 <p style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 12,
+                  fontFamily: "'Urbanist', sans-serif", fontSize: 12,
                   color: 'var(--color-text-soft)', margin: '0 0 14px',
                 }}>
                   You need a DesignBrief AI account to join.
@@ -243,7 +243,7 @@ export default function JoinPage() {
             ) : authUser.email?.toLowerCase() === invite.invitee_email?.toLowerCase() ? (
               <div>
                 <p style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 12,
+                  fontFamily: "'Urbanist', sans-serif", fontSize: 12,
                   color: 'var(--color-text-soft)', margin: '0 0 14px',
                 }}>
                   Joining as {authUser.email}
@@ -259,13 +259,13 @@ export default function JoinPage() {
             ) : (
               <div>
                 <p style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 12,
+                  fontFamily: "'Urbanist', sans-serif", fontSize: 12,
                   color: 'var(--color-amber)', margin: '0 0 8px',
                 }}>
                   This invite was sent to {invite.invitee_email}
                 </p>
                 <p style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: 11,
+                  fontFamily: "'Urbanist', sans-serif", fontSize: 11,
                   color: 'var(--color-text-soft)', margin: '0 0 14px',
                 }}>
                   You are signed in as {authUser.email}.
@@ -295,7 +295,7 @@ export default function JoinPage() {
               margin: '0 auto 16px',
             }} />
             <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 12,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 12,
               color: 'var(--color-text-soft)',
             }}>
               Joining the project...
@@ -320,7 +320,7 @@ export default function JoinPage() {
               You're on the team!
             </h2>
             <p style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 12,
+              fontFamily: "'Urbanist', sans-serif", fontSize: 12,
               color: 'var(--color-text-soft)', margin: '0 0 24px', lineHeight: 1.7,
             }}>
               You have joined as {invite.job_role}. You can now access the project board.

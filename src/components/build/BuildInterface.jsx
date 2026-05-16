@@ -27,7 +27,7 @@ function buildPreviewHtml(code) {
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>body{margin:0;padding:16px;font-family:sans-serif;background:#fff}</style>
+  <style>body{margin:0;padding:16px;font-family:'Urbanist',sans-serif;background:#fff}</style>
 </head>
 <body>
   <div id="root"></div>
@@ -199,7 +199,7 @@ export default function BuildInterface({ tasks: rawTasks, projectName, onClose }
         {/* Progress pill */}
         {tasks.length > 0 && !isComplete && (
           <span style={{
-            fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+            fontFamily: "'Urbanist', sans-serif", fontSize: 11, fontWeight: 700,
             background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)',
             borderRadius: 100, padding: '3px 10px', color: '#7C3AED',
             marginLeft: 'auto',
@@ -262,7 +262,7 @@ export default function BuildInterface({ tasks: rawTasks, projectName, onClose }
                         textDecoration: isDone ? 'line-through' : 'none',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>{task.title}</div>
-                      <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
+                      <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, fontFamily: "'Urbanist', sans-serif" }}>
                         {task.column}
                       </div>
                     </div>
@@ -363,7 +363,7 @@ export default function BuildInterface({ tasks: rawTasks, projectName, onClose }
           {/* Code panel */}
           <div style={{ flex: 1, overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid var(--color-border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.05em' }}>
+              <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.05em' }}>
                 {phase === 'building' ? 'GENERATING…' : 'CODE'}
               </span>
               {phase === 'building' && (
@@ -375,7 +375,7 @@ export default function BuildInterface({ tasks: rawTasks, projectName, onClose }
               style={{
                 flex: 1, overflowY: 'auto', margin: 0,
                 padding: '14px 16px',
-                fontFamily: "'DM Mono', monospace", fontSize: 11, lineHeight: 1.7,
+                fontFamily: "'Urbanist', sans-serif", fontSize: 11, lineHeight: 1.7,
                 color: 'var(--color-text)', background: 'transparent',
                 whiteSpace: 'pre-wrap', wordBreak: 'break-word',
               }}
@@ -390,7 +390,7 @@ export default function BuildInterface({ tasks: rawTasks, projectName, onClose }
               padding: '12px 16px', borderTop: '1px solid var(--color-border)',
               background: 'rgba(124,58,237,0.04)', flexShrink: 0,
             }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: '0.08em', color: '#7C3AED', marginBottom: 4 }}>
+              <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, letterSpacing: '0.08em', color: '#7C3AED', marginBottom: 4 }}>
                 TIP — {TIPS[tipIndex][0].toUpperCase()}
               </div>
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>

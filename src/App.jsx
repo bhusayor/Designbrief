@@ -79,7 +79,7 @@ function AppRouter() {
           borderRadius: '50%',
         }} />
         <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 12,
+          fontFamily: "'Urbanist', sans-serif", fontSize: 12,
           color: 'var(--color-text-muted)',
         }}>Loading DesignBrief AI...</div>
       </div>

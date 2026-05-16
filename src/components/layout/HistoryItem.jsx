@@ -142,7 +142,7 @@ export default function HistoryItem({
                 border: '1px solid rgba(22,163,74,0.2)',
                 borderRadius: 4,
                 padding: '1px 5px',
-                fontFamily: "'DM Mono', monospace",
+                fontFamily: "'Urbanist', sans-serif",
                 fontSize: 8, fontWeight: 700,
                 color: '#16a34a',
                 marginLeft: 5,
@@ -157,7 +157,7 @@ export default function HistoryItem({
         )}
 
         {!renaming && (
-          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>
+          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontFamily: "'Urbanist', sans-serif", flexShrink: 0 }}>
             {formatDate(item.ts)}
           </span>
         )}

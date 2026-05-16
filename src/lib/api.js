@@ -709,7 +709,7 @@ CRITICAL typography rules:
   Education → Merriweather + Open Sans
   Gaming/entertainment → Rajdhani + Barlow
   Startup/modern → Plus Jakarta Sans + Plus Jakarta Sans (single family)
-- Do NOT use Urbanist or DM Mono as displayFont or bodyFont
+- Do NOT use Urbanist as displayFont or bodyFont
 CRITICAL typography platform rules:
 - If the product is ONLY a website: set platform to 'web' and only include the web scale array inside scale
 - If the product is ONLY a mobile app: set platform to 'mobile' and only include the mobile scale array inside scale

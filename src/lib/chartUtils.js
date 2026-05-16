@@ -1,5 +1,5 @@
 export const labelStyle = {
-  fontFamily: "'DM Mono', monospace",
+  fontFamily: "'Urbanist', sans-serif",
   fontSize: '10px',
   color: 'var(--color-text-muted)',
   letterSpacing: '0.08em',
@@ -8,7 +8,7 @@ export const labelStyle = {
 }
 
 export const axisLabel = {
-  fontFamily: "'DM Mono', monospace",
+  fontFamily: "'Urbanist', sans-serif",
   fontSize: '10px',
   color: 'var(--color-text-muted)',
 }

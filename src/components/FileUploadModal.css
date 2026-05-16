@@ -1,11 +1,7 @@
-/* Import Google Fonts Icons and DM Mono */
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap');
-@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
-
 :root {
   /* Fonts */
-  --font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --font-system: 'Urbanist', sans-serif;
+  --font-mono: 'Urbanist', sans-serif;
 
   /* Colors */
   --bg-primary: #ffffff;
