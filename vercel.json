@@ -3,28 +3,21 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/connectors/status.js": { "memory": 256, "maxDuration": 10 },
-    "api/connectors/index.js": { "memory": 512, "maxDuration": 20 },
-    "api/build-component.js": { "memory": 512, "maxDuration": 30 },
-    "api/invite.js": { "memory": 512, "maxDuration": 15 },
-    "api/settings.js": { "memory": 256, "maxDuration": 10 }
+    "api/connectors/status.js":  { "maxDuration": 10 },
+    "api/connectors/index.js":   { "maxDuration": 20 },
+    "api/build-component.js":    { "maxDuration": 30 },
+    "api/invite.js":             { "maxDuration": 15 },
+    "api/settings.js":           { "maxDuration": 10 },
+    "api/create-workspace.js":   { "maxDuration": 10 },
+    "api/get-workspace.js":      { "maxDuration": 10 }
   },
   "rewrites": [
-    { "source": "/api/connectors/figma", "destination": "/api/connectors" },
+    { "source": "/api/connectors/figma",  "destination": "/api/connectors" },
     { "source": "/api/connectors/github", "destination": "/api/connectors" },
     { "source": "/api/connectors/notion", "destination": "/api/connectors" },
-    { "source": "/api/connectors/gdocs", "destination": "/api/connectors" },
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    },
-    {
-      "source": "/invite/:token",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/connectors/gdocs",  "destination": "/api/connectors" },
+    { "source": "/api/:path*",            "destination": "/api/:path*" },
+    { "source": "/invite/:token",         "destination": "/index.html" },
+    { "source": "/(.*)",                  "destination": "/index.html" }
   ]
 }
