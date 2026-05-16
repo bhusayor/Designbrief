@@ -3484,7 +3484,7 @@ STYLE:
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 8, gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: chatOpen ? 'none' : 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', opacity: boardTransitioning ? 0 : 1, transform: boardTransitioning ? 'translateY(8px) scale(0.99)' : 'translateY(0) scale(1)', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
+        <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: (isMobile && chatOpen) ? 'none' : 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', opacity: boardTransitioning ? 0 : 1, transform: boardTransitioning ? 'translateY(8px) scale(0.99)' : 'translateY(0) scale(1)', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
 
         {/* ── ClickUp-style toolbar ── */}
         {(() => {
@@ -4014,14 +4014,17 @@ STYLE:
 
         </div> {/* closes kanban card */}
 
-        {/* AI panel — full width, replaces board when open */}
+        {/* AI panel — full width on mobile, fixed right panel on desktop/tablet */}
         {chatOpen && (
           <div style={{
-            flex: 1, minWidth: 0,
+            ...(isMobile
+              ? { flex: 1, minWidth: 0 }
+              : { position: 'fixed', right: 16, top: 60, bottom: 16, width: 400, zIndex: 200 }
+            ),
             background: 'var(--color-bg)', borderRadius: 14,
             border: '1px solid var(--color-border)', overflow: 'hidden',
             display: 'flex', flexDirection: 'column',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+            boxShadow: isMobile ? '0 4px 24px rgba(0,0,0,0.08)' : '0 8px 40px rgba(0,0,0,0.20)',
             animation: 'slideInRight 0.25s ease',
             fontFamily: 'var(--font-sans)',
           }}>
