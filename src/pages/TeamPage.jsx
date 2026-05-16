@@ -685,7 +685,7 @@ export default function TeamPage({ onClose }) {
             {/* Row 2: Export + Invite link + Invite button */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={handleExport} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px',
                 background: 'var(--color-card)', border: '1px solid var(--color-border)',
                 borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
                 fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s',
@@ -698,7 +698,7 @@ export default function TeamPage({ onClose }) {
               </button>
 
               <button onClick={handleCopyInviteLink} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px',
                 background: 'var(--color-card)', border: '1px solid var(--color-border)',
                 borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
                 fontSize: 13, fontWeight: 600,
@@ -709,7 +709,7 @@ export default function TeamPage({ onClose }) {
               </button>
 
               <button onClick={() => setShowInviteModal(true)} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 16px',
                 background: 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
                 color: 'white', border: 'none', borderRadius: 9, cursor: 'pointer',
                 fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
@@ -776,11 +776,11 @@ export default function TeamPage({ onClose }) {
 
           {/* Table */}
           <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflowX: 'auto' }}>
-            <div style={{ minWidth: 660, paddingRight: 16, boxSizing: 'border-box' }}>
+            <div style={{ minWidth: 600, paddingRight: 8, boxSizing: 'border-box' }}>
             {/* Header row */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '36px minmax(200px, 1fr) 110px 120px 100px 40px',
+              gridTemplateColumns: '36px minmax(200px, 1fr) 80px 90px 80px 32px',
               padding: '8px 16px', background: 'var(--color-surface)',
               borderBottom: '1px solid var(--color-border)',
             }}>
@@ -816,7 +816,7 @@ export default function TeamPage({ onClose }) {
             ) : filteredRows.map((row, i) => (
               <div key={row.id || i} className="tp-row" style={{
                 display: 'grid',
-                gridTemplateColumns: '36px minmax(200px, 1fr) 110px 120px 100px 40px',
+                gridTemplateColumns: '36px minmax(200px, 1fr) 80px 90px 80px 32px',
                 padding: '10px 16px', alignItems: 'center',
                 borderBottom: i < filteredRows.length - 1 ? '1px solid var(--color-border)' : 'none',
                 background: selected.has(row.id) ? 'rgba(124,58,237,0.04)' : 'transparent',
