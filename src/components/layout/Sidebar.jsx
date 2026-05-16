@@ -9,8 +9,6 @@ import {
   ClipboardDocumentListIcon,
   RectangleStackIcon,
   UserGroupIcon,
-  SunIcon,
-  MoonIcon,
   Cog6ToothIcon,
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
@@ -153,7 +151,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     activeSection, navigate, history,
     activeChat, setActiveChat,
     deleteHistory, pinHistory, renameHistory, shareHistory,
-    theme, toggleTheme, showToast,
+    theme, showToast,
     user, signOut,
     setActiveProject,
     intakeForms,
@@ -192,6 +190,8 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
   const profileBtnRef = useRef(null)
   const workspaceAreaRef = useRef(null)
   const workspaceDropdownRef = useRef(null)
+  const workspaceTriggerRef = useRef(null)
+  const [workspaceDropdownPos, setWorkspaceDropdownPos] = useState({ top: 0, left: 0, width: 260 })
 
   // Close profile menu on outside click
   useEffect(() => {
@@ -209,9 +209,9 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
   useEffect(() => {
     if (!showWorkspaceMenu) return
     function handler(e) {
-      const inArea = workspaceAreaRef.current && workspaceAreaRef.current.contains(e.target)
+      const inTrigger = workspaceTriggerRef.current && workspaceTriggerRef.current.contains(e.target)
       const inDropdown = workspaceDropdownRef.current && workspaceDropdownRef.current.contains(e.target)
-      if (!inArea && !inDropdown) setShowWorkspaceMenu(false)
+      if (!inTrigger && !inDropdown) setShowWorkspaceMenu(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -392,7 +392,14 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         {collapsed && (
           <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 6 }}>
             <button
-              onClick={() => setShowWorkspaceMenu(v => !v)}
+              ref={workspaceTriggerRef}
+              onClick={() => {
+                if (!showWorkspaceMenu && workspaceTriggerRef.current) {
+                  const rect = workspaceTriggerRef.current.getBoundingClientRect()
+                  setWorkspaceDropdownPos({ top: rect.bottom + 6, left: rect.left, width: 260 })
+                }
+                setShowWorkspaceMenu(v => !v)
+              }}
               title={workspace?.name || 'My Workspace'}
               style={{
                 width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -416,7 +423,14 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         {!collapsed && (
           <div style={{ padding: '4px 8px 0' }}>
             <button
-              onClick={() => setShowWorkspaceMenu(v => !v)}
+              ref={workspaceTriggerRef}
+              onClick={() => {
+                if (!showWorkspaceMenu && workspaceTriggerRef.current) {
+                  const rect = workspaceTriggerRef.current.getBoundingClientRect()
+                  setWorkspaceDropdownPos({ top: rect.bottom + 6, left: rect.left, width: rect.width })
+                }
+                setShowWorkspaceMenu(v => !v)
+              }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
               onMouseLeave={e => (e.currentTarget.style.background = showWorkspaceMenu ? 'var(--color-sidebar-item-active)' : 'var(--color-surface)')}
               style={{
@@ -460,179 +474,6 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           </div>
         )}
 
-        {/* ── Workspace dropdown panel ── */}
-        {!collapsed && showWorkspaceMenu && (
-          <div style={{
-            margin: '4px 8px 8px',
-            background: 'var(--color-card)',
-            border: '1px solid var(--color-border-strong)',
-            borderRadius: 'var(--radius-lg)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-lg)',
-            animation: 'dropIn 0.18s ease',
-          }}>
-            {/* Workspace info */}
-            <div style={{
-              padding: '14px 14px 12px',
-              borderBottom: '1px solid var(--color-divider)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                {/* Avatar with workspace initial */}
-                <div style={{
-                  width: 38, height: 38, borderRadius: 10,
-                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16,
-                  color: 'white', flexShrink: 0,
-                  boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
-                }}>
-                  {(workspace?.name || 'D')[0].toUpperCase()}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
-                    letterSpacing: '-0.02em', color: 'var(--color-text)',
-                    lineHeight: 1.2, marginBottom: 4,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {workspace?.name || 'My Workspace'}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {/* Plan badge — Title Case */}
-                    <span style={{
-                      background: 'var(--color-accent-soft)',
-                      border: '1px solid rgba(124,58,237,0.2)',
-                      borderRadius: 'var(--radius-full)',
-                      padding: '2px 8px',
-                      fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700,
-                      color: 'var(--color-accent)', letterSpacing: '0.01em',
-                    }}>
-                      {planLabel(workspace?.plan)}
-                    </span>
-
-                    {/* Member count */}
-                    <span style={{
-                      fontFamily: 'var(--font-sans)', fontSize: 11,
-                      color: 'var(--color-text-muted)',
-                      display: 'flex', alignItems: 'center', gap: 3,
-                    }}>
-                      <UserGroupIcon style={{ width: 11, height: 11 }} />
-                      1 member
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Settings + Invite buttons */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                <button
-                  onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true); if (isMobile) setMobileSidebarOpen(false) }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                    padding: '7px 8px', background: 'var(--color-bg)',
-                    border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                    color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
-                  }}
-                >
-                  <Cog6ToothIcon style={{ width: 12, height: 12 }} />
-                  Settings
-                </button>
-                <button
-                  onClick={() => { setShowWorkspaceMenu(false); setShowInviteModal(true) }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                    padding: '7px 8px', background: 'var(--color-bg)',
-                    border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                    color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
-                  }}
-                >
-                  <UserPlusIcon style={{ width: 12, height: 12 }} />
-                  Invite
-                </button>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div style={{ height: 1, background: 'var(--color-border)' }} />
-
-            {/* All Workspaces */}
-            <div style={{ padding: '8px 14px 4px', background: 'var(--color-surface)' }}>
-              <div style={{
-                fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                letterSpacing: '0.01em', textTransform: 'none',
-                color: 'var(--color-text-muted)', marginBottom: 6,
-              }}>
-                All Workspaces
-              </div>
-
-              {/* Current workspace row */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 8px', borderRadius: 'var(--radius-md)',
-                background: 'var(--color-sidebar-item-active)', marginBottom: 2,
-              }}>
-                <div style={{
-                  width: 22, height: 22, borderRadius: 6,
-                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 10,
-                  color: 'white', flexShrink: 0,
-                }}>
-                  {(workspace?.name || 'D')[0].toUpperCase()}
-                </div>
-                <span style={{
-                  fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-                  color: 'var(--color-text)', flex: 1,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {workspace?.name || 'My Workspace'}
-                </span>
-                <CheckIcon style={{ width: 13, height: 13, color: 'var(--color-accent)', flexShrink: 0 }} />
-              </div>
-            </div>
-
-            {/* Create new workspace */}
-            <div style={{ padding: '4px 14px 12px', background: 'var(--color-surface)' }}>
-              <button
-                onClick={() => alert('Multiple workspaces available on Pro plan.')}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'var(--color-accent)'
-                  e.currentTarget.style.color = 'var(--color-accent)'
-                  e.currentTarget.style.background = 'var(--color-accent-soft)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--color-border)'
-                  e.currentTarget.style.color = 'var(--color-text-muted)'
-                  e.currentTarget.style.background = 'transparent'
-                }}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '7px 8px', background: 'transparent',
-                  border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
-                  color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
-                }}
-              >
-                <div style={{
-                  width: 20, height: 20, borderRadius: 5,
-                  border: '1.5px dashed currentColor',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <PlusIcon style={{ width: 10, height: 10 }} />
-                </div>
-                Create new workspace
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Nav items ── */}
@@ -724,8 +565,8 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         <div style={{ flex: 1 }} />
       )}
 
-      {/* ── Credits + Upgrade (always visible, free plan) ── */}
-      {!collapsed && workspace?.plan === 'free' && (
+      {/* ── Credits + Upgrade (desktop/tablet only — moved to Dashboard top bar on mobile) ── */}
+      {!collapsed && workspace?.plan === 'free' && !isMobile && (
         <div style={{
           margin: '0 8px 8px',
           background: 'var(--color-surface)',
@@ -804,44 +645,6 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         borderTop: '1px solid var(--color-divider)',
         flexShrink: 0,
       }}>
-        {/* Theme toggle */}
-        {!collapsed && (
-          <button
-            onClick={toggleTheme}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-sidebar-item-hover)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '7px 10px', borderRadius: 'var(--radius-md)', marginBottom: 4,
-              border: 'none', cursor: 'pointer', background: 'transparent',
-              transition: 'background var(--transition-fast)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              {theme === 'light'
-                ? <SunIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
-                : <MoonIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
-              }
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, color: 'var(--color-text-soft)' }}>
-                {theme === 'light' ? 'Light mode' : 'Dark mode'}
-              </span>
-            </div>
-            <div style={{
-              width: 36, height: 20, borderRadius: 10, position: 'relative', flexShrink: 0,
-              background: theme === 'dark' ? 'var(--color-accent)' : 'var(--color-surface-2)',
-              border: `1px solid ${theme === 'dark' ? 'var(--color-accent)' : 'var(--color-border)'}`,
-              transition: 'background var(--transition-base), border-color var(--transition-base)',
-            }}>
-              <div style={{
-                position: 'absolute', top: 3, width: 12, height: 12, borderRadius: '50%',
-                background: theme === 'dark' ? 'white' : 'var(--color-text-muted)',
-                left: theme === 'dark' ? 19 : 3,
-                transition: 'left var(--transition-base)',
-              }} />
-            </div>
-          </button>
-        )}
-
         {/* Profile row */}
         <div
           ref={profileRef}
@@ -957,171 +760,172 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         </div>
       </div>
 
-      {/* ── Collapsed workspace dropdown (fixed position) ── */}
-      {collapsed && showWorkspaceMenu && (
-        <div
-          ref={workspaceDropdownRef}
-          style={{
-            position: 'fixed',
-            left: 64,
-            top: 60,
-            width: 260,
-            background: 'var(--color-card)',
-            border: '1px solid var(--color-border-strong)',
-            borderRadius: 'var(--radius-lg)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-lg)',
-            zIndex: 400,
-            animation: 'slideInLeft 0.18s ease',
-          }}
-        >
-          {/* Workspace info */}
-          <div style={{ padding: '14px 14px 12px', borderBottom: '1px solid var(--color-border)' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+    </aside>
+
+    {/* Workspace dropdown — rendered outside <aside> so it overlays content on all screen sizes
+        without being clipped by overflow:hidden or trapped by the sidebar's CSS transform */}
+    {showWorkspaceMenu && (
+      <div
+        ref={workspaceDropdownRef}
+        style={{
+          position: 'fixed',
+          top: workspaceDropdownPos.top,
+          left: workspaceDropdownPos.left,
+          width: Math.max(workspaceDropdownPos.width, 260),
+          background: 'var(--color-card)',
+          border: '1px solid var(--color-border-strong)',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden',
+          boxShadow: 'var(--shadow-lg)',
+          zIndex: 510,
+          animation: 'dropIn 0.18s ease',
+        }}
+      >
+        {/* Workspace info */}
+        <div style={{ padding: '14px 14px 12px', borderBottom: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 10,
+              background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16,
+              color: 'white', flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
+            }}>
+              {(workspace?.name || 'D')[0].toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                width: 38, height: 38, borderRadius: 10,
+                fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
+                letterSpacing: '-0.02em', color: 'var(--color-text)',
+                lineHeight: 1.2, marginBottom: 4,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {workspace?.name || 'My Workspace'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  background: 'var(--color-accent-soft)',
+                  border: '1px solid rgba(124,58,237,0.2)',
+                  borderRadius: 'var(--radius-full)',
+                  padding: '2px 8px',
+                  fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700,
+                  color: 'var(--color-accent)', letterSpacing: '0.01em',
+                }}>
+                  {planLabel(workspace?.plan)}
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-sans)', fontSize: 11,
+                  color: 'var(--color-text-muted)',
+                  display: 'flex', alignItems: 'center', gap: 3,
+                }}>
+                  <UserGroupIcon style={{ width: 11, height: 11 }} />
+                  1 member
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <button
+              onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true); if (isMobile) setMobileSidebarOpen(false) }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                padding: '7px 8px', background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
+              }}
+            >
+              <Cog6ToothIcon style={{ width: 12, height: 12 }} />
+              Settings
+            </button>
+            <button
+              onClick={() => { setShowWorkspaceMenu(false); setShowInviteModal(true) }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                padding: '7px 8px', background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
+              }}
+            >
+              <UserPlusIcon style={{ width: 12, height: 12 }} />
+              Invite
+            </button>
+          </div>
+        </div>
+
+        {/* All Workspaces */}
+        <div style={{ background: 'var(--color-surface)' }}>
+          <div style={{ padding: '8px 14px 4px' }}>
+            <div style={{
+              fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+              color: 'var(--color-text-muted)', marginBottom: 6,
+            }}>
+              All Workspaces
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 8px', borderRadius: 'var(--radius-md)',
+              background: 'var(--color-sidebar-item-active)', marginBottom: 2,
+            }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: 6,
                 background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16,
+                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 10,
                 color: 'white', flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
               }}>
                 {(workspace?.name || 'D')[0].toUpperCase()}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
-                  letterSpacing: '-0.02em', color: 'var(--color-text)',
-                  lineHeight: 1.2, marginBottom: 4,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {workspace?.name || 'My Workspace'}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{
-                    background: 'var(--color-accent-soft)',
-                    border: '1px solid rgba(124,58,237,0.2)',
-                    borderRadius: 'var(--radius-full)',
-                    padding: '2px 8px',
-                    fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700,
-                    color: 'var(--color-accent)', letterSpacing: '0.01em',
-                  }}>
-                    {planLabel(workspace?.plan)}
-                  </span>
-                  <span style={{
-                    fontFamily: 'var(--font-sans)', fontSize: 11,
-                    color: 'var(--color-text-muted)',
-                    display: 'flex', alignItems: 'center', gap: 3,
-                  }}>
-                    <UserGroupIcon style={{ width: 11, height: 11 }} />
-                    1 member
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              <button
-                onClick={() => { setShowWorkspaceMenu(false); setShowSettings(true); if (isMobile) setMobileSidebarOpen(false) }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  padding: '7px 8px', background: 'var(--color-bg)',
-                  border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                  color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
-                }}
-              >
-                <Cog6ToothIcon style={{ width: 12, height: 12 }} />
-                Settings
-              </button>
-              <button
-                onClick={() => { setShowWorkspaceMenu(false); setShowInviteModal(true) }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg)')}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  padding: '7px 8px', background: 'var(--color-bg)',
-                  border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                  color: 'var(--color-text-soft)', transition: 'var(--transition-fast)',
-                }}
-              >
-                <UserPlusIcon style={{ width: 12, height: 12 }} />
-                Invite
-              </button>
+              <span style={{
+                fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+                color: 'var(--color-text)', flex: 1,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {workspace?.name || 'My Workspace'}
+              </span>
+              <CheckIcon style={{ width: 13, height: 13, color: 'var(--color-accent)', flexShrink: 0 }} />
             </div>
           </div>
-          {/* All Workspaces */}
-          <div style={{ background: 'var(--color-surface)' }}>
-            <div style={{ padding: '8px 14px 4px' }}>
+          <div style={{ padding: '4px 14px 12px' }}>
+            <button
+              onClick={() => alert('Multiple workspaces available on Pro plan.')}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--color-accent)'
+                e.currentTarget.style.color = 'var(--color-accent)'
+                e.currentTarget.style.background = 'var(--color-accent-soft)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--color-border)'
+                e.currentTarget.style.color = 'var(--color-text-muted)'
+                e.currentTarget.style.background = 'transparent'
+              }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 8px', background: 'transparent',
+                border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)',
+                cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
+                color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
+              }}
+            >
               <div style={{
-                fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                letterSpacing: '0.01em', textTransform: 'none',
-                color: 'var(--color-text-muted)', marginBottom: 6,
+                width: 20, height: 20, borderRadius: 5,
+                border: '1.5px dashed currentColor',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                All Workspaces
+                <PlusIcon style={{ width: 10, height: 10 }} />
               </div>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 8px', borderRadius: 'var(--radius-md)',
-                background: 'var(--color-sidebar-item-active)', marginBottom: 2,
-              }}>
-                <div style={{
-                  width: 22, height: 22, borderRadius: 6,
-                  background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 10,
-                  color: 'white', flexShrink: 0,
-                }}>
-                  {(workspace?.name || 'D')[0].toUpperCase()}
-                </div>
-                <span style={{
-                  fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-                  color: 'var(--color-text)', flex: 1,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {workspace?.name || 'My Workspace'}
-                </span>
-                <CheckIcon style={{ width: 13, height: 13, color: 'var(--color-accent)', flexShrink: 0 }} />
-              </div>
-            </div>
-            <div style={{ padding: '4px 14px 12px' }}>
-              <button
-                onClick={() => alert('Multiple workspaces available on Pro plan.')}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'var(--color-accent)'
-                  e.currentTarget.style.color = 'var(--color-accent)'
-                  e.currentTarget.style.background = 'var(--color-accent-soft)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--color-border)'
-                  e.currentTarget.style.color = 'var(--color-text-muted)'
-                  e.currentTarget.style.background = 'transparent'
-                }}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '7px 8px', background: 'transparent',
-                  border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
-                  color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
-                }}
-              >
-                <div style={{
-                  width: 20, height: 20, borderRadius: 5,
-                  border: '1.5px dashed currentColor',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <PlusIcon style={{ width: 10, height: 10 }} />
-                </div>
-                Create new workspace
-              </button>
-            </div>
+              Create new workspace
+            </button>
           </div>
         </div>
-      )}
-
-    </aside>
+      </div>
+    )}
 
     {/* TeamPage, SettingsPage, and SearchModal are siblings to <aside> so they
         escape the sidebar's CSS transform and render against the true viewport on mobile */}

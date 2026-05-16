@@ -270,6 +270,7 @@ export default function Dashboard() {
     selectedWebsiteTemplate, setSelectedWebsiteTemplate,
     setActiveProjectBriefResult,
     connectorData,
+    workspace,
   } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
@@ -740,6 +741,37 @@ The flow should be realistic for this product. Return only the JSON array.`,
       padding: isMobile ? '64px 16px 32px' : 'clamp(32px, 6vh, 60px) clamp(16px, 5vw, 40px)',
       position: 'relative',
     }}>
+      {/* Mobile Upgrade to Pro button — top right */}
+      {isMobile && workspace?.plan === 'free' && (
+        <button
+          onClick={() => alert('Pro plan coming soon! 500 credits/day for $19/mo.')}
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '6px 12px',
+            background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 'var(--radius-full)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '-0.01em',
+            boxShadow: '0 2px 8px rgba(124,58,237,0.35)',
+            zIndex: 5,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <BoltIcon style={{ width: 12, height: 12 }} />
+          Upgrade
+        </button>
+      )}
+
       {/* Grid texture overlay */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
