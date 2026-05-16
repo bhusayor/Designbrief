@@ -611,8 +611,9 @@ export default function TeamPage({ onClose }) {
                 fontFamily: 'var(--font-mono)', fontSize: 11,
                 background: 'rgba(124,58,237,0.08)', color: '#7C3AED',
                 border: '1px solid rgba(124,58,237,0.2)', borderRadius: 100, padding: '2px 9px',
+                display: 'inline-block', flexShrink: 0,
               }}>
-                {members.length} member{members.length !== 1 ? 's' : ''}
+                {members.length}
               </span>
             </p>
           </div>
@@ -768,24 +769,23 @@ export default function TeamPage({ onClose }) {
           )}
 
           {/* Table */}
-          <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflowX: 'auto' }}>
+            <div style={{ minWidth: 580 }}>
             {/* Header row */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr auto 40px' : '36px 1fr 100px 120px 100px 40px',
+              gridTemplateColumns: '36px 1fr 100px 120px 100px 40px',
               padding: '8px 16px', background: 'var(--color-surface)',
               borderBottom: '1px solid var(--color-border)',
             }}>
-              {!isMobile && (
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <input type="checkbox"
-                    checked={selected.size > 0 && selected.size === filteredRows.length}
-                    onChange={toggleSelectAll}
-                    style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#7C3AED' }}
-                  />
-                </div>
-              )}
-              {(isMobile ? ['Name', 'Role', ''] : ['Name', 'Role', 'Joined', 'Status', '']).map(h => (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <input type="checkbox"
+                  checked={selected.size > 0 && selected.size === filteredRows.length}
+                  onChange={toggleSelectAll}
+                  style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#7C3AED' }}
+                />
+              </div>
+              {['Name', 'Role', 'Joined', 'Status', ''].map(h => (
                 <div key={h} style={{
                   fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
                   letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -810,23 +810,21 @@ export default function TeamPage({ onClose }) {
             ) : filteredRows.map((row, i) => (
               <div key={row.id || i} className="tp-row" style={{
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr auto 40px' : '36px 1fr 100px 120px 100px 40px',
-                padding: isMobile ? '12px 16px' : '10px 16px', alignItems: 'center',
+                gridTemplateColumns: '36px 1fr 100px 120px 100px 40px',
+                padding: '10px 16px', alignItems: 'center',
                 borderBottom: i < filteredRows.length - 1 ? '1px solid var(--color-border)' : 'none',
                 background: selected.has(row.id) ? 'rgba(124,58,237,0.04)' : 'transparent',
                 transition: 'background 0.1s',
               }}>
-                {/* Checkbox — desktop only */}
-                {!isMobile && (
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <input type="checkbox"
-                      checked={selected.has(row.id)}
-                      onChange={() => row.role !== 'owner' && toggleSelect(row.id)}
-                      disabled={row.role === 'owner'}
-                      style={{ width: 14, height: 14, cursor: row.role === 'owner' ? 'not-allowed' : 'pointer', accentColor: '#7C3AED', opacity: row.role === 'owner' ? 0.35 : 1 }}
-                    />
-                  </div>
-                )}
+                {/* Checkbox */}
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <input type="checkbox"
+                    checked={selected.has(row.id)}
+                    onChange={() => row.role !== 'owner' && toggleSelect(row.id)}
+                    disabled={row.role === 'owner'}
+                    style={{ width: 14, height: 14, cursor: row.role === 'owner' ? 'not-allowed' : 'pointer', accentColor: '#7C3AED', opacity: row.role === 'owner' ? 0.35 : 1 }}
+                  />
+                </div>
 
                 {/* Name + email */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -874,28 +872,22 @@ export default function TeamPage({ onClose }) {
                       }}>
                         owner
                       </span>
-                      {!isMobile && (
-                        <span className="tp-owner-tooltip">
-                          Owners can manage all collaborators, projects, and connections.
-                        </span>
-                      )}
+                      <span className="tp-owner-tooltip">
+                        Owners can manage all collaborators, projects, and connections.
+                      </span>
                     </span>
                   ) : (
                     <RoleBadge role={row.role} />
                   )}
                 </div>
 
-                {/* Joined — desktop only */}
-                {!isMobile && (
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                    {row.isPending ? '—' : timeAgo(row.joinedAt)}
-                  </div>
-                )}
+                {/* Joined */}
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  {row.isPending ? '—' : timeAgo(row.joinedAt)}
+                </div>
 
-                {/* Status — desktop only */}
-                {!isMobile && (
-                  <div><StatusBadge status={row.isPending ? 'pending' : 'active'} /></div>
-                )}
+                {/* Status */}
+                <div><StatusBadge status={row.isPending ? 'pending' : 'active'} /></div>
 
                 {/* Actions */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -925,6 +917,7 @@ export default function TeamPage({ onClose }) {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         </div>
       </div>
