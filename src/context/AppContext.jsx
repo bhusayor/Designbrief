@@ -178,6 +178,11 @@ export function AppProvider({ children }) {
   // ── Auth helpers ──────────────────────────────────────────────────────────
 
   async function handleAuthUser(supabaseUser) {
+    // Mark workspace as loading BEFORE setting authUser so React batches both
+    // into one render. Without this, the render after setAuthUser sees
+    // authUser=user + workspace=null + workspaceLoading=false and briefly
+    // shows WorkspaceSetup even for users who already have a workspace.
+    setWorkspaceLoading(true);
     setAuthUser(supabaseUser);
 
     try {

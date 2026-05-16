@@ -62,8 +62,10 @@ function AppRouter() {
     'accept-invite': <AcceptInvite />,
   };
 
-  // Loading — checking session or workspace.
-  // Skip the workspace spinner if we already have a cached workspace.
+  // Show spinner while auth initialises, or while workspace is loading for a
+  // user with no cached workspace (e.g. first login). If there IS a cached
+  // workspace the dashboard renders immediately from cache while the
+  // background refresh runs silently.
   const hasCachedWorkspace = !!workspace;
   if (authLoading || (authUser && workspaceLoading && !hasCachedWorkspace)) {
     return (
