@@ -137,20 +137,22 @@ export default async function handler(req, res) {
 
     // ── DELETE ACCOUNT ────────────────────────────────────────────────────────
     if (action === 'delete_account') {
-      // Clean up DB records in dependency order before removing the auth user
-      await supabase.from('workspace_members').delete().eq('user_id', user.id)
-      await supabase.from('team_members').delete().eq('user_id', user.id)
+      // Best-effort DB cleanup — wrap each step individually so one missing
+      // table / wrong column never silently blocks account deletion.
+      try { await supabase.from('workspace_members').delete().eq('user_id', user.id) } catch {}
+      try { await supabase.from('team_members').delete().eq('user_id', user.id) } catch {}
 
-      // Delete workspaces the user owns (cascades to projects, tasks, etc.)
-      const { data: ownedWorkspaces } = await supabase
-        .from('workspaces').select('id').eq('owner_id', user.id)
-      for (const ws of ownedWorkspaces || []) {
-        await supabase.from('workspaces').delete().eq('id', ws.id)
-      }
+      try {
+        const { data: ownedWs } = await supabase
+          .from('workspaces').select('id').eq('owner_id', user.id)
+        for (const ws of ownedWs || []) {
+          try { await supabase.from('workspaces').delete().eq('id', ws.id) } catch {}
+        }
+      } catch {}
 
-      // Remove profile row if it exists
-      await supabase.from('profiles').delete().eq('id', user.id)
+      try { await supabase.from('profiles').delete().eq('id', user.id) } catch {}
 
+      // This is the authoritative step — if it errors, surface it to the client.
       const { error } = await supabase.auth.admin.deleteUser(user.id)
       if (error) throw error
       return res.json({ success: true })

@@ -927,23 +927,40 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
   }, [onClose])
 
   async function callSettings(body) {
-    // Always call getSession() — it auto-refreshes expired tokens, so we always get a valid JWT
-    const { data: { session: freshSession } } = await supabase.auth.getSession()
-    const token = freshSession?.access_token || session?.access_token
+    // Start with the token we already have in context (always up-to-date via onAuthStateChange)
+    let token = session?.access_token
 
-    if (!token) throw new Error('Not authenticated. Please sign in again.')
+    // If context token is missing, race getSession() against a 2s timeout so we
+    // never hang indefinitely waiting for a stalled token-refresh network call.
+    if (!token) {
+      token = await Promise.race([
+        supabase.auth.getSession().then(({ data }) => data?.session?.access_token ?? null),
+        new Promise(resolve => setTimeout(() => resolve(null), 2000)),
+      ])
+    }
 
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token,
-      },
-      body: JSON.stringify(body),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Request failed')
-    return data
+    if (!token) throw new Error('Session expired — please sign out and sign back in.')
+
+    // Abort the fetch after 20 s so the button never spins forever
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 20000)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      let data = {}
+      try { data = await res.json() } catch {}
+      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
+      return data
+    } catch (e) {
+      clearTimeout(timer)
+      if (e.name === 'AbortError') throw new Error('Request timed out — please try again.')
+      throw e
+    }
   }
 
   function renderSection() {

@@ -431,21 +431,23 @@ export function AppProvider({ children }) {
 
   // ── Sign Out ──────────────────────────────────────────────────────────────
 
-  async function signOut() {
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error('[AppContext] signOut error:', e);
-    }
-    // Clear the custom storageKey Supabase uses, plus any sb-* legacy keys,
-    // plus app-specific keys so the next page load starts completely fresh.
-    const toClear = ['designbrief-auth-v1', 'db-workspace', 'db-workspace-history'];
-    toClear.forEach(k => localStorage.removeItem(k));
+  function signOut() {
+    // Fire-and-forget — never await a network call inside signOut.
+    // If signOut() hangs the user is stuck forever; clearing storage is enough.
+    supabase.auth.signOut().catch(() => {});
+
+    // Remove the exact key Supabase uses (storageKey: 'designbrief-auth-v1')
+    // plus any legacy sb-* keys and app state.
+    ['designbrief-auth-v1', 'db-workspace', 'db-workspace-history'].forEach(k =>
+      localStorage.removeItem(k)
+    );
     Object.keys(localStorage).forEach(k => {
       if (k.startsWith('sb-')) localStorage.removeItem(k);
     });
-    // Navigate to root — the app will see no session and render <Auth />
-    window.location.href = '/';
+
+    // Force a full navigation to root — the fresh page will find no session
+    // and render <Auth />.
+    window.location.replace('/');
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
