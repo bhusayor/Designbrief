@@ -927,14 +927,9 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
   }, [onClose])
 
   async function callSettings(body) {
-    // Use session from AppContext — already populated from onAuthStateChange, no async wait
-    let token = session?.access_token
-
-    // Fallback: try getSession() if context session not yet populated
-    if (!token) {
-      const { data } = await supabase.auth.getSession()
-      token = data?.session?.access_token
-    }
+    // Always call getSession() — it auto-refreshes expired tokens, so we always get a valid JWT
+    const { data: { session: freshSession } } = await supabase.auth.getSession()
+    const token = freshSession?.access_token || session?.access_token
 
     if (!token) throw new Error('Not authenticated. Please sign in again.')
 

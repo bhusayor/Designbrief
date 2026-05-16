@@ -433,18 +433,19 @@ export function AppProvider({ children }) {
 
   async function signOut() {
     try {
-      await supabase.auth.signOut({ scope: 'local' });
+      await supabase.auth.signOut();
     } catch (e) {
       console.error('[AppContext] signOut error:', e);
     }
-    // Manually purge every sb-* key so a background token refresh
-    // cannot silently re-authenticate the user before the reload.
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('sb-')) localStorage.removeItem(key);
+    // Clear the custom storageKey Supabase uses, plus any sb-* legacy keys,
+    // plus app-specific keys so the next page load starts completely fresh.
+    const toClear = ['designbrief-auth-v1', 'db-workspace', 'db-workspace-history'];
+    toClear.forEach(k => localStorage.removeItem(k));
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('sb-')) localStorage.removeItem(k);
     });
-    // Hard reload guarantees clean React state and a fresh getSession() call
-    // that will find no session and land on the Auth page.
-    window.location.reload();
+    // Navigate to root — the app will see no session and render <Auth />
+    window.location.href = '/';
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
