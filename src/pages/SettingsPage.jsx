@@ -851,9 +851,8 @@ export default function SettingsPage({ onClose }) {
           {/* Left nav */}
           <div style={{
             borderRight: isMobile ? 'none' : '1px solid var(--color-border)',
-            borderBottom: isMobile ? '1px solid var(--color-border)' : 'none',
             background: 'var(--color-surface)',
-            padding: '16px 0',
+            padding: isMobile ? '12px 8px' : '16px 0',
             overflowY: 'auto',
             display: isMobile && mobileView === 'content' ? 'none' : 'block',
           }}>
@@ -888,13 +887,12 @@ export default function SettingsPage({ onClose }) {
                       }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 9,
-                        padding: isMobile ? '12px 18px' : '8px 14px',
-                        margin: isMobile ? '0' : '1px 8px',
+                        padding: isMobile ? '11px 20px' : '8px 14px',
+                        margin: isMobile ? '2px 0' : '1px 8px',
                         width: isMobile ? '100%' : 'calc(100% - 16px)',
-                        background: isActive && !isMobile ? 'var(--color-card)' : 'transparent',
+                        background: isActive ? (isMobile ? 'rgba(124,58,237,0.06)' : 'var(--color-card)') : 'transparent',
                         border: 'none',
-                        borderBottom: isMobile ? '1px solid var(--color-border)' : 'none',
-                        borderRadius: isMobile ? 0 : 8,
+                        borderRadius: isMobile ? 10 : 8,
                         cursor: 'pointer',
                         fontFamily: 'var(--font-sans)', fontSize: isMobile ? 14 : 13,
                         fontWeight: isActive ? 600 : 400,
@@ -908,12 +906,7 @@ export default function SettingsPage({ onClose }) {
                         width: 15, height: 15, flexShrink: 0,
                         color: isActive ? (isDanger ? '#DC2626' : '#7C3AED') : 'inherit',
                       }} />
-                      <span style={{ flex: 1 }}>{item.label}</span>
-                      {isMobile && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                      )}
+                      {item.label}
                     </button>
                   )
                 })}
@@ -929,20 +922,6 @@ export default function SettingsPage({ onClose }) {
             width: '100%', boxSizing: 'border-box',
             display: isMobile && mobileView === 'nav' ? 'none' : 'block',
           }}>
-            {isMobile && (
-              <button
-                onClick={() => setMobileView('nav')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20,
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
-                  color: 'var(--color-text-muted)', padding: 0,
-                }}
-              >
-                <ArrowLeftIcon style={{ width: 14, height: 14 }} />
-                Settings
-              </button>
-            )}
             {renderSection()}
           </div>
         </div>
