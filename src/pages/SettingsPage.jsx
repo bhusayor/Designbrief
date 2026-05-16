@@ -517,7 +517,7 @@ function PlansSection() {
 
 function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAccountDeleted }) {
   const isMobile = useIsMobile()
-  const { workspace, authUser } = useApp()
+  const { workspace, authUser, setWorkspace, loadWorkspace } = useApp()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
@@ -528,19 +528,29 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [error, setError] = useState('')
   const [isOwner, setIsOwner] = useState(false)
+  const [userWorkspaces, setUserWorkspaces] = useState([])
 
   useEffect(() => {
-    async function checkRole() {
+    async function checkRoleAndWorkspaces() {
       if (!workspace?.id || !authUser?.id) return
-      const { data } = await supabase
+      const { data: roleData } = await supabase
         .from('workspace_members')
         .select('role')
         .eq('workspace_id', workspace.id)
         .eq('user_id', authUser.id)
         .single()
-      setIsOwner(data?.role === 'owner')
+      setIsOwner(roleData?.role === 'owner')
+
+      // Load all workspaces this user belongs to
+      try {
+        const { data: memberships } = await supabase
+          .from('workspace_members')
+          .select('workspace_id, workspaces(*)')
+          .eq('user_id', authUser.id)
+        setUserWorkspaces((memberships || []).map(m => m.workspaces).filter(Boolean))
+      } catch {}
     }
-    checkRole()
+    checkRoleAndWorkspaces()
   }, [workspace?.id, authUser?.id])
 
   async function handleDelete() {
@@ -559,7 +569,27 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
     setLeaving(true); setError('')
     try {
       await callSettings({ action: 'leave_workspace', workspaceId: workspace.id })
-      onWorkspaceLeft?.()
+
+      // Switch to most recently visited other workspace
+      const history = (() => {
+        try { return JSON.parse(localStorage.getItem('db-workspace-history') || '[]') } catch { return [] }
+      })()
+      const nextId = history.find(id => id !== workspace.id)
+      const nextWs = nextId
+        ? userWorkspaces.find(w => w.id === nextId)
+        : userWorkspaces.find(w => w.id !== workspace.id)
+
+      if (nextWs) {
+        localStorage.setItem('db-workspace', JSON.stringify(nextWs))
+        const hist = [nextWs.id, ...history.filter(id => id !== nextWs.id)].slice(0, 20)
+        localStorage.setItem('db-workspace-history', JSON.stringify(hist))
+        setWorkspace(nextWs)
+        onWorkspaceLeft?.()
+      } else {
+        // No other workspace — clear and reload so WorkspaceSetup shows
+        localStorage.removeItem('db-workspace')
+        window.location.reload()
+      }
     } catch (e) {
       setError(e.message)
       setLeaving(false)
@@ -574,7 +604,9 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
     setDeletingAccount(true); setError('')
     try {
       await callSettings({ action: 'delete_account' })
-      onAccountDeleted?.()
+      // Token is now invalid — clear everything and redirect to login
+      localStorage.clear()
+      window.location.href = '/'
     } catch (e) {
       setError(e.message)
       setDeletingAccount(false)
@@ -681,20 +713,29 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: RED, marginBottom: 6 }}>Leave workspace</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: userWorkspaces.length <= 1 ? 'var(--color-text-muted)' : RED, marginBottom: 6 }}>Leave workspace</div>
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 360 }}>
-                  Remove yourself from this workspace. You will lose access to all shared projects and briefs immediately.
+                  {userWorkspaces.length <= 1
+                    ? 'You must belong to more than one workspace before you can leave this one.'
+                    : 'Remove yourself from this workspace. You will lose access to all shared projects and briefs immediately.'}
                 </div>
               </div>
               <button
-                onClick={() => { setShowLeaveConfirm(true); setError('') }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => { if (userWorkspaces.length > 1) { setShowLeaveConfirm(true); setError('') } }}
+                onMouseEnter={e => { if (userWorkspaces.length > 1) e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                disabled={userWorkspaces.length <= 1}
                 style={{
-                  padding: '8px 16px', background: 'transparent', border: `1px solid ${RED}`,
-                  borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                  fontSize: 13, fontWeight: 600, color: RED, flexShrink: 0, transition: 'all 0.15s',
+                  padding: '8px 16px', background: 'transparent',
+                  border: `1px solid ${userWorkspaces.length <= 1 ? 'var(--color-border)' : RED}`,
+                  borderRadius: 9,
+                  cursor: userWorkspaces.length <= 1 ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13, fontWeight: 600,
+                  color: userWorkspaces.length <= 1 ? 'var(--color-text-muted)' : RED,
+                  flexShrink: 0, transition: 'all 0.15s',
                   width: isMobile ? '100%' : 'auto',
+                  opacity: userWorkspaces.length <= 1 ? 0.5 : 1,
                 }}
               >
                 Leave workspace
@@ -921,9 +962,9 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
         return (
           <DangerSection
             callSettings={callSettings}
-            onWorkspaceDeleted={() => supabase.auth.signOut().then(() => window.location.reload())}
-            onWorkspaceLeft={() => window.location.reload()}
-            onAccountDeleted={() => supabase.auth.signOut().then(() => window.location.reload())}
+            onWorkspaceDeleted={() => { localStorage.removeItem('db-workspace'); supabase.auth.signOut().then(() => window.location.reload()) }}
+            onWorkspaceLeft={() => { /* workspace switch handled inside handleLeave */ }}
+            onAccountDeleted={() => { /* handled inside handleDeleteAccount — localStorage cleared, redirected to / */ }}
           />
         )
       default: return <ProfileSection callSettings={callSettings} onSaved={showSaveToast} />

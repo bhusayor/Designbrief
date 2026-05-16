@@ -263,6 +263,12 @@ export function AppProvider({ children }) {
         localStorage.setItem('db-workspace', JSON.stringify(ws));
         setWorkspace(ws);
         loadConnectorData(ws.id);
+        // Track workspace visit history (most recent first, max 20)
+        try {
+          const hist = JSON.parse(localStorage.getItem('db-workspace-history') || '[]');
+          const updated = [ws.id, ...hist.filter(id => id !== ws.id)].slice(0, 20);
+          localStorage.setItem('db-workspace-history', JSON.stringify(updated));
+        } catch {}
       } else if (!cached) {
         setWorkspace(null);
       }
@@ -677,6 +683,7 @@ export function AppProvider({ children }) {
     // Workspace
     workspace,
     setWorkspace,
+    loadWorkspace,
     workspaceLoading,
 
     // Credits

@@ -137,9 +137,37 @@ export default async function handler(req, res) {
 
     // ── DELETE ACCOUNT ────────────────────────────────────────────────────────
     if (action === 'delete_account') {
+      // Clean up DB records in dependency order before removing the auth user
+      await supabase.from('workspace_members').delete().eq('user_id', user.id)
+      await supabase.from('team_members').delete().eq('user_id', user.id)
+
+      // Delete workspaces the user owns (cascades to projects, tasks, etc.)
+      const { data: ownedWorkspaces } = await supabase
+        .from('workspaces').select('id').eq('owner_id', user.id)
+      for (const ws of ownedWorkspaces || []) {
+        await supabase.from('workspaces').delete().eq('id', ws.id)
+      }
+
+      // Remove profile row if it exists
+      await supabase.from('profiles').delete().eq('id', user.id)
+
       const { error } = await supabase.auth.admin.deleteUser(user.id)
       if (error) throw error
       return res.json({ success: true })
+    }
+
+    // ── GET USER WORKSPACES ───────────────────────────────────────────────────
+    if (action === 'get-user-workspaces') {
+      const { data: memberships } = await supabase
+        .from('workspace_members')
+        .select('workspace_id, workspaces(*)')
+        .eq('user_id', user.id)
+
+      const workspaces = (memberships || [])
+        .map(m => m.workspaces)
+        .filter(Boolean)
+
+      return res.json({ workspaces })
     }
 
     // ── GET WORKSPACE ─────────────────────────────────────────────────────────
