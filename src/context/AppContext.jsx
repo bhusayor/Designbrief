@@ -89,8 +89,17 @@ export function AppProvider({ children }) {
   // ── Theme sync ────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('db-theme', theme);
+
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const apply = () => document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light');
+      apply();
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
+
+    document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   // ── Auth: init + listener ─────────────────────────────────────────────────
@@ -441,7 +450,7 @@ export function AppProvider({ children }) {
   // ── Theme ─────────────────────────────────────────────────────────────────
 
   function toggleTheme() {
-    setTheme(t => (t === 'dark' ? 'light' : 'dark'));
+    setTheme(t => t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light');
   }
 
   function updateUser(updates) {

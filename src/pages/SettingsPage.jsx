@@ -13,6 +13,7 @@ import {
   ClipboardDocumentIcon,
   SunIcon,
   MoonIcon,
+  ComputerDesktopIcon,
   ArrowLeftIcon,
   LinkIcon,
   TrashIcon,
@@ -281,12 +282,13 @@ function AppearanceSection({ onSaved }) {
 
       <SettingRow
         label="Theme"
-        description="Choose your preferred colour theme. This setting syncs with the toggle in the sidebar."
+        description="Choose your preferred colour theme. Device follows your system setting automatically."
       >
         <div style={{ display: 'flex', gap: 8 }}>
           {[
-            { value: 'light', label: 'Light', icon: SunIcon },
-            { value: 'dark',  label: 'Dark',  icon: MoonIcon },
+            { value: 'light',  label: 'Light',  icon: SunIcon },
+            { value: 'dark',   label: 'Dark',   icon: MoonIcon },
+            { value: 'system', label: 'Device', icon: ComputerDesktopIcon },
           ].map(opt => {
             const Icon = opt.icon
             const isSelected = theme === opt.value
