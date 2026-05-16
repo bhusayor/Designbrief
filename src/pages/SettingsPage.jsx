@@ -899,7 +899,11 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
             ),
             display: 'flex', alignItems: 'center',
           }}>
-            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: isMobile ? 'white' : 'var(--color-text-muted)' }}>
+            <span style={isMobile ? {
+              fontWeight: 800, fontSize: 22, letterSpacing: '-0.04em', color: 'var(--color-text)',
+            } : {
+              fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: 'var(--color-text-muted)',
+            }}>
               {isMobile && mobileView === 'content' ? getSectionLabel(activeSection) : 'Settings'}
             </span>
           </div>

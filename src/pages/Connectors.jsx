@@ -693,12 +693,14 @@ export default function Connectors() {
 
   return (
     <div style={{
+      height: '100%', overflowY: 'auto',
       padding: isMobile ? '20px 16px' : '28px 32px',
       fontFamily: "'Urbanist', sans-serif",
+      boxSizing: 'border-box',
     }}>
       {/* Header + search — constrained width */}
       <div style={{ maxWidth: isMobile ? 'none' : 640 }}>
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 24, textAlign: isMobile ? 'center' : 'left' }}>
           <h1 style={{
             fontWeight: 800, fontSize: 22,
             letterSpacing: '-0.04em',

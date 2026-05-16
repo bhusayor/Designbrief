@@ -488,7 +488,7 @@ export default function ProjectLibrary() {
           justifyContent: 'space-between',
           gap: isMobile ? 12 : 0,
         }}>
-          <div>
+          <div style={{ textAlign: isMobile ? 'center' : 'left' }}>
             <h1 style={{
               fontFamily: "'Urbanist', sans-serif", fontWeight: 800,
               fontSize: isMobile ? '22px' : '26px',
