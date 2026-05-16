@@ -567,9 +567,6 @@ export default function TeamPage({ onClose }) {
             <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', color: 'var(--color-text)' }}>
               Team members
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>
-              {workspace?.name}
-            </span>
           </div>
           <button onClick={onClose} style={{
             display: 'flex', alignItems: 'center', gap: 6,
