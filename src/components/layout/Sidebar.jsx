@@ -1132,7 +1132,12 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     )}
 
     {showSettings && (
-      <SettingsPage onClose={() => setShowSettings(false)} />
+      <SettingsPage
+        onClose={() => {
+          setShowSettings(false)
+          if (isMobile) setMobileSidebarOpen(true)
+        }}
+      />
     )}
 
     {showSearch && (

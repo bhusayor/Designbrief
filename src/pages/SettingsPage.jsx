@@ -853,7 +853,7 @@ export default function SettingsPage({ onClose }) {
                   padding: '6px 8px', background: 'transparent',
                   border: 'none', borderRadius: 8,
                   cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                  fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)',
+                  fontSize: 13, fontWeight: 600, color: 'white',
                   transition: 'all 0.15s',
                 }}
               >
@@ -867,7 +867,7 @@ export default function SettingsPage({ onClose }) {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: '6px 8px', background: 'transparent',
                   border: 'none', borderRadius: 8,
-                  cursor: 'pointer', color: 'var(--color-text-muted)', transition: 'all 0.15s',
+                  cursor: 'pointer', color: 'white', transition: 'all 0.15s',
                 }}
               >
                 <PanelLeftClose size={18} />
@@ -899,7 +899,7 @@ export default function SettingsPage({ onClose }) {
             ),
             display: 'flex', alignItems: 'center',
           }}>
-            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: 'var(--color-text-muted)' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: isMobile ? 'white' : 'var(--color-text-muted)' }}>
               {isMobile && mobileView === 'content' ? getSectionLabel(activeSection) : 'Settings'}
             </span>
           </div>
