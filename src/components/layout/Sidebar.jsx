@@ -673,13 +673,6 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           onClick={() => { navigate('team'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
           collapsed={collapsed}
         />
-        <NavItem
-          icon={LinkIcon}
-          label="Connectors"
-          active={activeSection === 'connectors'}
-          onClick={() => { navigate('connectors'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
-          collapsed={collapsed}
-        />
       </div>
 
       {/* ── Divider ── */}

@@ -14,7 +14,9 @@ import {
   SunIcon,
   MoonIcon,
   ArrowLeftIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline'
+import Connectors from './Connectors'
 
 function PanelLeftClose({ size = 16 }) {
   return (
@@ -727,9 +729,10 @@ const NAV = [
   {
     group: 'Workspace',
     items: [
-      { id: 'general', label: 'General',        icon: Cog6ToothIcon },
-      { id: 'plans',   label: 'Plans & credits', icon: BoltIcon },
-      { id: 'danger',  label: 'Danger zone',    icon: ExclamationTriangleIcon },
+      { id: 'general',    label: 'General',        icon: Cog6ToothIcon },
+      { id: 'plans',      label: 'Plans & credits', icon: BoltIcon },
+      { id: 'connectors', label: 'Connectors',      icon: LinkIcon },
+      { id: 'danger',     label: 'Danger zone',     icon: ExclamationTriangleIcon },
     ],
   },
 ]
@@ -796,6 +799,7 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
       case 'appearance': return <AppearanceSection onSaved={showSaveToast} />
       case 'general':    return <WorkspaceGeneralSection callSettings={callSettings} onSaved={showSaveToast} />
       case 'plans':      return <PlansSection />
+      case 'connectors': return <Connectors embedded />
       case 'danger':
         return (
           <DangerSection

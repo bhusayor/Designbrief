@@ -658,7 +658,7 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────
-export default function Connectors() {
+export default function Connectors({ embedded = false }) {
   const isMobile = useIsMobile()
   const { workspace, authUser } = useApp()
   const [installed, setInstalled] = useState({ figma: false, github: false, notion: false, gdocs: false })
@@ -693,38 +693,40 @@ export default function Connectors() {
 
   return (
     <div style={{
-      height: '100%', overflowY: 'auto',
-      padding: isMobile ? '20px 16px' : '28px 32px',
+      ...(embedded ? {} : { height: '100%', overflowY: 'auto' }),
+      padding: embedded ? 0 : (isMobile ? '20px 16px' : '28px 32px'),
       fontFamily: "'Urbanist', sans-serif",
       boxSizing: 'border-box',
     }}>
       {/* Header + search — constrained width */}
       <div style={{ maxWidth: isMobile ? 'none' : 640 }}>
-        <div style={{ marginBottom: 24, textAlign: isMobile ? 'center' : 'left' }}>
-          <h1 style={{
-            fontWeight: 800, fontSize: 22,
-            letterSpacing: '-0.04em',
-            color: 'var(--color-text)',
-            margin: '0 0 6px',
-          }}>
-            Connectors
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
-            Connect your tools to supercharge AI-generated briefs.
-            {installedCount > 0 && (
-              <span style={{
-                marginLeft: 8, fontFamily: 'monospace',
-                fontSize: 11, fontWeight: 700,
-                background: 'rgba(22,163,74,0.08)',
-                border: '1px solid rgba(22,163,74,0.2)',
-                borderRadius: 100, padding: '2px 9px',
-                color: '#16a34a',
-              }}>
-                {installedCount} installed
-              </span>
-            )}
-          </p>
-        </div>
+        {!embedded && (
+          <div style={{ marginBottom: 24, textAlign: isMobile ? 'center' : 'left' }}>
+            <h1 style={{
+              fontWeight: 800, fontSize: 22,
+              letterSpacing: '-0.04em',
+              color: 'var(--color-text)',
+              margin: '0 0 6px',
+            }}>
+              Connectors
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
+              Connect your tools to supercharge AI-generated briefs.
+              {installedCount > 0 && (
+                <span style={{
+                  marginLeft: 8, fontFamily: 'monospace',
+                  fontSize: 11, fontWeight: 700,
+                  background: 'rgba(22,163,74,0.08)',
+                  border: '1px solid rgba(22,163,74,0.2)',
+                  borderRadius: 100, padding: '2px 9px',
+                  color: '#16a34a',
+                }}>
+                  {installedCount} installed
+                </span>
+              )}
+            </p>
+          </div>
+        )}
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 20 }}>
