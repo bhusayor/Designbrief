@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import ReactDOM from 'react-dom'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -471,6 +472,7 @@ export default function TeamPage({ onClose }) {
   const [resendingId, setResendingId] = useState(null)
   const [memberCredits, setMemberCredits] = useState({})
   const [openMenuId, setOpenMenuId] = useState(null)
+  const [menuPos, setMenuPos] = useState(null)
 
   // Owner is always available from auth context — no API call needed
   const ownerRow = authUser ? {
@@ -1098,64 +1100,28 @@ export default function TeamPage({ onClose }) {
                 {/* Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', position: 'relative' }}>
                   {row.isPending ? (
-                    <>
-                      <button
-                        onMouseDown={e => e.stopPropagation()}
-                        onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === row.inviteId ? null : row.inviteId) }}
-                        style={{
-                          width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
-                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: openMenuId === row.inviteId ? '#7C3AED' : 'var(--color-text-muted)', transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#7C3AED'; e.currentTarget.style.background = 'rgba(124,58,237,0.06)' }}
-                        onMouseLeave={e => { e.currentTarget.style.color = openMenuId === row.inviteId ? '#7C3AED' : 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
-                      >
-                        <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
-                      </button>
-                      {openMenuId === row.inviteId && (
-                        <div
-                          onMouseDown={e => e.stopPropagation()}
-                          style={{
-                            position: 'absolute', top: 'calc(100% + 4px)', right: 0,
-                            background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                            borderRadius: 9, boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                            zIndex: 200, minWidth: 150, overflow: 'hidden',
-                          }}
-                        >
-                          <button
-                            onClick={() => { handleResendInvite(row); setOpenMenuId(null) }}
-                            disabled={resendingId === row.inviteId}
-                            style={{
-                              width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '9px 14px', background: 'transparent', border: 'none',
-                              cursor: resendingId === row.inviteId ? 'not-allowed' : 'pointer',
-                              fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-                              color: 'var(--color-text)', textAlign: 'left', opacity: resendingId === row.inviteId ? 0.5 : 1,
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                          >
-                            <ArrowPathIcon style={{ width: 13, height: 13, color: 'var(--color-text-muted)' }} />
-                            {resendingId === row.inviteId ? 'Resending…' : 'Resend invite'}
-                          </button>
-                          <div style={{ height: 1, background: 'var(--color-border)', margin: '0 10px' }} />
-                          <button
-                            onClick={() => { handleCancelInvite(row.inviteId); setOpenMenuId(null) }}
-                            style={{
-                              width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '9px 14px', background: 'transparent', border: 'none',
-                              cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-                              color: '#dc2626', textAlign: 'left',
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.06)' }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                          >
-                            <XMarkIcon style={{ width: 13, height: 13 }} />
-                            Cancel invite
-                          </button>
-                        </div>
-                      )}
-                    </>
+                    <button
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (openMenuId === row.inviteId) {
+                          setOpenMenuId(null); setMenuPos(null)
+                        } else {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                          setOpenMenuId(row.inviteId)
+                        }
+                      }}
+                      style={{
+                        width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: openMenuId === row.inviteId ? '#7C3AED' : 'var(--color-text-muted)', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#7C3AED'; e.currentTarget.style.background = 'rgba(124,58,237,0.06)' }}
+                      onMouseLeave={e => { e.currentTarget.style.color = openMenuId === row.inviteId ? '#7C3AED' : 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
+                    </button>
                   ) : isOwner && row.id !== authUser?.id ? (
                     <button onClick={() => handleRemoveMember(row.id)} title="Remove member" style={{
                       width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
@@ -1184,6 +1150,56 @@ export default function TeamPage({ onClose }) {
           getHeaders={getAuthHeaders}
         />
       )}
+
+      {/* Pending row actions dropdown — portal to escape overflow:auto clipping */}
+      {openMenuId && menuPos && (() => {
+        const openRow = allRows.find(r => r.inviteId === openMenuId)
+        if (!openRow) return null
+        return ReactDOM.createPortal(
+          <div
+            onMouseDown={e => e.stopPropagation()}
+            style={{
+              position: 'fixed', top: menuPos.top, right: menuPos.right,
+              background: 'var(--color-card)', border: '1px solid var(--color-border)',
+              borderRadius: 9, boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+              zIndex: 9999, minWidth: 160, overflow: 'hidden',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            <button
+              onClick={() => { handleResendInvite(openRow); setOpenMenuId(null) }}
+              disabled={resendingId === openMenuId}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 14px', background: 'transparent', border: 'none',
+                cursor: resendingId === openMenuId ? 'not-allowed' : 'pointer',
+                fontSize: 13, fontWeight: 600, color: 'var(--color-text)', textAlign: 'left',
+                opacity: resendingId === openMenuId ? 0.5 : 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >
+              <ArrowPathIcon style={{ width: 13, height: 13, color: 'var(--color-text-muted)' }} />
+              {resendingId === openMenuId ? 'Resending…' : 'Resend invite'}
+            </button>
+            <div style={{ height: 1, background: 'var(--color-border)', margin: '0 10px' }} />
+            <button
+              onClick={() => { handleCancelInvite(openMenuId); setOpenMenuId(null) }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 14px', background: 'transparent', border: 'none',
+                cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#dc2626', textAlign: 'left',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.06)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >
+              <XMarkIcon style={{ width: 13, height: 13 }} />
+              Cancel invite
+            </button>
+          </div>,
+          document.body
+        )
+      })()}
     </>
   )
 }
