@@ -135,6 +135,78 @@ export default async function handler(req, res) {
       return res.json({ success: true })
     }
 
+    // ── GET WORKSPACE ─────────────────────────────────────────────────────────
+    if (action === 'get-workspace') {
+      // 1. Try to find a workspace the user owns
+      let { data: workspace } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      // 2. Fall back to workspaces the user is a member of
+      if (!workspace) {
+        const { data: membership } = await supabase
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+
+        if (membership?.workspace_id) {
+          const { data: memberWs } = await supabase
+            .from('workspaces')
+            .select('*')
+            .eq('id', membership.workspace_id)
+            .maybeSingle()
+          workspace = memberWs || null
+        }
+      }
+
+      // 3. Auto-create a default workspace so the user never hits the setup screen
+      if (!workspace) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, first_name')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        const displayName =
+          profile?.first_name ||
+          profile?.full_name?.split(' ')[0] ||
+          user.user_metadata?.full_name?.split(' ')[0] ||
+          user.email?.split('@')[0] ||
+          'My'
+
+        const wsName = `${displayName}'s Workspace`
+
+        const { data: newWs, error: createErr } = await supabase
+          .from('workspaces')
+          .insert({
+            name: wsName,
+            owner_id: user.id,
+            plan: 'free',
+            credits_used_today: 0,
+            credits_reset_at: new Date(new Date().setUTCHours(24, 0, 0, 0)).toISOString(),
+          })
+          .select('*')
+          .single()
+
+        if (createErr) throw createErr
+
+        await supabase
+          .from('workspace_members')
+          .insert({ workspace_id: newWs.id, user_id: user.id, role: 'owner' })
+
+        workspace = newWs
+      }
+
+      return res.json({ workspace })
+    }
+
     return res.status(400).json({ error: 'Unknown action: ' + action })
   } catch (e) {
     console.error('[settings]', e)

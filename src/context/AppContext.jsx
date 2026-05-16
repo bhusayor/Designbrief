@@ -247,13 +247,13 @@ export function AppProvider({ children }) {
       const token = currentSession?.access_token;
       if (!token) throw new Error('No session token');
 
-      const res = await fetch('/api/get-workspace', {
+      const res = await fetch('/api/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ action: 'get-workspace' }),
       });
 
       if (!res.ok) throw new Error('get-workspace API failed');

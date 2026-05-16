@@ -8,8 +8,7 @@
     "api/build-component.js":    { "maxDuration": 30 },
     "api/invite.js":             { "maxDuration": 15 },
     "api/settings.js":           { "maxDuration": 10 },
-    "api/create-workspace.js":   { "maxDuration": 10 },
-    "api/get-workspace.js":      { "maxDuration": 10 }
+    "api/create-workspace.js":   { "maxDuration": 10 }
   },
   "rewrites": [
     { "source": "/api/connectors/figma",  "destination": "/api/connectors" },
