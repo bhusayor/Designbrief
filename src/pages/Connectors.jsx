@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { authedFetch, getAuthHeader } from '../lib/getAuthHeader'
@@ -13,6 +13,17 @@ import {
   PlusIcon,
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline'
+
+// ── Mobile hook ───────────────────────────────────────────────────────────────
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
+}
 
 // ── Token helpers (localStorage only) ──────────────────────────────────────────
 function getTokenKey(wsId, type) { return 'db-token-' + wsId + '-' + type }
@@ -150,6 +161,7 @@ const CONNECTORS = [
 
 // ── Install Modal ──────────────────────────────────────────────────────────────
 function InstallModal({ connector, installed, hint, workspaceId, onClose, onInstalled, onUninstalled }) {
+  const isMobile = useIsMobile()
   const [token, setToken] = useState('')
   const [showToken, setShowToken] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -224,8 +236,10 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
         position: 'fixed', inset: 0,
         background: 'rgba(0,0,0,0.55)',
         zIndex: 300,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 24,
+        display: 'flex',
+        alignItems: isMobile ? 'flex-end' : 'center',
+        justifyContent: 'center',
+        padding: isMobile ? 0 : 24,
         backdropFilter: 'blur(6px)',
         animation: 'fadeIn 0.15s ease',
       }}
@@ -235,11 +249,12 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
         style={{
           background: 'var(--color-bg)',
           border: '1px solid var(--color-border)',
-          borderRadius: 20,
-          width: '100%', maxWidth: 560,
-          overflow: 'hidden',
+          borderRadius: isMobile ? '20px 20px 0 0' : 20,
+          width: '100%', maxWidth: isMobile ? '100%' : 560,
+          maxHeight: isMobile ? '92vh' : 'none',
+          overflowY: isMobile ? 'auto' : 'visible',
           boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
-          animation: 'scaleIn 0.2s ease',
+          animation: isMobile ? 'slideUp 0.25s ease' : 'scaleIn 0.2s ease',
           fontFamily: "'Urbanist', sans-serif",
         }}
       >
@@ -305,7 +320,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
         </div>
 
         {/* Modal body */}
-        <div style={{ padding: '24px 28px 28px' }}>
+        <div style={{ padding: isMobile ? '20px 16px 32px' : '24px 28px 28px' }}>
           {/* Logo + name */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
             <div style={{
@@ -445,8 +460,8 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
 
               {/* Help link */}
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                fontSize: 12, color: 'var(--color-text-muted)',
+                display: 'flex', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap',
+                fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6,
               }}>
                 {connector.tokenHelp}
                 <a
@@ -644,6 +659,7 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function Connectors() {
+  const isMobile = useIsMobile()
   const { workspace, authUser } = useApp()
   const [installed, setInstalled] = useState({ figma: false, github: false, notion: false, gdocs: false })
   const [hints, setHints] = useState({})
@@ -677,11 +693,11 @@ export default function Connectors() {
 
   return (
     <div style={{
-      padding: '28px 32px',
+      padding: isMobile ? '20px 16px' : '28px 32px',
       fontFamily: "'Urbanist', sans-serif",
     }}>
       {/* Header + search — constrained width */}
-      <div style={{ maxWidth: 640 }}>
+      <div style={{ maxWidth: isMobile ? 'none' : 640 }}>
         <div style={{ marginBottom: 24 }}>
           <h1 style={{
             fontWeight: 800, fontSize: 22,
@@ -739,7 +755,7 @@ export default function Connectors() {
       </div>
 
       {/* auto-fill grid — cards use full available width */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap: isMobile ? 12 : 14 }}>
         {filtered.map(connector => (
           <ConnectorCard
             key={connector.id}
@@ -787,6 +803,10 @@ export default function Connectors() {
         @keyframes scaleIn {
           from { opacity: 0; transform: scale(0.96) translateY(8px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(32px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
