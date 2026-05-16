@@ -244,17 +244,16 @@ export default async function handler(req, res) {
       if (!inviteToken)
         return res.status(400).json({ error: 'token required' })
 
-      const { data: invite } = await supabase
+      const { data: invite, error: inviteErr } = await supabase
         .from('workspace_invites')
         .select(`
           id, status, role, invited_email, expires_at,
-          workspace:workspaces(id, name),
-          inviter:invited_by(id, email, raw_user_meta_data)
+          workspace:workspaces(id, name)
         `)
         .eq('token', inviteToken)
         .single()
 
-      if (!invite)
+      if (inviteErr || !invite)
         return res.status(404).json({ error: 'Invite not found', code: 'NOT_FOUND' })
 
       if (invite.status === 'accepted')
