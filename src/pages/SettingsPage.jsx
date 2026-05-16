@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -16,19 +16,33 @@ import {
   ArrowLeftIcon,
 } from '@heroicons/react/24/outline'
 
+// ── Mobile hook ───────────────────────────────────────────────────────────────
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
+}
+
 // ── SettingRow layout ─────────────────────────────────────────────────────────
 
 function SettingRow({ label, description, children }) {
+  const isMobile = useIsMobile()
   return (
     <div style={{
       display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
-      gap: 32,
+      gap: isMobile ? 12 : 32,
       padding: '20px 0',
       borderBottom: '1px solid var(--color-border)',
     }}>
-      <div style={{ maxWidth: 340 }}>
+      <div style={{ maxWidth: isMobile ? 'none' : 340, width: isMobile ? '100%' : 'auto' }}>
         <div style={{
           fontWeight: 600, fontSize: 14,
           color: 'var(--color-text)', marginBottom: 5, letterSpacing: '-0.01em',
@@ -39,7 +53,7 @@ function SettingRow({ label, description, children }) {
           {description}
         </div>
       </div>
-      <div style={{ flexShrink: 0 }}>{children}</div>
+      <div style={{ flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>{children}</div>
     </div>
   )
 }
@@ -129,6 +143,7 @@ function blurInput(e) {
 // ── Section: Profile ──────────────────────────────────────────────────────────
 
 function ProfileSection({ callSettings, onSaved }) {
+  const isMobile = useIsMobile()
   const { authUser, updateUser, user } = useApp()
   const [name, setName] = useState(
     user?.name ||
@@ -197,14 +212,14 @@ function ProfileSection({ callSettings, onSaved }) {
         label="Display name"
         description="This is how your name appears to teammates in shared workspaces and project boards."
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="text" value={name}
               onChange={e => { setName(e.target.value); setError(''); setSaved(false) }}
               onKeyDown={e => { if (e.key === 'Enter') handleUpdateName() }}
               placeholder="Your name"
-              style={{ ...inputBase, width: 200 }}
+              style={{ ...inputBase, flex: 1, minWidth: 0 }}
               onFocus={focusInput} onBlur={blurInput}
             />
             <SaveButton
@@ -229,7 +244,7 @@ function ProfileSection({ callSettings, onSaved }) {
       >
         <input
           type="email" value={email} readOnly
-          style={{ ...inputBase, width: 260, color: 'var(--color-text-muted)', cursor: 'default' }}
+          style={{ ...inputBase, width: '100%', color: 'var(--color-text-muted)', cursor: 'default', boxSizing: 'border-box' }}
         />
       </SettingRow>
     </div>
@@ -291,6 +306,7 @@ function AppearanceSection({ onSaved }) {
 // ── Section: Workspace General ────────────────────────────────────────────────
 
 function WorkspaceGeneralSection({ callSettings, onSaved }) {
+  const isMobile = useIsMobile()
   const { workspace, setWorkspace } = useApp()
   const [wsName, setWsName] = useState(workspace?.name || '')
   const [saving, setSaving] = useState(false)
@@ -343,14 +359,14 @@ function WorkspaceGeneralSection({ callSettings, onSaved }) {
         label="Workspace name"
         description="The name of your workspace shown across all projects, the sidebar, and shared links. Updates everywhere immediately."
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="text" value={wsName}
               onChange={e => { setWsName(e.target.value); setError(''); setSaved(false) }}
               onKeyDown={e => { if (e.key === 'Enter') handleUpdateName() }}
               placeholder="Workspace name"
-              style={{ ...inputBase, width: 200 }}
+              style={{ ...inputBase, flex: 1, minWidth: 0 }}
               onFocus={focusInput} onBlur={blurInput}
             />
             <SaveButton
@@ -372,12 +388,12 @@ function WorkspaceGeneralSection({ callSettings, onSaved }) {
         label="Workspace ID"
         description="Your unique workspace identifier. Used in API requests and shared links."
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
           <div style={{
             fontFamily: 'var(--font-mono)', fontSize: 12,
             background: 'var(--color-surface)', border: '1px solid var(--color-border)',
             borderRadius: 9, padding: '8px 12px', color: 'var(--color-text-muted)',
-            maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {workspace?.id?.slice(0, 8) + '...' || 'Loading...'}
           </div>
@@ -406,6 +422,7 @@ function WorkspaceGeneralSection({ callSettings, onSaved }) {
 // ── Section: Plans & Credits ──────────────────────────────────────────────────
 
 function PlansSection() {
+  const isMobile = useIsMobile()
   const { workspace, creditsUsed, creditsLimit } = useApp()
   const plan = workspace?.plan || 'free'
   const pct = creditsLimit > 0 ? Math.round((creditsUsed / creditsLimit) * 100) : 0
@@ -424,7 +441,7 @@ function PlansSection() {
         label="Current plan"
         description="You are on the Free plan. Upgrade to Pro for unlimited brief translations, project builds, and priority support."
       >
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: 10, width: isMobile ? '100%' : 'auto' }}>
           <span style={{
             fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
             background: plan === 'pro' ? 'rgba(124,58,237,0.1)' : 'var(--color-surface)',
@@ -457,7 +474,7 @@ function PlansSection() {
         label="AI credits"
         description="Daily credits for brief translations, AI chat, and build features. Resets every day at midnight UTC."
       >
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: 8, width: isMobile ? '100%' : 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
             <span style={{ fontWeight: 700, fontSize: 20, letterSpacing: '-0.03em', color: 'var(--color-text)', fontFamily: 'var(--font-sans)' }}>
               {creditsUsed}
@@ -466,7 +483,7 @@ function PlansSection() {
               / {creditsLimit} used today
             </span>
           </div>
-          <div style={{ width: 200, height: 6, background: 'var(--color-border)', borderRadius: 99, overflow: 'hidden' }}>
+          <div style={{ width: isMobile ? '100%' : 200, height: 6, background: 'var(--color-border)', borderRadius: 99, overflow: 'hidden' }}>
             <div style={{ width: pct + '%', height: '100%', background: barColor, borderRadius: 99, transition: 'width 0.3s ease' }} />
           </div>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>
@@ -481,6 +498,7 @@ function PlansSection() {
 // ── Section: Danger Zone ──────────────────────────────────────────────────────
 
 function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
+  const isMobile = useIsMobile()
   const { workspace, authUser } = useApp()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
@@ -540,7 +558,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
         {/* Delete workspace — owner only */}
         {isOwner && (
           <div style={{ padding: '20px 24px', borderBottom: showLeaveConfirm ? 'none' : (!isOwner ? 'none' : '1px solid #FECACA') }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#DC2626', marginBottom: 6 }}>Delete workspace</div>
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 360 }}>
@@ -555,6 +573,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
                   padding: '8px 16px', background: 'transparent', border: '1px solid #FECACA',
                   borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
                   fontSize: 13, fontWeight: 600, color: '#DC2626', flexShrink: 0, transition: 'all 0.15s',
+                  width: isMobile ? '100%' : 'auto',
                 }}
               >
                 Delete workspace
@@ -569,7 +588,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
                 <div style={{ fontSize: 13, color: '#991B1B', marginBottom: 10, lineHeight: 1.6, fontWeight: 500 }}>
                   This will permanently delete <strong>{workspace?.name}</strong>. Type the workspace name to confirm:
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
                   <input
                     type="text" value={confirmName}
                     onChange={e => { setConfirmName(e.target.value); setError('') }}
@@ -581,11 +600,12 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
                       fontFamily: 'var(--font-sans)', fontSize: 13, outline: 'none', color: '#991B1B',
                     }}
                   />
+                  <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     onClick={handleDelete}
                     disabled={deleting || confirmName !== workspace?.name}
                     style={{
-                      padding: '8px 16px',
+                      flex: isMobile ? 1 : 'none', padding: '8px 16px',
                       background: confirmName === workspace?.name ? '#DC2626' : '#FECACA',
                       color: 'white', border: 'none', borderRadius: 9,
                       cursor: confirmName === workspace?.name ? 'pointer' : 'not-allowed',
@@ -597,12 +617,13 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
                   <button
                     onClick={() => { setShowDeleteConfirm(false); setConfirmName(''); setError('') }}
                     style={{
-                      padding: '8px 12px', background: 'transparent', border: '1px solid #FECACA',
+                      flex: isMobile ? 1 : 'none', padding: '8px 12px', background: 'transparent', border: '1px solid #FECACA',
                       borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: '#991B1B',
                     }}
                   >
                     Cancel
                   </button>
+                  </div>
                 </div>
                 {error && (
                   <div style={{ marginTop: 8, fontSize: 12, color: '#DC2626', display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -617,7 +638,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
         {/* Leave workspace — non-owners */}
         {!isOwner && (
           <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>Leave workspace</div>
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 360 }}>
@@ -631,6 +652,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
                   border: '1px solid var(--color-border)',
                   borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
                   fontSize: 13, fontWeight: 600, color: 'var(--color-text)', flexShrink: 0,
+                  width: isMobile ? '100%' : 'auto',
                 }}
               >
                 Leave workspace
@@ -641,17 +663,18 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
               <div style={{
                 marginTop: 14, padding: '14px 16px',
                 background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                borderRadius: 10, display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', gap: 16,
+                borderRadius: 10, display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'flex-start' : 'center',
+                justifyContent: 'space-between', gap: 12,
               }}>
                 <span style={{ fontSize: 13, color: 'var(--color-text)' }}>
                   Are you sure you want to leave <strong>{workspace?.name}</strong>?
                 </span>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
                   <button
                     onClick={() => setShowLeaveConfirm(false)}
                     style={{
-                      padding: '6px 14px', background: 'transparent',
+                      flex: isMobile ? 1 : 'none', padding: '6px 14px', background: 'transparent',
                       border: '1px solid var(--color-border)', borderRadius: 8,
                       cursor: 'pointer', fontFamily: 'var(--font-sans)',
                       fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)',
@@ -663,7 +686,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft }) {
                     onClick={handleLeave}
                     disabled={leaving}
                     style={{
-                      padding: '6px 14px', background: '#DC2626', color: 'white',
+                      flex: isMobile ? 1 : 'none', padding: '6px 14px', background: '#DC2626', color: 'white',
                       border: 'none', borderRadius: 8, cursor: 'pointer',
                       fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
                     }}
@@ -703,8 +726,10 @@ const NAV = [
 // ── Main SettingsPage ─────────────────────────────────────────────────────────
 
 export default function SettingsPage({ onClose }) {
+  const isMobile = useIsMobile()
   const { session } = useApp()
   const [activeSection, setActiveSection] = useState('profile')
+  const [mobileView, setMobileView] = useState('nav') // 'nav' | 'content'
   const [toast, setToast] = useState(null) // { msg, key }
   const toastTimer = useRef(null)
 
@@ -822,13 +847,15 @@ export default function SettingsPage({ onClose }) {
         </div>
 
         {/* Body: left nav + content */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '220px 1fr', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '220px 1fr', overflow: 'hidden' }}>
           {/* Left nav */}
           <div style={{
-            borderRight: '1px solid var(--color-border)',
+            borderRight: isMobile ? 'none' : '1px solid var(--color-border)',
+            borderBottom: isMobile ? '1px solid var(--color-border)' : 'none',
             background: 'var(--color-surface)',
             padding: '16px 0',
             overflowY: 'auto',
+            display: isMobile && mobileView === 'content' ? 'none' : 'block',
           }}>
             {NAV.map(group => (
               <div key={group.group}>
@@ -846,7 +873,7 @@ export default function SettingsPage({ onClose }) {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveSection(item.id)}
+                      onClick={() => { setActiveSection(item.id); if (isMobile) setMobileView('content') }}
                       onMouseEnter={e => {
                         if (!isActive) {
                           e.currentTarget.style.background = 'var(--color-card)'
@@ -861,12 +888,16 @@ export default function SettingsPage({ onClose }) {
                       }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 9,
-                        padding: '8px 14px', margin: '1px 8px',
-                        width: 'calc(100% - 16px)',
-                        background: isActive ? 'var(--color-card)' : 'transparent',
-                        border: 'none', borderRadius: 8, cursor: 'pointer',
-                        fontFamily: 'var(--font-sans)', fontSize: 13,
-                        fontWeight: isActive ? 700 : 400,
+                        padding: isMobile ? '12px 18px' : '8px 14px',
+                        margin: isMobile ? '0' : '1px 8px',
+                        width: isMobile ? '100%' : 'calc(100% - 16px)',
+                        background: isActive && !isMobile ? 'var(--color-card)' : 'transparent',
+                        border: 'none',
+                        borderBottom: isMobile ? '1px solid var(--color-border)' : 'none',
+                        borderRadius: isMobile ? 0 : 8,
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-sans)', fontSize: isMobile ? 14 : 13,
+                        fontWeight: isActive ? 600 : 400,
                         color: isActive
                           ? (isDanger ? '#DC2626' : 'var(--color-text)')
                           : 'var(--color-text-muted)',
@@ -877,7 +908,12 @@ export default function SettingsPage({ onClose }) {
                         width: 15, height: 15, flexShrink: 0,
                         color: isActive ? (isDanger ? '#DC2626' : '#7C3AED') : 'inherit',
                       }} />
-                      {item.label}
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {isMobile && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      )}
                     </button>
                   )
                 })}
@@ -886,7 +922,27 @@ export default function SettingsPage({ onClose }) {
           </div>
 
           {/* Content area */}
-          <div style={{ overflowY: 'auto', padding: '36px 48px', maxWidth: 760, width: '100%', boxSizing: 'border-box' }}>
+          <div style={{
+            overflowY: 'auto',
+            padding: isMobile ? '20px 16px' : '36px 48px',
+            maxWidth: isMobile ? 'none' : 760,
+            width: '100%', boxSizing: 'border-box',
+            display: isMobile && mobileView === 'nav' ? 'none' : 'block',
+          }}>
+            {isMobile && (
+              <button
+                onClick={() => setMobileView('nav')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20,
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+                  color: 'var(--color-text-muted)', padding: 0,
+                }}
+              >
+                <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+                Settings
+              </button>
+            )}
             {renderSection()}
           </div>
         </div>
