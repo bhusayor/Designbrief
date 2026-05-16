@@ -23,6 +23,15 @@ function AppRouter() {
     workspace, setWorkspace, workspaceLoading,
   } = useContext(AppContext);
 
+  // After workspace setup, redirect the user back to a pending project invite if one exists.
+  function handleWorkspaceSetupComplete(ws) {
+    localStorage.setItem('db-workspace', JSON.stringify(ws));
+    setWorkspace(ws);
+    if (localStorage.getItem('db-join-token')) {
+      navigate('join');
+    }
+  }
+
   useEffect(() => {
     const path = window.location.pathname;
 
@@ -102,10 +111,7 @@ function AppRouter() {
     return (
       <WorkspaceSetup
         user={authUser}
-        onComplete={(ws) => {
-          localStorage.setItem('db-workspace', JSON.stringify(ws));
-          setWorkspace(ws);
-        }}
+        onComplete={handleWorkspaceSetupComplete}
       />
     );
   }

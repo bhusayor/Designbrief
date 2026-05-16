@@ -222,12 +222,23 @@ export function AppProvider({ children }) {
       localStorage.setItem('db-user', JSON.stringify(updatedUser));
 
       await loadProjectsFromDB(supabaseUser.id);
-      await loadWorkspace(supabaseUser.id);
+
+      // Skip loadWorkspace when a workspace invite is being accepted — doAccept will set the
+      // workspace directly after the member insert commits, avoiding a race condition.
+      let foundWorkspace = null;
+      if (localStorage.getItem('db-invite-token')) {
+        setWorkspaceLoading(false);
+      } else {
+        foundWorkspace = await loadWorkspace(supabaseUser.id);
+      }
+
       loadCreditsUsed(supabaseUser.id);
 
-      // Redirect to join page if there's a stored invite token
+      // Redirect to join page only if the user already has a workspace.
+      // New users (no workspace) must complete WorkspaceSetup first — App.jsx's
+      // onComplete callback will navigate them to 'join' after their workspace is created.
       const storedToken = localStorage.getItem('db-join-token');
-      if (storedToken) {
+      if (storedToken && foundWorkspace) {
         setActiveSectionState('join');
       }
     } catch (e) {
@@ -305,12 +316,13 @@ export function AppProvider({ children }) {
         localStorage.removeItem('db-workspace');
         setWorkspace(null);
       }
+      return ws;
     } catch (e) {
       console.error('[loadWorkspace]', e);
       // On transient error: keep the cached workspace so returning users
       // never get bounced to WorkspaceSetup by a network blip.
-      if (cached) setWorkspace(cached);
-      else setWorkspace(null);
+      if (cached) { setWorkspace(cached); return cached; }
+      else { setWorkspace(null); return null; }
     } finally {
       setWorkspaceLoading(false);
     }

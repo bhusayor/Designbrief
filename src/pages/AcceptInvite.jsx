@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase'
 import AppContext from '../context/AppContext'
 
 export default function AcceptInvite() {
-  const { navigate, authUser, setWorkspace } = useContext(AppContext)
+  const { navigate, authUser, setWorkspace, session } = useContext(AppContext)
 
   const token = (
     window.location.pathname.split('/invite/')[1] || ''
@@ -58,7 +58,7 @@ export default function AcceptInvite() {
         // Link-type invites (no specific email) — any signed-in user can accept
         const isLinkInvite = !data.invite.invitedEmail
         if (isLinkInvite || authUser.email?.toLowerCase() === data.invite.invitedEmail?.toLowerCase()) {
-          await doAccept(token, data.invite)
+          await doAccept(token, data.invite, session?.access_token)
         } else {
           setPhase('valid')
         }
@@ -76,12 +76,8 @@ export default function AcceptInvite() {
     const controller = new AbortController()
     const tid = setTimeout(() => controller.abort(), 20000)
     try {
-      // Use the token passed directly (from signIn/signUp) — avoids getSession race
-      let bearerToken = accessToken
-      if (!bearerToken) {
-        const { data: { session } } = await supabase.auth.getSession()
-        bearerToken = session?.access_token
-      }
+      // Use the token passed directly (from signIn/signUp or context session) — avoids getSession hang
+      let bearerToken = accessToken || session?.access_token
       if (!bearerToken) {
         clearTimeout(tid)
         setError('Sign in required.')
@@ -313,7 +309,7 @@ export default function AcceptInvite() {
             </p>
           </div>
         ) : authUser ? (
-          <button onClick={() => doAccept(token, invite)} style={btnStyle}>
+          <button onClick={() => doAccept(token, invite, session?.access_token)} style={btnStyle}>
             Join workspace
             <ArrowRightIcon style={{ width: 14, height: 14 }} />
           </button>
