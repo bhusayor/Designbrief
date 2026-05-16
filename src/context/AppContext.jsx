@@ -66,7 +66,10 @@ export function AppProvider({ children }) {
       return cached ? JSON.parse(cached) : null;
     } catch { return null; }
   });
-  const [workspaceLoading, setWorkspaceLoading] = useState(true);
+  const [workspaceLoading, setWorkspaceLoading] = useState(() => {
+    // If we have a cached workspace, don't show a loading spinner on return visits
+    try { return !localStorage.getItem('db-workspace'); } catch { return true; }
+  });
 
   // ── Credits state ─────────────────────────────────────────────────────────
   const FREE_DAILY_LIMIT = 50;
@@ -236,46 +239,64 @@ export function AppProvider({ children }) {
   }
 
   async function loadWorkspace(userId) {
-    // If we already have a cached workspace, don't block the UI — just refresh in background
+    // Seed from localStorage so returning users never see a flash of WorkspaceSetup
     const cached = (() => {
       try { return JSON.parse(localStorage.getItem('db-workspace')); } catch { return null; }
     })();
     if (!cached) setWorkspaceLoading(true);
 
     try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      const token = currentSession?.access_token;
-      if (!token) throw new Error('No session token');
+      // Query the DB directly — the Supabase client already holds the session
+      // (persistSession: true), so this never needs getSession() or a token refresh.
+      // This is the only reliable way to avoid the "workspace loop" caused by a
+      // stalled token-refresh hanging getSession() and returning null.
 
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ action: 'get-workspace' }),
-      });
+      // 1. Workspace this user owns
+      let ws = null;
+      const { data: owned } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      ws = owned || null;
 
-      if (!res.ok) throw new Error('get-workspace API failed');
+      // 2. Fall back to any workspace this user is a member of
+      if (!ws) {
+        const { data: membership } = await supabase
+          .from('workspace_members')
+          .select('workspace_id, workspaces(*)')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        ws = membership?.workspaces || null;
+      }
 
-      const { workspace: ws } = await res.json();
       if (ws) {
         localStorage.setItem('db-workspace', JSON.stringify(ws));
         setWorkspace(ws);
         loadConnectorData(ws.id);
-        // Track workspace visit history (most recent first, max 20)
         try {
           const hist = JSON.parse(localStorage.getItem('db-workspace-history') || '[]');
-          const updated = [ws.id, ...hist.filter(id => id !== ws.id)].slice(0, 20);
-          localStorage.setItem('db-workspace-history', JSON.stringify(updated));
+          localStorage.setItem(
+            'db-workspace-history',
+            JSON.stringify([ws.id, ...hist.filter(id => id !== ws.id)].slice(0, 20))
+          );
         } catch {}
-      } else if (!cached) {
+      } else {
+        // Query returned definitively: no workspace exists for this user.
+        // Show WorkspaceSetup.
+        localStorage.removeItem('db-workspace');
         setWorkspace(null);
       }
     } catch (e) {
       console.error('[loadWorkspace]', e);
-      // If we have a cached workspace, keep it — don't blank the screen on transient errors
-      if (!cached) setWorkspace(null);
+      // On transient error: keep the cached workspace so returning users
+      // never get bounced to WorkspaceSetup by a network blip.
+      if (cached) setWorkspace(cached);
+      else setWorkspace(null);
     } finally {
       setWorkspaceLoading(false);
     }
