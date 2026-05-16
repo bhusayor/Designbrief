@@ -592,11 +592,12 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
         Irreversible and destructive actions. Please proceed with caution.
       </p>
 
-      <div style={{ border: `1px solid ${RED}`, borderRadius: 12, overflow: 'hidden' }}>
+      {/* ── Workspace actions card ── */}
+      <div style={{ border: `1px solid ${RED}`, borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
 
         {/* Delete workspace — owner only */}
         {isOwner && (
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${RED}` }}>
+          <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: RED, marginBottom: 6 }}>Delete workspace</div>
@@ -606,7 +607,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
               </div>
               <button
                 onClick={() => { setShowDeleteConfirm(true); setError(''); setConfirmName('') }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
                   padding: '8px 16px', background: 'transparent', border: `1px solid ${RED}`,
@@ -622,9 +623,9 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
             {showDeleteConfirm && (
               <div style={{
                 marginTop: 16, padding: 16,
-                background: '#FEF2F2', border: `1px solid ${RED}`, borderRadius: 10,
+                background: 'rgba(220,38,38,0.08)', border: `1px solid ${RED}`, borderRadius: 10,
               }}>
-                <div style={{ fontSize: 13, color: '#991B1B', marginBottom: 10, lineHeight: 1.6, fontWeight: 500 }}>
+                <div style={{ fontSize: 13, color: RED, marginBottom: 10, lineHeight: 1.6, fontWeight: 500 }}>
                   This will permanently delete <strong>{workspace?.name}</strong>. Type the workspace name to confirm:
                 </div>
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
@@ -634,9 +635,10 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
                     placeholder={workspace?.name}
                     autoFocus
                     style={{
-                      flex: 1, background: 'white', border: `1px solid ${RED}`,
+                      flex: 1, background: 'var(--color-surface)', border: `1px solid ${RED}`,
                       borderRadius: 9, padding: '8px 12px',
-                      fontFamily: 'var(--font-sans)', fontSize: 13, outline: 'none', color: '#991B1B',
+                      fontFamily: 'var(--font-sans)', fontSize: 13, outline: 'none',
+                      color: 'var(--color-text)',
                     }}
                   />
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -645,7 +647,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
                       disabled={deleting || confirmName !== workspace?.name}
                       style={{
                         flex: isMobile ? 1 : 'none', padding: '8px 16px',
-                        background: confirmName === workspace?.name ? RED : '#FECACA',
+                        background: confirmName === workspace?.name ? RED : 'rgba(220,38,38,0.25)',
                         color: 'white', border: 'none', borderRadius: 9,
                         cursor: confirmName === workspace?.name ? 'pointer' : 'not-allowed',
                         fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, flexShrink: 0, transition: 'all 0.15s',
@@ -657,7 +659,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
                       onClick={() => { setShowDeleteConfirm(false); setConfirmName(''); setError('') }}
                       style={{
                         flex: isMobile ? 1 : 'none', padding: '8px 12px', background: 'transparent', border: `1px solid ${RED}`,
-                        borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: '#991B1B',
+                        borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: RED,
                       }}
                     >
                       Cancel
@@ -676,7 +678,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
 
         {/* Leave workspace — non-owners */}
         {!isOwner && (
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${RED}` }}>
+          <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: RED, marginBottom: 6 }}>Leave workspace</div>
@@ -686,7 +688,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
               </div>
               <button
                 onClick={() => { setShowLeaveConfirm(true); setError('') }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
                   padding: '8px 16px', background: 'transparent', border: `1px solid ${RED}`,
@@ -702,12 +704,12 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
             {showLeaveConfirm && (
               <div style={{
                 marginTop: 14, padding: '14px 16px',
-                background: '#FEF2F2', border: `1px solid ${RED}`,
+                background: 'rgba(220,38,38,0.08)', border: `1px solid ${RED}`,
                 borderRadius: 10, display: 'flex', flexDirection: isMobile ? 'column' : 'row',
                 alignItems: isMobile ? 'flex-start' : 'center',
                 justifyContent: 'space-between', gap: 12,
               }}>
-                <span style={{ fontSize: 13, color: '#991B1B' }}>
+                <span style={{ fontSize: 13, color: 'var(--color-text)' }}>
                   Are you sure you want to leave <strong>{workspace?.name}</strong>?
                 </span>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
@@ -717,7 +719,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
                       flex: isMobile ? 1 : 'none', padding: '6px 14px', background: 'transparent',
                       border: `1px solid ${RED}`, borderRadius: 8,
                       cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                      fontSize: 12, fontWeight: 600, color: '#991B1B',
+                      fontSize: 12, fontWeight: 600, color: RED,
                     }}
                   >
                     Cancel
@@ -739,6 +741,11 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
           </div>
         )}
 
+      </div>
+
+      {/* ── Account actions card ── */}
+      <div style={{ border: `1px solid ${RED}`, borderRadius: 12, overflow: 'hidden' }}>
+
         {/* Delete account — all users */}
         <div style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
@@ -753,7 +760,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
             </div>
             <button
               onClick={() => { setShowDeleteAccountConfirm(true); setError(''); setConfirmEmail('') }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               style={{
                 padding: '8px 16px', background: 'transparent', border: `1px solid ${RED}`,
@@ -769,9 +776,9 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
           {showDeleteAccountConfirm && (
             <div style={{
               marginTop: 16, padding: 16,
-              background: '#FEF2F2', border: `1px solid ${RED}`, borderRadius: 10,
+              background: 'rgba(220,38,38,0.08)', border: `1px solid ${RED}`, borderRadius: 10,
             }}>
-              <div style={{ fontSize: 13, color: '#991B1B', marginBottom: 10, lineHeight: 1.6, fontWeight: 500 }}>
+              <div style={{ fontSize: 13, color: RED, marginBottom: 10, lineHeight: 1.6, fontWeight: 500 }}>
                 This will permanently delete your account. Type your email <strong>{authUser?.email}</strong> to confirm:
               </div>
               <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
@@ -781,9 +788,10 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
                   placeholder={authUser?.email}
                   autoFocus
                   style={{
-                    flex: 1, background: 'white', border: `1px solid ${RED}`,
+                    flex: 1, background: 'var(--color-surface)', border: `1px solid ${RED}`,
                     borderRadius: 9, padding: '8px 12px',
-                    fontFamily: 'var(--font-sans)', fontSize: 13, outline: 'none', color: '#991B1B',
+                    fontFamily: 'var(--font-sans)', fontSize: 13, outline: 'none',
+                    color: 'var(--color-text)',
                   }}
                 />
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -792,7 +800,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
                     disabled={deletingAccount || confirmEmail.toLowerCase() !== authUser?.email?.toLowerCase()}
                     style={{
                       flex: isMobile ? 1 : 'none', padding: '8px 16px',
-                      background: confirmEmail.toLowerCase() === authUser?.email?.toLowerCase() ? RED : '#FECACA',
+                      background: confirmEmail.toLowerCase() === authUser?.email?.toLowerCase() ? RED : 'rgba(220,38,38,0.25)',
                       color: 'white', border: 'none', borderRadius: 9,
                       cursor: confirmEmail.toLowerCase() === authUser?.email?.toLowerCase() ? 'pointer' : 'not-allowed',
                       fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, flexShrink: 0, transition: 'all 0.15s',
@@ -804,7 +812,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
                     onClick={() => { setShowDeleteAccountConfirm(false); setConfirmEmail(''); setError('') }}
                     style={{
                       flex: isMobile ? 1 : 'none', padding: '8px 12px', background: 'transparent', border: `1px solid ${RED}`,
-                      borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: '#991B1B',
+                      borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: RED,
                     }}
                   >
                     Cancel
@@ -1095,7 +1103,7 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
           <div style={{
             overflowY: 'auto',
             padding: isMobile ? '20px 16px' : '36px 48px',
-            maxWidth: isMobile ? 'none' : 760,
+            maxWidth: isMobile ? 'none' : (activeSection === 'connectors' ? 'none' : 760),
             width: '100%', boxSizing: 'border-box',
             display: isMobile && mobileView === 'nav' ? 'none' : 'block',
           }}>
