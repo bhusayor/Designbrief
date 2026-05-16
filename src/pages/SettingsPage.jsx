@@ -51,7 +51,7 @@ function SettingRow({ label, description, children }) {
     <div style={{
       display: 'flex',
       flexDirection: isMobile ? 'column' : 'row',
-      alignItems: 'flex-start',
+      alignItems: isMobile ? 'flex-start' : 'center',
       justifyContent: 'space-between',
       gap: isMobile ? 12 : 32,
       padding: '20px 0',
