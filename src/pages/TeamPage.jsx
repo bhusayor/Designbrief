@@ -297,10 +297,23 @@ function InviteModal({ workspaceId, onClose, onSent, getHeaders }) {
   )
 }
 
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
+}
+
 // ── Main TeamPage ─────────────────────────────────────────────────────────────
 
 export default function TeamPage({ onClose }) {
   const { workspace, authUser, session } = useApp()
+  const isMobile = useIsMobile()
   const [tab, setTab] = useState('all')
   const [apiMembers, setApiMembers] = useState([])   // from API
   const [pendingInvites, setPendingInvites] = useState([])
@@ -560,7 +573,7 @@ export default function TeamPage({ onClose }) {
         <div style={{
           height: 52, borderBottom: '1px solid var(--color-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 28px', flexShrink: 0, background: 'var(--color-card)',
+          padding: isMobile ? '0 16px' : '0 28px', flexShrink: 0, background: 'var(--color-card)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7C3AED' }} />
@@ -583,11 +596,11 @@ export default function TeamPage({ onClose }) {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px', maxWidth: 960, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', maxWidth: 960, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
 
           {/* Page header */}
           <div style={{ marginBottom: 24 }}>
-            <h1 style={{ fontWeight: 800, fontSize: 24, letterSpacing: '-0.04em', color: 'var(--color-text)', margin: '0 0 6px' }}>
+            <h1 style={{ fontWeight: 800, fontSize: isMobile ? 20 : 24, letterSpacing: '-0.04em', color: 'var(--color-text)', margin: '0 0 6px' }}>
               Team members
             </h1>
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.6 }}>
@@ -636,7 +649,7 @@ export default function TeamPage({ onClose }) {
 
           {/* Toolbar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: isMobile ? 120 : 200 }}>
               <MagnifyingGlassIcon style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
               <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search members..."
@@ -700,7 +713,7 @@ export default function TeamPage({ onClose }) {
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)' }}
             >
               <UserPlusIcon style={{ width: 14, height: 14 }} />
-              Invite members
+              {isMobile ? 'Invite' : 'Invite members'}
             </button>
           </div>
 
@@ -758,18 +771,21 @@ export default function TeamPage({ onClose }) {
           <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
             {/* Header row */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '36px 1fr 100px 120px 100px 40px',
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr auto 40px' : '36px 1fr 100px 120px 100px 40px',
               padding: '8px 16px', background: 'var(--color-surface)',
               borderBottom: '1px solid var(--color-border)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <input type="checkbox"
-                  checked={selected.size > 0 && selected.size === filteredRows.length}
-                  onChange={toggleSelectAll}
-                  style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#7C3AED' }}
-                />
-              </div>
-              {['Name', 'Role', 'Joined', 'Status', ''].map(h => (
+              {!isMobile && (
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <input type="checkbox"
+                    checked={selected.size > 0 && selected.size === filteredRows.length}
+                    onChange={toggleSelectAll}
+                    style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#7C3AED' }}
+                  />
+                </div>
+              )}
+              {(isMobile ? ['Name', 'Role', ''] : ['Name', 'Role', 'Joined', 'Status', '']).map(h => (
                 <div key={h} style={{
                   fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
                   letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -793,21 +809,24 @@ export default function TeamPage({ onClose }) {
               </div>
             ) : filteredRows.map((row, i) => (
               <div key={row.id || i} className="tp-row" style={{
-                display: 'grid', gridTemplateColumns: '36px 1fr 100px 120px 100px 40px',
-                padding: '10px 16px', alignItems: 'center',
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr auto 40px' : '36px 1fr 100px 120px 100px 40px',
+                padding: isMobile ? '12px 16px' : '10px 16px', alignItems: 'center',
                 borderBottom: i < filteredRows.length - 1 ? '1px solid var(--color-border)' : 'none',
                 background: selected.has(row.id) ? 'rgba(124,58,237,0.04)' : 'transparent',
                 transition: 'background 0.1s',
               }}>
-                {/* Checkbox */}
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <input type="checkbox"
-                    checked={selected.has(row.id)}
-                    onChange={() => row.role !== 'owner' && toggleSelect(row.id)}
-                    disabled={row.role === 'owner'}
-                    style={{ width: 14, height: 14, cursor: row.role === 'owner' ? 'not-allowed' : 'pointer', accentColor: '#7C3AED', opacity: row.role === 'owner' ? 0.35 : 1 }}
-                  />
-                </div>
+                {/* Checkbox — desktop only */}
+                {!isMobile && (
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <input type="checkbox"
+                      checked={selected.has(row.id)}
+                      onChange={() => row.role !== 'owner' && toggleSelect(row.id)}
+                      disabled={row.role === 'owner'}
+                      style={{ width: 14, height: 14, cursor: row.role === 'owner' ? 'not-allowed' : 'pointer', accentColor: '#7C3AED', opacity: row.role === 'owner' ? 0.35 : 1 }}
+                    />
+                  </div>
+                )}
 
                 {/* Name + email */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -855,22 +874,28 @@ export default function TeamPage({ onClose }) {
                       }}>
                         owner
                       </span>
-                      <span className="tp-owner-tooltip">
-                        Owners can manage all collaborators, projects, and connections.
-                      </span>
+                      {!isMobile && (
+                        <span className="tp-owner-tooltip">
+                          Owners can manage all collaborators, projects, and connections.
+                        </span>
+                      )}
                     </span>
                   ) : (
                     <RoleBadge role={row.role} />
                   )}
                 </div>
 
-                {/* Joined */}
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  {row.isPending ? '—' : timeAgo(row.joinedAt)}
-                </div>
+                {/* Joined — desktop only */}
+                {!isMobile && (
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                    {row.isPending ? '—' : timeAgo(row.joinedAt)}
+                  </div>
+                )}
 
-                {/* Status */}
-                <div><StatusBadge status={row.isPending ? 'pending' : 'active'} /></div>
+                {/* Status — desktop only */}
+                {!isMobile && (
+                  <div><StatusBadge status={row.isPending ? 'pending' : 'active'} /></div>
+                )}
 
                 {/* Actions */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
