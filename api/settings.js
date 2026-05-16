@@ -135,6 +135,13 @@ export default async function handler(req, res) {
       return res.json({ success: true })
     }
 
+    // ── DELETE ACCOUNT ────────────────────────────────────────────────────────
+    if (action === 'delete_account') {
+      const { error } = await supabase.auth.admin.deleteUser(user.id)
+      if (error) throw error
+      return res.json({ success: true })
+    }
+
     // ── GET WORKSPACE ─────────────────────────────────────────────────────────
     if (action === 'get-workspace') {
       // 1. Try to find a workspace the user owns

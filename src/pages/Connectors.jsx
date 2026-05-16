@@ -758,8 +758,8 @@ export default function Connectors({ embedded = false }) {
         </div>
       </div>
 
-      {/* auto-fill grid — cards use full available width */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap: isMobile ? 12 : 14 }}>
+      {/* 4-col grid on desktop, 1-col on mobile */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: isMobile ? 12 : 14 }}>
         {filtered.map(connector => (
           <ConnectorCard
             key={connector.id}
