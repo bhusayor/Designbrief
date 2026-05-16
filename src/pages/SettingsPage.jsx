@@ -14,8 +14,18 @@ import {
   SunIcon,
   MoonIcon,
   ArrowLeftIcon,
-  Bars3Icon,
 } from '@heroicons/react/24/outline'
+
+function PanelLeftClose({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m16 15-3-3 3-3" />
+    </svg>
+  )
+}
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
 
@@ -724,6 +734,14 @@ const NAV = [
   },
 ]
 
+function getSectionLabel(id) {
+  for (const group of NAV) {
+    const item = group.items.find(i => i.id === id)
+    if (item) return item.label
+  }
+  return 'Settings'
+}
+
 // ── Main SettingsPage ─────────────────────────────────────────────────────────
 
 export default function SettingsPage({ onClose }) {
@@ -832,27 +850,27 @@ export default function SettingsPage({ onClose }) {
                 onClick={() => setMobileView('nav')}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '6px 10px', background: 'transparent',
-                  border: '1px solid var(--color-border)', borderRadius: 8,
+                  padding: '6px 8px', background: 'transparent',
+                  border: 'none', borderRadius: 8,
                   cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                  fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)',
-                  transition: 'all 0.15s', whiteSpace: 'nowrap',
+                  fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)',
+                  transition: 'all 0.15s',
                 }}
               >
-                <ArrowLeftIcon style={{ width: 13, height: 13 }} />
-                Back to settings
+                <ArrowLeftIcon style={{ width: 15, height: 15 }} />
+                Back
               </button>
             ) : (
               <button
                 onClick={onClose}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 34, height: 34, background: 'transparent',
-                  border: '1px solid var(--color-border)', borderRadius: 8,
+                  padding: '6px 8px', background: 'transparent',
+                  border: 'none', borderRadius: 8,
                   cursor: 'pointer', color: 'var(--color-text-muted)', transition: 'all 0.15s',
                 }}
               >
-                <Bars3Icon style={{ width: 16, height: 16 }} />
+                <PanelLeftClose size={18} />
               </button>
             )
           ) : (
@@ -879,11 +897,10 @@ export default function SettingsPage({ onClose }) {
               ? { position: 'absolute', left: '50%', transform: 'translateX(-50%)' }
               : { marginLeft: 'auto' }
             ),
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'flex', alignItems: 'center',
           }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#7C3AED' }} />
             <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: 'var(--color-text-muted)' }}>
-              Settings
+              {isMobile && mobileView === 'content' ? getSectionLabel(activeSection) : 'Settings'}
             </span>
           </div>
         </div>
