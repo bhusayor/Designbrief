@@ -253,6 +253,9 @@ body {
   color: var(--color-text);
   line-height: 1.6;
   min-height: 100vh;
+  min-height: 100dvh;
+  /* Prevent overscroll bounce on iOS */
+  overscroll-behavior: none;
 }
 
 /* ─── THEME TRANSITIONS ─────────────────────────────────────────────────────── */
@@ -308,8 +311,23 @@ button, a, input, textarea, select {
   border-inline: none;
   text-align: left;
   min-height: 100vh;
+  min-height: 100dvh;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+}
+
+/* ─── Mobile: prevent iOS input zoom (font-size must be ≥16px) ───────────── */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* ─── Prevent double-tap zoom & tap highlight on touch devices ───────────── */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ─── Keyframe animations ──────────────────────────────────────────────────── */

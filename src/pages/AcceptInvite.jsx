@@ -146,7 +146,7 @@ export default function AcceptInvite() {
   }
 
   const bg = {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

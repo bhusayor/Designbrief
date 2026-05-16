@@ -35,7 +35,7 @@ export default function AppShell({ children }) {
   }, [isMobile]);
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--color-bg)' }}>
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--color-bg)' }}>
 
       {isMobile ? (
         <>

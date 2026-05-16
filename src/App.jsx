@@ -66,7 +66,7 @@ function AppRouter() {
   if (authLoading || (authUser && workspaceLoading)) {
     return (
       <div style={{
-        height: '100vh', display: 'flex', alignItems: 'center',
+        height: '100dvh', display: 'flex', alignItems: 'center',
         justifyContent: 'center', background: 'var(--color-bg)',
         flexDirection: 'column', gap: 16,
       }}>

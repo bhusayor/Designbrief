@@ -83,7 +83,7 @@ export default function JoinPage() {
 
   return (
     <div style={{
-      height: '100vh', background: 'var(--color-bg)',
+      height: '100dvh', background: 'var(--color-bg)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24,
     }}>

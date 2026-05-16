@@ -251,8 +251,8 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     position: 'fixed',
     top: 0,
     left: 0,
-    width: 'min(80vw, 300px)',
-    height: '100vh',
+    width: 'min(85vw, 300px)',
+    height: '100dvh',
     zIndex: 502,
     display: 'flex',
     flexDirection: 'column',
@@ -798,7 +798,12 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
       )}
 
       {/* ── Bottom section ── */}
-      <div style={{ padding: '8px', borderTop: '1px solid var(--color-divider)', flexShrink: 0 }}>
+      <div style={{
+        padding: '8px',
+        paddingBottom: isMobile ? 'max(8px, env(safe-area-inset-bottom))' : '8px',
+        borderTop: '1px solid var(--color-divider)',
+        flexShrink: 0,
+      }}>
         {/* Theme toggle */}
         {!collapsed && (
           <button

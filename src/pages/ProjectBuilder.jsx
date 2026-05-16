@@ -233,7 +233,7 @@ export default function ProjectBuilder() {
   // ── Layout ────────────────────────────────────────────────────────────────
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', height: '100vh',
+      display: 'flex', flexDirection: 'column', height: '100dvh',
       fontFamily: "'Urbanist', sans-serif", background: 'var(--color-bg)',
       overflow: 'hidden',
     }}>

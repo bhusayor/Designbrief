@@ -99,7 +99,7 @@ function SubmittingView({ loadMsg }) {
 function DoneView({ designerName }) {
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: '#ffffff', padding: '24px',
     }}>
