@@ -18,7 +18,7 @@ export default function AcceptInvite() {
   const [phase, setPhase] = useState('loading') // loading | valid | accepting | success | error | invalid
   const [invite, setInvite] = useState(null)
   const [error, setError] = useState('')
-  const [authTab, setAuthTab] = useState('signin')
+  const [authTab, setAuthTab] = useState('signup')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [authEmail, setAuthEmail] = useState('')
@@ -71,11 +71,19 @@ export default function AcceptInvite() {
     }
   }
 
-  async function doAccept(inviteToken, inviteData) {
+  async function doAccept(inviteToken, inviteData, accessToken) {
     setPhase('accepting')
+    const controller = new AbortController()
+    const tid = setTimeout(() => controller.abort(), 20000)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
+      // Use the token passed directly (from signIn/signUp) — avoids getSession race
+      let bearerToken = accessToken
+      if (!bearerToken) {
+        const { data: { session } } = await supabase.auth.getSession()
+        bearerToken = session?.access_token
+      }
+      if (!bearerToken) {
+        clearTimeout(tid)
         setError('Sign in required.')
         setPhase('valid')
         return
@@ -85,10 +93,12 @@ export default function AcceptInvite() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + session.access_token,
+          'Authorization': 'Bearer ' + bearerToken,
         },
         body: JSON.stringify({ action: 'accept', token: inviteToken }),
+        signal: controller.signal,
       })
+      clearTimeout(tid)
       const data = await res.json()
 
       if (!res.ok) {
@@ -106,8 +116,9 @@ export default function AcceptInvite() {
         window.history.replaceState(null, '', '/')
         navigate('dashboard')
       }, 2000)
-    } catch {
-      setError('Failed to accept invite. Please try again.')
+    } catch (err) {
+      clearTimeout(tid)
+      setError(err?.name === 'AbortError' ? 'Request timed out. Please try again.' : 'Failed to accept invite. Please try again.')
       setPhase('error')
     }
   }
@@ -119,6 +130,7 @@ export default function AcceptInvite() {
 
     const resolvedEmail = isLinkInvite ? authEmail : (invite?.invitedEmail || '')
     try {
+      let sessionToken = null
       if (authTab === 'signin') {
         const { data, error: err } = await supabase.auth.signInWithPassword({
           email: resolvedEmail,
@@ -126,6 +138,7 @@ export default function AcceptInvite() {
         })
         if (err) { setAuthError(err.message); return }
         if (!data.session) { setAuthError('Sign-in failed. Please try again.'); return }
+        sessionToken = data.session.access_token
       } else {
         const { data, error: err } = await supabase.auth.signUp({
           email: resolvedEmail,
@@ -136,12 +149,14 @@ export default function AcceptInvite() {
         })
         if (err) { setAuthError(err.message); return }
         if (!data.session) {
-          setAuthError('Please confirm your email then sign in to accept the invite.')
+          setAuthError('Check your email to confirm your account, then return here to sign in and join.')
+          setAuthTab('signin')
           return
         }
+        sessionToken = data.session.access_token
       }
 
-      await doAccept(token, invite)
+      await doAccept(token, invite, sessionToken)
     } catch {
       setAuthError('Authentication failed. Please try again.')
     } finally {

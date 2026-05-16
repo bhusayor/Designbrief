@@ -318,9 +318,9 @@ export default async function handler(req, res) {
       const isLinkInvite = invite.invited_email?.startsWith('link:')
 
       // Verify email match only for email-specific invites
+      // user.email comes directly from getUser(token) — no extra admin call needed
       if (!isLinkInvite) {
-        const { data: { user: acceptingUser } } = await supabase.auth.admin.getUserById(user.id)
-        if (acceptingUser?.email?.toLowerCase() !== invite.invited_email.toLowerCase())
+        if (user.email?.toLowerCase() !== invite.invited_email.toLowerCase())
           return res.status(403).json({
             error: 'This invite was sent to ' + invite.invited_email + '. Please sign in with that email.',
             code: 'EMAIL_MISMATCH',
