@@ -166,45 +166,7 @@ export default async function handler(req, res) {
         }
       }
 
-      // 3. Auto-create a default workspace so the user never hits the setup screen
-      if (!workspace) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, first_name')
-          .eq('id', user.id)
-          .maybeSingle()
-
-        const displayName =
-          profile?.first_name ||
-          profile?.full_name?.split(' ')[0] ||
-          user.user_metadata?.full_name?.split(' ')[0] ||
-          user.email?.split('@')[0] ||
-          'My'
-
-        const wsName = `${displayName}'s Workspace`
-
-        const { data: newWs, error: createErr } = await supabase
-          .from('workspaces')
-          .insert({
-            name: wsName,
-            owner_id: user.id,
-            plan: 'free',
-            credits_used_today: 0,
-            credits_reset_at: new Date(new Date().setUTCHours(24, 0, 0, 0)).toISOString(),
-          })
-          .select('*')
-          .single()
-
-        if (createErr) throw createErr
-
-        await supabase
-          .from('workspace_members')
-          .insert({ workspace_id: newWs.id, user_id: user.id, role: 'owner' })
-
-        workspace = newWs
-      }
-
-      return res.json({ workspace })
+      return res.json({ workspace: workspace || null })
     }
 
     return res.status(400).json({ error: 'Unknown action: ' + action })
