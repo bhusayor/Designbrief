@@ -45,7 +45,7 @@ function useIsMobile() {
 
 // ── SettingRow layout ─────────────────────────────────────────────────────────
 
-function SettingRow({ label, description, children }) {
+function SettingRow({ label, description, children, stretch = false }) {
   const isMobile = useIsMobile()
   return (
     <div style={{
@@ -57,7 +57,7 @@ function SettingRow({ label, description, children }) {
       padding: '20px 0',
       borderBottom: '1px solid var(--color-border)',
     }}>
-      <div style={{ maxWidth: isMobile ? 'none' : 340, width: isMobile ? '100%' : 'auto' }}>
+      <div style={{ maxWidth: isMobile ? 'none' : 340, width: isMobile ? '100%' : 'auto', flexShrink: 0 }}>
         <div style={{
           fontWeight: 600, fontSize: 14,
           color: 'var(--color-text)', marginBottom: 5, letterSpacing: '-0.01em',
@@ -68,7 +68,12 @@ function SettingRow({ label, description, children }) {
           {description}
         </div>
       </div>
-      <div style={{ flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>{children}</div>
+      <div style={{
+        flex: stretch ? 1 : undefined,
+        flexShrink: stretch ? undefined : 0,
+        minWidth: stretch ? 0 : undefined,
+        width: isMobile ? '100%' : (stretch ? undefined : 'auto'),
+      }}>{children}</div>
     </div>
   )
 }
@@ -256,6 +261,7 @@ function ProfileSection({ callSettings, onSaved }) {
       <SettingRow
         label="Email address"
         description="Your email address associated with this account. To change your email contact support."
+        stretch
       >
         <input
           type="email" value={email} readOnly
