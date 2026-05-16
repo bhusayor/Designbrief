@@ -21,7 +21,7 @@ function FigmaIcon() {
 
 function GitHubIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="#24292f">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'var(--color-text)' }}>
       <path fillRule="evenodd" clipRule="evenodd" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
     </svg>
   )
@@ -29,7 +29,7 @@ function GitHubIcon() {
 
 function NotionIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="#000">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'var(--color-text)' }}>
       <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86.82c-.28-.186-.654-.466-1.354-.513L3.351.006C2.605.051 1.859.326 1.858 1.373v.047l.046.093 2.555 3.695zm.746 14.226V5.234c0-.28.14-.513.42-.607l14.34-.84.047.047V18.827c0 .28-.093.513-.42.56l-13.967.84c-.42.046-.42-.187-.42-.793zm12.44-.793c.327-.047.42-.234.42-.513V6.167l-2.24.14V18.08l1.82-.44zm-11.09 1.167l12.253-2.193V7.054l-12.253.653v11.1z"/>
     </svg>
   )
@@ -210,21 +210,21 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
       ref={panelRef}
       style={{
         position: 'absolute', top: 44, right: 0, zIndex: 200,
-        width: 320, background: '#fff', borderRadius: 14,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)',
-        border: '1px solid #e5e7eb', overflow: 'hidden',
+        width: 320, background: 'var(--color-card)', borderRadius: 14,
+        boxShadow: 'var(--shadow-lg)',
+        border: '1px solid var(--color-border)', overflow: 'hidden',
       }}
     >
       {/* Panel header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 12px', borderBottom: '1px solid #f3f4f6' }}>
-        <span style={{ fontWeight: 600, fontSize: 14, color: '#111' }}>Connect to project</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 12px', borderBottom: '1px solid var(--color-border)' }}>
+        <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text)' }}>Connect to project</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 2 }}>
           <XMarkIcon style={{ width: 16, height: 16 }} />
         </button>
       </div>
 
       {loadingStatus ? (
-        <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
+        <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>Loading…</div>
       ) : (
         <div style={{ padding: '8px 0 4px' }}>
 
@@ -374,9 +374,9 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
 
           {/* If nothing installed */}
           {noneInstalled && (
-            <div style={{ padding: '16px 16px 12px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+            <div style={{ padding: '16px 16px 12px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
               No integrations installed yet.{' '}
-              <a href="/connectors" style={{ color: '#6366f1' }}>Set them up →</a>
+              <a href="/connectors" style={{ color: 'var(--color-accent)' }}>Set them up →</a>
             </div>
           )}
         </div>
@@ -388,15 +388,15 @@ export default function ConnectPanel({ workspaceId, projectId, installed, onClos
 // ── ConnectorRow sub-component ─────────────────────────────────────────────────
 function ConnectorRow({ Icon, name, accentColor, connected, connectedLabel, loading, error, children }) {
   return (
-    <div style={{ padding: '10px 16px', borderBottom: '1px solid #f9fafb' }}>
+    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: connected ? 0 : 2 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 7, background: connected ? accentColor + '18' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 7, background: connected ? accentColor + '18' : 'var(--color-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {Icon}
         </div>
         <div style={{ flex: 1 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{name}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{name}</span>
           {connected && (
-            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
               {connectedLabel}
             </div>
           )}
@@ -407,7 +407,7 @@ function ConnectorRow({ Icon, name, accentColor, connected, connectedLabel, load
       </div>
       {children}
       {error && (
-        <div style={{ marginTop: 6, fontSize: 11, color: '#dc2626', lineHeight: 1.4 }}>{error}</div>
+        <div style={{ marginTop: 6, fontSize: 11, color: 'var(--color-red)', lineHeight: 1.4 }}>{error}</div>
       )}
     </div>
   )
@@ -416,7 +416,8 @@ function ConnectorRow({ Icon, name, accentColor, connected, connectedLabel, load
 // ── Shared micro-styles ────────────────────────────────────────────────────────
 const inputStyle = {
   flex: 1, padding: '6px 8px', borderRadius: 7,
-  border: '1px solid #d1d5db', fontSize: 12, outline: 'none',
+  border: '1px solid var(--color-border)', fontSize: 12, outline: 'none',
+  background: 'var(--color-surface)', color: 'var(--color-text)',
   minWidth: 0,
 }
 
@@ -427,6 +428,6 @@ const linkBtnStyle = {
 
 const unlinkStyle = {
   marginTop: 4, padding: '4px 10px', borderRadius: 7, fontSize: 11,
-  border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280',
-  cursor: 'pointer',
+  border: '1px solid var(--color-border)', background: 'var(--color-surface)',
+  color: 'var(--color-text-muted)', cursor: 'pointer',
 }
