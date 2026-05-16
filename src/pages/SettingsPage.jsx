@@ -14,6 +14,7 @@ import {
   SunIcon,
   MoonIcon,
   ArrowLeftIcon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline'
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
@@ -820,25 +821,66 @@ export default function SettingsPage({ onClose }) {
         {/* Top bar */}
         <div style={{
           height: 52, borderBottom: '1px solid var(--color-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 24px', flexShrink: 0, background: 'var(--color-card)',
+          display: 'flex', alignItems: 'center',
+          padding: '0 16px', flexShrink: 0, background: 'var(--color-card)',
+          position: 'relative',
         }}>
-          <button
-            onClick={onClose}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.borderColor = 'var(--color-border-strong, #555)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.borderColor = 'var(--color-border)' }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 12px', background: 'transparent',
-              border: '1px solid var(--color-border)', borderRadius: 8,
-              cursor: 'pointer', fontFamily: 'var(--font-sans)',
-              fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s',
-            }}
-          >
-            <ArrowLeftIcon style={{ width: 13, height: 13 }} />
-            Back
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Left action */}
+          {isMobile ? (
+            mobileView === 'content' ? (
+              <button
+                onClick={() => setMobileView('nav')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '6px 10px', background: 'transparent',
+                  border: '1px solid var(--color-border)', borderRadius: 8,
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)',
+                  transition: 'all 0.15s', whiteSpace: 'nowrap',
+                }}
+              >
+                <ArrowLeftIcon style={{ width: 13, height: 13 }} />
+                Back to settings
+              </button>
+            ) : (
+              <button
+                onClick={onClose}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 34, height: 34, background: 'transparent',
+                  border: '1px solid var(--color-border)', borderRadius: 8,
+                  cursor: 'pointer', color: 'var(--color-text-muted)', transition: 'all 0.15s',
+                }}
+              >
+                <Bars3Icon style={{ width: 16, height: 16 }} />
+              </button>
+            )
+          ) : (
+            <button
+              onClick={onClose}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.borderColor = 'var(--color-border-strong, #555)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.borderColor = 'var(--color-border)' }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 12px', background: 'transparent',
+                border: '1px solid var(--color-border)', borderRadius: 8,
+                cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s',
+              }}
+            >
+              <ArrowLeftIcon style={{ width: 13, height: 13 }} />
+              Back
+            </button>
+          )}
+
+          {/* Title — centred on mobile, right-aligned on desktop */}
+          <div style={{
+            ...(isMobile
+              ? { position: 'absolute', left: '50%', transform: 'translateX(-50%)' }
+              : { marginLeft: 'auto' }
+            ),
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#7C3AED' }} />
             <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: 'var(--color-text-muted)' }}>
               Settings
