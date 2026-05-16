@@ -606,15 +606,7 @@ export default function TeamPage({ onClose }) {
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.6 }}>
               Inviting people to{' '}
               <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{workspace?.name}</strong>
-              {' '}gives access to shared projects and briefs.{' '}
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: 11,
-                background: 'rgba(124,58,237,0.08)', color: '#7C3AED',
-                border: '1px solid rgba(124,58,237,0.2)', borderRadius: 100, padding: '2px 9px',
-                display: 'inline-block', flexShrink: 0,
-              }}>
-                {members.length}
-              </span>
+              {' '}gives access to shared projects and briefs.
             </p>
           </div>
 
@@ -712,7 +704,7 @@ export default function TeamPage({ onClose }) {
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 16px',
                 background: 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
                 color: 'white', border: 'none', borderRadius: 9, cursor: 'pointer',
-                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
                 boxShadow: '0 2px 8px rgba(124,58,237,0.3)', transition: 'all 0.15s',
               }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(124,58,237,0.4)' }}
