@@ -558,7 +558,27 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
     setDeleting(true); setError('')
     try {
       await callSettings({ action: 'delete_workspace', workspaceId: workspace.id, confirmName })
-      onWorkspaceDeleted?.()
+
+      // Switch to most recently visited other workspace
+      const history = (() => {
+        try { return JSON.parse(localStorage.getItem('db-workspace-history') || '[]') } catch { return [] }
+      })()
+      const nextId = history.find(id => id !== workspace.id)
+      const nextWs = nextId
+        ? userWorkspaces.find(w => w.id === nextId)
+        : userWorkspaces.find(w => w.id !== workspace.id)
+
+      if (nextWs) {
+        localStorage.setItem('db-workspace', JSON.stringify(nextWs))
+        const hist = [nextWs.id, ...history.filter(id => id !== nextWs.id)].slice(0, 20)
+        localStorage.setItem('db-workspace-history', JSON.stringify(hist))
+        setWorkspace(nextWs)
+        onWorkspaceDeleted?.()
+      } else {
+        // No other workspace — clear and reload so WorkspaceSetup shows
+        localStorage.removeItem('db-workspace')
+        window.location.reload()
+      }
     } catch (e) {
       setError(e.message)
       setDeleting(false)
@@ -632,20 +652,29 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: RED, marginBottom: 6 }}>Delete workspace</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: userWorkspaces.length <= 1 ? 'var(--color-text-muted)' : RED, marginBottom: 6 }}>Delete workspace</div>
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 360 }}>
-                  Permanently delete this workspace and all its projects, briefs, and tasks. This action cannot be undone.
+                  {userWorkspaces.length <= 1
+                    ? 'You must belong to more than one workspace before you can delete this one.'
+                    : 'Permanently delete this workspace and all its projects, briefs, and tasks. This action cannot be undone.'}
                 </div>
               </div>
               <button
-                onClick={() => { setShowDeleteConfirm(true); setError(''); setConfirmName('') }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(220,38,38,0.08)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => { if (userWorkspaces.length > 1) { setShowDeleteConfirm(true); setError(''); setConfirmName('') } }}
+                onMouseEnter={e => { if (userWorkspaces.length > 1) e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                disabled={userWorkspaces.length <= 1}
                 style={{
-                  padding: '8px 16px', background: 'transparent', border: `1px solid ${RED}`,
-                  borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                  fontSize: 13, fontWeight: 600, color: RED, flexShrink: 0, transition: 'all 0.15s',
+                  padding: '8px 16px', background: 'transparent',
+                  border: `1px solid ${userWorkspaces.length <= 1 ? 'var(--color-border)' : RED}`,
+                  borderRadius: 9,
+                  cursor: userWorkspaces.length <= 1 ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13, fontWeight: 600,
+                  color: userWorkspaces.length <= 1 ? 'var(--color-text-muted)' : RED,
+                  flexShrink: 0, transition: 'all 0.15s',
                   width: isMobile ? '100%' : 'auto',
+                  opacity: userWorkspaces.length <= 1 ? 0.5 : 1,
                 }}
               >
                 Delete workspace
