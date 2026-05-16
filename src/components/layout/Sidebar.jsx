@@ -395,8 +395,10 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               ref={workspaceTriggerRef}
               onClick={() => {
                 if (!showWorkspaceMenu && workspaceTriggerRef.current) {
-                  const rect = workspaceTriggerRef.current.getBoundingClientRect()
-                  setWorkspaceDropdownPos({ top: rect.bottom + 6, left: rect.left, width: 260 })
+                  const triggerRect = workspaceTriggerRef.current.getBoundingClientRect()
+                  const sidebarEl = workspaceTriggerRef.current.closest('aside')
+                  const sidebarRect = sidebarEl ? sidebarEl.getBoundingClientRect() : triggerRect
+                  setWorkspaceDropdownPos({ top: triggerRect.top, left: sidebarRect.right + 8, width: 220 })
                 }
                 setShowWorkspaceMenu(v => !v)
               }}
@@ -426,8 +428,10 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               ref={workspaceTriggerRef}
               onClick={() => {
                 if (!showWorkspaceMenu && workspaceTriggerRef.current) {
-                  const rect = workspaceTriggerRef.current.getBoundingClientRect()
-                  setWorkspaceDropdownPos({ top: rect.bottom + 6, left: rect.left, width: rect.width })
+                  const triggerRect = workspaceTriggerRef.current.getBoundingClientRect()
+                  const sidebarEl = workspaceTriggerRef.current.closest('aside')
+                  const sidebarRect = sidebarEl ? sidebarEl.getBoundingClientRect() : triggerRect
+                  setWorkspaceDropdownPos({ top: triggerRect.bottom + 6, left: sidebarRect.left, width: sidebarRect.width })
                 }
                 setShowWorkspaceMenu(v => !v)
               }}
@@ -771,7 +775,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           position: 'fixed',
           top: workspaceDropdownPos.top,
           left: workspaceDropdownPos.left,
-          width: Math.max(workspaceDropdownPos.width, 260),
+          width: workspaceDropdownPos.width,
           background: 'var(--color-card)',
           border: '1px solid var(--color-border-strong)',
           borderRadius: 'var(--radius-lg)',
