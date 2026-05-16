@@ -62,8 +62,10 @@ function AppRouter() {
     'accept-invite': <AcceptInvite />,
   };
 
-  // Loading — checking session or workspace
-  if (authLoading || (authUser && workspaceLoading)) {
+  // Loading — checking session or workspace.
+  // Skip the workspace spinner if we already have a cached workspace.
+  const hasCachedWorkspace = !!workspace;
+  if (authLoading || (authUser && workspaceLoading && !hasCachedWorkspace)) {
     return (
       <div style={{
         height: '100dvh', display: 'flex', alignItems: 'center',
@@ -91,12 +93,17 @@ function AppRouter() {
     return <Auth />;
   }
 
-  // Workspace gate — show setup screen for new users with no workspace
-  if (authUser && !workspace && !publicSections.includes(activeSection)) {
+  // Workspace gate — only show setup if workspace is definitively absent
+  // (not loading, no cache). Auto-creation in the API handles most cases,
+  // so this screen should rarely appear for returning users.
+  if (authUser && !workspaceLoading && !workspace && !publicSections.includes(activeSection)) {
     return (
       <WorkspaceSetup
         user={authUser}
-        onComplete={(ws) => setWorkspace(ws)}
+        onComplete={(ws) => {
+          localStorage.setItem('db-workspace', JSON.stringify(ws));
+          setWorkspace(ws);
+        }}
       />
     );
   }

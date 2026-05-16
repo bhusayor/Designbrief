@@ -59,8 +59,13 @@ export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // ── Workspace state ───────────────────────────────────────────────────────
-  const [workspace, setWorkspace] = useState(null);
+  // ── Workspace state — seeded from localStorage so refresh never flickers ──
+  const [workspace, setWorkspace] = useState(() => {
+    try {
+      const cached = localStorage.getItem('db-workspace');
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
   const [workspaceLoading, setWorkspaceLoading] = useState(true);
 
   // ── Credits state ─────────────────────────────────────────────────────────
@@ -144,6 +149,7 @@ export function AppProvider({ children }) {
           setAuthUser(null);
           setSession(null);
           setWorkspace(null);
+          localStorage.removeItem('db-workspace');
           setWorkspaceLoading(false);
           setCreditsUsed(0);
           setUser({
@@ -230,20 +236,40 @@ export function AppProvider({ children }) {
   }
 
   async function loadWorkspace(userId) {
-    setWorkspaceLoading(true);
-    try {
-      const { data } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('owner_id', userId)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single();
+    // If we already have a cached workspace, don't block the UI — just refresh in background
+    const cached = (() => {
+      try { return JSON.parse(localStorage.getItem('db-workspace')); } catch { return null; }
+    })();
+    if (!cached) setWorkspaceLoading(true);
 
-      setWorkspace(data || null);
-      if (data?.id) loadConnectorData(data.id);
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+      if (!token) throw new Error('No session token');
+
+      const res = await fetch('/api/get-workspace', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!res.ok) throw new Error('get-workspace API failed');
+
+      const { workspace: ws } = await res.json();
+      if (ws) {
+        localStorage.setItem('db-workspace', JSON.stringify(ws));
+        setWorkspace(ws);
+        loadConnectorData(ws.id);
+      } else if (!cached) {
+        setWorkspace(null);
+      }
     } catch (e) {
-      setWorkspace(null);
+      console.error('[loadWorkspace]', e);
+      // If we have a cached workspace, keep it — don't blank the screen on transient errors
+      if (!cached) setWorkspace(null);
     } finally {
       setWorkspaceLoading(false);
     }

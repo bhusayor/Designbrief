@@ -334,7 +334,11 @@ function WorkspaceGeneralSection({ callSettings, onSaved }) {
     setSaving(true); setError(''); setSaved(false)
     try {
       await callSettings({ action: 'update_workspace_name', workspaceId: workspace.id, name: wsName.trim() })
-      setWorkspace(prev => ({ ...prev, name: wsName.trim() }))
+      setWorkspace(prev => {
+        const updated = { ...prev, name: wsName.trim() }
+        localStorage.setItem('db-workspace', JSON.stringify(updated))
+        return updated
+      })
       setSaved(true)
       onSaved?.('Workspace name updated')
       setTimeout(() => setSaved(false), 3000)
