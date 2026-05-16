@@ -1123,19 +1123,18 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         </div>
       )}
 
-      {/* ── Team People overlay ── */}
-      {showInviteModal && (
-        <TeamPage onClose={() => setShowInviteModal(false)} />
-      )}
-
-      {/* ── Settings overlay ── */}
-      {showSettings && (
-        <SettingsPage onClose={() => setShowSettings(false)} />
-      )}
     </aside>
 
-    {/* SearchModal is a sibling to <aside> so it escapes the sidebar's
-        CSS transform and renders against the true viewport on mobile */}
+    {/* TeamPage, SettingsPage, and SearchModal are siblings to <aside> so they
+        escape the sidebar's CSS transform and render against the true viewport on mobile */}
+    {showInviteModal && (
+      <TeamPage onClose={() => setShowInviteModal(false)} />
+    )}
+
+    {showSettings && (
+      <SettingsPage onClose={() => setShowSettings(false)} />
+    )}
+
     {showSearch && (
       <SearchModal
         onClose={() => setShowSearch(false)}
