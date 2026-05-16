@@ -348,6 +348,7 @@ export function AppProvider({ children }) {
 
   async function loadProjectsFromDB(userId) {
     try {
+      // 1. Projects this user owns
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -359,8 +360,8 @@ export function AppProvider({ children }) {
         return;
       }
 
-      if (data) {
-        const formatted = data.map(p => ({
+      function formatProject(p, extra = {}) {
+        return {
           id: p.id,
           title: p.title,
           section: p.section,
@@ -378,11 +379,28 @@ export function AppProvider({ children }) {
           comments: p.comments || {},
           locked: p.locked || false,
           shareId: p.share_id,
-        }));
-
-        setHistory(formatted);
-        setProjects(formatted);
+          ...extra,
+        };
       }
+
+      const ownFormatted = (data || []).map(p => formatProject(p));
+      const ownIds = new Set(ownFormatted.map(p => p.id));
+
+      // 2. Shared projects — where this user is a team_member but not the owner.
+      //    Requires the "Team members can view invited projects" RLS policy on projects.
+      const { data: memberData } = await supabase
+        .from('team_members')
+        .select('project_id, job_role, projects(*)')
+        .eq('user_id', userId)
+        .eq('status', 'active');
+
+      const sharedFormatted = (memberData || [])
+        .filter(m => m.projects && !ownIds.has(m.project_id))
+        .map(m => formatProject(m.projects, { isShared: true, myRole: m.job_role }));
+
+      const allFormatted = [...ownFormatted, ...sharedFormatted];
+      setHistory(allFormatted);
+      setProjects(allFormatted);
     } catch (e) {
       console.error('[AppContext] loadProjectsFromDB exception:', e);
     }

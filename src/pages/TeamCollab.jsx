@@ -371,7 +371,7 @@ function useWindowWidth() {
 }
 
 export default function TeamCollab() {
-  const { activeProject, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
+  const { activeProject, openProject, projects: ctxProjects, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth <= 480
@@ -588,6 +588,17 @@ export default function TeamCollab() {
       }
     }).catch(console.error)
   }, [activeProject?.id])
+
+  // After a page refresh the activeProjectId is restored from localStorage but
+  // activeProject (AppContext) is null. Look the project up in ctxProjects (which
+  // includes shared/invited projects) and open it so the task-loading useEffect fires.
+  useEffect(() => {
+    if (!activeProjectId || activeProjectId === 'default') return
+    if (activeProject?.id === activeProjectId) return
+    if (!ctxProjects?.length) return
+    const found = ctxProjects.find(p => p.id === activeProjectId)
+    if (found) openProject(found)
+  }, [activeProjectId, ctxProjects])
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 

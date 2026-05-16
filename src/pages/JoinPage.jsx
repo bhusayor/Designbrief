@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 export default function JoinPage() {
   const {
     authUser, navigate, showToast,
-    setActiveProject, signOut,
+    setActiveProject, openProject, signOut,
     workspace, workspaceLoading,
   } = useContext(AppContext)
 
@@ -80,9 +80,10 @@ export default function JoinPage() {
     setPhase('accepting')
     try {
       const result = await acceptInvite(invite.token, authUser.id)
-
       localStorage.removeItem('db-join-token')
 
+      // Fetch the project — requires the "Team members can view invited projects"
+      // RLS policy on the projects table (supabase/team-project-read.sql).
       const { data: project } = await supabase
         .from('projects')
         .select('*')
@@ -90,7 +91,7 @@ export default function JoinPage() {
         .single()
 
       if (project) {
-        setActiveProject({
+        const projectEntry = {
           id: project.id,
           title: project.title,
           data: {
@@ -100,7 +101,32 @@ export default function JoinPage() {
           },
           teamMembers: project.team_members || [],
           kanban: project.kanban,
-        })
+          isShared: true,
+        }
+
+        // Inject into TeamCollab's own project list so it persists across navigations
+        const tcProjects = (() => {
+          try { return JSON.parse(localStorage.getItem('teamcollab-projects')) || [] } catch { return [] }
+        })()
+        if (!tcProjects.find(p => p.id === project.id)) {
+          localStorage.setItem('teamcollab-projects', JSON.stringify([
+            ...tcProjects, { id: project.id, title: project.title },
+          ]))
+        }
+        localStorage.setItem('teamcollab-active-project', project.id)
+
+        // Pre-seed per-project state so TeamCollab's loadProjectStateById finds data
+        const hasCachedState = !!localStorage.getItem('tc-project-' + project.id)
+        if (!hasCachedState) {
+          localStorage.setItem('tc-project-' + project.id, JSON.stringify({
+            teamMembers: project.team_members || [],
+            kanban: project.kanban || { tasks: [] },
+            projectTitle: project.title,
+            briefText: project.brief_text || '',
+          }))
+        }
+
+        setActiveProject(projectEntry)
       }
 
       setPhase('done')
@@ -413,7 +439,11 @@ export default function JoinPage() {
             }}>
               You have joined as {invite.job_role}. You can now access the project board.
             </p>
-            <Button variant="primary" full onClick={() => navigate('team')}>
+            <Button variant="primary" full onClick={() => {
+              // Re-open the project to ensure TeamCollab loads it correctly
+              if (activeProject) openProject(activeProject)
+              else navigate('team')
+            }}>
               Open Project Board →
             </Button>
           </div>
