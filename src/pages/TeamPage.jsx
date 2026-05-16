@@ -649,73 +649,79 @@ export default function TeamPage({ onClose }) {
           </div>
 
           {/* Toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: 1, minWidth: isMobile ? 120 : 200 }}>
-              <MagnifyingGlassIcon style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
-              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search members..."
-                style={{
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {/* Row 1: Search + Role filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <MagnifyingGlassIcon style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Search members..."
+                  style={{
+                    width: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)',
+                    borderRadius: 9, padding: '8px 12px 8px 30px', fontFamily: 'var(--font-sans)',
+                    fontSize: 13, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.target.style.borderColor = '#7C3AED' }}
+                  onBlur={e => { e.target.style.borderColor = 'var(--color-border)' }}
+                />
+              </div>
+
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+                <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{
                   width: '100%', background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                  borderRadius: 9, padding: '8px 12px 8px 30px', fontFamily: 'var(--font-sans)',
-                  fontSize: 13, color: 'var(--color-text)', outline: 'none', boxSizing: 'border-box',
-                }}
-                onFocus={e => { e.target.style.borderColor = '#7C3AED' }}
-                onBlur={e => { e.target.style.borderColor = 'var(--color-border)' }}
-              />
+                  borderRadius: 9, padding: '8px 32px 8px 12px', fontFamily: 'var(--font-sans)',
+                  fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
+                  appearance: 'none', WebkitAppearance: 'none', boxSizing: 'border-box',
+                }}>
+                  <option value="all">All roles</option>
+                  <option value="owner">Owner</option>
+                  <option value="admin">Admin</option>
+                  <option value="member">Member</option>
+                </select>
+                <ChevronDownIcon style={{ position: 'absolute', right: 10, width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+              </div>
             </div>
 
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{
+            {/* Row 2: Export + Invite link + Invite button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={handleExport} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
                 background: 'var(--color-card)', border: '1px solid var(--color-border)',
-                borderRadius: 9, padding: '8px 32px 8px 12px', fontFamily: 'var(--font-sans)',
-                fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
-                appearance: 'none', WebkitAppearance: 'none',
+                borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+              >
+                <ArrowDownTrayIcon style={{ width: 14, height: 14 }} />
+                {selected.size > 0 ? 'Export ' + selected.size + ' selected' : 'Export'}
+              </button>
+
+              <button onClick={handleCopyInviteLink} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                background: 'var(--color-card)', border: '1px solid var(--color-border)',
+                borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                fontSize: 13, fontWeight: 600,
+                color: copySuccess ? '#16a34a' : 'var(--color-text-muted)', transition: 'all 0.15s',
               }}>
-                <option value="all">All roles</option>
-                <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
-                <option value="member">Member</option>
-              </select>
-              <ChevronDownIcon style={{ position: 'absolute', right: 10, width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                <LinkIcon style={{ width: 14, height: 14 }} />
+                {copySuccess ? 'Link copied!' : 'Invite link'}
+              </button>
+
+              <button onClick={() => setShowInviteModal(true)} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
+                background: 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
+                color: 'white', border: 'none', borderRadius: 9, cursor: 'pointer',
+                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+                boxShadow: '0 2px 8px rgba(124,58,237,0.3)', transition: 'all 0.15s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(124,58,237,0.4)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)' }}
+              >
+                <UserPlusIcon style={{ width: 14, height: 14 }} />
+                Invite members
+              </button>
             </div>
-
-            <button onClick={handleExport} style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-              background: 'var(--color-card)', border: '1px solid var(--color-border)',
-              borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-              fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', transition: 'all 0.15s',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
-            >
-              <ArrowDownTrayIcon style={{ width: 14, height: 14 }} />
-              {selected.size > 0 ? 'Export ' + selected.size + ' selected' : 'Export'}
-            </button>
-
-            <button onClick={handleCopyInviteLink} style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-              background: 'var(--color-card)', border: '1px solid var(--color-border)',
-              borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-              fontSize: 13, fontWeight: 600,
-              color: copySuccess ? '#16a34a' : 'var(--color-text-muted)', transition: 'all 0.15s',
-            }}>
-              <LinkIcon style={{ width: 14, height: 14 }} />
-              {copySuccess ? 'Link copied!' : 'Invite link'}
-            </button>
-
-            <button onClick={() => setShowInviteModal(true)} style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
-              background: 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
-              color: 'white', border: 'none', borderRadius: 9, cursor: 'pointer',
-              fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
-              boxShadow: '0 2px 8px rgba(124,58,237,0.3)', transition: 'all 0.15s',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(124,58,237,0.4)' }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)' }}
-            >
-              <UserPlusIcon style={{ width: 14, height: 14 }} />
-              {isMobile ? 'Invite' : 'Invite members'}
-            </button>
           </div>
 
           {/* Bulk action bar */}
@@ -770,11 +776,11 @@ export default function TeamPage({ onClose }) {
 
           {/* Table */}
           <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflowX: 'auto' }}>
-            <div style={{ minWidth: 580 }}>
+            <div style={{ minWidth: 660, paddingRight: 16, boxSizing: 'border-box' }}>
             {/* Header row */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '36px 1fr 100px 120px 100px 40px',
+              gridTemplateColumns: '36px minmax(200px, 1fr) 110px 120px 100px 40px',
               padding: '8px 16px', background: 'var(--color-surface)',
               borderBottom: '1px solid var(--color-border)',
             }}>
@@ -810,7 +816,7 @@ export default function TeamPage({ onClose }) {
             ) : filteredRows.map((row, i) => (
               <div key={row.id || i} className="tp-row" style={{
                 display: 'grid',
-                gridTemplateColumns: '36px 1fr 100px 120px 100px 40px',
+                gridTemplateColumns: '36px minmax(200px, 1fr) 110px 120px 100px 40px',
                 padding: '10px 16px', alignItems: 'center',
                 borderBottom: i < filteredRows.length - 1 ? '1px solid var(--color-border)' : 'none',
                 background: selected.has(row.id) ? 'rgba(124,58,237,0.04)' : 'transparent',
