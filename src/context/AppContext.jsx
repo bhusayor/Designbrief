@@ -289,11 +289,14 @@ export function AppProvider({ children }) {
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
+        console.error('[loadWorkspace] HTTP error', res.status, errBody);
         throw new Error(errBody.error || `workspace lookup failed (${res.status})`);
       }
 
-      const { workspace: ws } = await res.json();
-      console.log('[loadWorkspace] server returned workspace:', ws ? ws.id : 'none');
+      const body = await res.json();
+      console.log('[loadWorkspace] client userId:', userId);
+      console.log('[loadWorkspace] server response:', body);
+      const ws = body.workspace;
 
       if (ws) {
         localStorage.setItem('db-workspace', JSON.stringify(ws));

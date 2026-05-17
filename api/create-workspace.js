@@ -83,21 +83,33 @@ export default async function handler(req, res) {
         .maybeSingle()
 
       if (ownedErr) throw ownedErr
-      if (owned) return res.json({ workspace: owned })
 
-      const { data: membership, error: memberErr } = await supabase
+      const { data: memberRows, error: memberErr } = await supabase
         .from('workspace_members')
-        .select('workspace_id, workspaces(*)')
+        .select('workspace_id, role, workspaces(*)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
 
       if (memberErr) throw memberErr
-      return res.json({ workspace: membership?.workspaces || null })
+
+      const memberWorkspace =
+        memberRows?.find(m => m.workspaces)?.workspaces || null
+
+      const workspace = owned || memberWorkspace
+
+      // Diagnostic: surface DB state so we can debug login loop
+      return res.json({
+        workspace,
+        debug: {
+          authedUserId: user.id,
+          authedEmail: user.email,
+          ownedWorkspaceFound: !!owned,
+          memberWorkspaceCount: memberRows?.length || 0,
+        },
+      })
     } catch (e) {
       console.error('[create-workspace GET]', e)
-      return res.status(500).json({ error: e.message })
+      return res.status(500).json({ error: e.message, stack: e.stack })
     }
   }
 
