@@ -273,34 +273,28 @@ export function AppProvider({ children }) {
     setWorkspaceLoadError(false);
 
     try {
-      // 1. Workspace this user owns
-      let ws = null;
-      const { data: owned, error: ownedErr } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('owner_id', userId)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      // Server-side lookup using SERVICE_ROLE_KEY — bypasses RLS so the
+      // workspace is always returned if it exists, regardless of how the
+      // workspaces SELECT policy is configured.
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) throw new Error('No active session');
 
-      // Throw DB errors (table missing, RLS misconfigured, network) so the
-      // catch block handles them instead of treating them as "no workspace".
-      if (ownedErr) throw ownedErr;
-      ws = owned || null;
+      const res = await fetch('/api/get-workspace', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-      // 2. Fall back to any workspace this user is a member of
-      if (!ws) {
-        const { data: membership, error: memberErr } = await supabase
-          .from('workspace_members')
-          .select('workspace_id, workspaces(*)')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        if (memberErr) throw memberErr;
-        ws = membership?.workspaces || null;
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `get-workspace failed (${res.status})`);
       }
+
+      const { workspace: ws } = await res.json();
+      console.log('[loadWorkspace] server returned workspace:', ws ? ws.id : 'none');
 
       if (ws) {
         localStorage.setItem('db-workspace', JSON.stringify(ws));
@@ -321,13 +315,13 @@ export function AppProvider({ children }) {
       return ws;
     } catch (e) {
       console.error('[loadWorkspace]', e);
-      // On transient/DB error: keep cached workspace so returning users
-      // are never bounced to WorkspaceSetup by a network blip or missing policy.
+      // On transient/network/server error: keep cached workspace so returning
+      // users are never bounced to WorkspaceSetup by a network blip.
       if (cached) {
         setWorkspace(cached);
         return cached;
       }
-      // No cache + DB error → show retry screen, NOT WorkspaceSetup.
+      // No cache + server error → show retry screen, NOT WorkspaceSetup.
       setWorkspaceLoadError(true);
       setWorkspace(null);
       return null;
