@@ -25,6 +25,32 @@ function generateShareId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// Maps a raw Supabase projects row → app project shape used in state.
+// Shared with realtime payload.new rows so INSERT/UPDATE produce the same
+// object structure as the initial fetch.
+function formatProjectRow(p, extra = {}) {
+  return {
+    id: p.id,
+    title: p.title,
+    section: p.section,
+    ts: new Date(p.updated_at).getTime(),
+    pinned: p.pinned || false,
+    data: {
+      brief: p.brief_text,
+      projectName: p.title,
+      scoring: p.scoring,
+      result: p.result,
+    },
+    teamMembers: p.team_members || [],
+    kanban: p.kanban,
+    approvalStatus: p.approval_status || {},
+    comments: p.comments || {},
+    locked: p.locked || false,
+    shareId: p.share_id,
+    ...extra,
+  };
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }) {
@@ -364,30 +390,7 @@ export function AppProvider({ children }) {
         return;
       }
 
-      function formatProject(p, extra = {}) {
-        return {
-          id: p.id,
-          title: p.title,
-          section: p.section,
-          ts: new Date(p.updated_at).getTime(),
-          pinned: p.pinned || false,
-          data: {
-            brief: p.brief_text,
-            projectName: p.title,
-            scoring: p.scoring,
-            result: p.result,
-          },
-          teamMembers: p.team_members || [],
-          kanban: p.kanban,
-          approvalStatus: p.approval_status || {},
-          comments: p.comments || {},
-          locked: p.locked || false,
-          shareId: p.share_id,
-          ...extra,
-        };
-      }
-
-      const ownFormatted = (data || []).map(p => formatProject(p));
+      const ownFormatted = (data || []).map(p => formatProjectRow(p));
       const ownIds = new Set(ownFormatted.map(p => p.id));
 
       // 2. Shared projects — where this user is a team_member but not the owner.
@@ -400,7 +403,7 @@ export function AppProvider({ children }) {
 
       const sharedFormatted = (memberData || [])
         .filter(m => m.projects && !ownIds.has(m.project_id))
-        .map(m => formatProject(m.projects, { isShared: true, myRole: m.job_role }));
+        .map(m => formatProjectRow(m.projects, { isShared: true, myRole: m.job_role }));
 
       const allFormatted = [...ownFormatted, ...sharedFormatted];
       setHistory(allFormatted);
@@ -409,6 +412,77 @@ export function AppProvider({ children }) {
       console.error('[AppContext] loadProjectsFromDB exception:', e);
     }
   }
+
+  // ── Realtime: projects sync across devices + invited members ──────────────
+  // Subscribes to ALL changes on the projects table. Supabase Realtime applies
+  // RLS to the change stream, so each client only receives rows it is allowed
+  // to read (own projects + projects the user is a team_member of).
+  //
+  // Requires the projects table to be in the supabase_realtime publication
+  // (handled by supabase/cross-device-sync.sql).
+  useEffect(() => {
+    if (!authUser?.id) return;
+
+    const channel = supabase
+      .channel(`projects-sync-${authUser.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'projects',
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const incoming = formatProjectRow(payload.new);
+          setProjects(prev => prev.some(p => p.id === incoming.id) ? prev : [incoming, ...prev]);
+          setHistory(prev => prev.some(p => p.id === incoming.id) ? prev : [incoming, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          const incoming = formatProjectRow(payload.new);
+          setProjects(prev => prev.map(p => p.id === incoming.id ? { ...p, ...incoming } : p));
+          setHistory(prev => prev.map(p => p.id === incoming.id ? { ...p, ...incoming } : p));
+          setActiveProjectState(prev => prev?.id === incoming.id ? { ...prev, ...incoming } : prev);
+        } else if (payload.eventType === 'DELETE') {
+          const goneId = payload.old?.id;
+          if (!goneId) return;
+          setProjects(prev => prev.filter(p => p.id !== goneId));
+          setHistory(prev => prev.filter(p => p.id !== goneId));
+          setActiveProjectState(prev => prev?.id === goneId ? null : prev);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [authUser?.id]);
+
+  // ── Realtime: team_members so invited users see new shared projects ───────
+  // When a row is inserted that grants this user access to a new project,
+  // refetch projects so the shared one appears in their sidebar.
+  useEffect(() => {
+    if (!authUser?.id) return;
+
+    const channel = supabase
+      .channel(`team-members-sync-${authUser.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'team_members',
+        filter: `user_id=eq.${authUser.id}`,
+      }, () => {
+        loadProjectsFromDB(authUser.id);
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'team_members',
+        filter: `user_id=eq.${authUser.id}`,
+      }, (payload) => {
+        const goneProjectId = payload.old?.project_id;
+        if (!goneProjectId) return;
+        setProjects(prev => prev.filter(p => !(p.isShared && p.id === goneProjectId)));
+        setHistory(prev => prev.filter(p => !(p.isShared && p.id === goneProjectId)));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [authUser?.id]);
 
   // ── Intake forms ──────────────────────────────────────────────────────────
 
@@ -582,9 +656,10 @@ export function AppProvider({ children }) {
   }, [authUser]);
 
   const deleteProject = useCallback((id) => {
+    // Optimistic
     setProjects(prev => prev.filter(p => p.id !== id));
+    setHistory(prev => prev.filter(h => h.id !== id));
     setActiveProjectState(prev => (prev?.id === id ? null : prev));
-    // Fire-and-forget Supabase delete
     if (authUser) {
       supabase.from('projects').delete().eq('id', id).eq('user_id', authUser.id)
         .then(({ error }) => { if (error) console.error('[AppContext] deleteProject:', error); });
@@ -592,17 +667,41 @@ export function AppProvider({ children }) {
   }, [authUser]);
 
   const pinProject = useCallback((id) => {
+    let nextPinned = false;
     setProjects(prev =>
-      prev.map(p => p.id === id ? { ...p, pinned: !p.pinned } : p)
+      prev.map(p => {
+        if (p.id === id) { nextPinned = !p.pinned; return { ...p, pinned: nextPinned }; }
+        return p;
+      })
     );
-  }, []);
+    setHistory(prev =>
+      prev.map(p => p.id === id ? { ...p, pinned: nextPinned } : p)
+    );
+    if (authUser) {
+      supabase.from('projects')
+        .update({ pinned: nextPinned, updated_at: new Date().toISOString() })
+        .eq('id', id).eq('user_id', authUser.id)
+        .then(({ error }) => { if (error) console.error('[AppContext] pinProject:', error); });
+    }
+  }, [authUser]);
 
   const renameProject = useCallback((id, title) => {
-    setProjects(prev =>
-      prev.map(p => p.id === id ? { ...p, title } : p)
-    );
+    // Optimistic update on both lists + active project
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
+    setHistory(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
-  }, []);
+    if (authUser) {
+      supabase.from('projects')
+        .update({ title, updated_at: new Date().toISOString() })
+        .eq('id', id).eq('user_id', authUser.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('[AppContext] renameProject:', error);
+            showToast?.('Failed to rename project', 'error');
+          }
+        });
+    }
+  }, [authUser, showToast]);
 
   const shareProject = useCallback((project) => {
     const url = `${window.location.origin}/project/${project.shareId}`;
@@ -662,8 +761,9 @@ export function AppProvider({ children }) {
 
   const deleteHistory = useCallback((id) => {
     setHistory(prev => prev.filter(h => h.id !== id));
+    setProjects(prev => prev.filter(p => p.id !== id));
     setActiveChat(prev => (prev === id ? null : prev));
-    // Fire-and-forget Supabase delete
+    setActiveProjectState(prev => (prev?.id === id ? null : prev));
     if (authUser) {
       supabase.from('projects').delete().eq('id', id).eq('user_id', authUser.id)
         .then(({ error }) => { if (error) console.error('[AppContext] deleteHistory:', error); });
@@ -671,16 +771,40 @@ export function AppProvider({ children }) {
   }, [authUser]);
 
   const pinHistory = useCallback((id) => {
+    let nextPinned = false;
     setHistory(prev =>
-      prev.map(h => h.id === id ? { ...h, pinned: !h.pinned } : h)
+      prev.map(h => {
+        if (h.id === id) { nextPinned = !h.pinned; return { ...h, pinned: nextPinned }; }
+        return h;
+      })
     );
-  }, []);
+    setProjects(prev =>
+      prev.map(p => p.id === id ? { ...p, pinned: nextPinned } : p)
+    );
+    if (authUser) {
+      supabase.from('projects')
+        .update({ pinned: nextPinned, updated_at: new Date().toISOString() })
+        .eq('id', id).eq('user_id', authUser.id)
+        .then(({ error }) => { if (error) console.error('[AppContext] pinHistory:', error); });
+    }
+  }, [authUser]);
 
   const renameHistory = useCallback((id, title) => {
-    setHistory(prev =>
-      prev.map(h => h.id === id ? { ...h, title } : h)
-    );
-  }, []);
+    setHistory(prev => prev.map(h => h.id === id ? { ...h, title } : h));
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
+    setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
+    if (authUser) {
+      supabase.from('projects')
+        .update({ title, updated_at: new Date().toISOString() })
+        .eq('id', id).eq('user_id', authUser.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('[AppContext] renameHistory:', error);
+            showToast?.('Failed to rename project', 'error');
+          }
+        });
+    }
+  }, [authUser, showToast]);
 
   const shareHistory = useCallback((item) => {
     const url = `${window.location.origin}/share/${item.id}`;
