@@ -51,14 +51,57 @@ const supabase = createClient(
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 }
 
 export default async function handler(req, res) {
   setCors(res)
 
   if (req.method === 'OPTIONS') return res.status(200).end()
+
+  // ── GET: look up the authenticated user's workspace (bypasses RLS) ──────
+  if (req.method === 'GET') {
+    const authHeader = req.headers.authorization || req.headers.Authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing Authorization header' })
+    }
+    const accessToken = authHeader.slice(7)
+
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(accessToken)
+    if (userErr || !user) {
+      return res.status(401).json({ error: 'Invalid or expired token' })
+    }
+
+    try {
+      const { data: owned, error: ownedErr } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (ownedErr) throw ownedErr
+      if (owned) return res.json({ workspace: owned })
+
+      const { data: membership, error: memberErr } = await supabase
+        .from('workspace_members')
+        .select('workspace_id, workspaces(*)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (memberErr) throw memberErr
+      return res.json({ workspace: membership?.workspaces || null })
+    } catch (e) {
+      console.error('[create-workspace GET]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── POST: create a workspace ────────────────────────────────────────────
   if (req.method !== 'POST') return res.status(405).end()
 
   const { userId, workspaceName, plan } = req.body

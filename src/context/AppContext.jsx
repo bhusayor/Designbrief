@@ -280,17 +280,16 @@ export function AppProvider({ children }) {
       const accessToken = session?.access_token;
       if (!accessToken) throw new Error('No active session');
 
-      const res = await fetch('/api/get-workspace', {
-        method: 'POST',
+      const res = await fetch('/api/create-workspace', {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
       });
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || `get-workspace failed (${res.status})`);
+        throw new Error(errBody.error || `workspace lookup failed (${res.status})`);
       }
 
       const { workspace: ws } = await res.json();
