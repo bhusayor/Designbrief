@@ -387,8 +387,10 @@ export function AppProvider({ children }) {
 
       if (error) {
         console.error('[AppContext] loadProjectsFromDB error:', error);
+        console.error('[AppContext] If you see code 42P17 (recursive policy) or 500 — run supabase/cross-device-sync.sql in Supabase SQL Editor.');
         return;
       }
+      console.log('[loadProjectsFromDB] fetched', data?.length || 0, 'owned projects');
 
       const ownFormatted = (data || []).map(p => formatProjectRow(p));
       const ownIds = new Set(ownFormatted.map(p => p.id));
@@ -430,6 +432,7 @@ export function AppProvider({ children }) {
         schema: 'public',
         table: 'projects',
       }, (payload) => {
+        console.log('[projects realtime] event:', payload.eventType, payload.new?.id || payload.old?.id, payload);
         if (payload.eventType === 'INSERT') {
           const incoming = formatProjectRow(payload.new);
           setProjects(prev => prev.some(p => p.id === incoming.id) ? prev : [incoming, ...prev]);
@@ -447,7 +450,12 @@ export function AppProvider({ children }) {
           setActiveProjectState(prev => prev?.id === goneId ? null : prev);
         }
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('[projects realtime] subscription status:', status, err || '');
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.error('[projects realtime] subscription failed — most likely the projects table is NOT in the supabase_realtime publication. Run cross-device-sync.sql in Supabase SQL Editor.');
+        }
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [authUser?.id]);
@@ -686,18 +694,42 @@ export function AppProvider({ children }) {
   }, [authUser]);
 
   const renameProject = useCallback((id, title) => {
+    console.log('[renameProject] called', { id, title, hasAuthUser: !!authUser });
     // Optimistic update on both lists + active project
     setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setHistory(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
     if (authUser) {
+      // First try to update an existing row; if no row was updated (because the
+      // project never made it to the DB), insert one. count: 'exact' returns
+      // how many rows actually matched so we can detect the no-row case.
       supabase.from('projects')
-        .update({ title, updated_at: new Date().toISOString() })
+        .update({ title, updated_at: new Date().toISOString() }, { count: 'exact' })
         .eq('id', id).eq('user_id', authUser.id)
-        .then(({ error }) => {
+        .select('id')
+        .then(({ data, error, count }) => {
           if (error) {
-            console.error('[AppContext] renameProject:', error);
+            console.error('[renameProject] UPDATE error:', error);
             showToast?.('Failed to rename project', 'error');
+            return;
+          }
+          console.log('[renameProject] UPDATE result:', { count, rowsReturned: data?.length });
+          if (!count || count === 0) {
+            console.log('[renameProject] no existing row — inserting');
+            supabase.from('projects')
+              .upsert({
+                id, user_id: authUser.id, title,
+                section: 'team',
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'id' })
+              .then(({ error: insErr }) => {
+                if (insErr) {
+                  console.error('[renameProject] backfill INSERT error:', insErr);
+                  showToast?.('Failed to save project', 'error');
+                } else {
+                  console.log('[renameProject] backfill INSERT ok');
+                }
+              });
           }
         });
     }
