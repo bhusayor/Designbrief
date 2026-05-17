@@ -468,6 +468,7 @@ export default function TeamCollab() {
   // Auto-save to DB: tracks prev task IDs per project to detect deletions
   const dbSaveTimerRef = useRef(null)
   const prevDbStateRef = useRef(null) // { projectId, ids: Set<string> }
+  const flushSaveRef = useRef(null)   // holds the latest doSave fn for unmount flush
   // Ref for draggedTask — always current in event handlers, avoids stale-closure drops
   const draggedTaskRef = useRef(null)
 
@@ -607,19 +608,16 @@ export default function TeamCollab() {
   }, [activeProjectId, ctxProjects])
 
   // ── Auto-save tasks to DB ─────────────────────────────────────────────────
-  // Fires on every kanban.tasks change (add, edit, move, delete, AI, drag-drop).
-  // Debounced 1.5s to batch rapid changes. Tracks deletions per-project via ref
-  // so removed tasks are also cleaned from the DB.
+  // Fires whenever kanban.tasks OR authUser changes (add, edit, move, delete,
+  // drag-drop, and also when auth finishes loading after tasks are already set).
+  // Debounced 1.5s to batch rapid changes. Tracks deletions per-project via ref.
   useEffect(() => {
-    // Use TeamCollab's own activeProjectId as primary — AppContext's activeProject
-    // is often null when TeamCollab is opened directly from the sidebar.
     const projectId = activeProjectId || activeProject?.id
     if (!projectId || projectId === 'default' || !authUser || !Array.isArray(kanban?.tasks)) return
 
     const currentTasks = kanban.tasks
     const currentIds = new Set(currentTasks.map(t => t.id))
 
-    // Detect which task IDs were removed (only within the same project)
     let deletedIds = []
     if (prevDbStateRef.current?.projectId === projectId) {
       deletedIds = [...prevDbStateRef.current.ids].filter(id => !currentIds.has(id))
@@ -628,32 +626,45 @@ export default function TeamCollab() {
 
     const snapshotTitle = projectTitle || 'Team Project'
     const snapshotUserId = authUser.id
+    const snapshotIsShared = activeProject?.isShared
+    const snapshotDeletedIds = deletedIds
 
-    clearTimeout(dbSaveTimerRef.current)
-    dbSaveTimerRef.current = setTimeout(async () => {
-      // Ensure the project row exists in the DB before inserting tasks
-      // (tasks.project_id is a FK → projects.id). ignoreDuplicates skips
-      // the update if the row already exists so we don't overwrite brief/result.
-      if (!activeProject?.isShared) {
-        await supabase.from('projects').upsert(
+    async function doSave() {
+      // Ensure project row exists before inserting tasks (FK constraint)
+      if (!snapshotIsShared) {
+        const { error: projErr } = await supabase.from('projects').upsert(
           { id: projectId, user_id: snapshotUserId, title: snapshotTitle, updated_at: new Date().toISOString() },
           { onConflict: 'id', ignoreDuplicates: true }
         )
+        if (projErr) { console.error('[TeamCollab] project upsert:', projErr); return }
       }
-
       if (currentTasks.length > 0) {
-        saveTasksToDB(currentTasks, projectId, snapshotUserId).catch(console.error)
+        await saveTasksToDB(currentTasks, projectId, snapshotUserId)
       }
-      if (deletedIds.length > 0) {
+      if (snapshotDeletedIds.length > 0) {
         supabase.from('tasks').delete()
           .eq('project_id', projectId)
-          .in('id', deletedIds)
+          .in('id', snapshotDeletedIds)
           .then(({ error }) => { if (error) console.error('[TeamCollab] delete tasks:', error) })
       }
-    }, 1500)
+    }
+
+    flushSaveRef.current = doSave
+
+    clearTimeout(dbSaveTimerRef.current)
+    dbSaveTimerRef.current = setTimeout(doSave, 1500)
 
     return () => clearTimeout(dbSaveTimerRef.current)
-  }, [kanban?.tasks])
+  }, [kanban?.tasks, authUser?.id])
+
+  // Flush any pending save immediately when the component unmounts so navigating
+  // away within the debounce window doesn't silently drop changes.
+  useEffect(() => {
+    return () => {
+      clearTimeout(dbSaveTimerRef.current)
+      if (flushSaveRef.current) flushSaveRef.current().catch(console.error)
+    }
+  }, [])
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
