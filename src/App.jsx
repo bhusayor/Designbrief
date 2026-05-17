@@ -20,7 +20,7 @@ function AppRouter() {
   const {
     activeSection, setActiveIntakeId, navigate,
     authUser, authLoading,
-    workspace, setWorkspace, workspaceLoading,
+    workspace, setWorkspace, workspaceLoading, workspaceLoadError, loadWorkspace,
   } = useContext(AppContext);
 
   // After workspace setup, redirect the user back to a pending project invite if one exists.
@@ -104,10 +104,56 @@ function AppRouter() {
     return <Auth />;
   }
 
-  // Workspace gate — only show setup if workspace is definitively absent
-  // (not loading, no cache). Auto-creation in the API handles most cases,
-  // so this screen should rarely appear for returning users.
-  if (authUser && !workspaceLoading && !workspace && !publicSections.includes(activeSection)) {
+  // Workspace DB error — show retry screen instead of WorkspaceSetup.
+  // This fires when the workspaces query failed (RLS misconfigured, table
+  // missing, network blip) so we never falsely ask a returning user to create
+  // a workspace they already have.
+  if (authUser && workspaceLoadError && !publicSections.includes(activeSection)) {
+    return (
+      <div style={{
+        height: '100dvh', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', background: 'var(--color-bg)',
+        flexDirection: 'column', gap: 16, padding: 24,
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'rgba(220,38,38,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 22,
+        }}>⚠️</div>
+        <div style={{
+          fontFamily: "'Urbanist', sans-serif", fontSize: 16, fontWeight: 700,
+          color: 'var(--color-text)', textAlign: 'center',
+        }}>Couldn't load your workspace</div>
+        <div style={{
+          fontFamily: "'Urbanist', sans-serif", fontSize: 13,
+          color: 'var(--color-text-muted)', textAlign: 'center', maxWidth: 340,
+        }}>
+          There was a problem connecting to the database. Check your connection and try again.
+        </div>
+        <button
+          onClick={() => loadWorkspace(authUser.id)}
+          style={{
+            padding: '10px 24px',
+            background: 'var(--color-accent)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 8,
+            fontFamily: "'Urbanist', sans-serif",
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: 'pointer',
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // Workspace gate — only show setup when the DB query succeeded and confirmed
+  // zero workspaces exist for this user. Never shown on DB errors (above).
+  if (authUser && !workspaceLoading && !workspace && !workspaceLoadError && !publicSections.includes(activeSection)) {
     return (
       <WorkspaceSetup
         user={authUser}

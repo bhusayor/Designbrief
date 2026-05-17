@@ -70,6 +70,7 @@ export function AppProvider({ children }) {
     // If we have a cached workspace, don't show a loading spinner on return visits
     try { return !localStorage.getItem('db-workspace'); } catch { return true; }
   });
+  const [workspaceLoadError, setWorkspaceLoadError] = useState(false);
 
   // ── Credits state ─────────────────────────────────────────────────────────
   const FREE_DAILY_LIMIT = 50;
@@ -269,33 +270,35 @@ export function AppProvider({ children }) {
       try { return JSON.parse(localStorage.getItem('db-workspace')); } catch { return null; }
     })();
     if (!cached) setWorkspaceLoading(true);
+    setWorkspaceLoadError(false);
 
     try {
-      // Query the DB directly — the Supabase client already holds the session
-      // (persistSession: true), so this never needs getSession() or a token refresh.
-      // This is the only reliable way to avoid the "workspace loop" caused by a
-      // stalled token-refresh hanging getSession() and returning null.
-
       // 1. Workspace this user owns
       let ws = null;
-      const { data: owned } = await supabase
+      const { data: owned, error: ownedErr } = await supabase
         .from('workspaces')
         .select('*')
         .eq('owner_id', userId)
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
+
+      // Throw DB errors (table missing, RLS misconfigured, network) so the
+      // catch block handles them instead of treating them as "no workspace".
+      if (ownedErr) throw ownedErr;
       ws = owned || null;
 
       // 2. Fall back to any workspace this user is a member of
       if (!ws) {
-        const { data: membership } = await supabase
+        const { data: membership, error: memberErr } = await supabase
           .from('workspace_members')
           .select('workspace_id, workspaces(*)')
           .eq('user_id', userId)
           .order('created_at', { ascending: true })
           .limit(1)
           .maybeSingle();
+
+        if (memberErr) throw memberErr;
         ws = membership?.workspaces || null;
       }
 
@@ -311,18 +314,23 @@ export function AppProvider({ children }) {
           );
         } catch {}
       } else {
-        // Query returned definitively: no workspace exists for this user.
-        // Show WorkspaceSetup.
+        // DB confirmed: this user has no workspace. Show WorkspaceSetup.
         localStorage.removeItem('db-workspace');
         setWorkspace(null);
       }
       return ws;
     } catch (e) {
       console.error('[loadWorkspace]', e);
-      // On transient error: keep the cached workspace so returning users
-      // never get bounced to WorkspaceSetup by a network blip.
-      if (cached) { setWorkspace(cached); return cached; }
-      else { setWorkspace(null); return null; }
+      // On transient/DB error: keep cached workspace so returning users
+      // are never bounced to WorkspaceSetup by a network blip or missing policy.
+      if (cached) {
+        setWorkspace(cached);
+        return cached;
+      }
+      // No cache + DB error → show retry screen, NOT WorkspaceSetup.
+      setWorkspaceLoadError(true);
+      setWorkspace(null);
+      return null;
     } finally {
       setWorkspaceLoading(false);
     }
@@ -753,6 +761,7 @@ export function AppProvider({ children }) {
     setWorkspace,
     loadWorkspace,
     workspaceLoading,
+    workspaceLoadError,
 
     // Credits
     creditsUsed,
