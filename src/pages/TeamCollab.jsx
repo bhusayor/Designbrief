@@ -465,6 +465,9 @@ export default function TeamCollab() {
   const addInputRef = useRef(null)
   const chatInputRef = useRef(null)
   const projectMenuRef = useRef(null)
+  // Auto-save to DB: tracks prev task IDs per project to detect deletions
+  const dbSaveTimerRef = useRef(null)
+  const prevDbStateRef = useRef(null) // { projectId, ids: Set<string> }
 
   const [activeSuggestions, setActiveSuggestions] = useState([])
 
@@ -599,6 +602,40 @@ export default function TeamCollab() {
     const found = ctxProjects.find(p => p.id === activeProjectId)
     if (found) openProject(found)
   }, [activeProjectId, ctxProjects])
+
+  // ── Auto-save tasks to DB ─────────────────────────────────────────────────
+  // Fires on every kanban.tasks change (add, edit, move, delete, AI, drag-drop).
+  // Debounced 1.5s to batch rapid changes. Tracks deletions per-project via ref
+  // so removed tasks are also cleaned from the DB.
+  useEffect(() => {
+    if (!activeProject?.id || !authUser || !Array.isArray(kanban?.tasks)) return
+
+    const projectId = activeProject.id
+    const currentTasks = kanban.tasks
+    const currentIds = new Set(currentTasks.map(t => t.id))
+
+    // Detect which task IDs were removed (only within the same project)
+    let deletedIds = []
+    if (prevDbStateRef.current?.projectId === projectId) {
+      deletedIds = [...prevDbStateRef.current.ids].filter(id => !currentIds.has(id))
+    }
+    prevDbStateRef.current = { projectId, ids: currentIds }
+
+    clearTimeout(dbSaveTimerRef.current)
+    dbSaveTimerRef.current = setTimeout(async () => {
+      if (currentTasks.length > 0) {
+        saveTasksToDB(currentTasks, projectId, authUser.id).catch(console.error)
+      }
+      if (deletedIds.length > 0) {
+        supabase.from('tasks').delete()
+          .eq('project_id', projectId)
+          .in('id', deletedIds)
+          .then(({ error }) => { if (error) console.error('[TeamCollab] delete tasks:', error) })
+      }
+    }, 1500)
+
+    return () => clearTimeout(dbSaveTimerRef.current)
+  }, [kanban?.tasks])
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
