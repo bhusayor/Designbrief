@@ -468,6 +468,8 @@ export default function TeamCollab() {
   // Auto-save to DB: tracks prev task IDs per project to detect deletions
   const dbSaveTimerRef = useRef(null)
   const prevDbStateRef = useRef(null) // { projectId, ids: Set<string> }
+  // Ref for draggedTask — always current in event handlers, avoids stale-closure drops
+  const draggedTaskRef = useRef(null)
 
   const [activeSuggestions, setActiveSuggestions] = useState([])
 
@@ -578,8 +580,9 @@ export default function TeamCollab() {
   }, [kanban, teamMembers])
 
   useEffect(() => {
-    if (!activeProject?.id || !authUser) return
-    loadTasksFromDB(activeProject.id).then(tasks => {
+    const projectId = activeProject?.id || activeProjectId
+    if (!projectId || projectId === 'default' || !authUser) return
+    loadTasksFromDB(projectId).then(tasks => {
       if (tasks.length > 0) {
         setKanban(prev => ({
           tasks,
@@ -590,7 +593,7 @@ export default function TeamCollab() {
         setPhase('kanban')
       }
     }).catch(console.error)
-  }, [activeProject?.id])
+  }, [activeProject?.id, activeProjectId, authUser])
 
   // After a page refresh the activeProjectId is restored from localStorage but
   // activeProject (AppContext) is null. Look the project up in ctxProjects (which
@@ -608,9 +611,11 @@ export default function TeamCollab() {
   // Debounced 1.5s to batch rapid changes. Tracks deletions per-project via ref
   // so removed tasks are also cleaned from the DB.
   useEffect(() => {
-    if (!activeProject?.id || !authUser || !Array.isArray(kanban?.tasks)) return
+    // Use TeamCollab's own activeProjectId as primary — AppContext's activeProject
+    // is often null when TeamCollab is opened directly from the sidebar.
+    const projectId = activeProjectId || activeProject?.id
+    if (!projectId || projectId === 'default' || !authUser || !Array.isArray(kanban?.tasks)) return
 
-    const projectId = activeProject.id
     const currentTasks = kanban.tasks
     const currentIds = new Set(currentTasks.map(t => t.id))
 
@@ -621,10 +626,23 @@ export default function TeamCollab() {
     }
     prevDbStateRef.current = { projectId, ids: currentIds }
 
+    const snapshotTitle = projectTitle || 'Team Project'
+    const snapshotUserId = authUser.id
+
     clearTimeout(dbSaveTimerRef.current)
     dbSaveTimerRef.current = setTimeout(async () => {
+      // Ensure the project row exists in the DB before inserting tasks
+      // (tasks.project_id is a FK → projects.id). ignoreDuplicates skips
+      // the update if the row already exists so we don't overwrite brief/result.
+      if (!activeProject?.isShared) {
+        await supabase.from('projects').upsert(
+          { id: projectId, user_id: snapshotUserId, title: snapshotTitle, updated_at: new Date().toISOString() },
+          { onConflict: 'id', ignoreDuplicates: true }
+        )
+      }
+
       if (currentTasks.length > 0) {
-        saveTasksToDB(currentTasks, projectId, authUser.id).catch(console.error)
+        saveTasksToDB(currentTasks, projectId, snapshotUserId).catch(console.error)
       }
       if (deletedIds.length > 0) {
         supabase.from('tasks').delete()
@@ -2436,6 +2454,7 @@ STYLE:
         draggable
         onDragStart={e => {
           e.stopPropagation()
+          draggedTaskRef.current = task   // set ref immediately — no re-render lag
           setDraggedTask(task)
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', task.id)
@@ -2443,23 +2462,29 @@ STYLE:
         }}
         onDragEnd={e => {
           e.currentTarget.style.opacity = '1'
+          draggedTaskRef.current = null
           setDraggedTask(null)
           setDragOverCol(null)
           setDragOverTaskId(null)
         }}
         onDragOver={e => {
-          if (!draggedTask || draggedTask.id === task.id) return
+          const dt = draggedTaskRef.current
+          if (!dt || dt.id === task.id) return
           e.preventDefault()
           e.stopPropagation()
           setDragOverTaskId(task.id)
         }}
+        onDragLeave={e => {
+          if (dragOverTaskId === task.id) setDragOverTaskId(null)
+        }}
         onDrop={e => {
           e.preventDefault()
           e.stopPropagation()
-          if (!draggedTask || draggedTask.id === task.id) return
+          const dt = draggedTaskRef.current
+          if (!dt || dt.id === task.id) return
           setKanban(prev => {
             const tasks = [...prev.tasks]
-            const fromIdx = tasks.findIndex(t => t.id === draggedTask.id)
+            const fromIdx = tasks.findIndex(t => t.id === dt.id)
             const toIdx = tasks.findIndex(t => t.id === task.id)
             if (fromIdx === -1 || toIdx === -1) return prev
             const [moved] = tasks.splice(fromIdx, 1)
@@ -2468,6 +2493,7 @@ STYLE:
             tasks.splice(newToIdx, 0, moved)
             return { ...prev, tasks }
           })
+          draggedTaskRef.current = null
           setDraggedTask(null)
           setDragOverCol(null)
           setDragOverTaskId(null)
@@ -3828,7 +3854,7 @@ STYLE:
                 <div key={col.id}
                   draggable
                   onDragStart={e => {
-                    if (draggedTask) { e.preventDefault(); return }
+                    if (draggedTaskRef.current) { e.preventDefault(); return }
                     setDraggedColId(col.id)
                     e.dataTransfer.effectAllowed = 'move'
                     e.dataTransfer.setData('text/plain', 'col-' + col.id)
@@ -3840,14 +3866,31 @@ STYLE:
                     setDragOverColId(null)
                   }}
                   onDragOver={e => {
-                    if (draggedColId && draggedColId !== col.id) {
+                    if (draggedTaskRef.current) {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      setDragOverCol(col.id)
+                    } else if (draggedColId && draggedColId !== col.id) {
                       e.preventDefault()
                       e.dataTransfer.dropEffect = 'move'
                       setDragOverColId(col.id)
                     }
                   }}
                   onDrop={e => {
-                    if (draggedColId && draggedColId !== col.id) {
+                    const dt = draggedTaskRef.current
+                    if (dt) {
+                      e.preventDefault()
+                      if (!dragOverTaskId) {
+                        setKanban(prev => ({
+                          ...prev,
+                          tasks: prev.tasks.map(t => t.id === dt.id ? { ...t, column: col.id } : t),
+                        }))
+                      }
+                      draggedTaskRef.current = null
+                      setDraggedTask(null)
+                      setDragOverCol(null)
+                      setDragOverTaskId(null)
+                    } else if (draggedColId && draggedColId !== col.id) {
                       e.preventDefault()
                       const fromIdx = customCols.findIndex(c => c.id === draggedColId)
                       const toIdx = customCols.findIndex(c => c.id === col.id)
@@ -3980,7 +4023,7 @@ STYLE:
                   <div
                     style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 60 }}
                     onDragOver={e => {
-                      if (!draggedTask) return
+                      if (!draggedTaskRef.current) return
                       e.preventDefault()
                       e.dataTransfer.dropEffect = 'move'
                       setDragOverCol(col.id)
@@ -3992,12 +4035,14 @@ STYLE:
                     }}
                     onDrop={e => {
                       e.preventDefault()
-                      if (!draggedTask) return
+                      const dt = draggedTaskRef.current
+                      if (!dt) return
                       if (dragOverTaskId) return
                       setKanban(prev => ({
                         ...prev,
-                        tasks: prev.tasks.map(t => t.id === draggedTask.id ? { ...t, column: col.id } : t),
+                        tasks: prev.tasks.map(t => t.id === dt.id ? { ...t, column: col.id } : t),
                       }))
+                      draggedTaskRef.current = null
                       setDraggedTask(null)
                       setDragOverCol(null)
                       setDragOverTaskId(null)
