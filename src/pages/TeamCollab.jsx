@@ -371,7 +371,7 @@ function useWindowWidth() {
 }
 
 export default function TeamCollab() {
-  const { activeProject, openProject, projects: ctxProjects, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace } = useContext(AppContext)
+  const { activeProject, openProject, projects: ctxProjects, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth <= 480
@@ -635,6 +635,52 @@ export default function TeamCollab() {
     const found = ctxProjects.find(p => p.id === activeProjectId)
     if (found) openProject(found)
   }, [activeProjectId, ctxProjects])
+
+  // ── Sync TC's project tabs from AppContext.projects (DB-backed) ───────────
+  // ctxProjects is hydrated from the DB on login AND patched by the realtime
+  // subscription on the projects table. Mirroring it here means:
+  //   - Device B sees Device A's renames / creates / deletes without refresh.
+  //   - Invited members see the shared project show up live.
+  // We merge with TC's local-only projects (those not yet persisted) so
+  // freshly-created tabs don't disappear during the round-trip.
+  useEffect(() => {
+    if (!Array.isArray(ctxProjects)) return
+    setProjects(prev => {
+      const ctxById = new Map(
+        ctxProjects.map(p => [p.id, { id: p.id, title: p.title || 'Untitled' }])
+      )
+      const merged = []
+      const seen = new Set()
+      // Preserve order of existing tabs; update titles from ctx where present
+      for (const tab of prev) {
+        if (tab.id === 'default') { merged.push(tab); seen.add(tab.id); continue }
+        const ctx = ctxById.get(tab.id)
+        if (ctx) { merged.push({ ...tab, title: ctx.title }); seen.add(tab.id); ctxById.delete(tab.id) }
+        else merged.push(tab) // local-only tab (not yet in DB)
+      }
+      // Append remaining DB projects not yet in tabs
+      for (const ctx of ctxById.values()) {
+        if (!seen.has(ctx.id)) merged.push(ctx)
+      }
+      // Skip update if shallow-equal to avoid loops
+      const same = merged.length === prev.length &&
+        merged.every((m, i) => m.id === prev[i].id && m.title === prev[i].title)
+      if (same) return prev
+      try { localStorage.setItem('teamcollab-projects', JSON.stringify(merged)) } catch {}
+      return merged
+    })
+  }, [ctxProjects])
+
+  // Keep TC's projectTitle in sync with the renamed project from AppContext
+  // (covers the case where Device A renamed and the change arrived via realtime
+  // while Device B was viewing that project).
+  useEffect(() => {
+    if (!activeProjectId || !Array.isArray(ctxProjects)) return
+    const found = ctxProjects.find(p => p.id === activeProjectId)
+    if (found && found.title && found.title !== projectTitle) {
+      setProjectTitle(found.title)
+    }
+  }, [ctxProjects, activeProjectId])
 
   // ── Auto-save tasks to DB ─────────────────────────────────────────────────
   // Fires whenever kanban.tasks OR authUser changes (add, edit, move, delete,
@@ -1976,6 +2022,25 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     const updated = [...projects, newProj]
     setProjects(updated)
     saveProjects(updated)
+    // Persist to DB so other devices see this project. Includes user_id so RLS
+    // allows the insert; updated_at lets realtime listeners order correctly.
+    if (authUser) {
+      supabase.from('projects').upsert(
+        {
+          id: newProj.id,
+          user_id: authUser.id,
+          title: newProj.title,
+          section: 'team',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      ).then(({ error }) => {
+        if (error) {
+          console.error('[TC] handleNewProject DB upsert:', error)
+          showToast?.('Failed to create project', 'error')
+        }
+      })
+    }
     switchWithTransition(newProj.id, updated)
   }
 
@@ -1985,13 +2050,17 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   }
 
   function handleRenameProject(projectId, newTitle) {
-    if (!newTitle.trim()) return
-    const updated = projects.map(p => p.id === projectId ? { ...p, title: newTitle.trim() } : p)
+    const trimmed = newTitle.trim()
+    if (!trimmed) return
+    const updated = projects.map(p => p.id === projectId ? { ...p, title: trimmed } : p)
     setProjects(updated)
     saveProjects(updated)
-    if (projectId === activeProjectId) setProjectTitle(newTitle.trim())
+    if (projectId === activeProjectId) setProjectTitle(trimmed)
     setRenamingProjectId(null)
     triggerFlash()
+    // Route through AppContext.renameProject so the DB write happens AND the
+    // AppContext realtime subscription pushes the change to other devices.
+    if (renameProjectInDB) renameProjectInDB(projectId, trimmed)
   }
 
   function handleDeleteProject(projectId) {
@@ -2005,6 +2074,8 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     if (projectId === activeProjectId) {
       switchWithTransition(updated[0].id, updated)
     }
+    // Persist deletion to DB so other devices drop it.
+    if (deleteProjectInDB) deleteProjectInDB(projectId)
   }
 
   function handleAddManualTask(columnId) {
