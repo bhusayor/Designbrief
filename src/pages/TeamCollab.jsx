@@ -4048,7 +4048,7 @@ STYLE:
                       setDragOverTaskId(null)
                     }}
                   >
-                    {colTasks.map(task => <TaskCard key={task.id} task={task} />)}
+                    {colTasks.map(task => <React.Fragment key={task.id}>{TaskCard({ task })}</React.Fragment>)}
                     {colTasks.length === 0 && !isTaskDropTarget && (
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.5 }}>No tasks yet</div>
