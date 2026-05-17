@@ -24,7 +24,7 @@ import { getWebsiteTemplate } from '../lib/templates'
 import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaudeTools } from '../lib/api'
 import { getProjectInvites } from '../lib/teamService'
 import {
-  saveTasksToDB, loadTasksFromDB, updateTaskInDB,
+  saveTasksToDB, loadTasksFromDB, updateTaskInDB, deleteTaskFromDB, mapDBTask,
   calculateDueDates, calculateProgress, logActivity,
 } from '../lib/taskService'
 import TeamPage from './TeamPage'
@@ -379,14 +379,31 @@ export default function TeamCollab() {
 
   const websiteTemplate = getWebsiteTemplate(selectedWebsiteTemplate || 'saas-landing')
 
-  const [phase, setPhase] = useState('brief')
+  // Hydrate from localStorage immediately so the board shows without waiting for
+  // auth to load. The DB-load effect will override with authoritative data once
+  // the session is ready.
+  const [phase, setPhase] = useState(() => {
+    try {
+      const id = localStorage.getItem('teamcollab-active-project') || 'default'
+      if (!id || id === 'default') return 'brief'
+      const s = localStorage.getItem('tc-project-' + id)
+      return (s && JSON.parse(s)?.phase) || 'brief'
+    } catch { return 'brief' }
+  })
+  const [kanban, setKanban] = useState(() => {
+    try {
+      const id = localStorage.getItem('teamcollab-active-project') || 'default'
+      if (!id || id === 'default') return null
+      const s = localStorage.getItem('tc-project-' + id)
+      return (s && JSON.parse(s)?.kanban) || null
+    } catch { return null }
+  })
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [briefText, setBriefText] = useState('')
   const [projectTitle, setProjectTitle] = useState('')
   const [teamMembers, setTeamMembers] = useState([])
   const [suggestedRoles, setSuggestedRoles] = useState([])
-  const [kanban, setKanban] = useState(null)
   const [loading, setLoading] = useState(false)
   const [draggedTask, setDraggedTask] = useState(null)
   const [dragOverCol, setDragOverCol] = useState(null)
@@ -458,6 +475,8 @@ export default function TeamCollab() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [projectFlash, setProjectFlash] = useState(false)
   const [boardTransitioning, setBoardTransitioning] = useState(false)
+  const [tasksLoading, setTasksLoading] = useState(false)
+  const [taskLoadError, setTaskLoadError] = useState(false)
 
   const messagesEndRef = useRef(null)
   const scrollAnchorRef = useRef(null)
@@ -583,7 +602,13 @@ export default function TeamCollab() {
   useEffect(() => {
     const projectId = activeProject?.id || activeProjectId
     if (!projectId || projectId === 'default' || !authUser) return
+    setTasksLoading(true)
+    setTaskLoadError(false)
     loadTasksFromDB(projectId).then(tasks => {
+      setTasksLoading(false)
+      // DB is authoritative — always override local state when tasks exist.
+      // If DB is empty the user may not have any tasks yet, so we leave
+      // whatever was hydrated from localStorage intact.
       if (tasks.length > 0) {
         setKanban(prev => ({
           tasks,
@@ -593,8 +618,12 @@ export default function TeamCollab() {
         }))
         setPhase('kanban')
       }
-    }).catch(console.error)
-  }, [activeProject?.id, activeProjectId, authUser])
+    }).catch(e => {
+      setTasksLoading(false)
+      setTaskLoadError(true)
+      console.error('[TC] loadTasksFromDB:', e)
+    })
+  }, [activeProject?.id, activeProjectId, authUser?.id])
 
   // After a page refresh the activeProjectId is restored from localStorage but
   // activeProject (AppContext) is null. Look the project up in ctxProjects (which
@@ -665,6 +694,44 @@ export default function TeamCollab() {
       if (flushSaveRef.current) flushSaveRef.current().catch(console.error)
     }
   }, [])
+
+  // ── Real-time task sync (Supabase Realtime) ───────────────────────────────
+  // Merges remote changes into local state so team members see updates live.
+  // Own writes are ignored (already applied optimistically).
+  useEffect(() => {
+    const projectId = activeProjectId || activeProject?.id
+    if (!projectId || projectId === 'default' || !authUser) return
+
+    const channel = supabase
+      .channel('tc-tasks-' + projectId)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'tasks',
+        filter: `project_id=eq.${projectId}`,
+      }, payload => {
+        if (payload.eventType === 'INSERT') {
+          const t = mapDBTask(payload.new)
+          setKanban(prev => {
+            if (!prev) return prev
+            if (prev.tasks.some(x => x.id === t.id)) return prev // already have it
+            return { ...prev, tasks: [...prev.tasks, t] }
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          const t = mapDBTask(payload.new)
+          setKanban(prev => {
+            if (!prev) return prev
+            return { ...prev, tasks: prev.tasks.map(x => x.id === t.id ? { ...x, ...t } : x) }
+          })
+        } else if (payload.eventType === 'DELETE') {
+          setKanban(prev => {
+            if (!prev) return prev
+            return { ...prev, tasks: prev.tasks.filter(x => x.id !== payload.old.id) }
+          })
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [activeProjectId, activeProject?.id, authUser?.id])
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -796,11 +863,19 @@ Return JSON:
   }
 
   function updateTask(updated) {
+    const prevTask = kanban?.tasks?.find(t => t.id === updated.id)
     setKanban(prev => ({
       ...prev,
       tasks: prev.tasks.map(t => t.id === updated.id ? updated : t),
     }))
     setEditingTask(updated)
+    if (authUser) {
+      updateTaskInDB(updated).catch(e => {
+        console.error('[TC] updateTask:', e)
+        if (showToast) showToast('Failed to save changes. Please try again.', 'error')
+        if (prevTask) setKanban(prev => prev ? { ...prev, tasks: prev.tasks.map(t => t.id === prevTask.id ? prevTask : t) } : prev)
+      })
+    }
   }
 
   function addTaskToBoard(task) {
@@ -810,6 +885,51 @@ Return JSON:
 
   function saveProjects(newProjects) {
     localStorage.setItem('teamcollab-projects', JSON.stringify(newProjects))
+  }
+
+  // ── DB helpers ────────────────────────────────────────────────────────────
+
+  // Ensures the project row exists in Supabase before any task insert (FK).
+  async function ensureProjectInDB(projectId) {
+    if (!authUser || !projectId || projectId === 'default' || activeProject?.isShared) return
+    const { error } = await supabase.from('projects').upsert(
+      { id: projectId, user_id: authUser.id, title: projectTitle || 'Team Project', updated_at: new Date().toISOString() },
+      { onConflict: 'id', ignoreDuplicates: true }
+    )
+    if (error) throw new Error('project upsert: ' + error.message)
+  }
+
+  // Immediately persists a single task to DB (optimistic path: state was already updated).
+  async function saveTaskNow(task) {
+    const projectId = activeProjectId || activeProject?.id
+    if (!projectId || projectId === 'default' || !authUser) return
+    await ensureProjectInDB(projectId)
+    const { error } = await supabase.from('tasks').upsert({
+      id: task.id,
+      project_id: projectId,
+      user_id: authUser.id,
+      title: task.title || 'Untitled',
+      description: task.description || '',
+      column_name: task.column || 'To Do',
+      assigned_role: task.assignedRole || '',
+      assigned_name: task.assignedName || '',
+      priority: task.priority || 'MEDIUM',
+      estimated_days: task.estimatedDays || 1,
+      due_date: task.dueDate || null,
+      completed: task.column === 'Done',
+      blocked_by: task.blockedBy || [],
+      position: (kanban?.tasks || []).findIndex(t => t.id === task.id),
+      phase: task.phase || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' })
+    if (error) throw new Error('task upsert: ' + error.message)
+  }
+
+  // Removes a task from state and DB. Optimistic: state is removed first.
+  function deleteTaskNow(taskId) {
+    setKanban(prev => prev ? { ...prev, tasks: prev.tasks.filter(t => t.id !== taskId) } : prev)
+    setEditingTask(null)
+    deleteTaskFromDB(taskId).catch(e => console.error('[TC] deleteTask:', e))
   }
 
   function saveCustomCols(cols) {
@@ -1890,7 +2010,7 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   function handleAddManualTask(columnId) {
     if (!newTaskTitle.trim()) return
     const newTask = {
-      id: 'manual-' + Date.now(),
+      id: 'manual-' + uid(),
       title: newTaskTitle.trim(),
       priority: 'MEDIUM',
       assignedName: null,
@@ -1910,6 +2030,12 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     if (phase !== 'kanban') setPhase('kanban')
     setNewTaskTitle('')
     setAddingToCol(null)
+    // Persist immediately — optimistic update already applied above
+    saveTaskNow(newTask).catch(e => {
+      console.error('[TC] saveTaskNow:', e)
+      if (showToast) showToast('Failed to save task. Please try again.', 'error')
+      setKanban(prev => prev ? { ...prev, tasks: prev.tasks.filter(t => t.id !== newTask.id) } : prev)
+    })
   }
 
   function applyBoardUpdate(update) {
@@ -2493,17 +2619,20 @@ STYLE:
           e.stopPropagation()
           const dt = draggedTaskRef.current
           if (!dt || dt.id === task.id) return
+          const targetCol = task.column
           setKanban(prev => {
             const tasks = [...prev.tasks]
             const fromIdx = tasks.findIndex(t => t.id === dt.id)
             const toIdx = tasks.findIndex(t => t.id === task.id)
             if (fromIdx === -1 || toIdx === -1) return prev
             const [moved] = tasks.splice(fromIdx, 1)
-            moved.column = task.column
+            moved.column = targetCol
             const newToIdx = tasks.findIndex(t => t.id === task.id)
             tasks.splice(newToIdx, 0, moved)
             return { ...prev, tasks }
           })
+          // Persist column change to DB immediately
+          if (authUser) updateTaskInDB({ ...dt, column: targetCol }).catch(console.error)
           draggedTaskRef.current = null
           setDraggedTask(null)
           setDragOverCol(null)
@@ -2600,7 +2729,7 @@ STYLE:
 
   // ── TaskModal ─────────────────────────────────────────────────────────────
 
-  function TaskModal({ task, onUpdate, onClose }) {
+  function TaskModal({ task, onUpdate, onDelete, onClose }) {
     const [editing, setEditing] = useState({ ...task })
 
     return (
@@ -2754,6 +2883,12 @@ STYLE:
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+              {onDelete && (
+                <button
+                  onClick={() => { if (window.confirm('Delete this task?')) onDelete(task.id) }}
+                  style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 9, padding: '10px 14px', color: '#dc2626', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                >Delete</button>
+              )}
               <button onClick={onClose} style={{
                 flex: 1, background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
@@ -3227,6 +3362,7 @@ STYLE:
         <TaskModal
           task={editingTask}
           onUpdate={updateTask}
+          onDelete={deleteTaskNow}
           onClose={() => setEditingTask(null)}
         />
       )}
@@ -3251,6 +3387,12 @@ STYLE:
             missingRoles: prev?.missingRoles || [],
           }))
           if (phase !== 'kanban') setPhase('kanban')
+          // Persist immediately
+          saveTaskNow(newTask).catch(e => {
+            console.error('[TC] saveTaskNow:', e)
+            if (showToast) showToast('Failed to save task. Please try again.', 'error')
+            setKanban(prev => prev ? { ...prev, tasks: prev.tasks.filter(t => t.id !== newTask.id) } : prev)
+          })
         }}
         teamMembers={teamMembers}
         initialColumn={addTaskData.column || KANBAN_COLS[0]}
@@ -3896,6 +4038,7 @@ STYLE:
                           ...prev,
                           tasks: prev.tasks.map(t => t.id === dt.id ? { ...t, column: col.id } : t),
                         }))
+                        if (authUser) updateTaskInDB({ ...dt, column: col.id }).catch(console.error)
                       }
                       draggedTaskRef.current = null
                       setDraggedTask(null)
@@ -4053,14 +4196,28 @@ STYLE:
                         ...prev,
                         tasks: prev.tasks.map(t => t.id === dt.id ? { ...t, column: col.id } : t),
                       }))
+                      if (authUser) updateTaskInDB({ ...dt, column: col.id }).catch(console.error)
                       draggedTaskRef.current = null
                       setDraggedTask(null)
                       setDragOverCol(null)
                       setDragOverTaskId(null)
                     }}
                   >
+                    {/* Skeleton cards while loading from DB */}
+                    {tasksLoading && colTasks.length === 0 && [0, 1, 2].map(i => (
+                      <div key={i} style={{ background: 'var(--color-surface)', borderRadius: 10, padding: '12px 14px', marginBottom: 8, animation: 'pulse 1.4s ease infinite', animationDelay: i * 0.15 + 's' }}>
+                        <div style={{ height: 10, background: 'var(--color-border)', borderRadius: 5, width: '70%', marginBottom: 8 }} />
+                        <div style={{ height: 8, background: 'var(--color-border)', borderRadius: 5, width: '45%' }} />
+                      </div>
+                    ))}
+                    {/* Fetch-error notice */}
+                    {taskLoadError && colTasks.length === 0 && !tasksLoading && (
+                      <div style={{ padding: '12px 8px', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 11, color: '#dc2626' }}>
+                        Failed to load tasks. Try refreshing.
+                      </div>
+                    )}
                     {colTasks.map(task => <React.Fragment key={task.id}>{TaskCard({ task })}</React.Fragment>)}
-                    {colTasks.length === 0 && !isTaskDropTarget && (
+                    {colTasks.length === 0 && !isTaskDropTarget && !tasksLoading && !taskLoadError && (
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.5 }}>No tasks yet</div>
                       </div>

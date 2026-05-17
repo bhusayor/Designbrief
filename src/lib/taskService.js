@@ -32,20 +32,10 @@ export async function saveTasksToDB(tasks, projectId, userId) {
   if (error) console.error('saveTasksToDB error:', error)
 }
 
-// ── Load all tasks for a project ──────────────────────────────────────────────
-export async function loadTasksFromDB(projectId) {
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('position', { ascending: true })
-
-  if (error) {
-    console.error('loadTasksFromDB error:', error)
-    return []
-  }
-
-  return (data || []).map(t => ({
+// Maps a raw Supabase tasks row → JS task object used in TeamCollab state.
+// Also used for real-time payload.new rows.
+export function mapDBTask(t) {
+  return {
     id: t.id,
     title: t.title,
     description: t.description,
@@ -59,7 +49,23 @@ export async function loadTasksFromDB(projectId) {
     blockedBy: t.blocked_by || [],
     phase: t.phase,
     position: t.position,
-  }))
+  }
+}
+
+// ── Load all tasks for a project ──────────────────────────────────────────────
+export async function loadTasksFromDB(projectId) {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('position', { ascending: true })
+
+  if (error) {
+    console.error('loadTasksFromDB error:', error)
+    return []
+  }
+
+  return (data || []).map(mapDBTask)
 }
 
 // ── Update a single task ───────────────────────────────────────────────────────
