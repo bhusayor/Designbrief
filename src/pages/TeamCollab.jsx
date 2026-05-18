@@ -3183,6 +3183,7 @@ STYLE:
           const dt = draggedTaskRef.current
           if (!dt || dt.id === task.id) return
           const targetCol = task.column
+          localChangeAtRef.current.set(dt.id, Date.now())
           setKanban(prev => {
             const tasks = [...prev.tasks]
             const fromIdx = tasks.findIndex(t => t.id === dt.id)
@@ -3194,7 +3195,6 @@ STYLE:
             tasks.splice(newToIdx, 0, moved)
             return { ...prev, tasks }
           })
-          // Persist column change to DB immediately
           if (authUser) updateTaskInDB({ ...dt, column: targetCol }).catch(console.error)
           draggedTaskRef.current = null
           setDraggedTask(null)
@@ -4289,6 +4289,7 @@ STYLE:
                     if (dt) {
                       e.preventDefault()
                       if (!dragOverTaskId) {
+                        localChangeAtRef.current.set(dt.id, Date.now())
                         setKanban(prev => ({
                           ...prev,
                           tasks: prev.tasks.map(t => t.id === dt.id ? { ...t, column: col.id } : t),
@@ -4447,6 +4448,7 @@ STYLE:
                       const dt = draggedTaskRef.current
                       if (!dt) return
                       if (dragOverTaskId) return
+                      localChangeAtRef.current.set(dt.id, Date.now())
                       setKanban(prev => ({
                         ...prev,
                         tasks: prev.tasks.map(t => t.id === dt.id ? { ...t, column: col.id } : t),
