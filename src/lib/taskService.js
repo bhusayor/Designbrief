@@ -42,9 +42,12 @@ export async function saveTasksToDB(tasks, projectId, userId) {
   if (!tasks?.length || !projectId || !userId) return
   const withIds = tasks.map(t => ({ ...t, id: t.id || uid() }))
   try {
-    await apiCall('POST', { kind: 'tasks', project_id: projectId, tasks: withIds })
+    console.log('[saveTasksToDB] sending', withIds.length, 'tasks for project', projectId)
+    const t0 = performance.now()
+    const result = await apiCall('POST', { kind: 'tasks', project_id: projectId, tasks: withIds })
+    console.log('[saveTasksToDB] saved', result, `(${Math.round(performance.now() - t0)}ms)`)
   } catch (e) {
-    console.error('saveTasksToDB error:', e.message)
+    console.error('[saveTasksToDB] FAILED:', e.message)
   }
 }
 

@@ -488,6 +488,9 @@ export default function TeamCollab() {
   const dbSaveTimerRef = useRef(null)
   const prevDbStateRef = useRef(null) // { projectId, ids: Set<string> }
   const flushSaveRef = useRef(null)   // holds the latest doSave fn for unmount flush
+  // Tracks task IDs the server has confirmed at least once. Lets the polling
+  // merge tell 'pending save' (never seen) from 'deleted remotely' (seen, gone).
+  const confirmedRemoteIdsRef = useRef(new Set())
   // Ref for draggedTask — always current in event handlers, avoids stale-closure drops
   const draggedTaskRef = useRef(null)
 
@@ -608,11 +611,11 @@ export default function TeamCollab() {
     if (!projectId || projectId === 'default' || !authUser) return
     setTasksLoading(true)
     setTaskLoadError(false)
+    // Reset confirmed-IDs for the new project so polling merge starts clean
+    confirmedRemoteIdsRef.current = new Set()
     loadTasksFromDB(projectId).then(tasks => {
       setTasksLoading(false)
-      // DB is authoritative — always override local state when tasks exist.
-      // If DB is empty the user may not have any tasks yet, so we leave
-      // whatever was hydrated from localStorage intact.
+      confirmedRemoteIdsRef.current = new Set(tasks.map(t => t.id))
       if (tasks.length > 0) {
         setKanban(prev => ({
           tasks,
@@ -801,9 +804,12 @@ export default function TeamCollab() {
   }, [activeProjectId, activeProject?.id, authUser?.id])
 
   // ── Polling fallback for cross-device task sync ──────────────────────────
-  // Same pattern as AppContext.projects polling. Realtime can silently fail
-  // (publication missing, websocket drop, RLS hiccup); polling guarantees
-  // Device B catches up within 5s.
+  // MERGE not replace — keep any local tasks the server hasn't seen yet so
+  // a poll mid-debounce doesn't wipe a freshly-added task.
+  //
+  // We also track which task IDs have ever been confirmed on the server so
+  // we can tell "pending save" (never on server) from "deleted remotely"
+  // (was on server, now isn't).
   useEffect(() => {
     const projectId = activeProjectId || activeProject?.id
     if (!projectId || projectId === 'default' || !authUser) return
@@ -814,27 +820,48 @@ export default function TeamCollab() {
       try {
         const remoteTasks = await loadTasksFromDB(projectId)
         if (cancelled) return
+        const remoteIds = new Set(remoteTasks.map(t => t.id))
+        const prevSeen = confirmedRemoteIdsRef.current
+
         setKanban(prev => {
           if (!prev) {
-            if (remoteTasks.length === 0) return prev
+            if (remoteTasks.length === 0) {
+              confirmedRemoteIdsRef.current = remoteIds
+              return prev
+            }
+            confirmedRemoteIdsRef.current = remoteIds
             return { tasks: remoteTasks, projectTimeline: '', unassignedTasks: [], missingRoles: [] }
           }
-          // Merge: replace by id, drop tasks not on the server
+
           const remoteById = new Map(remoteTasks.map(t => [t.id, t]))
-          const next = []
-          for (const t of remoteTasks) next.push(t)
-          // Detect any meaningful change to skip needless re-renders
-          const sameLength = next.length === prev.tasks.length
-          const sameSet = sameLength && prev.tasks.every(p => {
-            const r = remoteById.get(p.id)
-            if (!r) return false
-            return r.title === p.title && r.column === p.column &&
-              r.priority === p.priority && r.dueDate === p.dueDate &&
-              r.completed === p.completed && r.position === p.position &&
-              r.assignedName === p.assignedName
+          const merged = []
+          // Remote first — authoritative for tasks the server knows about
+          for (const rt of remoteTasks) merged.push(rt)
+
+          // Then keep local-only tasks that have NEVER been on the server
+          // (pending save). If a local-only task WAS previously confirmed
+          // on the server, it was deleted remotely — drop it.
+          for (const lt of prev.tasks) {
+            if (remoteById.has(lt.id)) continue
+            if (prevSeen.has(lt.id)) continue // was confirmed before → deleted remotely
+            merged.push(lt) // never confirmed → pending save, keep it
+          }
+
+          // Skip update if nothing changed (avoid auto-save loop)
+          const sameLen = merged.length === prev.tasks.length
+          const same = sameLen && merged.every((m, i) => {
+            const p = prev.tasks[i]
+            return p.id === m.id && p.title === m.title && p.column === m.column &&
+              p.priority === m.priority && p.completed === m.completed &&
+              p.dueDate === m.dueDate && p.assignedName === m.assignedName &&
+              p.position === m.position
           })
-          if (sameSet) return prev
-          return { ...prev, tasks: next }
+          if (same) {
+            confirmedRemoteIdsRef.current = new Set([...prevSeen, ...remoteIds])
+            return prev
+          }
+          confirmedRemoteIdsRef.current = new Set([...prevSeen, ...remoteIds])
+          return { ...prev, tasks: merged }
         })
       } catch (e) {
         // transient errors get swallowed — next poll retries
