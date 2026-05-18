@@ -664,15 +664,27 @@ export function AppProvider({ children }) {
   }, [authUser]);
 
   const deleteProject = useCallback((id) => {
-    // Optimistic
+    console.log('[deleteProject] called', { id });
     setProjects(prev => prev.filter(p => p.id !== id));
     setHistory(prev => prev.filter(h => h.id !== id));
     setActiveProjectState(prev => (prev?.id === id ? null : prev));
-    if (authUser) {
-      supabase.from('projects').delete().eq('id', id).eq('user_id', authUser.id)
-        .then(({ error }) => { if (error) console.error('[AppContext] deleteProject:', error); });
-    }
-  }, [authUser]);
+    if (!authUser) return;
+    (async () => {
+      try {
+        const res = await supabase.from('projects')
+          .delete()
+          .eq('id', id).eq('user_id', authUser.id)
+          .select('id');
+        console.log('[deleteProject] result:', res);
+        if (res.error) {
+          console.error('[deleteProject] error:', res.error);
+          showToast?.('Failed to delete: ' + res.error.message, 'error');
+        }
+      } catch (e) {
+        console.error('[deleteProject] exception:', e);
+      }
+    })();
+  }, [authUser, showToast]);
 
   const pinProject = useCallback((id) => {
     let nextPinned = false;
@@ -685,12 +697,19 @@ export function AppProvider({ children }) {
     setHistory(prev =>
       prev.map(p => p.id === id ? { ...p, pinned: nextPinned } : p)
     );
-    if (authUser) {
-      supabase.from('projects')
-        .update({ pinned: nextPinned, updated_at: new Date().toISOString() })
-        .eq('id', id).eq('user_id', authUser.id)
-        .then(({ error }) => { if (error) console.error('[AppContext] pinProject:', error); });
-    }
+    if (!authUser) return;
+    (async () => {
+      try {
+        const res = await supabase.from('projects')
+          .update({ pinned: nextPinned, updated_at: new Date().toISOString() })
+          .eq('id', id).eq('user_id', authUser.id)
+          .select('id');
+        console.log('[pinProject] result:', res);
+        if (res.error) console.error('[pinProject] error:', res.error);
+      } catch (e) {
+        console.error('[pinProject] exception:', e);
+      }
+    })();
   }, [authUser]);
 
   const renameProject = useCallback((id, title) => {
@@ -699,40 +718,58 @@ export function AppProvider({ children }) {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setHistory(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
-    if (authUser) {
-      // First try to update an existing row; if no row was updated (because the
-      // project never made it to the DB), insert one. count: 'exact' returns
-      // how many rows actually matched so we can detect the no-row case.
-      supabase.from('projects')
-        .update({ title, updated_at: new Date().toISOString() }, { count: 'exact' })
-        .eq('id', id).eq('user_id', authUser.id)
-        .select('id')
-        .then(({ data, error, count }) => {
-          if (error) {
-            console.error('[renameProject] UPDATE error:', error);
-            showToast?.('Failed to rename project', 'error');
+    if (!authUser) return;
+
+    // Explicit async/await wrapped in try/catch — chained .then() was
+    // silently dropping in production, so we never saw the real DB error.
+    (async () => {
+      try {
+        console.log('[renameProject] sending UPDATE', { id, userId: authUser.id });
+        const updateRes = await supabase.from('projects')
+          .update({ title, updated_at: new Date().toISOString() })
+          .eq('id', id).eq('user_id', authUser.id)
+          .select('id, title');
+
+        console.log('[renameProject] UPDATE result:', updateRes);
+
+        if (updateRes.error) {
+          console.error('[renameProject] UPDATE error:', updateRes.error);
+          showToast?.('Failed to rename: ' + updateRes.error.message, 'error');
+          return;
+        }
+
+        const updatedCount = updateRes.data?.length || 0;
+        if (updatedCount === 0) {
+          console.log('[renameProject] no row matched — backfilling via upsert');
+          const upsertRes = await supabase.from('projects')
+            .upsert({
+              id,
+              user_id: authUser.id,
+              title,
+              section: 'team',
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' })
+            .select('id, title');
+          console.log('[renameProject] backfill result:', upsertRes);
+          if (upsertRes.error) {
+            console.error('[renameProject] backfill error:', upsertRes.error);
+            showToast?.('Failed to save: ' + upsertRes.error.message, 'error');
             return;
           }
-          console.log('[renameProject] UPDATE result:', { count, rowsReturned: data?.length });
-          if (!count || count === 0) {
-            console.log('[renameProject] no existing row — inserting');
-            supabase.from('projects')
-              .upsert({
-                id, user_id: authUser.id, title,
-                section: 'team',
-                updated_at: new Date().toISOString(),
-              }, { onConflict: 'id' })
-              .then(({ error: insErr }) => {
-                if (insErr) {
-                  console.error('[renameProject] backfill INSERT error:', insErr);
-                  showToast?.('Failed to save project', 'error');
-                } else {
-                  console.log('[renameProject] backfill INSERT ok');
-                }
-              });
-          }
-        });
-    }
+        }
+
+        // Verification: read the row back so we know it's truly persisted
+        const verify = await supabase
+          .from('projects')
+          .select('id, title, user_id')
+          .eq('id', id)
+          .maybeSingle();
+        console.log('[renameProject] verification fetch:', verify);
+      } catch (e) {
+        console.error('[renameProject] exception:', e);
+        showToast?.('Failed to rename project', 'error');
+      }
+    })();
   }, [authUser, showToast]);
 
   const shareProject = useCallback((project) => {
