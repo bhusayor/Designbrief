@@ -671,17 +671,24 @@ export function AppProvider({ children }) {
     if (!authUser) return;
     (async () => {
       try {
-        const res = await supabase.from('projects')
-          .delete()
-          .eq('id', id).eq('user_id', authUser.id)
-          .select('id');
-        console.log('[deleteProject] result:', res);
-        if (res.error) {
-          console.error('[deleteProject] error:', res.error);
-          showToast?.('Failed to delete: ' + res.error.message, 'error');
-        }
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
+        if (!accessToken) throw new Error('No session');
+
+        const res = await fetch('/api/create-workspace', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ project_id: id }),
+        });
+        const body = await res.json().catch(() => ({}));
+        console.log('[deleteProject] server response:', res.status, body);
+        if (!res.ok) showToast?.('Failed to delete: ' + (body.error || res.status), 'error');
       } catch (e) {
         console.error('[deleteProject] exception:', e);
+        showToast?.('Failed to delete project', 'error');
       }
     })();
   }, [authUser, showToast]);
@@ -714,82 +721,41 @@ export function AppProvider({ children }) {
 
   const renameProject = useCallback((id, title) => {
     console.log('[renameProject] called', { id, title, hasAuthUser: !!authUser });
-    // Optimistic update on both lists + active project
+    // Optimistic update
     setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setHistory(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
     if (!authUser) return;
 
-    // Explicit async/await wrapped in try/catch with timeout — chained .then()
-    // was silently dropping, AND raw await hangs if the request never returns.
-    // Promise.race forces a clear timeout error after 10s so we know
-    // definitively whether the network call completed.
+    // Server-side write — bypasses RLS via service role. Direct client
+    // writes were hanging indefinitely (RLS recursion / pool issue), so
+    // we go through the API which validates JWT then uses service key.
     (async () => {
-      const withTimeout = (promise, ms, label) =>
-        Promise.race([
-          promise,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-          ),
-        ]);
-
       try {
-        console.log('[renameProject] sending UPDATE', { id, userId: authUser.id });
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
+        if (!accessToken) throw new Error('No session');
+
+        console.log('[renameProject] PATCH /api/create-workspace', { id, title });
         const t0 = performance.now();
-        const updateRes = await withTimeout(
-          supabase.from('projects')
-            .update({ title, updated_at: new Date().toISOString() })
-            .eq('id', id).eq('user_id', authUser.id)
-            .select('id, title'),
-          10000,
-          'UPDATE'
-        );
+        const res = await fetch('/api/create-workspace', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ project_id: id, updates: { title } }),
+        });
+        const body = await res.json().catch(() => ({}));
+        console.log('[renameProject] server response:', res.status, body, `(${Math.round(performance.now() - t0)}ms)`);
 
-        console.log('[renameProject] UPDATE result:', updateRes, `(${Math.round(performance.now() - t0)}ms)`);
-
-        if (updateRes.error) {
-          console.error('[renameProject] UPDATE error:', updateRes.error);
-          showToast?.('Failed to rename: ' + updateRes.error.message, 'error');
+        if (!res.ok) {
+          showToast?.('Failed to rename: ' + (body.error || res.status), 'error');
           return;
         }
-
-        const updatedCount = updateRes.data?.length || 0;
-        if (updatedCount === 0) {
-          console.log('[renameProject] no row matched — backfilling via upsert');
-          const upsertRes = await withTimeout(
-            supabase.from('projects')
-              .upsert({
-                id,
-                user_id: authUser.id,
-                title,
-                section: 'team',
-                updated_at: new Date().toISOString(),
-              }, { onConflict: 'id' })
-              .select('id, title'),
-            10000,
-            'UPSERT'
-          );
-          console.log('[renameProject] backfill result:', upsertRes);
-          if (upsertRes.error) {
-            console.error('[renameProject] backfill error:', upsertRes.error);
-            showToast?.('Failed to save: ' + upsertRes.error.message, 'error');
-            return;
-          }
-        }
-
-        const verify = await withTimeout(
-          supabase
-            .from('projects')
-            .select('id, title, user_id')
-            .eq('id', id)
-            .maybeSingle(),
-          10000,
-          'VERIFY'
-        );
-        console.log('[renameProject] verification fetch:', verify);
       } catch (e) {
-        console.error('[renameProject] HUNG OR THREW:', e.message, e);
-        showToast?.('Network/DB error: ' + e.message, 'error');
+        console.error('[renameProject] exception:', e);
+        showToast?.('Failed to rename project', 'error');
       }
     })();
   }, [authUser, showToast]);

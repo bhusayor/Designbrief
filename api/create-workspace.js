@@ -51,14 +51,110 @@ const supabase = createClient(
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+}
+
+async function requireUser(req, res) {
+  const authHeader = req.headers.authorization || req.headers.Authorization
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Missing Authorization header' })
+    return null
+  }
+  const { data: { user }, error } = await supabase.auth.getUser(authHeader.slice(7))
+  if (error || !user) {
+    res.status(401).json({ error: 'Invalid or expired token' })
+    return null
+  }
+  return user
 }
 
 export default async function handler(req, res) {
   setCors(res)
 
   if (req.method === 'OPTIONS') return res.status(200).end()
+
+  // ── PATCH: update a project the caller owns (bypasses RLS via service key) ──
+  // Body: { project_id, updates: { title?, pinned?, locked?, ... } }
+  if (req.method === 'PATCH') {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const { project_id, updates } = req.body || {}
+    if (!project_id || !updates || typeof updates !== 'object') {
+      return res.status(400).json({ error: 'project_id and updates required' })
+    }
+
+    // Whitelist allowed columns so callers can't update sensitive fields
+    const allowed = ['title', 'pinned', 'locked', 'section', 'kanban', 'team_members', 'approval_status', 'comments']
+    const patch = { updated_at: new Date().toISOString() }
+    for (const k of allowed) if (k in updates) patch[k] = updates[k]
+
+    try {
+      // Verify ownership server-side, then upsert. Upsert covers the case
+      // where the row doesn't yet exist (TC-created project that hasn't
+      // had its first save).
+      const { data: existing } = await supabase
+        .from('projects')
+        .select('id, user_id')
+        .eq('id', project_id)
+        .maybeSingle()
+
+      if (existing && existing.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+
+      const { data, error } = await supabase
+        .from('projects')
+        .upsert({
+          id: project_id,
+          user_id: user.id,
+          ...patch,
+        }, { onConflict: 'id' })
+        .select('*')
+        .single()
+
+      if (error) throw error
+      return res.json({ project: data })
+    } catch (e) {
+      console.error('[create-workspace PATCH project]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── DELETE: delete a project the caller owns ────────────────────────────────
+  // Body: { project_id }
+  if (req.method === 'DELETE') {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const project_id = req.body?.project_id || req.query?.project_id
+    if (!project_id) return res.status(400).json({ error: 'project_id required' })
+
+    try {
+      const { data: existing } = await supabase
+        .from('projects')
+        .select('id, user_id')
+        .eq('id', project_id)
+        .maybeSingle()
+
+      if (!existing) return res.json({ ok: true })
+      if (existing.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', project_id)
+
+      if (error) throw error
+      return res.json({ ok: true })
+    } catch (e) {
+      console.error('[create-workspace DELETE project]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
 
   // ── GET: look up the authenticated user's workspace (bypasses RLS) ──────
   if (req.method === 'GET') {
