@@ -370,6 +370,123 @@ function useWindowWidth() {
   return width
 }
 
+// AddTaskModal lives at module scope so React keeps the same component
+// identity across TeamCollab re-renders. When it was declared *inside*
+// TeamCollab, every parent render created a new function reference and
+// React unmounted/remounted the modal — wiping the user's typed input.
+function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData }) {
+  const [form, setForm] = useState({
+    title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM',
+    column: initialColumn || KANBAN_COLS[0],
+    ...(defaultData || {}),
+  })
+  const [assigneeQuery, setAssigneeQuery] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  if (!open) return null
+
+  const namedMembers = (modalTeamMembers || []).filter(m => m.name?.trim())
+  const filteredSuggestions = namedMembers.filter(m =>
+    m.name.toLowerCase().includes(assigneeQuery.toLowerCase()) && !form.assignees.includes(m.name)
+  )
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 18, width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>Add Task</div>
+          <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
+          </button>
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <input
+            autoFocus
+            value={form.title}
+            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            placeholder="Task title"
+            onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--color-text)' }}
+            onBlur={e => { e.currentTarget.style.borderBottomColor = 'var(--color-border)' }}
+            style={{
+              width: '100%', background: 'transparent', border: 'none',
+              borderBottom: '1px solid var(--color-border)', borderRadius: 0,
+              padding: '8px 0', fontFamily: 'var(--font-sans)',
+              fontSize: 16, fontWeight: 600, color: 'var(--color-text)',
+              outline: 'none', boxSizing: 'border-box',
+              transition: 'border-bottom-color 0.15s',
+            }}
+          />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Description</label>
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Add more details..." rows={3} style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
+        </div>
+        <div style={{ marginBottom: 16, position: 'relative' }}>
+          <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Assignees</label>
+          {form.assignees.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              {form.assignees.map((a, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '3px 10px 3px 8px' }}>
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 9, color: 'var(--color-bg)', flexShrink: 0 }}>{a[0]?.toUpperCase()}</div>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text)' }}>{a}</span>
+                  <button onClick={() => setForm(f => ({ ...f, assignees: f.assignees.filter((_, j) => j !== i) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--color-text-muted)' }}>
+                    <XMarkIcon style={{ width: 10, height: 10 }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '8px 12px', gap: 6 }}>
+            <UserIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--color-text-muted)' }}>@</span>
+            <input value={assigneeQuery} onChange={e => { setAssigneeQuery(e.target.value); setShowSuggestions(true) }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} placeholder="Type name to assign..." style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)' }} />
+          </div>
+          {showSuggestions && filteredSuggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, zIndex: 10, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+              {filteredSuggestions.map((m, i) => (
+                <div key={i} onMouseDown={() => { setForm(f => ({ ...f, assignees: [...f.assignees, m.name] })); setAssigneeQuery(''); setShowSuggestions(false) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', borderBottom: i < filteredSuggestions.length - 1 ? '1px solid var(--color-border)' : 'none' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 11, color: 'var(--color-bg)' }}>{m.name[0]?.toUpperCase()}</div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{m.name}</div>
+                    {m.role && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>{m.role}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Due Date</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '8px 12px' }}>
+              <CalendarIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
+              <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, color: form.dueDate ? 'var(--color-text)' : 'var(--color-text-muted)', cursor: 'pointer' }} />
+            </div>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Priority</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[{ id: 'HIGH', color: '#EF4444' }, { id: 'MEDIUM', color: '#F59E0B' }, { id: 'LOW', color: '#6B7280' }].map(p => (
+                <button key={p.id} onClick={() => setForm(f => ({ ...f, priority: p.id }))} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: form.priority === p.id ? '1.5px solid ' + p.color : '1px solid var(--color-border)', background: form.priority === p.id ? p.color + '15' : 'var(--color-surface)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: form.priority === p.id ? p.color : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
+                  {p.id[0] + p.id.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 10, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => { if (!form.title.trim()) return; onSave(form); onClose() }} disabled={!form.title.trim()} style={{ padding: '9px 24px', background: form.title.trim() ? 'var(--color-text)' : 'var(--color-border)', border: 'none', borderRadius: 10, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-bg)', cursor: form.title.trim() ? 'pointer' : 'default', transition: 'background 0.15s' }}>Add Task</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TeamCollab() {
   const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB } = useContext(AppContext)
 
@@ -491,6 +608,11 @@ export default function TeamCollab() {
   // Tracks task IDs the server has confirmed at least once. Lets the polling
   // merge tell 'pending save' (never seen) from 'deleted remotely' (seen, gone).
   const confirmedRemoteIdsRef = useRef(new Set())
+  // Tracks taskId → timestamp of the most recent LOCAL change. Polling and
+  // realtime overrides are skipped for tasks modified locally within the
+  // last 6 seconds so a column move (or rename) can't flicker back to its
+  // old value while the save is still in flight.
+  const localChangeAtRef = useRef(new Map())
   // Ref for draggedTask — always current in event handlers, avoids stale-closure drops
   const draggedTaskRef = useRef(null)
 
@@ -787,14 +909,22 @@ export default function TeamCollab() {
           })
         } else if (payload.eventType === 'UPDATE') {
           const t = mapDBTask(payload.new)
+          // Ignore remote UPDATE if the user just edited this task locally —
+          // prevents flicker between local optimistic state and the broadcast
+          // we triggered ourselves arriving milliseconds later.
+          const ts = localChangeAtRef.current.get(t.id)
+          if (ts && (Date.now() - ts) < 6000) return
           setKanban(prev => {
             if (!prev) return prev
             return { ...prev, tasks: prev.tasks.map(x => x.id === t.id ? { ...x, ...t } : x) }
           })
         } else if (payload.eventType === 'DELETE') {
+          const goneId = payload.old?.id
+          const ts = goneId && localChangeAtRef.current.get(goneId)
+          if (ts && (Date.now() - ts) < 6000) return
           setKanban(prev => {
             if (!prev) return prev
-            return { ...prev, tasks: prev.tasks.filter(x => x.id !== payload.old.id) }
+            return { ...prev, tasks: prev.tasks.filter(x => x.id !== goneId) }
           })
         }
       })
@@ -834,17 +964,33 @@ export default function TeamCollab() {
           }
 
           const remoteById = new Map(remoteTasks.map(t => [t.id, t]))
+          const localById = new Map(prev.tasks.map(t => [t.id, t]))
+          const now = Date.now()
+          const isDirty = (id) => {
+            const t = localChangeAtRef.current.get(id)
+            return !!t && (now - t) < 6000
+          }
           const merged = []
-          // Remote first — authoritative for tasks the server knows about
-          for (const rt of remoteTasks) merged.push(rt)
+          // For tasks present on remote: use LOCAL if recently modified
+          // locally (last 6s) — otherwise the user's column move / edit
+          // would flicker back to the stale remote value before the save
+          // completes. After 6s the remote is trusted.
+          for (const rt of remoteTasks) {
+            if (isDirty(rt.id) && localById.has(rt.id)) {
+              merged.push(localById.get(rt.id))
+            } else {
+              merged.push(rt)
+            }
+          }
 
           // Then keep local-only tasks that have NEVER been on the server
           // (pending save). If a local-only task WAS previously confirmed
-          // on the server, it was deleted remotely — drop it.
+          // on the server AND it's NOT dirty, it was deleted remotely — drop it.
+          // If it IS dirty, the user just created/edited it locally, keep it.
           for (const lt of prev.tasks) {
             if (remoteById.has(lt.id)) continue
-            if (prevSeen.has(lt.id)) continue // was confirmed before → deleted remotely
-            merged.push(lt) // never confirmed → pending save, keep it
+            if (prevSeen.has(lt.id) && !isDirty(lt.id)) continue // deleted remotely
+            merged.push(lt) // pending save / dirty
           }
 
           // Skip update if nothing changed (avoid auto-save loop)
@@ -996,6 +1142,7 @@ Return JSON:
 
   function moveTask(taskId, newCol) {
     const prevTask = kanban?.tasks?.find(t => t.id === taskId)
+    localChangeAtRef.current.set(taskId, Date.now())
     setKanban(prev => ({
       ...prev,
       tasks: prev.tasks.map(t => t.id === taskId ? { ...t, column: newCol } : t),
@@ -1012,6 +1159,7 @@ Return JSON:
 
   function updateTask(updated) {
     const prevTask = kanban?.tasks?.find(t => t.id === updated.id)
+    localChangeAtRef.current.set(updated.id, Date.now())
     setKanban(prev => ({
       ...prev,
       tasks: prev.tasks.map(t => t.id === updated.id ? updated : t),
@@ -1028,6 +1176,7 @@ Return JSON:
 
   function addTaskToBoard(task) {
     const t = { ...task, id: uid(), column: task.column || 'To Do' }
+    localChangeAtRef.current.set(t.id, Date.now())
     setKanban(prev => ({ ...prev, tasks: [...(prev.tasks || []), t] }))
   }
 
@@ -1064,6 +1213,7 @@ Return JSON:
 
   // Removes a task from state and DB. Optimistic: state is removed first.
   function deleteTaskNow(taskId) {
+    localChangeAtRef.current.set(taskId, Date.now())
     setKanban(prev => prev ? { ...prev, tasks: prev.tasks.filter(t => t.id !== taskId) } : prev)
     setEditingTask(null)
     deleteTaskFromDB(taskId).catch(e => console.error('[TC] deleteTask:', e))
@@ -3138,133 +3288,6 @@ STYLE:
                 fontWeight: 700, fontSize: 12, cursor: 'pointer',
               }}>Save Changes</button>
             </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ── AddTaskModal ──────────────────────────────────────────────────────────
-
-  function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData }) {
-    const [form, setForm] = useState({
-      title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM',
-      column: initialColumn || KANBAN_COLS[0],
-      ...(defaultData || {}),
-    })
-    const [assigneeQuery, setAssigneeQuery] = useState('')
-    const [showSuggestions, setShowSuggestions] = useState(false)
-
-    if (!open) return null
-
-    const namedMembers = (modalTeamMembers || []).filter(m => m.name?.trim())
-    const filteredSuggestions = namedMembers.filter(m =>
-      m.name.toLowerCase().includes(assigneeQuery.toLowerCase()) && !form.assignees.includes(m.name)
-    )
-
-    return (
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 18, width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', padding: 24 }}>
-
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>Add Task</div>
-            <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <XMarkIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
-            </button>
-          </div>
-
-          {/* Title */}
-          <div style={{ marginBottom: 20 }}>
-            <input
-              autoFocus
-              value={form.title}
-              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="Task title"
-              onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--color-text)' }}
-              onBlur={e => { e.currentTarget.style.borderBottomColor = 'var(--color-border)' }}
-              style={{
-                width: '100%', background: 'transparent', border: 'none',
-                borderBottom: '1px solid var(--color-border)', borderRadius: 0,
-                padding: '8px 0', fontFamily: 'var(--font-sans)',
-                fontSize: 16, fontWeight: 600, color: 'var(--color-text)',
-                outline: 'none', boxSizing: 'border-box',
-                transition: 'border-bottom-color 0.15s',
-              }}
-            />
-          </div>
-
-          {/* Description */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Description</label>
-            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Add more details..." rows={3} style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
-          </div>
-
-          {/* Assignees */}
-          <div style={{ marginBottom: 16, position: 'relative' }}>
-            <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Assignees</label>
-            {form.assignees.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                {form.assignees.map((a, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '3px 10px 3px 8px' }}>
-                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 9, color: 'var(--color-bg)', flexShrink: 0 }}>{a[0]?.toUpperCase()}</div>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text)' }}>{a}</span>
-                    <button onClick={() => setForm(f => ({ ...f, assignees: f.assignees.filter((_, j) => j !== i) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--color-text-muted)' }}>
-                      <XMarkIcon style={{ width: 10, height: 10 }} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '8px 12px', gap: 6 }}>
-              <UserIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--color-text-muted)' }}>@</span>
-              <input value={assigneeQuery} onChange={e => { setAssigneeQuery(e.target.value); setShowSuggestions(true) }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} placeholder="Type name to assign..." style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)' }} />
-            </div>
-            {showSuggestions && filteredSuggestions.length > 0 && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 10, zIndex: 10, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
-                {filteredSuggestions.map((m, i) => (
-                  <div key={i} onMouseDown={() => { setForm(f => ({ ...f, assignees: [...f.assignees, m.name] })); setAssigneeQuery(''); setShowSuggestions(false) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', borderBottom: i < filteredSuggestions.length - 1 ? '1px solid var(--color-border)' : 'none' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                  >
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 11, color: 'var(--color-bg)' }}>{m.name[0]?.toUpperCase()}</div>
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{m.name}</div>
-                      {m.role && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>{m.role}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Due Date + Priority */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div>
-              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Due Date</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '8px 12px' }}>
-                <CalendarIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, color: form.dueDate ? 'var(--color-text)' : 'var(--color-text-muted)', cursor: 'pointer' }} />
-              </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Priority</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {[{ id: 'HIGH', color: '#EF4444' }, { id: 'MEDIUM', color: '#F59E0B' }, { id: 'LOW', color: '#6B7280' }].map(p => (
-                  <button key={p.id} onClick={() => setForm(f => ({ ...f, priority: p.id }))} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: form.priority === p.id ? '1.5px solid ' + p.color : '1px solid var(--color-border)', background: form.priority === p.id ? p.color + '15' : 'var(--color-surface)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: form.priority === p.id ? p.color : 'var(--color-text-muted)', transition: 'all 0.15s' }}>
-                    {p.id[0] + p.id.slice(1).toLowerCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button onClick={(e) => { e.stopPropagation(); onClose() }} style={{ padding: '9px 20px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 10, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', cursor: 'pointer' }}>Cancel</button>
-            <button onClick={() => { if (!form.title.trim()) return; onSave(form); onClose() }} disabled={!form.title.trim()} style={{ padding: '9px 24px', background: form.title.trim() ? 'var(--color-text)' : 'var(--color-border)', border: 'none', borderRadius: 10, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-bg)', cursor: form.title.trim() ? 'pointer' : 'default', transition: 'background 0.15s' }}>Add Task</button>
           </div>
         </div>
       </div>
