@@ -74,6 +74,147 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end()
 
+  // ── PATCH: update a task (caller must own the parent project) ───────────
+  // Body: { task_id, updates: {...} }
+  if (req.method === 'PATCH' && req.body?.task_id) {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const { task_id, updates } = req.body
+    if (!updates || typeof updates !== 'object') {
+      return res.status(400).json({ error: 'updates required' })
+    }
+
+    const allowed = ['title', 'description', 'column_name', 'assigned_role', 'assigned_name', 'priority', 'estimated_days', 'due_date', 'completed', 'completed_at', 'blocked_by', 'position', 'phase']
+    const patch = { updated_at: new Date().toISOString() }
+    for (const k of allowed) if (k in updates) patch[k] = updates[k]
+
+    try {
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('id, project_id')
+        .eq('id', task_id)
+        .maybeSingle()
+      if (!task) return res.status(404).json({ error: 'Task not found' })
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', task.project_id)
+        .maybeSingle()
+      if (!project || project.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .update(patch)
+        .eq('id', task_id)
+        .select('*')
+        .single()
+      if (error) throw error
+      return res.json({ task: data })
+    } catch (e) {
+      console.error('[create-workspace PATCH task]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── POST: bulk upsert tasks for a project ───────────────────────────────
+  // Body: { kind: 'tasks', project_id, tasks: [...] }
+  if (req.method === 'POST' && req.body?.kind === 'tasks') {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const { project_id, tasks } = req.body
+    if (!project_id || !Array.isArray(tasks)) {
+      return res.status(400).json({ error: 'project_id and tasks array required' })
+    }
+
+    try {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', project_id)
+        .maybeSingle()
+      if (project && project.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+      // If project doesn't exist yet, create it (FK)
+      if (!project) {
+        await supabase
+          .from('projects')
+          .upsert({
+            id: project_id,
+            user_id: user.id,
+            section: 'team',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' })
+      }
+
+      const records = tasks.map((t, i) => ({
+        id: t.id,
+        project_id,
+        user_id: user.id,
+        title: t.title || 'Untitled Task',
+        description: t.description || '',
+        column_name: t.column || t.column_name || 'To Do',
+        assigned_role: t.assignedRole || t.assigned_role || '',
+        assigned_name: t.assignedName || t.assigned_name || '',
+        priority: t.priority || 'MEDIUM',
+        estimated_days: t.estimatedDays || t.estimated_days || 1,
+        due_date: t.dueDate || t.due_date || null,
+        completed: (t.column || t.column_name) === 'Done',
+        blocked_by: t.blockedBy || t.blocked_by || [],
+        position: typeof t.position === 'number' ? t.position : i,
+        phase: t.phase || null,
+        updated_at: new Date().toISOString(),
+      }))
+
+      const { error } = await supabase
+        .from('tasks')
+        .upsert(records, { onConflict: 'id' })
+      if (error) throw error
+      return res.json({ ok: true, count: records.length })
+    } catch (e) {
+      console.error('[create-workspace POST tasks]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── DELETE: delete a task (caller must own parent project) ──────────────
+  // Body: { task_id }
+  if (req.method === 'DELETE' && req.body?.task_id) {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const { task_id } = req.body
+    try {
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('id, project_id')
+        .eq('id', task_id)
+        .maybeSingle()
+      if (!task) return res.json({ ok: true })
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', task.project_id)
+        .maybeSingle()
+      if (project && project.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+
+      const { error } = await supabase.from('tasks').delete().eq('id', task_id)
+      if (error) throw error
+      return res.json({ ok: true })
+    } catch (e) {
+      console.error('[create-workspace DELETE task]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
   // ── PATCH: update a project the caller owns (bypasses RLS via service key) ──
   // Body: { project_id, updates: { title?, pinned?, locked?, ... } }
   if (req.method === 'PATCH') {

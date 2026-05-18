@@ -2,34 +2,50 @@ import { supabase } from './supabase'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-// ── Save all tasks for a project ──────────────────────────────────────────────
+// Cached session helper — getSession() can hang on subsequent calls
+// (we hit this with project rename), so we keep a local cache.
+let cachedToken = null
+supabase.auth.onAuthStateChange((_event, session) => {
+  cachedToken = session?.access_token || null
+})
+supabase.auth.getSession().then(({ data }) => {
+  cachedToken = data?.session?.access_token || null
+}).catch(() => {})
+
+async function apiCall(method, body, timeoutMs = 10000) {
+  if (!cachedToken) {
+    // Last-resort fetch — bootstrap missed and listener hasn't fired yet
+    const { data } = await supabase.auth.getSession()
+    cachedToken = data?.session?.access_token || null
+    if (!cachedToken) throw new Error('No session')
+  }
+  const res = await Promise.race([
+    fetch('/api/create-workspace', {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${cachedToken}`,
+      },
+      body: JSON.stringify(body),
+    }),
+    new Promise((_, rj) => setTimeout(() => rj(new Error(`${method} timed out after ${timeoutMs}ms`)), timeoutMs)),
+  ])
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data
+}
+
+// ── Save all tasks for a project (bulk upsert via service-role API) ──────────
+// Direct supabase upsert was hanging the same way the project UPDATE did;
+// going server-side bypasses RLS and resolves cleanly.
 export async function saveTasksToDB(tasks, projectId, userId) {
   if (!tasks?.length || !projectId || !userId) return
-
-  const records = tasks.map((t, i) => ({
-    id: t.id || uid(),
-    project_id: projectId,
-    user_id: userId,
-    title: t.title || 'Untitled Task',
-    description: t.description || '',
-    column_name: t.column || 'To Do',
-    assigned_role: t.assignedRole || '',
-    assigned_name: t.assignedName || '',
-    priority: t.priority || 'MEDIUM',
-    estimated_days: t.estimatedDays || 1,
-    due_date: t.dueDate || null,
-    completed: t.column === 'Done',
-    blocked_by: t.blockedBy || [],
-    position: i,
-    phase: t.phase || null,
-    updated_at: new Date().toISOString(),
-  }))
-
-  const { error } = await supabase
-    .from('tasks')
-    .upsert(records, { onConflict: 'id' })
-
-  if (error) console.error('saveTasksToDB error:', error)
+  const withIds = tasks.map(t => ({ ...t, id: t.id || uid() }))
+  try {
+    await apiCall('POST', { kind: 'tasks', project_id: projectId, tasks: withIds })
+  } catch (e) {
+    console.error('saveTasksToDB error:', e.message)
+  }
 }
 
 // Maps a raw Supabase tasks row → JS task object used in TeamCollab state.
@@ -68,37 +84,37 @@ export async function loadTasksFromDB(projectId) {
   return (data || []).map(mapDBTask)
 }
 
-// ── Update a single task ───────────────────────────────────────────────────────
+// ── Update a single task (server-side PATCH bypasses RLS) ─────────────────────
 export async function updateTaskInDB(task) {
-  const { error } = await supabase
-    .from('tasks')
-    .update({
-      title: task.title,
-      description: task.description,
-      column_name: task.column,
-      assigned_role: task.assignedRole,
-      assigned_name: task.assignedName,
-      priority: task.priority,
-      estimated_days: task.estimatedDays,
-      due_date: task.dueDate || null,
-      completed: task.column === 'Done',
-      completed_at: task.column === 'Done' ? new Date().toISOString() : null,
-      blocked_by: task.blockedBy || [],
-      updated_at: new Date().toISOString(),
+  try {
+    await apiCall('PATCH', {
+      task_id: task.id,
+      updates: {
+        title: task.title,
+        description: task.description,
+        column_name: task.column,
+        assigned_role: task.assignedRole,
+        assigned_name: task.assignedName,
+        priority: task.priority,
+        estimated_days: task.estimatedDays,
+        due_date: task.dueDate || null,
+        completed: task.column === 'Done',
+        completed_at: task.column === 'Done' ? new Date().toISOString() : null,
+        blocked_by: task.blockedBy || [],
+      },
     })
-    .eq('id', task.id)
-
-  if (error) console.error('updateTaskInDB error:', error)
+  } catch (e) {
+    console.error('updateTaskInDB error:', e.message)
+  }
 }
 
-// ── Delete a task ─────────────────────────────────────────────────────────────
+// ── Delete a task (server-side DELETE bypasses RLS) ───────────────────────────
 export async function deleteTaskFromDB(taskId) {
-  const { error } = await supabase
-    .from('tasks')
-    .delete()
-    .eq('id', taskId)
-
-  if (error) console.error('deleteTaskFromDB error:', error)
+  try {
+    await apiCall('DELETE', { task_id: taskId })
+  } catch (e) {
+    console.error('deleteTaskFromDB error:', e.message)
+  }
 }
 
 // ── Subtask functions ─────────────────────────────────────────────────────────

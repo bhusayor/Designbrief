@@ -732,22 +732,16 @@ export default function TeamCollab() {
     const snapshotDeletedIds = deletedIds
 
     async function doSave() {
-      // Ensure project row exists before inserting tasks (FK constraint)
-      if (!snapshotIsShared) {
-        const { error: projErr } = await supabase.from('projects').upsert(
-          { id: projectId, user_id: snapshotUserId, title: snapshotTitle, updated_at: new Date().toISOString() },
-          { onConflict: 'id', ignoreDuplicates: true }
-        )
-        if (projErr) { console.error('[TeamCollab] project upsert:', projErr); return }
-      }
+      // saveTasksToDB hits /api/create-workspace (service role) which already
+      // upserts the project row if missing, so we no longer need the manual
+      // project upsert that was hanging via direct supabase write.
       if (currentTasks.length > 0) {
         await saveTasksToDB(currentTasks, projectId, snapshotUserId)
       }
-      if (snapshotDeletedIds.length > 0) {
-        supabase.from('tasks').delete()
-          .eq('project_id', projectId)
-          .in('id', snapshotDeletedIds)
-          .then(({ error }) => { if (error) console.error('[TeamCollab] delete tasks:', error) })
+      // Deletions: use the same server path one-by-one. Bulk delete via REST
+      // hangs the same way bulk update did.
+      for (const tid of snapshotDeletedIds) {
+        await deleteTaskFromDB(tid)
       }
     }
 
@@ -804,6 +798,60 @@ export default function TeamCollab() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
+  }, [activeProjectId, activeProject?.id, authUser?.id])
+
+  // ── Polling fallback for cross-device task sync ──────────────────────────
+  // Same pattern as AppContext.projects polling. Realtime can silently fail
+  // (publication missing, websocket drop, RLS hiccup); polling guarantees
+  // Device B catches up within 5s.
+  useEffect(() => {
+    const projectId = activeProjectId || activeProject?.id
+    if (!projectId || projectId === 'default' || !authUser) return
+
+    let cancelled = false
+    const refetch = async () => {
+      if (document.hidden || cancelled) return
+      try {
+        const remoteTasks = await loadTasksFromDB(projectId)
+        if (cancelled) return
+        setKanban(prev => {
+          if (!prev) {
+            if (remoteTasks.length === 0) return prev
+            return { tasks: remoteTasks, projectTimeline: '', unassignedTasks: [], missingRoles: [] }
+          }
+          // Merge: replace by id, drop tasks not on the server
+          const remoteById = new Map(remoteTasks.map(t => [t.id, t]))
+          const next = []
+          for (const t of remoteTasks) next.push(t)
+          // Detect any meaningful change to skip needless re-renders
+          const sameLength = next.length === prev.tasks.length
+          const sameSet = sameLength && prev.tasks.every(p => {
+            const r = remoteById.get(p.id)
+            if (!r) return false
+            return r.title === p.title && r.column === p.column &&
+              r.priority === p.priority && r.dueDate === p.dueDate &&
+              r.completed === p.completed && r.position === p.position &&
+              r.assignedName === p.assignedName
+          })
+          if (sameSet) return prev
+          return { ...prev, tasks: next }
+        })
+      } catch (e) {
+        // transient errors get swallowed — next poll retries
+      }
+    }
+
+    const interval = setInterval(refetch, 5000)
+    const onVisibility = () => { if (!document.hidden) refetch() }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', refetch)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', refetch)
+    }
   }, [activeProjectId, activeProject?.id, authUser?.id])
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -972,30 +1020,16 @@ Return JSON:
     if (error) throw new Error('project upsert: ' + error.message)
   }
 
-  // Immediately persists a single task to DB (optimistic path: state was already updated).
+  // Immediately persists a single task to DB via service-role API (bypasses RLS).
+  // Uses the same server path as saveTasksToDB to avoid the direct-write hang.
   async function saveTaskNow(task) {
     const projectId = activeProjectId || activeProject?.id
     if (!projectId || projectId === 'default' || !authUser) return
-    await ensureProjectInDB(projectId)
-    const { error } = await supabase.from('tasks').upsert({
-      id: task.id,
-      project_id: projectId,
-      user_id: authUser.id,
-      title: task.title || 'Untitled',
-      description: task.description || '',
-      column_name: task.column || 'To Do',
-      assigned_role: task.assignedRole || '',
-      assigned_name: task.assignedName || '',
-      priority: task.priority || 'MEDIUM',
-      estimated_days: task.estimatedDays || 1,
-      due_date: task.dueDate || null,
-      completed: task.column === 'Done',
-      blocked_by: task.blockedBy || [],
+    const enriched = {
+      ...task,
       position: (kanban?.tasks || []).findIndex(t => t.id === task.id),
-      phase: task.phase || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' })
-    if (error) throw new Error('task upsert: ' + error.message)
+    }
+    await saveTasksToDB([enriched], projectId, authUser.id)
   }
 
   // Removes a task from state and DB. Optimistic: state is removed first.
