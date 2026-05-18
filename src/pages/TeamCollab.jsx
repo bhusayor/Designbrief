@@ -649,20 +649,28 @@ export default function TeamCollab() {
       const ctxById = new Map(
         ctxProjects.map(p => [p.id, { id: p.id, title: p.title || 'Untitled' }])
       )
+
+      // If THIS device only has a 'default' placeholder tab but the DB has
+      // real projects for this user, drop the placeholder entirely — the
+      // user owns named projects elsewhere and the placeholder is meaningless.
+      const onlyPlaceholder = prev.length === 1 && prev[0].id === 'default'
+      if (onlyPlaceholder && ctxProjects.length > 0) {
+        const merged = ctxProjects.map(p => ({ id: p.id, title: p.title || 'Untitled' }))
+        try { localStorage.setItem('teamcollab-projects', JSON.stringify(merged)) } catch {}
+        return merged
+      }
+
       const merged = []
       const seen = new Set()
-      // Preserve order of existing tabs; update titles from ctx where present
       for (const tab of prev) {
-        if (tab.id === 'default') { merged.push(tab); seen.add(tab.id); continue }
         const ctx = ctxById.get(tab.id)
         if (ctx) { merged.push({ ...tab, title: ctx.title }); seen.add(tab.id); ctxById.delete(tab.id) }
         else merged.push(tab) // local-only tab (not yet in DB)
       }
-      // Append remaining DB projects not yet in tabs
       for (const ctx of ctxById.values()) {
         if (!seen.has(ctx.id)) merged.push(ctx)
       }
-      // Skip update if shallow-equal to avoid loops
+
       const same = merged.length === prev.length &&
         merged.every((m, i) => m.id === prev[i].id && m.title === prev[i].title)
       if (same) return prev
@@ -681,6 +689,19 @@ export default function TeamCollab() {
       setProjectTitle(found.title)
     }
   }, [ctxProjects, activeProjectId])
+
+  // If this device is sitting on the `default` placeholder but the DB has a
+  // real project, jump to it so the user lands on their actual data.
+  useEffect(() => {
+    if (activeProjectId !== 'default') return
+    if (!Array.isArray(ctxProjects) || ctxProjects.length === 0) return
+    const target = ctxProjects[0]
+    console.log('[TC] auto-switching from default → real project', target.id, target.title)
+    setActiveProjectId(target.id)
+    try { localStorage.setItem('teamcollab-active-project', target.id) } catch {}
+    setProjectTitle(target.title || 'Untitled')
+    openProject(target)
+  }, [activeProjectId, ctxProjects])
 
   // ── Auto-save tasks to DB ─────────────────────────────────────────────────
   // Fires whenever kanban.tasks OR authUser changes (add, edit, move, delete,
@@ -2052,6 +2073,58 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   function handleRenameProject(projectId, newTitle) {
     const trimmed = newTitle.trim()
     if (!trimmed) return
+    console.log('[TC handleRenameProject]', { projectId, trimmed, isDefault: projectId === 'default' })
+
+    // `default` is the placeholder ID for the first-ever tab — it has never
+    // been persisted and the projects PK is global (not per-user) so we can't
+    // INSERT id='default'. Promote it to a real UID + migrate local cache.
+    if (projectId === 'default') {
+      const newId = uid()
+      const updated = projects.map(p => p.id === 'default' ? { id: newId, title: trimmed } : p)
+      setProjects(updated)
+      saveProjects(updated)
+
+      if (activeProjectId === 'default') {
+        setActiveProjectId(newId)
+        try {
+          localStorage.setItem('teamcollab-active-project', newId)
+          const board = localStorage.getItem('tc-project-default')
+          if (board) {
+            localStorage.setItem('tc-project-' + newId, board)
+            localStorage.removeItem('tc-project-default')
+          }
+          const cols = localStorage.getItem('tc-cols-default')
+          if (cols) {
+            localStorage.setItem('tc-cols-' + newId, cols)
+            localStorage.removeItem('tc-cols-default')
+          }
+        } catch {}
+        setProjectTitle(trimmed)
+      }
+
+      setRenamingProjectId(null)
+      triggerFlash()
+
+      // Write the new row to DB so other devices see it via realtime
+      if (authUser) {
+        supabase.from('projects').upsert({
+          id: newId,
+          user_id: authUser.id,
+          title: trimmed,
+          section: 'team',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' }).then(({ error }) => {
+          if (error) {
+            console.error('[TC] promote default → real project failed:', error)
+            showToast?.('Failed to save project', 'error')
+          } else {
+            console.log('[TC] promoted default → real project', newId)
+          }
+        })
+      }
+      return
+    }
+
     const updated = projects.map(p => p.id === projectId ? { ...p, title: trimmed } : p)
     setProjects(updated)
     saveProjects(updated)
