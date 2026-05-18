@@ -371,7 +371,7 @@ function useWindowWidth() {
 }
 
 export default function TeamCollab() {
-  const { activeProject, openProject, projects: ctxProjects, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB } = useContext(AppContext)
+  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth <= 480
@@ -512,16 +512,20 @@ export default function TeamCollab() {
   }
 
   // ── Auto-load from activeProject ──────────────────────────────────────────
+  // Only auto-analyse if the user EXPLICITLY arrived via a brief-translator
+  // project (section='translator') AND we don't already have a kanban from
+  // a previous session. Pure TC boards must never trigger brief analysis.
 
   useEffect(() => {
-    if (activeProject?.data?.brief) {
-      const brief = activeProject.data.brief
-      const title = activeProject.title || 'Team Project'
-      setBriefText(brief)
-      setProjectTitle(title)
-      addMessage('ai', 'I have loaded the brief for **' + title + '**. Analysing team requirements...')
-      handleAnalyseBrief(brief)
-    }
+    if (!activeProject?.data?.brief) return
+    if (activeProject.section === 'team') return
+    if (activeProject.kanban?.tasks?.length) return
+    const brief = activeProject.data.brief
+    const title = activeProject.title || 'Team Project'
+    setBriefText(brief)
+    setProjectTitle(title)
+    addMessage('ai', 'I have loaded the brief for **' + title + '**. Analysing team requirements...')
+    handleAnalyseBrief(brief)
   }, [])
 
   useEffect(() => {
@@ -626,14 +630,15 @@ export default function TeamCollab() {
   }, [activeProject?.id, activeProjectId, authUser?.id])
 
   // After a page refresh the activeProjectId is restored from localStorage but
-  // activeProject (AppContext) is null. Look the project up in ctxProjects (which
-  // includes shared/invited projects) and open it so the task-loading useEffect fires.
+  // activeProject (AppContext) is null. Look the project up in ctxProjects
+  // and SET it WITHOUT changing the active section — openProject() forces
+  // section='document' which navigates the user away from TeamCollab.
   useEffect(() => {
     if (!activeProjectId || activeProjectId === 'default') return
     if (activeProject?.id === activeProjectId) return
     if (!ctxProjects?.length) return
     const found = ctxProjects.find(p => p.id === activeProjectId)
-    if (found) openProject(found)
+    if (found && setActiveProject) setActiveProject(found)
   }, [activeProjectId, ctxProjects])
 
   // ── Sync TC's project tabs from AppContext.projects (DB-backed) ───────────
@@ -692,6 +697,7 @@ export default function TeamCollab() {
 
   // If this device is sitting on the `default` placeholder but the DB has a
   // real project, jump to it so the user lands on their actual data.
+  // setActiveProject (not openProject) — we want to stay on TeamCollab.
   useEffect(() => {
     if (activeProjectId !== 'default') return
     if (!Array.isArray(ctxProjects) || ctxProjects.length === 0) return
@@ -700,7 +706,7 @@ export default function TeamCollab() {
     setActiveProjectId(target.id)
     try { localStorage.setItem('teamcollab-active-project', target.id) } catch {}
     setProjectTitle(target.title || 'Untitled')
-    openProject(target)
+    if (setActiveProject) setActiveProject(target)
   }, [activeProjectId, ctxProjects])
 
   // ── Auto-save tasks to DB ─────────────────────────────────────────────────
