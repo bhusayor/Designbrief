@@ -720,17 +720,32 @@ export function AppProvider({ children }) {
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
     if (!authUser) return;
 
-    // Explicit async/await wrapped in try/catch — chained .then() was
-    // silently dropping in production, so we never saw the real DB error.
+    // Explicit async/await wrapped in try/catch with timeout — chained .then()
+    // was silently dropping, AND raw await hangs if the request never returns.
+    // Promise.race forces a clear timeout error after 10s so we know
+    // definitively whether the network call completed.
     (async () => {
+      const withTimeout = (promise, ms, label) =>
+        Promise.race([
+          promise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+          ),
+        ]);
+
       try {
         console.log('[renameProject] sending UPDATE', { id, userId: authUser.id });
-        const updateRes = await supabase.from('projects')
-          .update({ title, updated_at: new Date().toISOString() })
-          .eq('id', id).eq('user_id', authUser.id)
-          .select('id, title');
+        const t0 = performance.now();
+        const updateRes = await withTimeout(
+          supabase.from('projects')
+            .update({ title, updated_at: new Date().toISOString() })
+            .eq('id', id).eq('user_id', authUser.id)
+            .select('id, title'),
+          10000,
+          'UPDATE'
+        );
 
-        console.log('[renameProject] UPDATE result:', updateRes);
+        console.log('[renameProject] UPDATE result:', updateRes, `(${Math.round(performance.now() - t0)}ms)`);
 
         if (updateRes.error) {
           console.error('[renameProject] UPDATE error:', updateRes.error);
@@ -741,15 +756,19 @@ export function AppProvider({ children }) {
         const updatedCount = updateRes.data?.length || 0;
         if (updatedCount === 0) {
           console.log('[renameProject] no row matched — backfilling via upsert');
-          const upsertRes = await supabase.from('projects')
-            .upsert({
-              id,
-              user_id: authUser.id,
-              title,
-              section: 'team',
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'id' })
-            .select('id, title');
+          const upsertRes = await withTimeout(
+            supabase.from('projects')
+              .upsert({
+                id,
+                user_id: authUser.id,
+                title,
+                section: 'team',
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'id' })
+              .select('id, title'),
+            10000,
+            'UPSERT'
+          );
           console.log('[renameProject] backfill result:', upsertRes);
           if (upsertRes.error) {
             console.error('[renameProject] backfill error:', upsertRes.error);
@@ -758,16 +777,19 @@ export function AppProvider({ children }) {
           }
         }
 
-        // Verification: read the row back so we know it's truly persisted
-        const verify = await supabase
-          .from('projects')
-          .select('id, title, user_id')
-          .eq('id', id)
-          .maybeSingle();
+        const verify = await withTimeout(
+          supabase
+            .from('projects')
+            .select('id, title, user_id')
+            .eq('id', id)
+            .maybeSingle(),
+          10000,
+          'VERIFY'
+        );
         console.log('[renameProject] verification fetch:', verify);
       } catch (e) {
-        console.error('[renameProject] exception:', e);
-        showToast?.('Failed to rename project', 'error');
+        console.error('[renameProject] HUNG OR THREW:', e.message, e);
+        showToast?.('Network/DB error: ' + e.message, 'error');
       }
     })();
   }, [authUser, showToast]);
