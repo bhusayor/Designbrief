@@ -492,6 +492,34 @@ export function AppProvider({ children }) {
     return () => { supabase.removeChannel(channel); };
   }, [authUser?.id]);
 
+  // ── Polling fallback for cross-device sync ────────────────────────────────
+  // Realtime can fail silently if the projects table isn't in the
+  // supabase_realtime publication or if a connection drops mid-session.
+  // We poll every 5s while the tab is visible, and immediately on visibility
+  // change. Cheap query (single SELECT filtered by user_id) — no perf concern.
+  useEffect(() => {
+    if (!authUser?.id) return;
+
+    let cancelled = false;
+
+    const poll = () => {
+      if (document.hidden || cancelled) return;
+      loadProjectsFromDB(authUser.id);
+    };
+
+    const interval = setInterval(poll, 5000);
+    const onVisibility = () => { if (!document.hidden) poll(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', poll);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', poll);
+    };
+  }, [authUser?.id]);
+
   // ── Intake forms ──────────────────────────────────────────────────────────
 
   async function loadIntakeForms() {
