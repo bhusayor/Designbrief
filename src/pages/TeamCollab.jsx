@@ -2151,9 +2151,10 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     if (projectId === activeProjectId) setProjectTitle(trimmed)
     setRenamingProjectId(null)
     triggerFlash()
-    // Route through AppContext.renameProject so the DB write happens AND the
-    // AppContext realtime subscription pushes the change to other devices.
-    if (renameProjectInDB) renameProjectInDB(projectId, trimmed)
+    // Route through AppContext.renameProject. Force section='team' so this
+    // TC board can never accidentally become a brief-translator entry,
+    // even if the existing DB row has a stale section='translator'.
+    if (renameProjectInDB) renameProjectInDB(projectId, trimmed, 'team')
   }
 
   function handleDeleteProject(projectId) {

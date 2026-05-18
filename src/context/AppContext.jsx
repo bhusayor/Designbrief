@@ -755,20 +755,22 @@ export function AppProvider({ children }) {
     })();
   }, [authUser]);
 
-  const renameProject = useCallback((id, title) => {
-    console.log('[renameProject] called', { id, title, hasAuthUser: !!authUser });
-    // Look up the existing project's section so the upsert preserves it.
-    // Without this, when the row is being CREATED (not yet in DB), the
-    // section defaults to 'translator' and the project starts showing up
-    // in the Recents sidebar / firing the BriefTranslator.
-    let preservedSection = null;
+  const renameProject = useCallback((id, title, sectionOverride = null) => {
+    console.log('[renameProject] called', { id, title, sectionOverride, hasAuthUser: !!authUser });
+    // sectionOverride lets the caller force a specific section value
+    // (e.g. TeamCollab always sends 'team' so a renamed TC board can never
+    // accidentally become a brief-translator entry, even if a prior bad
+    // row exists in DB with section='translator').
+    let preservedSection = sectionOverride;
     setProjects(prev => {
-      const existing = prev.find(p => p.id === id);
-      if (existing?.section) preservedSection = existing.section;
-      return prev.map(p => p.id === id ? { ...p, title } : p);
+      if (!preservedSection) {
+        const existing = prev.find(p => p.id === id);
+        if (existing?.section) preservedSection = existing.section;
+      }
+      return prev.map(p => p.id === id ? { ...p, title, ...(sectionOverride ? { section: sectionOverride } : {}) } : p);
     });
-    setHistory(prev => prev.map(p => p.id === id ? { ...p, title } : p));
-    setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
+    setHistory(prev => prev.map(p => p.id === id ? { ...p, title, ...(sectionOverride ? { section: sectionOverride } : {}) } : p));
+    setActiveProjectState(prev => prev?.id === id ? { ...prev, title, ...(sectionOverride ? { section: sectionOverride } : {}) } : prev);
     if (!authUser) return;
 
     (async () => {
