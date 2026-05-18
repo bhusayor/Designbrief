@@ -759,35 +759,45 @@ export function AppProvider({ children }) {
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
     if (!authUser) return;
 
-    // Server-side write — bypasses RLS via service role. Direct client
-    // writes were hanging indefinitely (RLS recursion / pool issue), so
-    // we go through the API which validates JWT then uses service key.
     (async () => {
+      const withTimeout = (p, ms, label) =>
+        Promise.race([
+          p,
+          new Promise((_, rj) => setTimeout(() => rj(new Error(`${label} timed out after ${ms}ms`)), ms)),
+        ]);
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
+        console.log('[renameProject] step 1: getting session');
+        const sessionRes = await withTimeout(supabase.auth.getSession(), 5000, 'getSession');
+        const accessToken = sessionRes?.data?.session?.access_token;
+        console.log('[renameProject] step 2: got session, hasToken:', !!accessToken);
         if (!accessToken) throw new Error('No session');
 
-        console.log('[renameProject] PATCH /api/create-workspace', { id, title });
+        console.log('[renameProject] step 3: sending PATCH', { id, title });
         const t0 = performance.now();
-        const res = await fetch('/api/create-workspace', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ project_id: id, updates: { title } }),
-        });
+        const res = await withTimeout(
+          fetch('/api/create-workspace', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ project_id: id, updates: { title } }),
+          }),
+          10000,
+          'PATCH fetch'
+        );
+        console.log('[renameProject] step 4: got HTTP response', res.status, `(${Math.round(performance.now() - t0)}ms)`);
         const body = await res.json().catch(() => ({}));
-        console.log('[renameProject] server response:', res.status, body, `(${Math.round(performance.now() - t0)}ms)`);
+        console.log('[renameProject] step 5: response body:', body);
 
         if (!res.ok) {
           showToast?.('Failed to rename: ' + (body.error || res.status), 'error');
           return;
         }
       } catch (e) {
-        console.error('[renameProject] exception:', e);
-        showToast?.('Failed to rename project', 'error');
+        console.error('[renameProject] FAILED at:', e.message, e);
+        showToast?.('Failed: ' + e.message, 'error');
       }
     })();
   }, [authUser, showToast]);
