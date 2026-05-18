@@ -701,29 +701,33 @@ export function AppProvider({ children }) {
     setHistory(prev => prev.filter(h => h.id !== id));
     setActiveProjectState(prev => (prev?.id === id ? null : prev));
     if (!authUser) return;
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      console.warn('[deleteProject] no session in state, skipping DB write');
+      return;
+    }
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
-        if (!accessToken) throw new Error('No session');
-
-        const res = await fetch('/api/create-workspace', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ project_id: id }),
-        });
+        const res = await Promise.race([
+          fetch('/api/create-workspace', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ project_id: id }),
+          }),
+          new Promise((_, rj) => setTimeout(() => rj(new Error('DELETE timed out after 10s')), 10000)),
+        ]);
         const body = await res.json().catch(() => ({}));
-        console.log('[deleteProject] server response:', res.status, body);
+        console.log('[deleteProject] HTTP', res.status, body);
         if (!res.ok) showToast?.('Failed to delete: ' + (body.error || res.status), 'error');
       } catch (e) {
-        console.error('[deleteProject] exception:', e);
+        console.error('[deleteProject] FAILED:', e.message);
         showToast?.('Failed to delete project', 'error');
       }
     })();
-  }, [authUser, showToast]);
+  }, [authUser, session, showToast]);
 
   const pinProject = useCallback((id) => {
     let nextPinned = false;
@@ -760,22 +764,18 @@ export function AppProvider({ children }) {
     if (!authUser) return;
 
     (async () => {
-      const withTimeout = (p, ms, label) =>
-        Promise.race([
-          p,
-          new Promise((_, rj) => setTimeout(() => rj(new Error(`${label} timed out after ${ms}ms`)), ms)),
-        ]);
+      // Use the cached session from state — calling supabase.auth.getSession()
+      // can hang on subsequent calls due to internal token-refresh races.
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        console.warn('[renameProject] no session in state, skipping DB write');
+        return;
+      }
 
       try {
-        console.log('[renameProject] step 1: getting session');
-        const sessionRes = await withTimeout(supabase.auth.getSession(), 5000, 'getSession');
-        const accessToken = sessionRes?.data?.session?.access_token;
-        console.log('[renameProject] step 2: got session, hasToken:', !!accessToken);
-        if (!accessToken) throw new Error('No session');
-
-        console.log('[renameProject] step 3: sending PATCH', { id, title });
+        console.log('[renameProject] sending PATCH', { id, title });
         const t0 = performance.now();
-        const res = await withTimeout(
+        const res = await Promise.race([
           fetch('/api/create-workspace', {
             method: 'PATCH',
             headers: {
@@ -784,23 +784,22 @@ export function AppProvider({ children }) {
             },
             body: JSON.stringify({ project_id: id, updates: { title } }),
           }),
-          10000,
-          'PATCH fetch'
-        );
-        console.log('[renameProject] step 4: got HTTP response', res.status, `(${Math.round(performance.now() - t0)}ms)`);
+          new Promise((_, rj) => setTimeout(() => rj(new Error('PATCH timed out after 10s')), 10000)),
+        ]);
+        console.log('[renameProject] HTTP', res.status, `(${Math.round(performance.now() - t0)}ms)`);
         const body = await res.json().catch(() => ({}));
-        console.log('[renameProject] step 5: response body:', body);
-
         if (!res.ok) {
+          console.error('[renameProject] server error:', body);
           showToast?.('Failed to rename: ' + (body.error || res.status), 'error');
-          return;
+        } else {
+          console.log('[renameProject] saved:', body.project?.id, body.project?.title);
         }
       } catch (e) {
-        console.error('[renameProject] FAILED at:', e.message, e);
+        console.error('[renameProject] FAILED:', e.message);
         showToast?.('Failed: ' + e.message, 'error');
       }
     })();
-  }, [authUser, showToast]);
+  }, [authUser, session, showToast]);
 
   const shareProject = useCallback((project) => {
     const url = `${window.location.origin}/project/${project.shareId}`;
