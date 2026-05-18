@@ -487,6 +487,184 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
   )
 }
 
+// TaskModal lives at module scope so React keeps the same component
+// identity across TeamCollab re-renders. Inline-declared, every parent
+// render produced a fresh function reference → React unmounted/remounted
+// the modal each time → typing was wiped.
+function TaskModal({ task, onUpdate, onDelete, onClose, teamMembers }) {
+  const [editing, setEditing] = useState({ ...task })
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+      zIndex: 200, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', backdropFilter: 'blur(4px)',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--color-card)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 18, width: 500, maxWidth: '92vw',
+        maxHeight: '88vh', overflow: 'auto',
+        boxShadow: 'var(--shadow-modal)',
+        animation: 'fadeUp 0.25s ease',
+      }}>
+        <div style={{
+          padding: '18px 22px 14px',
+          borderBottom: '1px solid var(--color-border)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        }}>
+          <div style={{ flex: 1, paddingRight: 12 }}>
+            <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6, letterSpacing: '0.08em' }}>TASK DETAIL</div>
+            <input
+              value={editing.title}
+              onChange={e => setEditing(p => ({ ...p, title: e.target.value }))}
+              style={{
+                width: '100%', background: 'transparent', border: 'none',
+                fontSize: 17, fontWeight: 800, color: 'var(--color-text)',
+                fontFamily: 'var(--font-sans)', letterSpacing: '-0.02em', outline: 'none',
+              }}
+            />
+          </div>
+          <button onClick={onClose} style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8, width: 30, height: 30, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--color-text-soft)', fontSize: 15, flexShrink: 0,
+          }}>×</button>
+        </div>
+
+        <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>DESCRIPTION</div>
+            <textarea
+              value={editing.description || ''}
+              onChange={e => setEditing(p => ({ ...p, description: e.target.value }))}
+              style={{
+                width: '100%', background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)', borderRadius: 9,
+                padding: '9px 12px', color: 'var(--color-text)',
+                fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.7,
+                resize: 'vertical', minHeight: 70, outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>PRIORITY</div>
+              <div style={{ display: 'flex', gap: 5 }}>
+                {['HIGH', 'MEDIUM', 'LOW'].map(p => (
+                  <button key={p}
+                    onClick={() => setEditing(prev => ({ ...prev, priority: p }))}
+                    style={{
+                      flex: 1,
+                      background: editing.priority === p ? PRIORITY_COLORS[p] + '22' : 'var(--color-surface)',
+                      border: '1px solid ' + (editing.priority === p ? PRIORITY_COLORS[p] : 'var(--color-border)'),
+                      borderRadius: 7, padding: '6px 0', fontSize: 10,
+                      fontFamily: 'var(--font-mono)',
+                      color: editing.priority === p ? PRIORITY_COLORS[p] : 'var(--color-text-soft)',
+                      cursor: 'pointer',
+                    }}
+                  >{p}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ width: 90 }}>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>DAYS</div>
+              <input
+                type="number" min={1} max={90}
+                value={editing.estimatedDays || 1}
+                onChange={e => setEditing(p => ({ ...p, estimatedDays: Number(e.target.value) }))}
+                style={{
+                  width: '100%', background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)', borderRadius: 7,
+                  padding: '6px 9px', color: 'var(--color-text)',
+                  fontFamily: 'var(--font-mono)', fontSize: 13, textAlign: 'center', outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          {teamMembers && teamMembers.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>ASSIGNED TO</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {teamMembers.map(m => {
+                  const mm = ROLE_META[m.role] || { color: 'var(--color-text-soft)', icon: '◈' }
+                  const active = editing.assignedRole === m.role
+                  return (
+                    <button key={m.id}
+                      onClick={() => setEditing(p => ({ ...p, assignedRole: m.role, assignedName: m.name || '' }))}
+                      style={{
+                        background: active ? mm.color + '22' : 'var(--color-surface)',
+                        border: '1px solid ' + (active ? mm.color : 'var(--color-border)'),
+                        borderRadius: 8, padding: '5px 11px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 5,
+                      }}
+                    >
+                      <span style={{ fontSize: 11 }}>{mm.icon}</span>
+                      <span style={{ fontSize: 11, color: active ? mm.color : 'var(--color-text-soft)', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
+                        {m.name || m.role}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>MOVE TO COLUMN</div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {KANBAN_COLS.map(col => {
+                const active = editing.column === col
+                const cc = COL_COLORS[col] || 'var(--color-text-muted)'
+                return (
+                  <button key={col}
+                    onClick={() => setEditing(p => ({ ...p, column: col }))}
+                    style={{
+                      flex: 1,
+                      background: active ? cc + '22' : 'var(--color-surface)',
+                      border: '1px solid ' + (active ? cc : 'var(--color-border)'),
+                      borderRadius: 7, padding: '7px 0', fontSize: 10,
+                      fontFamily: 'var(--font-sans)', fontWeight: 600,
+                      color: active ? cc : 'var(--color-text-soft)',
+                      cursor: 'pointer',
+                    }}
+                  >{col}</button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+            {onDelete && (
+              <button
+                onClick={() => { if (window.confirm('Delete this task?')) onDelete(task.id) }}
+                style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 9, padding: '10px 14px', color: '#dc2626', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >Delete</button>
+            )}
+            <button onClick={onClose} style={{
+              flex: 1, background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 9, padding: '10px 0',
+              color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
+              fontWeight: 700, fontSize: 12, cursor: 'pointer',
+            }}>Cancel</button>
+            <button onClick={() => { onUpdate(editing); onClose() }} style={{
+              flex: 2, background: 'var(--color-accent)',
+              border: 'none', borderRadius: 9, padding: '10px 0',
+              color: 'var(--color-accent-text)', fontFamily: 'var(--font-sans)',
+              fontWeight: 700, fontSize: 12, cursor: 'pointer',
+            }}>Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TeamCollab() {
   const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB } = useContext(AppContext)
 
@@ -3112,188 +3290,6 @@ STYLE:
     )
   }
 
-  // ── TaskModal ─────────────────────────────────────────────────────────────
-
-  function TaskModal({ task, onUpdate, onDelete, onClose }) {
-    const [editing, setEditing] = useState({ ...task })
-
-    return (
-      <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-        zIndex: 200, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', backdropFilter: 'blur(4px)',
-      }}>
-        <div onClick={e => e.stopPropagation()} style={{
-          background: 'var(--color-card)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 18, width: 500, maxWidth: '92vw',
-          maxHeight: '88vh', overflow: 'auto',
-          boxShadow: 'var(--shadow-modal)',
-          animation: 'fadeUp 0.25s ease',
-        }}>
-          {/* Header */}
-          <div style={{
-            padding: '18px 22px 14px',
-            borderBottom: '1px solid var(--color-border)',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-          }}>
-            <div style={{ flex: 1, paddingRight: 12 }}>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6, letterSpacing: '0.08em' }}>TASK DETAIL</div>
-              <input
-                value={editing.title}
-                onChange={e => setEditing(p => ({ ...p, title: e.target.value }))}
-                style={{
-                  width: '100%', background: 'transparent', border: 'none',
-                  fontSize: 17, fontWeight: 800, color: 'var(--color-text)',
-                  fontFamily: 'var(--font-sans)', letterSpacing: '-0.02em', outline: 'none',
-                }}
-              />
-            </div>
-            <button onClick={onClose} style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8, width: 30, height: 30, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--color-text-soft)', fontSize: 15, flexShrink: 0,
-            }}>×</button>
-          </div>
-
-          <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Description */}
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>DESCRIPTION</div>
-              <textarea
-                value={editing.description || ''}
-                onChange={e => setEditing(p => ({ ...p, description: e.target.value }))}
-                style={{
-                  width: '100%', background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)', borderRadius: 9,
-                  padding: '9px 12px', color: 'var(--color-text)',
-                  fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.7,
-                  resize: 'vertical', minHeight: 70, outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            {/* Priority + Days */}
-            <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>PRIORITY</div>
-                <div style={{ display: 'flex', gap: 5 }}>
-                  {['HIGH', 'MEDIUM', 'LOW'].map(p => (
-                    <button key={p}
-                      onClick={() => setEditing(prev => ({ ...prev, priority: p }))}
-                      style={{
-                        flex: 1,
-                        background: editing.priority === p ? PRIORITY_COLORS[p] + '22' : 'var(--color-surface)',
-                        border: '1px solid ' + (editing.priority === p ? PRIORITY_COLORS[p] : 'var(--color-border)'),
-                        borderRadius: 7, padding: '6px 0', fontSize: 10,
-                        fontFamily: 'var(--font-mono)',
-                        color: editing.priority === p ? PRIORITY_COLORS[p] : 'var(--color-text-soft)',
-                        cursor: 'pointer',
-                      }}
-                    >{p}</button>
-                  ))}
-                </div>
-              </div>
-              <div style={{ width: 90 }}>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>DAYS</div>
-                <input
-                  type="number" min={1} max={90}
-                  value={editing.estimatedDays || 1}
-                  onChange={e => setEditing(p => ({ ...p, estimatedDays: Number(e.target.value) }))}
-                  style={{
-                    width: '100%', background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)', borderRadius: 7,
-                    padding: '6px 9px', color: 'var(--color-text)',
-                    fontFamily: 'var(--font-mono)', fontSize: 13, textAlign: 'center', outline: 'none',
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Assign to */}
-            {teamMembers.length > 0 && (
-              <div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>ASSIGNED TO</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {teamMembers.map(m => {
-                    const mm = ROLE_META[m.role] || { color: 'var(--color-text-soft)', icon: '◈' }
-                    const active = editing.assignedRole === m.role
-                    return (
-                      <button key={m.id}
-                        onClick={() => setEditing(p => ({ ...p, assignedRole: m.role, assignedName: m.name || '' }))}
-                        style={{
-                          background: active ? mm.color + '22' : 'var(--color-surface)',
-                          border: '1px solid ' + (active ? mm.color : 'var(--color-border)'),
-                          borderRadius: 8, padding: '5px 11px', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: 5,
-                        }}
-                      >
-                        <span style={{ fontSize: 11 }}>{mm.icon}</span>
-                        <span style={{ fontSize: 11, color: active ? mm.color : 'var(--color-text-soft)', fontWeight: 600, fontFamily: 'var(--font-sans)' }}>
-                          {m.name || m.role}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Move to column */}
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>MOVE TO COLUMN</div>
-              <div style={{ display: 'flex', gap: 5 }}>
-                {KANBAN_COLS.map(col => {
-                  const active = editing.column === col
-                  const cc = COL_COLORS[col] || 'var(--color-text-muted)'
-                  return (
-                    <button key={col}
-                      onClick={() => setEditing(p => ({ ...p, column: col }))}
-                      style={{
-                        flex: 1,
-                        background: active ? cc + '22' : 'var(--color-surface)',
-                        border: '1px solid ' + (active ? cc : 'var(--color-border)'),
-                        borderRadius: 7, padding: '7px 0', fontSize: 10,
-                        fontFamily: 'var(--font-sans)', fontWeight: 600,
-                        color: active ? cc : 'var(--color-text-soft)',
-                        cursor: 'pointer',
-                      }}
-                    >{col}</button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
-              {onDelete && (
-                <button
-                  onClick={() => { if (window.confirm('Delete this task?')) onDelete(task.id) }}
-                  style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 9, padding: '10px 14px', color: '#dc2626', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-                >Delete</button>
-              )}
-              <button onClick={onClose} style={{
-                flex: 1, background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 9, padding: '10px 0',
-                color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
-                fontWeight: 700, fontSize: 12, cursor: 'pointer',
-              }}>Cancel</button>
-              <button onClick={() => { onUpdate(editing); onClose() }} style={{
-                flex: 2, background: 'var(--color-accent)',
-                border: 'none', borderRadius: 9, padding: '10px 0',
-                color: 'var(--color-accent-text)', fontFamily: 'var(--font-sans)',
-                fontWeight: 700, fontSize: 12, cursor: 'pointer',
-              }}>Save Changes</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   // ── TableView ─────────────────────────────────────────────────────────────
 
   function TableView({ tasks, customCols: cols }) {
@@ -3622,6 +3618,7 @@ STYLE:
           onUpdate={updateTask}
           onDelete={deleteTaskNow}
           onClose={() => setEditingTask(null)}
+          teamMembers={teamMembers}
         />
       )}
       <AddTaskModal
