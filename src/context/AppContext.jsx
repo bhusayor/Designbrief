@@ -386,6 +386,10 @@ export function AppProvider({ children }) {
         .order('updated_at', { ascending: false });
 
       if (error) {
+        // Auth lock collision is transient — skip silently, next poll succeeds
+        if (error.message?.includes('Lock') && error.message?.includes('stole')) {
+          return;
+        }
         console.error('[AppContext] loadProjectsFromDB error:', error);
         console.error('[AppContext] If you see code 42P17 (recursive policy) or 500 — run supabase/cross-device-sync.sql in Supabase SQL Editor.');
         return;
