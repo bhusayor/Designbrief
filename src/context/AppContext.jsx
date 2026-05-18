@@ -757,8 +757,16 @@ export function AppProvider({ children }) {
 
   const renameProject = useCallback((id, title) => {
     console.log('[renameProject] called', { id, title, hasAuthUser: !!authUser });
-    // Optimistic update
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
+    // Look up the existing project's section so the upsert preserves it.
+    // Without this, when the row is being CREATED (not yet in DB), the
+    // section defaults to 'translator' and the project starts showing up
+    // in the Recents sidebar / firing the BriefTranslator.
+    let preservedSection = null;
+    setProjects(prev => {
+      const existing = prev.find(p => p.id === id);
+      if (existing?.section) preservedSection = existing.section;
+      return prev.map(p => p.id === id ? { ...p, title } : p);
+    });
     setHistory(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
     if (!authUser) return;
@@ -773,7 +781,9 @@ export function AppProvider({ children }) {
       }
 
       try {
-        console.log('[renameProject] sending PATCH', { id, title });
+        const updates = { title };
+        if (preservedSection) updates.section = preservedSection;
+        console.log('[renameProject] sending PATCH', { id, updates });
         const t0 = performance.now();
         const res = await Promise.race([
           fetch('/api/create-workspace', {
@@ -782,7 +792,7 @@ export function AppProvider({ children }) {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${accessToken}`,
             },
-            body: JSON.stringify({ project_id: id, updates: { title } }),
+            body: JSON.stringify({ project_id: id, updates }),
           }),
           new Promise((_, rj) => setTimeout(() => rj(new Error('PATCH timed out after 10s')), 10000)),
         ]);
@@ -888,21 +898,35 @@ export function AppProvider({ children }) {
   }, [authUser]);
 
   const renameHistory = useCallback((id, title) => {
+    // Translator/brief projects exist in DB already (created via the
+    // translator flow). Use the same server-side PATCH path as renameProject
+    // for consistency — direct .update() was also subject to the hang.
     setHistory(prev => prev.map(h => h.id === id ? { ...h, title } : h));
     setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
-    if (authUser) {
-      supabase.from('projects')
-        .update({ title, updated_at: new Date().toISOString() })
-        .eq('id', id).eq('user_id', authUser.id)
-        .then(({ error }) => {
-          if (error) {
-            console.error('[AppContext] renameHistory:', error);
-            showToast?.('Failed to rename project', 'error');
-          }
-        });
-    }
-  }, [authUser, showToast]);
+    if (!authUser) return;
+    const accessToken = session?.access_token;
+    if (!accessToken) return;
+    (async () => {
+      try {
+        const res = await Promise.race([
+          fetch('/api/create-workspace', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ project_id: id, updates: { title, section: 'translator' } }),
+          }),
+          new Promise((_, rj) => setTimeout(() => rj(new Error('PATCH timed out')), 10000)),
+        ]);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          console.error('[renameHistory] server error:', body);
+          showToast?.('Failed to rename: ' + (body.error || res.status), 'error');
+        }
+      } catch (e) {
+        console.error('[renameHistory] FAILED:', e.message);
+      }
+    })();
+  }, [authUser, session, showToast]);
 
   const shareHistory = useCallback((item) => {
     const url = `${window.location.origin}/share/${item.id}`;

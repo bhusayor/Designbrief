@@ -219,11 +219,15 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
 
   const initials = (user?.firstName || user?.name || 'D')[0].toUpperCase()
 
-  const sortedHistory = [...history].sort(
-    (a, b) =>
-      (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
-      new Date(b.ts) - new Date(a.ts)
-  )
+  // Recents only shows translator/intake briefs — NOT TeamCollab project
+  // boards (section='team'), which live in the TeamCollab project switcher.
+  const sortedHistory = [...history]
+    .filter(h => h.section !== 'team')
+    .sort(
+      (a, b) =>
+        (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
+        new Date(b.ts) - new Date(a.ts)
+    )
 
   const filteredHistory = searchQuery
     ? sortedHistory.filter(h =>

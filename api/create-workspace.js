@@ -104,6 +104,14 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Not project owner' })
       }
 
+      // For new rows only, default section to 'team' so the project doesn't
+      // get the DB default 'translator' and start showing in BriefTranslator
+      // Recents. UPDATEs of existing rows don't touch section unless the
+      // caller explicitly sent one in `updates`.
+      if (!existing && !('section' in patch)) {
+        patch.section = 'team'
+      }
+
       const { data, error } = await supabase
         .from('projects')
         .upsert({
