@@ -61,9 +61,14 @@ export function mapDBTask(t) {
     column: t.column_name,
     assignedRole: t.assigned_role,
     assignedName: t.assigned_name,
+    assignedUserId: t.assigned_user_id,
     priority: t.priority,
     estimatedDays: t.estimated_days,
     dueDate: t.due_date,
+    startDate: t.start_date,
+    labels: Array.isArray(t.labels) ? t.labels : [],
+    reporterId: t.reporter_id,
+    aiPrompt: t.ai_prompt,
     completed: t.completed,
     blockedBy: t.blocked_by || [],
     phase: t.phase,
@@ -89,23 +94,29 @@ export async function loadTasksFromDB(projectId) {
 
 // ── Update a single task (server-side PATCH bypasses RLS) ─────────────────────
 export async function updateTaskInDB(task) {
+  const updates = {
+    title: task.title,
+    description: task.description,
+    column_name: task.column,
+    assigned_role: task.assignedRole,
+    assigned_name: task.assignedName,
+    assigned_user_id: task.assignedUserId,
+    priority: task.priority,
+    estimated_days: task.estimatedDays,
+    due_date: task.dueDate || null,
+    start_date: task.startDate || null,
+    labels: Array.isArray(task.labels) ? task.labels : undefined,
+    reporter_id: task.reporterId,
+    ai_prompt: task.aiPrompt,
+    completed: task.column === 'Done',
+    completed_at: task.column === 'Done' ? new Date().toISOString() : null,
+    blocked_by: task.blockedBy || [],
+  }
+  // Strip undefined so we don't accidentally null-out columns the caller
+  // didn't intend to change.
+  Object.keys(updates).forEach(k => { if (updates[k] === undefined) delete updates[k] })
   try {
-    await apiCall('PATCH', {
-      task_id: task.id,
-      updates: {
-        title: task.title,
-        description: task.description,
-        column_name: task.column,
-        assigned_role: task.assignedRole,
-        assigned_name: task.assignedName,
-        priority: task.priority,
-        estimated_days: task.estimatedDays,
-        due_date: task.dueDate || null,
-        completed: task.column === 'Done',
-        completed_at: task.column === 'Done' ? new Date().toISOString() : null,
-        blocked_by: task.blockedBy || [],
-      },
-    })
+    await apiCall('PATCH', { task_id: task.id, updates })
   } catch (e) {
     console.error('updateTaskInDB error:', e.message)
   }

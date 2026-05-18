@@ -85,7 +85,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'updates required' })
     }
 
-    const allowed = ['title', 'description', 'column_name', 'assigned_role', 'assigned_name', 'priority', 'estimated_days', 'due_date', 'completed', 'completed_at', 'blocked_by', 'position', 'phase']
+    const allowed = ['title', 'description', 'column_name', 'assigned_role', 'assigned_name', 'assigned_user_id', 'priority', 'estimated_days', 'due_date', 'start_date', 'labels', 'reporter_id', 'ai_prompt', 'completed', 'completed_at', 'blocked_by', 'position', 'phase']
     const patch = { updated_at: new Date().toISOString() }
     for (const k of allowed) if (k in updates) patch[k] = updates[k]
 
