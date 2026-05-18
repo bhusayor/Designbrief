@@ -152,6 +152,9 @@ export default async function handler(req, res) {
           }, { onConflict: 'id' })
       }
 
+      // Always overwrite position with array index so display order stays
+      // stable across saves. Drift from preserved-but-stale positions was
+      // making tasks appear in the wrong order on re-load.
       const records = tasks.map((t, i) => ({
         id: t.id,
         project_id,
@@ -166,7 +169,7 @@ export default async function handler(req, res) {
         due_date: t.dueDate || t.due_date || null,
         completed: (t.column || t.column_name) === 'Done',
         blocked_by: t.blockedBy || t.blocked_by || [],
-        position: typeof t.position === 'number' ? t.position : i,
+        position: i,
         phase: t.phase || null,
         updated_at: new Date().toISOString(),
       }))

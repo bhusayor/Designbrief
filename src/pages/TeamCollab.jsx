@@ -1048,15 +1048,18 @@ Return JSON:
   }
 
   // Immediately persists a single task to DB via service-role API (bypasses RLS).
-  // Uses the same server path as saveTasksToDB to avoid the direct-write hang.
+  // Sends the FULL kanban.tasks list (with the new task included if not yet
+  // there) so position indexes stay sequential — saving just the new task in
+  // isolation would set its position to 0 and clobber the existing task at 0.
   async function saveTaskNow(task) {
     const projectId = activeProjectId || activeProject?.id
     if (!projectId || projectId === 'default' || !authUser) return
-    const enriched = {
-      ...task,
-      position: (kanban?.tasks || []).findIndex(t => t.id === task.id),
-    }
-    await saveTasksToDB([enriched], projectId, authUser.id)
+    const current = kanban?.tasks || []
+    const alreadyIn = current.some(t => t.id === task.id)
+    const fullList = alreadyIn
+      ? current.map(t => t.id === task.id ? task : t)
+      : [...current, task]
+    await saveTasksToDB(fullList, projectId, authUser.id)
   }
 
   // Removes a task from state and DB. Optimistic: state is removed first.

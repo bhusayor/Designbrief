@@ -412,8 +412,27 @@ export function AppProvider({ children }) {
         .map(m => formatProjectRow(m.projects, { isShared: true, myRole: m.job_role }));
 
       const allFormatted = [...ownFormatted, ...sharedFormatted];
-      setHistory(allFormatted);
-      setProjects(allFormatted);
+
+      // Skip the setState entirely if nothing changed — otherwise every 5s poll
+      // re-assigns the array (new reference) and re-renders every consumer of
+      // ctxProjects, including TeamCollab. That re-render redefines components
+      // declared inside TeamCollab (InlineAddTask etc.) and wipes their local
+      // input state, making typing 'disappear' for slow typists.
+      const sameAsPrev = (prev) => {
+        if (!Array.isArray(prev) || prev.length !== allFormatted.length) return false;
+        for (let i = 0; i < allFormatted.length; i++) {
+          const a = prev[i];
+          const b = allFormatted[i];
+          if (a.id !== b.id) return false;
+          if (a.title !== b.title) return false;
+          if (a.section !== b.section) return false;
+          if (a.pinned !== b.pinned) return false;
+          if (a.ts !== b.ts) return false;
+        }
+        return true;
+      };
+      setProjects(prev => sameAsPrev(prev) ? prev : allFormatted);
+      setHistory(prev => sameAsPrev(prev) ? prev : allFormatted);
     } catch (e) {
       console.error('[AppContext] loadProjectsFromDB exception:', e);
     }
