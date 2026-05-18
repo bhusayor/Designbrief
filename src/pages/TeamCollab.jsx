@@ -2080,6 +2080,7 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     // INSERT id='default'. Promote it to a real UID + migrate local cache.
     if (projectId === 'default') {
       const newId = uid()
+      console.log('[TC promote] new uid generated:', newId, 'authUser:', !!authUser, 'authUserId:', authUser?.id)
       const updated = projects.map(p => p.id === 'default' ? { id: newId, title: trimmed } : p)
       setProjects(updated)
       saveProjects(updated)
@@ -2105,23 +2106,42 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
       setRenamingProjectId(null)
       triggerFlash()
 
-      // Write the new row to DB so other devices see it via realtime
-      if (authUser) {
-        supabase.from('projects').upsert({
-          id: newId,
-          user_id: authUser.id,
-          title: trimmed,
-          section: 'team',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' }).then(({ error }) => {
-          if (error) {
-            console.error('[TC] promote default → real project failed:', error)
-            showToast?.('Failed to save project', 'error')
-          } else {
-            console.log('[TC] promoted default → real project', newId)
+      // Write to DB with explicit await + verification fetch
+      ;(async () => {
+        if (!authUser) {
+          console.error('[TC promote] aborted — no authUser')
+          return
+        }
+        try {
+          console.log('[TC promote] sending upsert →', { id: newId, title: trimmed })
+          const upsertRes = await supabase.from('projects').upsert({
+            id: newId,
+            user_id: authUser.id,
+            title: trimmed,
+            section: 'team',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' }).select('id, title, user_id')
+
+          console.log('[TC promote] upsert result:', upsertRes)
+
+          if (upsertRes.error) {
+            console.error('[TC promote] upsert FAILED:', upsertRes.error)
+            showToast?.('Failed to save project: ' + upsertRes.error.message, 'error')
+            return
           }
-        })
-      }
+
+          // Verification fetch: re-read the row we just wrote to confirm
+          const verify = await supabase
+            .from('projects')
+            .select('id, title, user_id')
+            .eq('id', newId)
+            .maybeSingle()
+          console.log('[TC promote] verification fetch:', verify)
+        } catch (e) {
+          console.error('[TC promote] exception:', e)
+          showToast?.('Failed to save project', 'error')
+        }
+      })()
       return
     }
 
