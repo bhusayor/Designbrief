@@ -9,7 +9,7 @@ import {
   getSubtasks, addSubtask, updateSubtask, deleteSubtask,
   getComments, addComment, deleteComment,
   getActivity, logActivity, updateTaskInDB, mapDBTask,
-  enhanceDescription,
+  enhanceDescription, generateAIPrompt,
 } from '../lib/taskService'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -143,6 +143,19 @@ export default function TaskDetailModal({
   const [newLabel, setNewLabel] = useState('')
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [enhancing, setEnhancing] = useState(false)
+  const [generatingPrompt, setGeneratingPrompt] = useState(false)
+
+  // Description textarea auto-grows with content (capped, then scrolls)
+  const descTextareaRef = useRef(null)
+  useEffect(() => {
+    const el = descTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const scroll = el.scrollHeight
+    const max = 400
+    el.style.height = Math.min(scroll, max) + 'px'
+    el.style.overflowY = scroll > max ? 'auto' : 'hidden'
+  }, [descDraft, editingDesc])
 
   // Close any popover when user clicks outside
   const popoverRef = useRef(null)
@@ -395,6 +408,23 @@ export default function TaskDetailModal({
     }
   }
 
+  // ── AI generate task prompt ────────────────────────────────────────────
+  async function handleGenerateAIPrompt() {
+    if (generatingPrompt) return
+    setGeneratingPrompt(true)
+    try {
+      const prompt = await generateAIPrompt(task.title, task.description)
+      if (prompt) {
+        await patchTask({ aiPrompt: prompt }, task.aiPrompt ? 'regenerated AI prompt' : 'generated AI prompt')
+        setAiPromptOpen(true)
+      }
+    } catch (e) {
+      console.error('[gen ai prompt]', e)
+    } finally {
+      setGeneratingPrompt(false)
+    }
+  }
+
   // ── Derived ────────────────────────────────────────────────────────────
   const statusColor = STATUS_COLORS[task.column] || '#6B7280'
   const priorityMeta = PRIORITY_OPTIONS.find(p => p.id === (task.priority || 'none')) || PRIORITY_OPTIONS[4]
@@ -590,26 +620,29 @@ export default function TaskDetailModal({
                 </div>
                 {editingDesc ? (
                   <textarea
+                    ref={descTextareaRef}
                     autoFocus
                     value={descDraft}
                     onChange={e => setDescDraft(e.target.value)}
                     onBlur={commitDesc}
                     placeholder="Add a description..."
                     style={{
-                      width: '100%', minHeight: 80,
+                      width: '100%', minHeight: 80, maxHeight: 400,
                       background: 'var(--color-surface)',
                       border: '1px solid var(--color-border)', borderRadius: 10,
                       padding: '10px 12px',
                       fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.6,
                       color: 'var(--color-text)', outline: 'none',
-                      resize: 'vertical', boxSizing: 'border-box',
+                      resize: 'none', boxSizing: 'border-box',
+                      overflowY: 'auto',
                     }}
                   />
                 ) : (
                   <div
                     onClick={() => { setDescDraft(task.description || ''); setEditingDesc(true) }}
                     style={{
-                      minHeight: 60, padding: '10px 12px',
+                      minHeight: 60, maxHeight: 400, overflowY: 'auto',
+                      padding: '10px 12px',
                       background: 'var(--color-surface)',
                       border: '1px dashed var(--color-border)', borderRadius: 10,
                       fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.6,
@@ -983,41 +1016,63 @@ export default function TaskDetailModal({
               </div>
             </div>
 
-            {/* AI PROMPT (only if exists) */}
-            {task.aiPrompt && (
-              <div style={{ marginBottom: 16 }}>
-                <div
-                  onClick={() => setAiPromptOpen(o => !o)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginBottom: 8 }}>
-                  <SparklesIcon style={{ width: 13, height: 13, color: 'var(--color-accent)' }} />
-                  <SectionLabel>AI Design Prompt</SectionLabel>
+            {/* AI PROMPT — always visible. Generate button if empty. */}
+            <div style={{ marginBottom: 16 }}>
+              <div
+                onClick={() => task.aiPrompt && setAiPromptOpen(o => !o)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: task.aiPrompt ? 'pointer' : 'default', marginBottom: 8 }}>
+                <SparklesIcon style={{ width: 13, height: 13, color: 'var(--color-accent)' }} />
+                <SectionLabel>AI Design Prompt</SectionLabel>
+                {task.aiPrompt && (
                   <ChevronDownIcon style={{ width: 12, height: 12, color: 'var(--color-text-muted)', marginLeft: 'auto', transform: aiPromptOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s' }} />
-                </div>
-                {aiPromptOpen && (
-                  <div style={{
-                    background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 10, padding: '10px 12px',
-                    fontSize: 12, fontFamily: 'var(--font-mono)', lineHeight: 1.6,
-                    color: 'var(--color-text-soft)', whiteSpace: 'pre-wrap',
-                    position: 'relative',
-                  }}>
-                    {task.aiPrompt}
-                    <button onClick={copyAiPrompt} style={{
-                      position: 'absolute', top: 8, right: 8,
-                      background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-                      borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 600,
-                      color: 'var(--color-text-muted)',
-                      display: 'flex', alignItems: 'center', gap: 4,
-                    }}>
-                      <ClipboardDocumentIcon style={{ width: 11, height: 11 }} />
-                      {copiedPrompt ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
                 )}
               </div>
-            )}
+
+              {task.aiPrompt && aiPromptOpen && (
+                <div style={{
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 10, padding: '10px 12px',
+                  fontSize: 12, fontFamily: 'var(--font-mono)', lineHeight: 1.6,
+                  color: 'var(--color-text-soft)', whiteSpace: 'pre-wrap',
+                  position: 'relative',
+                  maxHeight: 280, overflowY: 'auto',
+                }}>
+                  {task.aiPrompt}
+                  <button onClick={copyAiPrompt} style={{
+                    position: 'absolute', top: 8, right: 8,
+                    background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                    borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 600,
+                    color: 'var(--color-text-muted)',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}>
+                    <ClipboardDocumentIcon style={{ width: 11, height: 11 }} />
+                    {copiedPrompt ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={handleGenerateAIPrompt}
+                disabled={generatingPrompt}
+                style={{
+                  marginTop: task.aiPrompt ? 8 : 0,
+                  width: '100%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  background: generatingPrompt ? 'var(--color-surface)' : 'var(--color-accent-soft)',
+                  border: '1px solid ' + (generatingPrompt ? 'var(--color-border)' : 'rgba(13,148,136,0.25)'),
+                  borderRadius: 9, padding: '8px 12px',
+                  fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+                  color: generatingPrompt ? 'var(--color-text-muted)' : 'var(--color-accent)',
+                  cursor: generatingPrompt ? 'wait' : 'pointer',
+                }}>
+                <SparklesIcon style={{ width: 13, height: 13 }} />
+                {generatingPrompt
+                  ? 'Generating…'
+                  : (task.aiPrompt ? 'Regenerate AI prompt' : 'Generate AI prompt')}
+              </button>
+            </div>
 
           </div>
         </div>

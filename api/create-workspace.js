@@ -421,7 +421,18 @@ export default async function handler(req, res) {
       const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
 
-      const userMsg = `Task title: "${title || 'Untitled'}"\n\nCurrent description:\n"""\n${text || '(empty)'}\n"""\n\nRewrite the description to be clearer, more actionable, and well-structured. Use short paragraphs and bullet points when helpful. Keep the original intent. Output ONLY the new description text, no preamble.`
+      const system = `You are an editor that improves task descriptions for a project-management tool. Your only job is to rewrite the user's task description so it is clearer, more concrete, and easier to act on.
+
+STRICT OUTPUT RULES:
+- Output ONLY the improved description text.
+- Do NOT add headings like "Description:", "Enhanced:", "AI Prompt:", "Notes:", or any preamble.
+- Do NOT propose a design prompt, AI prompt, or implementation prompt.
+- Do NOT add code blocks, JSON, or markdown headers.
+- Keep the same intent as the original.
+- Plain prose with short paragraphs; bullet points only if the original already has a list.
+- Maximum a few short paragraphs.`
+
+      const userMsg = `Task title: "${title || 'Untitled'}"\n\nCurrent description:\n"""\n${text || '(empty)'}\n"""\n\nRewrite the description per the rules above.`
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -433,6 +444,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           model: 'claude-sonnet-4-5',
           max_tokens: 800,
+          system,
           messages: [{ role: 'user', content: userMsg }],
         }),
       })
@@ -445,6 +457,54 @@ export default async function handler(req, res) {
       return res.json({ description: enhanced })
     } catch (e) {
       console.error('[create-workspace POST enhance]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── POST: AI-generate an AI prompt for the task ────────────────────────
+  // Body: { kind:'generate-ai-prompt', title, description }
+  if (req.method === 'POST' && req.body?.kind === 'generate-ai-prompt') {
+    const user = await requireUser(req, res)
+    if (!user) return
+    const { title, description } = req.body
+    try {
+      const apiKey = process.env.ANTHROPIC_API_KEY
+      if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+
+      const system = `You write design / implementation prompts that another AI (or a designer) can use to execute a task. Given a task title and description, produce a single, self-contained prompt.
+
+STRICT OUTPUT RULES:
+- Output ONLY the prompt text — no preamble, no "Here's a prompt:", no surrounding explanation.
+- The prompt should be specific, actionable, and reference the task's domain (UI design, copywriting, coding, etc. — infer from the title/description).
+- Include constraints / goals if implied by the description.
+- Length: 2–6 short paragraphs.
+- Plain text. No markdown headings.`
+
+      const userMsg = `Task title: "${title || 'Untitled'}"\n\nTask description:\n"""\n${description || '(empty)'}\n"""\n\nGenerate the prompt now.`
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 1000,
+          system,
+          messages: [{ role: 'user', content: userMsg }],
+        }),
+      })
+      if (!resp.ok) {
+        const err = await resp.text()
+        return res.status(500).json({ error: 'AI failed: ' + err.slice(0, 200) })
+      }
+      const data = await resp.json()
+      const prompt = data?.content?.[0]?.text?.trim() || ''
+      return res.json({ prompt })
+    } catch (e) {
+      console.error('[create-workspace POST generate-ai-prompt]', e)
       return res.status(500).json({ error: e.message })
     }
   }

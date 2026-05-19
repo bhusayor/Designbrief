@@ -206,6 +206,14 @@ export async function enhanceDescription(text, title) {
   return res.description
 }
 
+// ── AI prompt generation (writes a design/implementation prompt for the task) ─
+export async function generateAIPrompt(title, description) {
+  const res = await apiCall('POST', {
+    kind: 'generate-ai-prompt', title, description,
+  })
+  return res.prompt
+}
+
 export async function getActivity(taskId) {
   const { data } = await supabase
     .from('task_activity')
