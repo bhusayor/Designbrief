@@ -977,7 +977,12 @@ export default function TeamCollab() {
           // locally (last 6s) — otherwise the user's column move / edit
           // would flicker back to the stale remote value before the save
           // completes. After 6s the remote is trusted.
+          //
+          // If a task is dirty BUT not in local, the user just deleted it
+          // locally and the remote hasn't caught up yet — skip it entirely
+          // so polling doesn't resurrect deleted tasks.
           for (const rt of remoteTasks) {
+            if (isDirty(rt.id) && !localById.has(rt.id)) continue // locally deleted, waiting for remote
             if (isDirty(rt.id) && localById.has(rt.id)) {
               merged.push(localById.get(rt.id))
             } else {
@@ -1182,9 +1187,12 @@ Return JSON:
     setKanban(prev => ({ ...prev, tasks: [...(prev.tasks || []), t] }))
   }
 
-  // Creates a fresh empty task, persists it, then opens the TaskDetailModal.
-  // Replaces the old AddTaskModal flow — Linear/Jira style.
-  async function createAndOpenTask(column) {
+  // Creates a fresh empty task and opens the TaskDetailModal on it.
+  // The card + the modal appear in the SAME React render so the user
+  // doesn't see the task pop onto the board before the modal opens.
+  // The DB save happens in the background — the PATCH endpoint upserts
+  // so subsequent edits work even if the save is still in flight.
+  function createAndOpenTask(column) {
     const newTask = {
       id: uid(),
       title: '',
@@ -1204,9 +1212,9 @@ Return JSON:
       missingRoles: prev?.missingRoles || [],
     }))
     if (phase !== 'kanban') setPhase('kanban')
-    // Persist so the TaskDetailModal's PATCH writes find the row.
-    try { await saveTaskNow(newTask) } catch (e) { console.error('[TC] createAndOpenTask save:', e) }
     setEditingTask(newTask)
+    // Fire-and-forget persistence; PATCH upserts so race is safe.
+    saveTaskNow(newTask).catch(e => console.error('[TC] createAndOpenTask save:', e))
   }
 
   function saveProjects(newProjects) {

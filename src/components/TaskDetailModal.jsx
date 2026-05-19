@@ -4,6 +4,8 @@ import {
   XMarkIcon, ShareIcon, EllipsisHorizontalIcon, EyeIcon,
   PlusIcon, TrashIcon, CalendarIcon, FlagIcon, UserIcon, TagIcon,
   ChevronDownIcon, SparklesIcon, ClipboardDocumentIcon, CheckIcon,
+  ArrowUpIcon, HandThumbUpIcon, HandThumbDownIcon,
+  ArrowUturnLeftIcon, PencilIcon,
 } from '@heroicons/react/24/outline'
 import {
   getSubtasks, addSubtask, updateSubtask, deleteSubtask,
@@ -64,6 +66,27 @@ function initialOf(name) {
   return (name || '?')[0]?.toUpperCase() || '?'
 }
 
+// Renders plain text with embedded URLs converted to clickable links that
+// open in a new tab. Splits on URLs but preserves everything else as text.
+function renderCommentBody(text) {
+  if (!text) return null
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  const parts = String(text).split(urlRegex)
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      // Reset regex state (split + test on same regex has stateful gotcha)
+      urlRegex.lastIndex = 0
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+          style={{ color: 'var(--color-accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
+          {part}
+        </a>
+      )
+    }
+    return <span key={i}>{part}</span>
+  })
+}
+
 // ─── Tiny presentational helpers ────────────────────────────────────────────
 
 const SectionLabel = ({ children }) => (
@@ -84,6 +107,215 @@ const Avatar = ({ name, size = 24 }) => (
     fontSize: size * 0.42, flexShrink: 0,
   }}>{initialOf(name)}</div>
 )
+
+function CommentRow({
+  comment, replies = [], isMine, reaction,
+  editing, editDraft, setEditDraft,
+  menuOpen, setMenuOpen,
+  onStartEdit, onSaveEdit, onCancelEdit,
+  onDelete, onCopy, onReply,
+  onThumbUp, onThumbDown,
+  replying, replyDraft, setReplyDraft, onSubmitReply,
+  currentUserName,
+  reactionsMap,
+  nested = false,
+}) {
+  const up = reaction?.up || 0
+  const down = reaction?.down || 0
+  const mine = reaction?.mine || null
+
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginLeft: nested ? 36 : 0 }}>
+      <Avatar name={comment.author_name} size={nested ? 22 : 28} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{comment.author_name}</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>{timeAgo(comment.created_at)}</span>
+          <div style={{ marginLeft: 'auto', position: 'relative' }}>
+            <button onClick={() => setMenuOpen(!menuOpen)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--color-text-muted)', padding: 2,
+              display: 'flex', alignItems: 'center', borderRadius: 4,
+            }}><EllipsisHorizontalIcon style={{ width: 14, height: 14 }} /></button>
+            {menuOpen && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                borderRadius: 9, padding: 4, minWidth: 140,
+                boxShadow: '0 6px 24px rgba(0,0,0,0.18)', zIndex: 5,
+                fontFamily: 'var(--font-sans)', fontSize: 12,
+              }}>
+                <button onClick={onCopy} style={menuBtn()}>
+                  <ClipboardDocumentIcon style={menuIcon()} /> Copy
+                </button>
+                {!nested && (
+                  <button onClick={onReply} style={menuBtn()}>
+                    <ArrowUturnLeftIcon style={menuIcon()} /> Reply
+                  </button>
+                )}
+                {isMine && (
+                  <>
+                    <button onClick={onStartEdit} style={menuBtn()}>
+                      <PencilIcon style={menuIcon()} /> Edit
+                    </button>
+                    <button onClick={onDelete} style={{ ...menuBtn(), color: '#EF4444' }}>
+                      <TrashIcon style={menuIcon()} /> Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {editing ? (
+          <div style={{ marginTop: 4 }}>
+            <textarea
+              autoFocus
+              value={editDraft}
+              onChange={e => setEditDraft(e.target.value)}
+              style={{
+                width: '100%', background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)', borderRadius: 8,
+                padding: '8px 10px', fontFamily: 'var(--font-sans)', fontSize: 13,
+                color: 'var(--color-text)', outline: 'none', resize: 'vertical',
+                boxSizing: 'border-box', minHeight: 60,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <button onClick={onSaveEdit} style={{
+                background: 'var(--color-text)', color: 'var(--color-bg)',
+                border: 'none', borderRadius: 7, padding: '5px 12px',
+                fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              }}>Save</button>
+              <button onClick={onCancelEdit} style={{
+                background: 'var(--color-surface)', color: 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)', borderRadius: 7,
+                padding: '5px 12px', fontFamily: 'var(--font-sans)', fontSize: 12, cursor: 'pointer',
+              }}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            marginTop: 4, padding: '8px 12px',
+            background: 'var(--color-surface)',
+            borderRadius: 8,
+            fontFamily: 'var(--font-sans)', fontSize: 13,
+            color: 'var(--color-text)', whiteSpace: 'pre-wrap', lineHeight: 1.5,
+            wordBreak: 'break-word',
+          }}>{renderCommentBody(comment.content)}</div>
+        )}
+
+        {/* Reaction strip — thumbs up/down + counts */}
+        {!editing && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+            <button onClick={onThumbUp} title="Thumbs up" style={reactionBtnStyle(mine === 'up')}>
+              <HandThumbUpIcon style={{ width: 12, height: 12 }} />
+              {up > 0 && <span>{up}</span>}
+            </button>
+            <button onClick={onThumbDown} title="Thumbs down" style={reactionBtnStyle(mine === 'down')}>
+              <HandThumbDownIcon style={{ width: 12, height: 12 }} />
+              {down > 0 && <span>{down}</span>}
+            </button>
+            {!nested && replies.length === 0 && (
+              <button onClick={onReply} title="Reply" style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'var(--color-text-muted)',
+                fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                padding: '3px 6px', borderRadius: 6,
+              }}>
+                <ArrowUturnLeftIcon style={{ width: 12, height: 12 }} />
+                Reply
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Inline reply composer */}
+        {replying && !nested && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+            <Avatar name={currentUserName} size={22} />
+            <textarea
+              autoFocus
+              value={replyDraft}
+              onChange={e => setReplyDraft(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); onSubmitReply() }
+              }}
+              placeholder="Write a reply..."
+              style={{
+                flex: 1, background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)', borderRadius: 8,
+                padding: '6px 10px', fontFamily: 'var(--font-sans)', fontSize: 12,
+                color: 'var(--color-text)', outline: 'none', resize: 'vertical',
+                minHeight: 40, boxSizing: 'border-box',
+              }}
+            />
+            <button onClick={onSubmitReply} disabled={!replyDraft.trim()} style={{
+              background: replyDraft.trim() ? 'var(--color-accent)' : 'var(--color-surface)',
+              color: replyDraft.trim() ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
+              border: 'none', borderRadius: 8, padding: '0 10px',
+              cursor: replyDraft.trim() ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <ArrowUpIcon style={{ width: 14, height: 14 }} />
+            </button>
+          </div>
+        )}
+
+        {/* Nested replies */}
+        {replies.length > 0 && (
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {replies.map(r => (
+              <CommentRow
+                key={'r' + r.id}
+                comment={r}
+                isMine={false}  // controlled at parent; nested doesn't show delete
+                reaction={reactionsMap?.[r.id]}
+                editing={false}
+                menuOpen={false}
+                setMenuOpen={() => {}}
+                onStartEdit={() => {}} onSaveEdit={() => {}} onCancelEdit={() => {}}
+                onDelete={() => {}}
+                onCopy={() => navigator.clipboard?.writeText(r.content || '').catch(() => {})}
+                onReply={() => {}}
+                onThumbUp={() => {}}
+                onThumbDown={() => {}}
+                nested
+                reactionsMap={reactionsMap}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function menuBtn() {
+  return {
+    width: '100%',
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '7px 9px', borderRadius: 7,
+    background: 'transparent', border: 'none', cursor: 'pointer',
+    color: 'var(--color-text)',
+    fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
+    textAlign: 'left',
+  }
+}
+function menuIcon() { return { width: 13, height: 13 } }
+function reactionBtnStyle(active) {
+  return {
+    display: 'flex', alignItems: 'center', gap: 4,
+    background: active ? 'var(--color-accent-soft)' : 'transparent',
+    border: '1px solid ' + (active ? 'rgba(13,148,136,0.3)' : 'var(--color-border)'),
+    borderRadius: 100, padding: '3px 8px',
+    cursor: 'pointer',
+    color: active ? 'var(--color-accent)' : 'var(--color-text-muted)',
+    fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+  }
+}
 
 // ─── Main component ─────────────────────────────────────────────────────────
 
@@ -149,6 +381,14 @@ export default function TaskDetailModal({
   const [shareToast, setShareToast] = useState(null)
   // Mobile-only: switch between left (Task) and right (Details) panels
   const [mobileTab, setMobileTab] = useState('task') // 'task' | 'details'
+  // Per-comment UI state
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editingCommentDraft, setEditingCommentDraft] = useState('')
+  const [openCommentMenuId, setOpenCommentMenuId] = useState(null)
+  const [replyingToId, setReplyingToId] = useState(null)
+  const [replyDraft, setReplyDraft] = useState('')
+  // Local reaction map: { [commentId]: { up: number, down: number, mine: 'up'|'down'|null } }
+  const [reactions, setReactions] = useState({})
 
   // Description textarea auto-grows with content (capped, then scrolls)
   const descTextareaRef = useRef(null)
@@ -384,8 +624,128 @@ export default function TaskDetailModal({
 
   async function handleDeleteComment(id) {
     setComments(prev => prev.filter(c => c.id !== id))
+    setOpenCommentMenuId(null)
     try { await deleteComment(id) } catch (e) { console.error(e) }
   }
+
+  // Begin editing a comment (replaces inline content with a textarea)
+  function startEditComment(c) {
+    setEditingCommentId(c.id)
+    setEditingCommentDraft(c.content || '')
+    setOpenCommentMenuId(null)
+  }
+  async function saveEditComment(c) {
+    const trimmed = editingCommentDraft.trim()
+    setEditingCommentId(null)
+    if (!trimmed || trimmed === c.content) return
+    // Optimistic
+    setComments(prev => prev.map(x => x.id === c.id ? { ...x, content: trimmed } : x))
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('No session')
+      await fetch('/api/create-workspace', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ comment_id: c.id, updates: { content: trimmed } }),
+      })
+    } catch (e) {
+      console.error('[edit comment]', e)
+    }
+  }
+
+  function copyComment(c) {
+    navigator.clipboard?.writeText(c.content || '').catch(() => {})
+    setOpenCommentMenuId(null)
+    setShareToast('Comment copied')
+    setTimeout(() => setShareToast(null), 1400)
+  }
+
+  async function submitReply(parent) {
+    const body = replyDraft.trim()
+    if (!body || !authUser?.id) return
+    setReplyDraft('')
+    setReplyingToId(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('No session')
+      const res = await fetch('/api/create-workspace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          kind: 'comment',
+          task_id: task.id,
+          project_id: projectId,
+          author_name: user?.firstName || user?.name || 'User',
+          content: body,
+          parent_id: parent.id,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data?.comment) {
+        setComments(prev => prev.some(x => x.id === data.comment.id) ? prev : [...prev, data.comment])
+      }
+    } catch (e) {
+      console.error('[reply]', e)
+    }
+  }
+
+  async function toggleReaction(comment, kind /* 'up'|'down' */) {
+    if (!authUser?.id) return
+    // Optimistic update of local counter / mine flag
+    setReactions(prev => {
+      const cur = prev[comment.id] || { up: 0, down: 0, mine: null }
+      let { up, down, mine } = cur
+      if (mine === kind) {
+        // toggle off
+        if (kind === 'up') up = Math.max(0, up - 1); else down = Math.max(0, down - 1)
+        mine = null
+      } else {
+        // switch or new
+        if (mine === 'up') up = Math.max(0, up - 1)
+        if (mine === 'down') down = Math.max(0, down - 1)
+        if (kind === 'up') up += 1; else down += 1
+        mine = kind
+      }
+      return { ...prev, [comment.id]: { up, down, mine } }
+    })
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) return
+      await fetch('/api/create-workspace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          kind: 'reaction', comment_id: comment.id, reaction: kind,
+        }),
+      })
+    } catch (e) { console.warn('[reaction]', e) }
+  }
+
+  // Load existing reactions for the comments we have
+  useEffect(() => {
+    if (!comments?.length) return
+    const ids = comments.map(c => c.id)
+    let cancelled = false
+    supabase
+      .from('task_comment_reactions')
+      .select('comment_id, user_id, reaction')
+      .in('comment_id', ids)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        const map = {}
+        for (const r of data) {
+          if (!map[r.comment_id]) map[r.comment_id] = { up: 0, down: 0, mine: null }
+          if (r.reaction === 'up') map[r.comment_id].up++
+          else if (r.reaction === 'down') map[r.comment_id].down++
+          if (r.user_id === authUser?.id) map[r.comment_id].mine = r.reaction
+        }
+        setReactions(prev => ({ ...prev, ...map }))
+      })
+    return () => { cancelled = true }
+  }, [comments.map(c => c.id).join(','), authUser?.id])
 
   // ── Share task link (robust: native share → clipboard → execCommand) ───
   async function handleShare() {
@@ -488,13 +848,14 @@ export default function TaskDetailModal({
   const priorityMeta = PRIORITY_OPTIONS.find(p => p.id === (task.priority || 'none')) || PRIORITY_OPTIONS[4]
   const overdue = isOverdue(task.dueDate)
 
-  // Compute activity feed view
+  // Compute activity feed view (top-level comments only; replies nested under their parent)
+  const topLevelComments = comments.filter(c => !c.parent_id)
   const filteredActivity = activityTab === 'comments'
-    ? comments.map(c => ({ kind: 'comment', ...c }))
+    ? topLevelComments.map(c => ({ kind: 'comment', ...c }))
     : activityTab === 'history'
       ? activity.map(a => ({ kind: 'activity', ...a }))
       : [
-          ...comments.map(c => ({ kind: 'comment', ts: c.created_at, ...c })),
+          ...topLevelComments.map(c => ({ kind: 'comment', ts: c.created_at, ...c })),
           ...activity.map(a => ({ kind: 'activity', ts: a.created_at, ...a })),
         ].sort((a, b) => new Date(b.ts || b.created_at) - new Date(a.ts || a.created_at))
 
@@ -912,27 +1273,32 @@ export default function TaskDetailModal({
                   )}
                   {filteredActivity.map((entry, i) => (
                     entry.kind === 'comment' ? (
-                      <div key={'c' + entry.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                        <Avatar name={entry.author_name} size={28} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{entry.author_name}</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>{timeAgo(entry.created_at)}</span>
-                            {entry.user_id === authUser?.id && (
-                              <button onClick={() => handleDeleteComment(entry.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 0, marginLeft: 4 }}>
-                                <TrashIcon style={{ width: 11, height: 11 }} />
-                              </button>
-                            )}
-                          </div>
-                          <div style={{
-                            marginTop: 4, padding: '8px 12px',
-                            background: 'var(--color-surface)',
-                            borderRadius: 8,
-                            fontFamily: 'var(--font-sans)', fontSize: 13,
-                            color: 'var(--color-text)', whiteSpace: 'pre-wrap', lineHeight: 1.5,
-                          }}>{entry.content}</div>
-                        </div>
-                      </div>
+                      <CommentRow
+                        key={'c' + entry.id}
+                        comment={entry}
+                        replies={comments.filter(c => c.parent_id === entry.id)}
+                        isMine={entry.user_id === authUser?.id}
+                        reaction={reactions[entry.id]}
+                        editing={editingCommentId === entry.id}
+                        editDraft={editingCommentDraft}
+                        setEditDraft={setEditingCommentDraft}
+                        menuOpen={openCommentMenuId === entry.id}
+                        setMenuOpen={(v) => setOpenCommentMenuId(v ? entry.id : null)}
+                        onStartEdit={() => startEditComment(entry)}
+                        onSaveEdit={() => saveEditComment(entry)}
+                        onCancelEdit={() => setEditingCommentId(null)}
+                        onDelete={() => handleDeleteComment(entry.id)}
+                        onCopy={() => copyComment(entry)}
+                        onReply={() => { setReplyingToId(entry.id); setReplyDraft('') }}
+                        onThumbUp={() => toggleReaction(entry, 'up')}
+                        onThumbDown={() => toggleReaction(entry, 'down')}
+                        replying={replyingToId === entry.id}
+                        replyDraft={replyDraft}
+                        setReplyDraft={setReplyDraft}
+                        onSubmitReply={() => submitReply(entry)}
+                        currentUserName={user?.firstName || user?.name}
+                        reactionsMap={reactions}
+                      />
                     ) : (
                       <div key={'a' + entry.id} style={{ display: 'flex', gap: 10, alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)' }}>
                         <Avatar name={entry.actor_name} size={22} />
@@ -952,31 +1318,47 @@ export default function TaskDetailModal({
               borderTop: '1px solid var(--color-border)',
               background: 'var(--color-bg)',
             }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                 <Avatar name={user?.firstName || user?.name} size={26} />
-                <input
+                <textarea
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => { if ((e.key === 'Enter' && (e.metaKey || e.ctrlKey)) || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); handleAddComment() } }}
-                  placeholder="Add a comment... (⌘+Enter to send)"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault(); handleAddComment()
+                    }
+                  }}
+                  placeholder="Add a comment..."
+                  rows={1}
                   style={{
                     flex: 1, background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)', borderRadius: 9,
                     padding: '8px 12px', fontSize: 13, outline: 'none',
                     fontFamily: 'var(--font-sans)', color: 'var(--color-text)',
                     boxSizing: 'border-box',
+                    minHeight: 36, maxHeight: 160, resize: 'none',
+                    lineHeight: 1.5,
+                  }}
+                  onInput={e => {
+                    e.target.style.height = 'auto'
+                    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
                   }}
                 />
                 <button
                   onClick={handleAddComment}
                   disabled={!newComment.trim()}
+                  title="Send comment"
                   style={{
                     background: newComment.trim() ? 'var(--color-accent)' : 'var(--color-surface)',
                     color: newComment.trim() ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-                    border: 'none', borderRadius: 9, padding: '8px 14px',
-                    fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+                    border: 'none', borderRadius: 9,
+                    width: 36, height: 36, padding: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: newComment.trim() ? 'pointer' : 'default',
-                  }}>Send</button>
+                    flexShrink: 0,
+                  }}>
+                  <ArrowUpIcon style={{ width: 16, height: 16 }} />
+                </button>
               </div>
             </div>
           </div>

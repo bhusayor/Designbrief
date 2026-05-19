@@ -95,21 +95,53 @@ export default async function handler(req, res) {
         .select('id, project_id')
         .eq('id', task_id)
         .maybeSingle()
-      if (!task) return res.status(404).json({ error: 'Task not found' })
 
+      // If the task row exists, verify the caller owns the parent project.
+      // If it does NOT exist yet (e.g. user just clicked "+ Add Task" and
+      // the save hasn't landed yet), allow the upsert — the body MUST
+      // include project_id in updates for us to be able to create the row.
+      if (task) {
+        const { data: project } = await supabase
+          .from('projects')
+          .select('user_id')
+          .eq('id', task.project_id)
+          .maybeSingle()
+        if (!project || project.user_id !== user.id) {
+          return res.status(403).json({ error: 'Not project owner' })
+        }
+        const { data, error } = await supabase
+          .from('tasks')
+          .update(patch)
+          .eq('id', task_id)
+          .select('*')
+          .single()
+        if (error) throw error
+        return res.json({ task: data })
+      }
+
+      // Race-safe upsert path: task doesn't exist yet, create from updates
+      const projectIdFromBody = updates.project_id || req.body?.project_id
+      if (!projectIdFromBody) {
+        return res.status(404).json({ error: 'Task not found and no project_id provided' })
+      }
       const { data: project } = await supabase
         .from('projects')
         .select('user_id')
-        .eq('id', task.project_id)
+        .eq('id', projectIdFromBody)
         .maybeSingle()
-      if (!project || project.user_id !== user.id) {
+      if (project && project.user_id !== user.id) {
         return res.status(403).json({ error: 'Not project owner' })
       }
 
       const { data, error } = await supabase
         .from('tasks')
-        .update(patch)
-        .eq('id', task_id)
+        .upsert({
+          id: task_id,
+          project_id: projectIdFromBody,
+          user_id: user.id,
+          title: patch.title || 'Untitled Task',
+          ...patch,
+        }, { onConflict: 'id' })
         .select('*')
         .single()
       if (error) throw error
@@ -301,13 +333,13 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── POST: add a comment ────────────────────────────────────────────────
-  // Body: { kind:'comment', task_id, project_id, author_name, content }
+  // ── POST: add a comment (top-level OR reply) ──────────────────────────
+  // Body: { kind:'comment', task_id, project_id, author_name, content, parent_id? }
   if (req.method === 'POST' && req.body?.kind === 'comment') {
     const user = await requireUser(req, res)
     if (!user) return
 
-    const { task_id, project_id, author_name, content } = req.body
+    const { task_id, project_id, author_name, content, parent_id } = req.body
     if (!task_id || !project_id || !content) {
       return res.status(400).json({ error: 'task_id, project_id and content required' })
     }
@@ -322,14 +354,17 @@ export default async function handler(req, res) {
       }
 
       const id = Math.random().toString(36).slice(2, 10)
+      const row = {
+        id, task_id, project_id,
+        user_id: user.id,
+        author_name: author_name || user.email || 'User',
+        content,
+      }
+      if (parent_id) row.parent_id = parent_id
+
       const { data, error } = await supabase
         .from('task_comments')
-        .insert({
-          id, task_id, project_id,
-          user_id: user.id,
-          author_name: author_name || user.email || 'User',
-          content,
-        })
+        .insert(row)
         .select('*')
         .single()
       if (error) throw error
@@ -339,13 +374,105 @@ export default async function handler(req, res) {
         id: Math.random().toString(36).slice(2, 10),
         task_id, project_id, user_id: user.id,
         actor_name: author_name || user.email || 'User',
-        action: 'added comment',
+        action: parent_id ? 'replied' : 'added comment',
         new_value: content.slice(0, 80),
       })
 
       return res.json({ comment: data })
     } catch (e) {
       console.error('[create-workspace POST comment]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── PATCH: edit a comment ──────────────────────────────────────────────
+  // Body: { comment_id, updates: { content } }
+  if (req.method === 'PATCH' && req.body?.comment_id) {
+    const user = await requireUser(req, res)
+    if (!user) return
+    const { comment_id, updates } = req.body
+    if (!updates?.content) return res.status(400).json({ error: 'content required' })
+    try {
+      const { data: comment } = await supabase
+        .from('task_comments')
+        .select('id, user_id, project_id')
+        .eq('id', comment_id)
+        .maybeSingle()
+      if (!comment) return res.status(404).json({ error: 'Comment not found' })
+
+      // Author OR project owner can edit
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', comment.project_id)
+        .maybeSingle()
+      const isAuthor = comment.user_id === user.id
+      const isOwner = project && project.user_id === user.id
+      if (!isAuthor && !isOwner) {
+        return res.status(403).json({ error: 'Not allowed' })
+      }
+
+      const { data, error } = await supabase
+        .from('task_comments')
+        .update({
+          content: updates.content,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', comment_id)
+        .select('*')
+        .single()
+      if (error) throw error
+      return res.json({ comment: data })
+    } catch (e) {
+      console.error('[create-workspace PATCH comment]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── POST: toggle a thumbs reaction ─────────────────────────────────────
+  // Body: { kind:'reaction', comment_id, reaction: 'up'|'down' }
+  if (req.method === 'POST' && req.body?.kind === 'reaction') {
+    const user = await requireUser(req, res)
+    if (!user) return
+    const { comment_id, reaction } = req.body
+    if (!comment_id || !['up', 'down'].includes(reaction)) {
+      return res.status(400).json({ error: 'comment_id and reaction (up|down) required' })
+    }
+    try {
+      // If user already has same reaction, remove it (toggle off)
+      const { data: existing } = await supabase
+        .from('task_comment_reactions')
+        .select('id, reaction')
+        .eq('comment_id', comment_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (existing && existing.reaction === reaction) {
+        await supabase.from('task_comment_reactions').delete().eq('id', existing.id)
+        return res.json({ removed: true })
+      }
+      if (existing) {
+        // Different reaction — switch
+        const { data, error } = await supabase
+          .from('task_comment_reactions')
+          .update({ reaction })
+          .eq('id', existing.id)
+          .select('*')
+          .single()
+        if (error) throw error
+        return res.json({ reaction: data })
+      }
+
+      const id = Math.random().toString(36).slice(2, 10)
+      const { data, error } = await supabase
+        .from('task_comment_reactions')
+        .insert({ id, comment_id, user_id: user.id, reaction })
+        .select('*')
+        .single()
+      if (error) throw error
+      return res.json({ reaction: data })
+    } catch (e) {
+      console.error('[create-workspace POST reaction]', e)
       return res.status(500).json({ error: e.message })
     }
   }
