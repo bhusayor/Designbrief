@@ -67,22 +67,40 @@ function initialOf(name) {
   return (name || '?')[0]?.toUpperCase() || '?'
 }
 
-// Renders plain text with URLs (http://, https://, www.) auto-linked.
-// Uses exec() in a loop instead of split() to avoid global-regex state
-// bugs that were causing links to render as plain text.
+// Matches:
+//   https://example.com/path?q=1
+//   http://example.com
+//   www.example.com
+//   google.com  /  mail.google.com  /  news.bbc.co.uk
+// Avoids false positives like "e.g." by only matching a known TLD whitelist
+// at the end of a bare domain, OR an explicit http(s)://www. prefix.
+const TLD_GROUP = '(?:com|net|org|io|co|app|dev|me|ai|xyz|info|biz|us|uk|ca|au|de|fr|nl|jp|cn|in|br|ru|es|it|edu|gov|tv|so|sh|to|cc|ly|gg|tech|page|site|design|store|cloud|tools|email|news|blog|shop|art|fyi|chat|games|video|live|world|space|online|website|studio|agency|company|finance|capital|systems|works|stream)'
+const URL_REGEX = new RegExp(
+  '(https?:\\/\\/[^\\s<>"\'()]+|www\\.[^\\s<>"\'()]+|\\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+' + TLD_GROUP + '\\b(?:\\/[^\\s<>"\'()]*)?)',
+  'gi'
+)
+
+// Renders plain text with URLs auto-linked. exec() loop avoids the
+// stateful split+test bug we had before.
 function renderCommentBody(text) {
   if (!text) return null
   const str = String(text)
-  const urlRegex = /\b((?:https?:\/\/|www\.)[^\s<>"')]+[^\s<>"')\.,;:!?])/gi
+  const re = new RegExp(URL_REGEX.source, URL_REGEX.flags)
   const out = []
   let lastIndex = 0
   let match
-  while ((match = urlRegex.exec(str)) !== null) {
+  while ((match = re.exec(str)) !== null) {
+    // Strip trailing punctuation that shouldn't be part of the link
+    let raw = match[0]
+    let extra = ''
+    while (raw.length > 1 && '.,;:!?)]>'.includes(raw[raw.length - 1])) {
+      extra = raw[raw.length - 1] + extra
+      raw = raw.slice(0, -1)
+    }
     if (match.index > lastIndex) {
       out.push(<span key={out.length}>{str.slice(lastIndex, match.index)}</span>)
     }
-    const raw = match[0]
-    const href = raw.startsWith('http') ? raw : `https://${raw}`
+    const href = raw.startsWith('http') ? raw : `https://${raw.replace(/^www\./, '')}`
     out.push(
       <a key={out.length} href={href} target="_blank" rel="noopener noreferrer"
         onClick={e => e.stopPropagation()}
@@ -90,7 +108,8 @@ function renderCommentBody(text) {
         {raw}
       </a>
     )
-    lastIndex = match.index + raw.length
+    if (extra) out.push(<span key={out.length}>{extra}</span>)
+    lastIndex = match.index + match[0].length
   }
   if (lastIndex < str.length) {
     out.push(<span key={out.length}>{str.slice(lastIndex)}</span>)
@@ -119,14 +138,18 @@ const Avatar = ({ name, size = 24 }) => (
   }}>{initialOf(name)}</div>
 )
 
-// ── ComposerBubble: unified avatar + textarea + paperclip + send ────────────
+// ── ComposerBubble: unified avatar + textarea + + menu + send ───────────────
 function ComposerBubble({
-  value, onChange, onSubmit, onAttach, uploading,
+  value, onChange, onSubmit,
+  onAttachDocument, onAttachImage,
+  uploading,
   attachments = [], onRemoveAttachment,
   userName,
 }) {
   const [focused, setFocused] = useState(false)
+  const [showAttachMenu, setShowAttachMenu] = useState(false)
   const taRef = useRef(null)
+  const attachBtnRef = useRef(null)
 
   // Auto-grow textarea
   useEffect(() => {
@@ -136,17 +159,24 @@ function ComposerBubble({
     el.style.height = Math.min(el.scrollHeight, 160) + 'px'
   }, [value])
 
+  // Close attach menu when clicking outside
+  useEffect(() => {
+    if (!showAttachMenu) return
+    function onDoc(e) {
+      if (!attachBtnRef.current?.contains(e.target)) setShowAttachMenu(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [showAttachMenu])
+
   const hasContent = !!value.trim() || attachments.length > 0
 
   return (
-    <div
-      style={{
-        display: 'flex', gap: 10, alignItems: 'flex-start',
-      }}>
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
       <Avatar name={userName} size={32} />
       <div
         style={{
-          flex: 1,
+          flex: 1, position: 'relative',
           background: 'var(--color-surface)',
           border: '1.5px solid ' + (focused ? 'var(--color-accent)' : 'var(--color-border)'),
           borderRadius: 12,
@@ -155,7 +185,7 @@ function ComposerBubble({
           transition: 'border-color 0.15s, box-shadow 0.15s',
         }}>
 
-        {/* Attachment preview row (pending uploads) */}
+        {/* Pending attachments */}
         {attachments.length > 0 && (
           <div style={{
             display: 'flex', flexWrap: 'wrap', gap: 6,
@@ -199,20 +229,39 @@ function ComposerBubble({
 
         {/* Action row inside the bubble */}
         <div style={{ display: 'flex', alignItems: 'center', marginTop: 6 }}>
-          <button
-            onClick={onAttach}
-            disabled={uploading}
-            title="Attach file"
-            style={{
-              background: 'transparent', border: 'none',
-              padding: 6, borderRadius: 7, cursor: uploading ? 'wait' : 'pointer',
-              color: 'var(--color-text-muted)',
-              display: 'flex', alignItems: 'center',
-            }}>
-            <PaperClipIcon style={{ width: 16, height: 16 }} />
-          </button>
+          <div ref={attachBtnRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowAttachMenu(s => !s)}
+              disabled={uploading}
+              title="Attach"
+              style={{
+                background: 'transparent', border: 'none',
+                width: 28, height: 28, borderRadius: 7,
+                cursor: uploading ? 'wait' : 'pointer',
+                color: 'var(--color-text-muted)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+              <PlusIcon style={{ width: 17, height: 17 }} />
+            </button>
+            {showAttachMenu && (
+              <div style={{
+                position: 'absolute', bottom: '100%', left: 0, marginBottom: 6,
+                background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                borderRadius: 10, padding: 4, minWidth: 180,
+                boxShadow: '0 8px 28px rgba(0,0,0,0.2)',
+                zIndex: 10,
+              }}>
+                <button onClick={() => { setShowAttachMenu(false); onAttachDocument() }} style={menuBtn()}>
+                  <DocumentIcon style={menuIcon()} /> Upload document
+                </button>
+                <button onClick={() => { setShowAttachMenu(false); onAttachImage() }} style={menuBtn()}>
+                  <PhotoIcon style={menuIcon()} /> Upload image
+                </button>
+              </div>
+            )}
+          </div>
           {uploading && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 4 }}>Uploading…</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 6 }}>Uploading…</span>
           )}
           <div style={{ flex: 1 }} />
           <button
@@ -237,23 +286,32 @@ function ComposerBubble({
   )
 }
 
-// ── AttachmentChip: inline preview/download chip ───────────────────────────
-function AttachmentChip({ attachment, onRemove, compact = false }) {
+// ── AttachmentChip: clickable inline preview/download chip ─────────────────
+function AttachmentChip({ attachment, onRemove, compact = false, onPreview }) {
   const isImage = attachment.type?.startsWith('image/')
   const sizeKb = attachment.size ? Math.round(attachment.size / 1024) : null
 
+  const handlePreviewClick = (e) => {
+    if (!onPreview) return
+    e.preventDefault()
+    onPreview(attachment)
+  }
+
   if (isImage && !compact) {
     return (
-      <a href={attachment.url} target="_blank" rel="noopener noreferrer"
+      <button
+        type="button"
+        onClick={handlePreviewClick}
         style={{
-          display: 'inline-block',
+          display: 'inline-block', padding: 0,
           maxWidth: 280, maxHeight: 200,
           borderRadius: 10, overflow: 'hidden',
           border: '1px solid var(--color-border)',
+          background: 'none', cursor: onPreview ? 'zoom-in' : 'default',
         }}>
         <img src={attachment.url} alt={attachment.name}
           style={{ display: 'block', maxWidth: '100%', maxHeight: 200, objectFit: 'cover' }} />
-      </a>
+      </button>
     )
   }
 
@@ -264,7 +322,10 @@ function AttachmentChip({ attachment, onRemove, compact = false }) {
       border: '1px solid var(--color-border)', borderRadius: 9,
       padding: '5px 8px 5px 10px',
       maxWidth: 320,
-    }}>
+      cursor: onPreview ? 'pointer' : 'default',
+    }}
+      onClick={onPreview ? handlePreviewClick : undefined}
+    >
       {isImage
         ? <PhotoIcon style={{ width: 15, height: 15, color: 'var(--color-accent)', flexShrink: 0 }} />
         : <DocumentIcon style={{ width: 15, height: 15, color: 'var(--color-text-muted)', flexShrink: 0 }} />}
@@ -281,9 +342,10 @@ function AttachmentChip({ attachment, onRemove, compact = false }) {
           <span style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>{sizeKb} KB</span>
         )}
       </div>
-      {/* Open / Download button */}
+      {/* Download button (always available, even with preview) */}
       <a href={attachment.url} target="_blank" rel="noopener noreferrer" download={attachment.name}
-        title="Open / Download"
+        title="Download"
+        onClick={e => e.stopPropagation()}
         style={{
           color: 'var(--color-text-muted)', padding: 4, borderRadius: 6,
           display: 'flex', alignItems: 'center',
@@ -291,7 +353,7 @@ function AttachmentChip({ attachment, onRemove, compact = false }) {
         <ArrowDownTrayIcon style={{ width: 13, height: 13 }} />
       </a>
       {onRemove && (
-        <button onClick={onRemove} title="Remove" style={{
+        <button onClick={e => { e.stopPropagation(); onRemove() }} title="Remove" style={{
           background: 'none', border: 'none', cursor: 'pointer',
           color: 'var(--color-text-muted)', padding: 2,
           display: 'flex', alignItems: 'center',
@@ -300,6 +362,139 @@ function AttachmentChip({ attachment, onRemove, compact = false }) {
         </button>
       )}
     </div>
+  )
+}
+
+// ── FilePreviewModal: Slack-style inline file viewer ───────────────────────
+function FilePreviewModal({ file, onClose }) {
+  if (!file) return null
+  const type = file.type || ''
+  const name = file.name || 'file'
+  const url = file.url
+
+  // Decide the renderer
+  let body = null
+  if (type.startsWith('image/')) {
+    body = (
+      <img src={url} alt={name}
+        style={{ maxWidth: '100%', maxHeight: '78vh', objectFit: 'contain', borderRadius: 8 }} />
+    )
+  } else if (type === 'application/pdf') {
+    // Native browser PDF viewer
+    body = (
+      <iframe src={url} title={name}
+        style={{ width: '100%', height: '78vh', border: 'none', borderRadius: 8, background: 'var(--color-bg)' }} />
+    )
+  } else if (type.startsWith('video/')) {
+    body = (
+      <video src={url} controls
+        style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 8, background: '#000' }} />
+    )
+  } else if (type.startsWith('audio/')) {
+    body = (
+      <audio src={url} controls style={{ width: '100%' }} />
+    )
+  } else if (
+    type.startsWith('text/') ||
+    /\.(txt|md|json|csv|log|yaml|yml|xml|html|js|ts|jsx|tsx|css)$/i.test(name)
+  ) {
+    // Fetch text content and render in <pre>
+    body = <TextPreview url={url} />
+  } else {
+    // Office docs / unknown — use Google Docs Viewer (no download required)
+    const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`
+    body = (
+      <iframe src={viewerUrl} title={name}
+        style={{ width: '100%', height: '78vh', border: 'none', borderRadius: 8, background: 'var(--color-bg)' }} />
+    )
+  }
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 5000,
+      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 24,
+      animation: 'tdmFade 0.18s ease',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--color-bg)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 16,
+        width: '92vw', maxWidth: 1100,
+        maxHeight: '92vh', overflow: 'hidden',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
+      }}>
+        {/* Header */}
+        <div style={{
+          flexShrink: 0, height: 52,
+          padding: '0 16px',
+          borderBottom: '1px solid var(--color-border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            {type.startsWith('image/')
+              ? <PhotoIcon style={{ width: 16, height: 16, color: 'var(--color-accent)' }} />
+              : <DocumentIcon style={{ width: 16, height: 16, color: 'var(--color-text-muted)' }} />}
+            <span style={{
+              fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14,
+              color: 'var(--color-text)',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>{name}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <a href={url} download={name} target="_blank" rel="noopener noreferrer"
+              title="Download" style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                borderRadius: 8, padding: '6px 12px',
+                fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+                color: 'var(--color-text)', textDecoration: 'none',
+              }}>
+              <ArrowDownTrayIcon style={{ width: 13, height: 13 }} />
+              Download
+            </a>
+            <button onClick={onClose} title="Close" style={{
+              background: 'transparent', border: 'none', padding: '6px 8px',
+              borderRadius: 7, cursor: 'pointer', color: 'var(--color-text-muted)',
+              display: 'flex', alignItems: 'center',
+            }}>
+              <XMarkIcon style={{ width: 16, height: 16 }} />
+            </button>
+          </div>
+        </div>
+        {/* Body */}
+        <div style={{
+          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 14, overflow: 'auto',
+          background: 'var(--color-card)',
+        }}>{body}</div>
+      </div>
+    </div>
+  )
+}
+
+function TextPreview({ url }) {
+  const [text, setText] = useState(null)
+  const [err, setErr] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    fetch(url).then(r => r.text()).then(t => { if (!cancelled) setText(t) })
+      .catch(e => { if (!cancelled) setErr(e.message) })
+    return () => { cancelled = true }
+  }, [url])
+  if (err) return <div style={{ color: '#EF4444', fontFamily: 'var(--font-mono)', fontSize: 12 }}>Failed: {err}</div>
+  if (text == null) return <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-text-muted)' }}>Loading…</div>
+  return (
+    <pre style={{
+      width: '100%', maxHeight: '78vh', overflow: 'auto',
+      background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+      borderRadius: 8, padding: 14,
+      fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.6,
+      color: 'var(--color-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+    }}>{text}</pre>
   )
 }
 
@@ -319,6 +514,26 @@ function CommentRow({
   const down = reaction?.down || 0
   const mine = reaction?.mine || null
 
+  // Open the ⋯ menu via fixed positioning so it escapes the scroll container
+  // and never gets hidden behind the composer at the bottom.
+  const menuBtnRef = useRef(null)
+  const [menuPos, setMenuPos] = useState(null)
+  function toggleMenu() {
+    if (menuOpen) { setMenuOpen(false); return }
+    const r = menuBtnRef.current?.getBoundingClientRect()
+    if (r) {
+      // Open upward if there's no room below
+      const below = window.innerHeight - r.bottom
+      const openUp = below < 180
+      setMenuPos({
+        top: openUp ? r.top - 6 : r.bottom + 6,
+        right: window.innerWidth - r.right,
+        openUp,
+      })
+    }
+    setMenuOpen(true)
+  }
+
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginLeft: nested ? 36 : 0 }}>
       <Avatar name={comment.author_name} size={nested ? 22 : 28} />
@@ -326,39 +541,49 @@ function CommentRow({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{comment.author_name}</span>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>{timeAgo(comment.created_at)}</span>
-          <div style={{ marginLeft: 'auto', position: 'relative' }}>
-            <button onClick={() => setMenuOpen(!menuOpen)} style={{
+          <div style={{ marginLeft: 'auto' }}>
+            <button ref={menuBtnRef} onClick={toggleMenu} style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: 'var(--color-text-muted)', padding: 2,
               display: 'flex', alignItems: 'center', borderRadius: 4,
             }}><EllipsisHorizontalIcon style={{ width: 14, height: 14 }} /></button>
-            {menuOpen && (
-              <div style={{
-                position: 'absolute', top: '100%', right: 0, marginTop: 4,
-                background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-                borderRadius: 9, padding: 4, minWidth: 140,
-                boxShadow: '0 6px 24px rgba(0,0,0,0.18)', zIndex: 5,
-                fontFamily: 'var(--font-sans)', fontSize: 12,
-              }}>
-                <button onClick={onCopy} style={menuBtn()}>
-                  <ClipboardDocumentIcon style={menuIcon()} /> Copy
-                </button>
-                {!nested && (
-                  <button onClick={onReply} style={menuBtn()}>
-                    <ArrowUturnLeftIcon style={menuIcon()} /> Reply
+            {menuOpen && menuPos && (
+              <>
+                {/* Backdrop closes the menu on outside click */}
+                <div onClick={() => setMenuOpen(false)} style={{
+                  position: 'fixed', inset: 0, zIndex: 2000,
+                }} />
+                <div style={{
+                  position: 'fixed',
+                  top: menuPos.openUp ? 'auto' : menuPos.top,
+                  bottom: menuPos.openUp ? window.innerHeight - menuPos.top : 'auto',
+                  right: menuPos.right,
+                  zIndex: 2001,
+                  background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                  borderRadius: 9, padding: 4, minWidth: 150,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
+                  fontFamily: 'var(--font-sans)', fontSize: 12,
+                }}>
+                  <button onClick={onCopy} style={menuBtn()}>
+                    <ClipboardDocumentIcon style={menuIcon()} /> Copy
                   </button>
-                )}
-                {isMine && (
-                  <>
-                    <button onClick={onStartEdit} style={menuBtn()}>
-                      <PencilIcon style={menuIcon()} /> Edit
+                  {!nested && (
+                    <button onClick={onReply} style={menuBtn()}>
+                      <ArrowUturnLeftIcon style={menuIcon()} /> Reply
                     </button>
-                    <button onClick={onDelete} style={{ ...menuBtn(), color: '#EF4444' }}>
-                      <TrashIcon style={menuIcon()} /> Delete
-                    </button>
-                  </>
-                )}
-              </div>
+                  )}
+                  {isMine && (
+                    <>
+                      <button onClick={onStartEdit} style={menuBtn()}>
+                        <PencilIcon style={menuIcon()} /> Edit
+                      </button>
+                      <button onClick={onDelete} style={{ ...menuBtn(), color: '#EF4444' }}>
+                        <TrashIcon style={menuIcon()} /> Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -408,7 +633,11 @@ function CommentRow({
                 marginTop: comment.content ? 6 : 0,
               }}>
                 {comment.attachments.map((a, idx) => (
-                  <AttachmentChip key={a.path || idx} attachment={a} />
+                  <AttachmentChip
+                    key={a.path || idx}
+                    attachment={a}
+                    onPreview={comment.__onPreview}
+                  />
                 ))}
               </div>
             )}
@@ -601,7 +830,10 @@ export default function TaskDetailModal({
   // Pending attachments for the next comment to be sent
   const [pendingAttachments, setPendingAttachments] = useState([])
   const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef(null)
+  const documentInputRef = useRef(null)
+  const imageInputRef = useRef(null)
+  // File preview modal (Slack-style inline doc viewer)
+  const [previewFile, setPreviewFile] = useState(null)
 
   // Description textarea auto-grows with content (capped, then scrolls)
   const descTextareaRef = useRef(null)
@@ -856,8 +1088,9 @@ export default function TaskDetailModal({
     if (uploaded.length > 0) {
       setPendingAttachments(prev => [...prev, ...uploaded])
     }
-    // reset the input so picking the same file again re-fires onChange
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    // reset both inputs so picking the same file again re-fires onChange
+    if (documentInputRef.current) documentInputRef.current.value = ''
+    if (imageInputRef.current) imageInputRef.current.value = ''
   }
 
   function removePendingAttachment(idx) {
@@ -1550,8 +1783,10 @@ export default function TaskDetailModal({
                     entry.kind === 'comment' ? (
                       <CommentRow
                         key={'c' + entry.id}
-                        comment={entry}
-                        replies={comments.filter(c => c.parent_id === entry.id)}
+                        comment={{ ...entry, __onPreview: setPreviewFile }}
+                        replies={comments
+                          .filter(c => c.parent_id === entry.id)
+                          .map(c => ({ ...c, __onPreview: setPreviewFile }))}
                         isMine={entry.user_id === authUser?.id}
                         reaction={reactions[entry.id]}
                         editing={editingCommentId === entry.id}
@@ -1597,16 +1832,26 @@ export default function TaskDetailModal({
                 value={newComment}
                 onChange={setNewComment}
                 onSubmit={handleAddComment}
-                onAttach={() => fileInputRef.current?.click()}
+                onAttachDocument={() => documentInputRef.current?.click()}
+                onAttachImage={() => imageInputRef.current?.click()}
                 uploading={uploading}
                 attachments={pendingAttachments}
                 onRemoveAttachment={removePendingAttachment}
                 userName={user?.firstName || user?.name}
               />
               <input
-                ref={fileInputRef}
+                ref={documentInputRef}
                 type="file"
                 multiple
+                accept=".pdf,.doc,.docx,.txt,.md,.rtf,.xls,.xlsx,.ppt,.pptx,.csv,.zip,.json,.log,.yaml,.yml,.xml,.html"
+                style={{ display: 'none' }}
+                onChange={e => handleFilesSelected(Array.from(e.target.files || []))}
+              />
+              <input
+                ref={imageInputRef}
+                type="file"
+                multiple
+                accept="image/*"
                 style={{ display: 'none' }}
                 onChange={e => handleFilesSelected(Array.from(e.target.files || []))}
               />
@@ -1829,6 +2074,11 @@ export default function TaskDetailModal({
             animation: 'tdmFade 0.2s ease',
             whiteSpace: 'nowrap',
           }}>{shareToast}</div>
+        )}
+
+        {/* Slack-style file preview viewer */}
+        {previewFile && (
+          <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
         )}
       </div>
     </div>
