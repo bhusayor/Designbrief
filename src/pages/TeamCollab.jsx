@@ -34,6 +34,7 @@ import BuildInterface from '../components/build/BuildInterface'
 import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
 import TaskDetailModal from '../components/TaskDetailModal'
+import ProjectInviteModal from '../components/ProjectInviteModal'
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 // ─── Board agent tools ────────────────────────────────────────────────────────
@@ -586,6 +587,7 @@ export default function TeamCollab() {
 
   const [showBuildInterface, setShowBuildInterface] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
+  const [showProjectInvite, setShowProjectInvite] = useState(false)
   const [showMoreViews, setShowMoreViews] = useState(false)
   const [showProjectMenu, setShowProjectMenu] = useState(false)
   const [renamingProjectId, setRenamingProjectId] = useState(null)
@@ -3844,7 +3846,7 @@ STYLE:
           const isDone = teamMembers.some(m => m.name?.trim())
           return (
             <button
-              onClick={() => setShowTeamModal(true)}
+              onClick={() => setShowProjectInvite(true)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 7,
                 padding: '6px 14px', borderRadius: 8,
@@ -4848,9 +4850,20 @@ STYLE:
         </div>
       )}
 
-      {/* Team People overlay */}
+      {/* Team People overlay (workspace settings — kept for future use, no
+          button currently opens it) */}
       {showTeamModal && (
         <TeamPage onClose={() => setShowTeamModal(false)} />
+      )}
+
+      {/* Project-level invite — invites collaborator to THIS project only,
+          not to the workspace. Sends /join/:token link. */}
+      {showProjectInvite && (
+        <ProjectInviteModal
+          projectId={activeProjectId || activeProject?.id}
+          projectName={projectTitle}
+          onClose={() => setShowProjectInvite(false)}
+        />
       )}
 
       {/* Build Interface overlay */}

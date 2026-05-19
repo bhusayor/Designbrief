@@ -11,6 +11,57 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 const APP_URL = process.env.APP_URL || 'https://designbrief-vert.vercel.app'
 
+function projectInviteEmailHTML({ projectName, inviterName, inviterEmail, role, inviteUrl }) {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>You're invited to ${projectName}</title></head>
+<body style="margin:0;padding:0;background:#0E0E0E;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0E0E0E;padding:40px 20px;">
+<tr><td align="center">
+  <table width="560" cellpadding="0" cellspacing="0" style="background:#161616;border:1px solid #2a2a2a;border-radius:16px;overflow:hidden;max-width:560px;width:100%;">
+    <tr><td style="padding:32px 40px 24px;border-bottom:1px solid #2a2a2a;">
+      <table cellpadding="0" cellspacing="0"><tr>
+        <td><div style="width:36px;height:36px;background:linear-gradient(135deg,#7C3AED,#A855F7);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;">✦</div></td>
+        <td style="padding-left:10px;"><span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.5px;">DesignBrief</span></td>
+      </tr></table>
+    </td></tr>
+    <tr><td style="padding:32px 40px;">
+      <h1 style="color:#ffffff;font-size:24px;font-weight:800;letter-spacing:-0.5px;margin:0 0 12px;">
+        You're invited to a project on <span style="color:#A855F7;">DesignBrief</span>
+      </h1>
+      <p style="color:#888888;font-size:15px;line-height:1.6;margin:0 0 8px;">
+        <strong style="color:#cccccc;">${inviterName}</strong>${inviterEmail ? ` (${inviterEmail})` : ''} added you to
+        <strong style="color:#cccccc;">${projectName}</strong> as a
+        <strong style="color:#A855F7;">${role}</strong>.
+      </p>
+      <p style="color:#888888;font-size:14px;line-height:1.6;margin:16px 0 28px;">
+        This is a project-level invitation. You will collaborate on this project's brief, tasks, and team — without joining the inviter's workspace. You will keep your own workspace.
+      </p>
+      <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr>
+        <td style="background:linear-gradient(135deg,#7C3AED,#A855F7);border-radius:10px;">
+          <a href="${inviteUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:-0.2px;">
+            Accept project invite →
+          </a>
+        </td>
+      </tr></table>
+      <p style="color:#555555;font-size:12px;line-height:1.6;margin:0 0 8px;">Or copy this link into your browser:</p>
+      <p style="color:#7C3AED;font-size:12px;word-break:break-all;margin:0 0 28px;">${inviteUrl}</p>
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:12px 16px;">
+        <p style="color:#666666;font-size:12px;margin:0;">
+          ⏱ This invitation expires in 7 days. If you did not expect this email, you can safely ignore it.
+        </p>
+      </div>
+    </td></tr>
+    <tr><td style="padding:20px 40px;border-top:1px solid #2a2a2a;">
+      <p style="color:#444444;font-size:12px;margin:0;">Sent by DesignBrief AI · This is an automated message</p>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>`
+}
+
 function inviteEmailHTML({ workspaceName, inviterName, inviterEmail, role, inviteUrl }) {
   return `
 <!DOCTYPE html>
@@ -594,6 +645,123 @@ export default async function handler(req, res) {
         .eq('user_id', userId)
 
       return res.json({ success: true })
+    }
+
+    // ── SEND PROJECT-LEVEL INVITE ─────────────────────────────────────────────
+    // Body: { action:'send_project', projectId, email, name?, jobRole }
+    // Creates a row in team_invites (NOT workspace_invites) so the invitee
+    // joins ONLY this project — they keep / create their own workspace.
+    if (action === 'send_project') {
+      const { projectId, email, name = '', jobRole = 'Collaborator' } = req.body
+
+      if (!projectId || !email)
+        return res.status(400).json({ error: 'projectId and email required' })
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email))
+        return res.status(400).json({ error: 'Invalid email address' })
+
+      // Verify the caller actually has access to this project (owner or member)
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id, user_id, title')
+        .eq('id', projectId)
+        .single()
+      if (!project)
+        return res.status(404).json({ error: 'Project not found' })
+
+      let canInvite = project.user_id === user.id
+      if (!canInvite) {
+        const { data: member } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('project_id', projectId)
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle()
+        canInvite = !!member
+      }
+      if (!canInvite)
+        return res.status(403).json({ error: 'You are not on this project' })
+
+      // Block re-invite if a pending one already exists
+      const { data: existingInvite } = await supabase
+        .from('team_invites')
+        .select('id, status, token')
+        .eq('project_id', projectId)
+        .eq('invitee_email', email.toLowerCase())
+        .maybeSingle()
+
+      let inviteToken
+      let inviteId
+
+      if (existingInvite?.status === 'pending') {
+        // Refresh expiry and re-use the token
+        inviteToken = existingInvite.token
+        inviteId = existingInvite.id
+        await supabase
+          .from('team_invites')
+          .update({
+            invitee_name: name,
+            job_role: jobRole,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .eq('id', existingInvite.id)
+      } else {
+        // Generate a fresh token + id
+        inviteToken = Math.random().toString(36).slice(2, 18) + Math.random().toString(36).slice(2, 18)
+        inviteId = Math.random().toString(36).slice(2, 10)
+        const { error: insertErr } = await supabase
+          .from('team_invites')
+          .insert({
+            id: inviteId,
+            project_id: projectId,
+            inviter_id: user.id,
+            invitee_email: email.toLowerCase(),
+            invitee_name: name,
+            job_role: jobRole,
+            token: inviteToken,
+            status: 'pending',
+          })
+        if (insertErr) {
+          console.error('[invite send_project insert]', insertErr)
+          return res.status(500).json({ error: 'Failed to create invite: ' + insertErr.message })
+        }
+      }
+
+      const inviteUrl = APP_URL + '/join/' + inviteToken
+
+      // Inviter details for the email body
+      const { data: { user: inviterUser } } = await supabase.auth.admin.getUserById(user.id)
+      const inviterName =
+        inviterUser?.user_metadata?.name ||
+        inviterUser?.user_metadata?.full_name ||
+        inviterUser?.email?.split('@')[0] ||
+        'Someone'
+      const inviterEmail = inviterUser?.email || ''
+
+      // Respond immediately
+      res.json({
+        success: true,
+        message: 'Invite sent to ' + email,
+        inviteUrl,
+        inviteId,
+      })
+
+      // Fire-and-forget email
+      resend.emails.send({
+        from: 'DesignBrief AI <onboarding@resend.dev>',
+        to: email,
+        subject: inviterName + ' invited you to ' + (project.title || 'a project') + ' on DesignBrief',
+        html: projectInviteEmailHTML({
+          projectName: project.title || 'a project',
+          inviterName,
+          inviterEmail,
+          role: jobRole,
+          inviteUrl,
+        }),
+      }).catch(e => console.error('[resend project invite]', e))
+      return
     }
 
     return res.status(400).json({ error: 'Unknown action: ' + action })
