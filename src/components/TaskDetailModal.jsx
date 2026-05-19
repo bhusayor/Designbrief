@@ -144,6 +144,7 @@ export default function TaskDetailModal({
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [enhancing, setEnhancing] = useState(false)
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
+  const [shareToast, setShareToast] = useState(null)
 
   // Description textarea auto-grows with content (capped, then scrolls)
   const descTextareaRef = useRef(null)
@@ -382,6 +383,36 @@ export default function TaskDetailModal({
     try { await deleteComment(id) } catch (e) { console.error(e) }
   }
 
+  // ── Share task link (native share on mobile, clipboard on desktop) ─────
+  async function handleShare() {
+    const url = `${window.location.origin}/task/${task.id}`
+    const shareData = {
+      title: task.title || 'Task',
+      text: `${task.title || 'Task'} — ${projectName}`,
+      url,
+    }
+    // Web Share API (mobile native share sheet)
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share(shareData)
+        return
+      } catch (e) {
+        // User cancelled — bail silently, don't fall through to clipboard
+        if (e?.name === 'AbortError') return
+        // Other errors fall through to clipboard
+      }
+    }
+    // Fallback: clipboard + toast
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareToast('Link copied to clipboard')
+      setTimeout(() => setShareToast(null), 2000)
+    } catch {
+      setShareToast('Could not copy link')
+      setTimeout(() => setShareToast(null), 2000)
+    }
+  }
+
   // ── AI prompt copy ─────────────────────────────────────────────────────
   function copyAiPrompt() {
     if (!task.aiPrompt) return
@@ -449,40 +480,52 @@ export default function TaskDetailModal({
     animation: 'tdmFade 0.2s ease',
   }
   const shellStyle = {
+    position: 'relative',  // anchor for the toast
     background: 'var(--color-bg)',
     border: '1px solid var(--color-border)',
     borderRadius: isMobile ? '20px 20px 0 0' : 16,
     width: isMobile ? '100%' : '85vw',
     maxWidth: isMobile ? '100%' : 1100,
-    height: isMobile ? '92vh' : '90vh',
+    // Use dvh so the modal doesn't get crushed by mobile keyboards
+    height: isMobile ? '94dvh' : '90vh',
+    maxHeight: isMobile ? '94dvh' : '90vh',
     overflow: 'hidden',
     display: 'flex', flexDirection: 'column',
     boxShadow: '0 24px 80px rgba(0,0,0,0.3)',
     animation: isMobile ? 'tdmSlideUp 0.25s ease' : 'tdmFadeUp 0.25s ease',
   }
   const headerStyle = {
-    height: 52, flexShrink: 0,
-    padding: '0 18px',
+    height: isMobile ? 48 : 52, flexShrink: 0,
+    padding: isMobile ? '0 10px' : '0 18px',
     borderBottom: '1px solid var(--color-border)',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     fontFamily: 'var(--font-sans)',
+    gap: 4,
   }
   const bodyStyle = {
     flex: 1, display: 'flex', overflow: 'hidden',
     flexDirection: isMobile ? 'column' : 'row',
+    minHeight: 0,
   }
   const leftStyle = {
     width: isMobile ? '100%' : '60%',
+    height: isMobile ? 'auto' : '100%',
+    flex: isMobile ? '1 1 auto' : 'none',
     borderRight: isMobile ? 'none' : '1px solid var(--color-border)',
     borderBottom: isMobile ? '1px solid var(--color-border)' : 'none',
     display: 'flex', flexDirection: 'column',
     overflow: 'hidden',
+    minHeight: 0,
   }
   const rightStyle = {
     width: isMobile ? '100%' : '40%',
     overflowY: 'auto',
-    padding: '20px 22px',
+    padding: isMobile ? '14px 16px 18px' : '20px 22px',
     background: 'var(--color-card)',
+    flexShrink: 0,
+    // On mobile, give the right panel a sensible max height since it
+    // appears stacked below the (scrollable) left panel
+    maxHeight: isMobile ? '50vh' : 'none',
   }
   const detailRowStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -491,10 +534,13 @@ export default function TaskDetailModal({
     cursor: 'pointer',
     fontFamily: 'var(--font-sans)',
     transition: 'background 0.12s',
+    gap: 10,
   }
   const labelStyle = {
     fontSize: 13, color: 'var(--color-text-muted)',
-    fontFamily: 'var(--font-sans)', minWidth: 84,
+    fontFamily: 'var(--font-sans)',
+    minWidth: isMobile ? 70 : 84,
+    flexShrink: 0,
   }
 
   return (
@@ -512,21 +558,26 @@ export default function TaskDetailModal({
 
         {/* HEADER */}
         <div style={headerStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-muted)', fontSize: 13 }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600 }}>{projectName}</span>
-            <span>/</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-muted)', fontSize: 13, overflow: 'hidden', minWidth: 0 }}>
+            {!isMobile && (
+              <>
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{projectName}</span>
+                <span>/</span>
+              </>
+            )}
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-text)' }}>
               TASK-{(task.id || '').slice(-6).toUpperCase()}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <button title="Viewers" style={iconBtn()}>
-              <EyeIcon style={iconSize()} /><span style={{ fontSize: 11, marginLeft: 4 }}>1</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            {!isMobile && (
+              <button title="Viewers" style={iconBtn()}>
+                <EyeIcon style={iconSize()} /><span style={{ fontSize: 11, marginLeft: 4 }}>1</span>
+              </button>
+            )}
+            <button title="Share task link" style={iconBtn()} onClick={handleShare}>
+              <ShareIcon style={iconSize()} />
             </button>
-            <button title="Share" style={iconBtn()} onClick={() => {
-              const url = `${window.location.origin}/task/${task.id}`
-              navigator.clipboard.writeText(url).catch(() => {})
-            }}><ShareIcon style={iconSize()} /></button>
             <div style={{ position: 'relative' }}>
               <button title="More options" style={iconBtn()} onClick={() => setShowMoreMenu(s => !s)}>
                 <EllipsisHorizontalIcon style={iconSize()} />
@@ -563,7 +614,7 @@ export default function TaskDetailModal({
 
           {/* LEFT PANEL */}
           <div style={leftStyle}>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '22px 26px 16px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 16px 12px' : '22px 26px 16px' }}>
 
               {/* TITLE */}
               {editingTitle ? (
@@ -576,7 +627,7 @@ export default function TaskDetailModal({
                   style={{
                     width: '100%', background: 'transparent', border: 'none',
                     outline: 'none', borderBottom: '2px solid var(--color-accent)',
-                    fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 700,
+                    fontFamily: 'var(--font-sans)', fontSize: isMobile ? 19 : 24, fontWeight: 700,
                     color: 'var(--color-text)', letterSpacing: '-0.02em',
                     padding: '4px 0',
                   }}
@@ -586,7 +637,7 @@ export default function TaskDetailModal({
                   onClick={() => { setTitleDraft(task.title || ''); setEditingTitle(true) }}
                   style={{
                     margin: 0, padding: '4px 0',
-                    fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 700,
+                    fontFamily: 'var(--font-sans)', fontSize: isMobile ? 19 : 24, fontWeight: 700,
                     color: 'var(--color-text)', letterSpacing: '-0.02em',
                     cursor: 'text', lineHeight: 1.3,
                   }}>
@@ -839,7 +890,8 @@ export default function TaskDetailModal({
 
             {/* COMMENT INPUT */}
             <div style={{
-              flexShrink: 0, padding: '12px 22px',
+              flexShrink: 0,
+              padding: isMobile ? '10px 14px env(safe-area-inset-bottom, 10px)' : '12px 22px',
               borderTop: '1px solid var(--color-border)',
               background: 'var(--color-bg)',
             }}>
@@ -1075,6 +1127,19 @@ export default function TaskDetailModal({
 
           </div>
         </div>
+
+        {/* Share toast (in-modal) */}
+        {shareToast && (
+          <div style={{
+            position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+            background: 'var(--color-text)', color: 'var(--color-bg)',
+            padding: '8px 16px', borderRadius: 100, fontFamily: 'var(--font-sans)',
+            fontSize: 12, fontWeight: 600,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+            zIndex: 10,
+            animation: 'tdmFade 0.2s ease',
+          }}>{shareToast}</div>
+        )}
       </div>
     </div>
   )
