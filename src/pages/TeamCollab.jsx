@@ -737,18 +737,23 @@ export default function TeamCollab() {
     setTaskLoadError(false)
     // Reset confirmed-IDs for the new project so polling merge starts clean
     confirmedRemoteIdsRef.current = new Set()
+    // Also reset the dirty-window map — those timestamps belong to the
+    // previous project and would (wrongly) shield stale local tasks here.
+    localChangeAtRef.current = new Map()
     loadTasksFromDB(projectId).then(tasks => {
       setTasksLoading(false)
       confirmedRemoteIdsRef.current = new Set(tasks.map(t => t.id))
-      if (tasks.length > 0) {
-        setKanban(prev => ({
-          tasks,
-          projectTimeline: prev?.projectTimeline || '',
-          unassignedTasks: prev?.unassignedTasks || [],
-          missingRoles: prev?.missingRoles || [],
-        }))
-        setPhase('kanban')
-      }
+      // Always replace kanban with the new project's tasks — even when
+      // tasks.length === 0. Previously we skipped the setKanban call for
+      // empty results, which left the OLD project's tasks visible after
+      // a cross-device project switch.
+      setKanban({
+        tasks: tasks || [],
+        projectTimeline: '',
+        unassignedTasks: [],
+        missingRoles: [],
+      })
+      if (tasks.length > 0) setPhase('kanban')
     }).catch(e => {
       setTasksLoading(false)
       setTaskLoadError(true)
