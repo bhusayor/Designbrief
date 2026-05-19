@@ -129,7 +129,9 @@ export default function TaskDetailModal({
   const [activityTab, setActivityTab] = useState('comments')
   const [titleDraft, setTitleDraft] = useState(task?.title || '')
   const [descDraft, setDescDraft] = useState(task?.description || '')
-  const [editingTitle, setEditingTitle] = useState(false)
+  // If the task opens with no title (created via "+ Add Task"), drop straight
+  // into title-edit mode so the user can just start typing.
+  const [editingTitle, setEditingTitle] = useState(() => !task?.title || !task.title.trim())
   const [editingDesc, setEditingDesc] = useState(false)
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
   const [addingSubtask, setAddingSubtask] = useState(false)
@@ -145,6 +147,8 @@ export default function TaskDetailModal({
   const [enhancing, setEnhancing] = useState(false)
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
   const [shareToast, setShareToast] = useState(null)
+  // Mobile-only: switch between left (Task) and right (Details) panels
+  const [mobileTab, setMobileTab] = useState('task') // 'task' | 'details'
 
   // Description textarea auto-grows with content (capped, then scrolls)
   const descTextareaRef = useRef(null)
@@ -383,7 +387,7 @@ export default function TaskDetailModal({
     try { await deleteComment(id) } catch (e) { console.error(e) }
   }
 
-  // ── Share task link (native share on mobile, clipboard on desktop) ─────
+  // ── Share task link (robust: native share → clipboard → execCommand) ───
   async function handleShare() {
     const url = `${window.location.origin}/task/${task.id}`
     const shareData = {
@@ -391,26 +395,49 @@ export default function TaskDetailModal({
       text: `${task.title || 'Task'} — ${projectName}`,
       url,
     }
-    // Web Share API (mobile native share sheet)
+
+    // 1) Try Web Share API (mobile native share sheet)
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share(shareData)
-        return
+        return  // success — native sheet handled it
       } catch (e) {
-        // User cancelled — bail silently, don't fall through to clipboard
+        // User pressed Cancel on the share sheet — silently bail
         if (e?.name === 'AbortError') return
-        // Other errors fall through to clipboard
+        // Anything else (NotAllowedError, etc.) → fall through to clipboard
+        console.warn('[share] navigator.share failed:', e?.name, e?.message)
       }
     }
-    // Fallback: clipboard + toast
+
+    // 2) Modern Clipboard API
+    let copied = false
     try {
-      await navigator.clipboard.writeText(url)
-      setShareToast('Link copied to clipboard')
-      setTimeout(() => setShareToast(null), 2000)
-    } catch {
-      setShareToast('Could not copy link')
-      setTimeout(() => setShareToast(null), 2000)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url)
+        copied = true
+      }
+    } catch (e) {
+      console.warn('[share] clipboard.writeText failed:', e?.message)
     }
+
+    // 3) Last-resort: hidden textarea + execCommand for non-HTTPS or old browsers
+    if (!copied) {
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = url
+        ta.style.position = 'fixed'
+        ta.style.left = '-9999px'
+        document.body.appendChild(ta)
+        ta.select()
+        copied = document.execCommand('copy')
+        document.body.removeChild(ta)
+      } catch (e) {
+        console.warn('[share] execCommand fallback failed:', e?.message)
+      }
+    }
+
+    setShareToast(copied ? 'Link copied to clipboard' : 'Could not copy link — try again')
+    setTimeout(() => setShareToast(null), 2200)
   }
 
   // ── AI prompt copy ─────────────────────────────────────────────────────
@@ -504,28 +531,28 @@ export default function TaskDetailModal({
   }
   const bodyStyle = {
     flex: 1, display: 'flex', overflow: 'hidden',
-    flexDirection: isMobile ? 'column' : 'row',
+    flexDirection: 'row',
     minHeight: 0,
   }
+  // On mobile we render only ONE panel at a time, selected by mobileTab.
+  // No stacking, no 50vh cap — each panel takes the full body height.
   const leftStyle = {
     width: isMobile ? '100%' : '60%',
-    height: isMobile ? 'auto' : '100%',
-    flex: isMobile ? '1 1 auto' : 'none',
+    height: '100%',
     borderRight: isMobile ? 'none' : '1px solid var(--color-border)',
-    borderBottom: isMobile ? '1px solid var(--color-border)' : 'none',
-    display: 'flex', flexDirection: 'column',
+    display: isMobile && mobileTab !== 'task' ? 'none' : 'flex',
+    flexDirection: 'column',
     overflow: 'hidden',
     minHeight: 0,
   }
   const rightStyle = {
     width: isMobile ? '100%' : '40%',
+    height: '100%',
     overflowY: 'auto',
-    padding: isMobile ? '14px 16px 18px' : '20px 22px',
+    padding: isMobile ? '14px 16px 24px' : '20px 22px',
     background: 'var(--color-card)',
     flexShrink: 0,
-    // On mobile, give the right panel a sensible max height since it
-    // appears stacked below the (scrollable) left panel
-    maxHeight: isMobile ? '50vh' : 'none',
+    display: isMobile && mobileTab !== 'details' ? 'none' : 'block',
   }
   const detailRowStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -608,6 +635,36 @@ export default function TaskDetailModal({
             </button>
           </div>
         </div>
+
+        {/* MOBILE TAB BAR — switch between Task content and Details/Properties */}
+        {isMobile && (
+          <div style={{
+            flexShrink: 0,
+            display: 'flex',
+            borderBottom: '1px solid var(--color-border)',
+            background: 'var(--color-bg)',
+          }}>
+            {[
+              { id: 'task',    label: 'Task' },
+              { id: 'details', label: 'Details' },
+            ].map(t => {
+              const active = mobileTab === t.id
+              return (
+                <button key={t.id}
+                  onClick={() => setMobileTab(t.id)}
+                  style={{
+                    flex: 1, padding: '11px 0',
+                    background: 'transparent', border: 'none',
+                    borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
+                    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+                    color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
+                    cursor: 'pointer',
+                    transition: 'color 0.15s, border-color 0.15s',
+                  }}>{t.label}</button>
+              )
+            })}
+          </div>
+        )}
 
         {/* BODY */}
         <div style={bodyStyle}>
@@ -1128,16 +1185,17 @@ export default function TaskDetailModal({
           </div>
         </div>
 
-        {/* Share toast (in-modal) */}
+        {/* Share toast — sits inside modal shell so it's always on top */}
         {shareToast && (
           <div style={{
-            position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+            position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
             background: 'var(--color-text)', color: 'var(--color-bg)',
-            padding: '8px 16px', borderRadius: 100, fontFamily: 'var(--font-sans)',
-            fontSize: 12, fontWeight: 600,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-            zIndex: 10,
+            padding: '10px 18px', borderRadius: 100, fontFamily: 'var(--font-sans)',
+            fontSize: 13, fontWeight: 700,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+            zIndex: 1000,
             animation: 'tdmFade 0.2s ease',
+            whiteSpace: 'nowrap',
           }}>{shareToast}</div>
         )}
       </div>

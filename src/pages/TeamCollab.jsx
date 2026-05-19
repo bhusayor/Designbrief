@@ -1182,6 +1182,33 @@ Return JSON:
     setKanban(prev => ({ ...prev, tasks: [...(prev.tasks || []), t] }))
   }
 
+  // Creates a fresh empty task, persists it, then opens the TaskDetailModal.
+  // Replaces the old AddTaskModal flow — Linear/Jira style.
+  async function createAndOpenTask(column) {
+    const newTask = {
+      id: uid(),
+      title: '',
+      description: '',
+      column: column || customCols[0]?.id || KANBAN_COLS[0],
+      priority: 'MEDIUM',
+      estimatedDays: 1,
+      assignedRole: '',
+      assignedName: '',
+    }
+    localChangeAtRef.current.set(newTask.id, Date.now())
+    setKanban(prev => ({
+      ...(prev || {}),
+      tasks: [...(prev?.tasks || []), newTask],
+      projectTimeline: prev?.projectTimeline || '',
+      unassignedTasks: prev?.unassignedTasks || [],
+      missingRoles: prev?.missingRoles || [],
+    }))
+    if (phase !== 'kanban') setPhase('kanban')
+    // Persist so the TaskDetailModal's PATCH writes find the row.
+    try { await saveTaskNow(newTask) } catch (e) { console.error('[TC] createAndOpenTask save:', e) }
+    setEditingTask(newTask)
+  }
+
   function saveProjects(newProjects) {
     localStorage.setItem('teamcollab-projects', JSON.stringify(newProjects))
   }
@@ -3446,7 +3473,17 @@ STYLE:
           teamMembers={teamMembers}
           onUpdate={updateTask}
           onDelete={deleteTaskNow}
-          onClose={() => setEditingTask(null)}
+          onClose={() => {
+            const closedId = editingTask?.id
+            setEditingTask(null)
+            // If user opened via "Add Task" and never entered a title, scrub
+            // the empty row so the kanban doesn't fill up with "Untitled".
+            if (!closedId) return
+            const live = kanban?.tasks?.find(t => t.id === closedId)
+            if (live && (!live.title || !live.title.trim())) {
+              deleteTaskNow(closedId)
+            }
+          }}
         />
       )}
       <AddTaskModal
@@ -3934,7 +3971,7 @@ STYLE:
                   </button>
                 )}
                 {!isMobile && (
-                  <button onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: customCols[0]?.id || KANBAN_COLS[0] }); setShowAddTaskModal(true) }}
+                  <button onClick={() => createAndOpenTask(customCols[0]?.id || KANBAN_COLS[0])}
                     style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, minHeight: 'unset' }}>
                     <PlusIcon style={{ width: 13, height: 13 }} />
                     Add Task
@@ -4216,7 +4253,7 @@ STYLE:
                       </button>
 
                       <button
-                        onClick={e => { e.stopPropagation(); setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
+                        onClick={e => { e.stopPropagation(); createAndOpenTask(col.id) }}
                         onMouseDown={e => e.stopPropagation()}
                         style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.1s' }}
                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
@@ -4311,7 +4348,7 @@ STYLE:
                       <div style={{ height: 60, border: '1.5px dashed #3B82F680', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, color: '#3B82F6' }}>Drop here</div>
                     )}
                     <button
-                      onClick={() => { setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: col.id }); setShowAddTaskModal(true) }}
+                      onClick={() => createAndOpenTask(col.id)}
                       onMouseDown={e => e.stopPropagation()}
                       style={{ width: '100%', marginTop: 8, padding: '7px 0', background: 'transparent', border: '1px dashed var(--color-border)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-text-muted)'; e.currentTarget.style.color = 'var(--color-text)' }}
