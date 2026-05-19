@@ -440,9 +440,10 @@ export default function JoinPage() {
               You have joined as {invite.job_role}. You can now access the project board.
             </p>
             <Button variant="primary" full onClick={() => {
-              // Re-open the project to ensure TeamCollab loads it correctly
-              if (activeProject) openProject(activeProject)
-              else navigate('team')
+              // Always land on the TeamCollab board (not ProjectDocument).
+              // setActiveProject was already called in handleAcceptInvite so
+              // TC will pick up the right project.
+              navigate('team')
             }}>
               Open Project Board →
             </Button>

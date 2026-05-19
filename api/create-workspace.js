@@ -69,6 +69,28 @@ async function requireUser(req, res) {
   return user
 }
 
+// Returns true if user is the project owner OR an active team_member on it.
+// Used for write authorization across task / subtask / comment endpoints
+// so invited collaborators (not just the owner) can act on the project.
+async function userHasProjectAccess(userId, projectId) {
+  if (!userId || !projectId) return false
+  const { data: project } = await supabase
+    .from('projects')
+    .select('user_id')
+    .eq('id', projectId)
+    .maybeSingle()
+  if (project && project.user_id === userId) return true
+
+  const { data: member } = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .maybeSingle()
+  return !!member
+}
+
 export default async function handler(req, res) {
   setCors(res)
 
@@ -101,13 +123,9 @@ export default async function handler(req, res) {
       // the save hasn't landed yet), allow the upsert — the body MUST
       // include project_id in updates for us to be able to create the row.
       if (task) {
-        const { data: project } = await supabase
-          .from('projects')
-          .select('user_id')
-          .eq('id', task.project_id)
-          .maybeSingle()
-        if (!project || project.user_id !== user.id) {
-          return res.status(403).json({ error: 'Not project owner' })
+        const ok = await userHasProjectAccess(user.id, task.project_id)
+        if (!ok) {
+          return res.status(403).json({ error: 'Not a project member' })
         }
         const { data, error } = await supabase
           .from('tasks')
@@ -124,13 +142,15 @@ export default async function handler(req, res) {
       if (!projectIdFromBody) {
         return res.status(404).json({ error: 'Task not found and no project_id provided' })
       }
-      const { data: project } = await supabase
+      const okUpsert = await userHasProjectAccess(user.id, projectIdFromBody)
+      // Allow creation even if project doesn't exist yet (initial creation flow)
+      const { data: projectExists } = await supabase
         .from('projects')
-        .select('user_id')
+        .select('id')
         .eq('id', projectIdFromBody)
         .maybeSingle()
-      if (project && project.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+      if (projectExists && !okUpsert) {
+        return res.status(403).json({ error: 'Not a project member' })
       }
 
       const { data, error } = await supabase
@@ -169,8 +189,11 @@ export default async function handler(req, res) {
         .select('user_id')
         .eq('id', project_id)
         .maybeSingle()
-      if (project && project.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+      if (project) {
+        const ok = await userHasProjectAccess(user.id, project_id)
+        if (!ok) {
+          return res.status(403).json({ error: 'Not a project member' })
+        }
       }
       // If project doesn't exist yet, create it (FK)
       if (!project) {
@@ -228,13 +251,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'task_id, project_id and title required' })
     }
     try {
-      const { data: project } = await supabase
-        .from('projects')
-        .select('user_id')
-        .eq('id', project_id)
-        .maybeSingle()
-      if (project && project.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+      if (!(await userHasProjectAccess(user.id, project_id))) {
+        return res.status(403).json({ error: 'Not a project member' })
       }
 
       const id = Math.random().toString(36).slice(2, 10)
@@ -270,13 +288,8 @@ export default async function handler(req, res) {
         .maybeSingle()
       if (!sub) return res.status(404).json({ error: 'Subtask not found' })
 
-      const { data: project } = await supabase
-        .from('projects')
-        .select('user_id')
-        .eq('id', sub.project_id)
-        .maybeSingle()
-      if (project && project.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+      if (!(await userHasProjectAccess(user.id, sub.project_id))) {
+        return res.status(403).json({ error: 'Not a project member' })
       }
 
       const patch = {}
@@ -315,13 +328,8 @@ export default async function handler(req, res) {
         .maybeSingle()
       if (!sub) return res.json({ ok: true })
 
-      const { data: project } = await supabase
-        .from('projects')
-        .select('user_id')
-        .eq('id', sub.project_id)
-        .maybeSingle()
-      if (project && project.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+      if (!(await userHasProjectAccess(user.id, sub.project_id))) {
+        return res.status(403).json({ error: 'Not a project member' })
       }
 
       const { error } = await supabase.from('subtasks').delete().eq('id', subtask_id)
@@ -345,13 +353,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'task_id, project_id, and content or attachments required' })
     }
     try {
-      const { data: project } = await supabase
-        .from('projects')
-        .select('user_id')
-        .eq('id', project_id)
-        .maybeSingle()
-      if (project && project.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+      if (!(await userHasProjectAccess(user.id, project_id))) {
+        return res.status(403).json({ error: 'Not a project member' })
       }
 
       const id = Math.random().toString(36).slice(2, 10)
@@ -653,13 +656,8 @@ STRICT OUTPUT RULES:
         .maybeSingle()
       if (!task) return res.json({ ok: true })
 
-      const { data: project } = await supabase
-        .from('projects')
-        .select('user_id')
-        .eq('id', task.project_id)
-        .maybeSingle()
-      if (project && project.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+      if (!(await userHasProjectAccess(user.id, task.project_id))) {
+        return res.status(403).json({ error: 'Not a project member' })
       }
 
       const { error } = await supabase.from('tasks').delete().eq('id', task_id)
