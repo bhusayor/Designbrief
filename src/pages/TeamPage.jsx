@@ -310,8 +310,15 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
 
 // ── Invite Link Popup ─────────────────────────────────────────────────────────
 
-function InviteLinkPopup({ workspaceId, workspaceName, getHeaders, onClose }) {
-  const [role, setRole] = useState('member')
+function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, getHeaders, onClose }) {
+  // When projectId is supplied, the popup generates a PROJECT-level invite link
+  // (writes team_invites, /join/:token). Otherwise it falls back to WORKSPACE
+  // link behaviour (workspace_invites, /invite/:token).
+  const isProjectMode = !!projectId
+
+  // For workspace links the role is member|admin. For project links it is a
+  // free-form "job role" — default to Collaborator (most common case).
+  const [role, setRole] = useState(isProjectMode ? 'Collaborator' : 'member')
   const [linkData, setLinkData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -330,15 +337,18 @@ function InviteLinkPopup({ workspaceId, workspaceName, getHeaders, onClose }) {
     setLinkData(null)
     try {
       const h = await getHeaders()
+      const body = isProjectMode
+        ? { action: 'create_project_link', projectId, jobRole: r }
+        : { action: 'create_link', workspaceId, role: r }
       const res = await fetch('/api/invite', {
         method: 'POST', headers: h,
-        body: JSON.stringify({ action: 'create_link', workspaceId, role: r }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (res.ok) setLinkData(data)
     } catch {}
     finally { setLoading(false) }
-  }, [workspaceId, getHeaders])
+  }, [isProjectMode, projectId, workspaceId, getHeaders])
 
   useEffect(() => { generateLink(role) }, [role])
 
@@ -384,7 +394,19 @@ function InviteLinkPopup({ workspaceId, workspaceName, getHeaders, onClose }) {
 
       {/* Description */}
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '0 0 14px', lineHeight: 1.6 }}>
-        Anyone with this link can join <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{workspaceName}</strong> as the selected role.
+        {isProjectMode ? (
+          <>
+            Anyone with this link can join the project{' '}
+            <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{projectName || 'this project'}</strong>{' '}
+            as the selected role. They keep (or create) their own workspace.
+          </>
+        ) : (
+          <>
+            Anyone with this link can join{' '}
+            <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{workspaceName}</strong>{' '}
+            as the selected role.
+          </>
+        )}
       </p>
 
       {/* Role dropdown */}
@@ -399,8 +421,20 @@ function InviteLinkPopup({ workspaceId, workspaceName, getHeaders, onClose }) {
             fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
             appearance: 'none', WebkitAppearance: 'none', boxSizing: 'border-box',
           }}>
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
+            {isProjectMode ? (
+              <>
+                <option value="Collaborator">Collaborator</option>
+                <option value="Designer">Designer</option>
+                <option value="Developer">Developer</option>
+                <option value="Reviewer">Reviewer</option>
+                <option value="PM">Project Manager</option>
+              </>
+            ) : (
+              <>
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+              </>
+            )}
           </select>
           <ChevronDownIcon style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
         </div>
@@ -907,6 +941,8 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                 <InviteLinkPopup
                   workspaceId={workspace?.id}
                   workspaceName={workspace?.name}
+                  projectId={projectId}
+                  projectName={projectName}
                   getHeaders={getAuthHeaders}
                   onClose={() => setShowInviteLinkPopup(false)}
                 />

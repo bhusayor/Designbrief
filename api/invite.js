@@ -647,6 +647,90 @@ export default async function handler(req, res) {
       return res.json({ success: true })
     }
 
+    // ── CREATE PROJECT INVITE LINK (no specific email) ───────────────────────
+    // Body: { action:'create_project_link', projectId, jobRole? }
+    // Writes to team_invites with sentinel email "link:<role>" so the same
+    // link can be shared with multiple potential collaborators. Returns
+    // /join/:token (NOT /invite/:token) so JoinPage handles it.
+    if (action === 'create_project_link') {
+      const { projectId, jobRole = 'Collaborator' } = req.body
+      if (!projectId) return res.status(400).json({ error: 'projectId required' })
+
+      // Verify caller has access to this project
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id, user_id, title')
+        .eq('id', projectId)
+        .single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+
+      let canInvite = project.user_id === user.id
+      if (!canInvite) {
+        const { data: member } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('project_id', projectId)
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle()
+        canInvite = !!member
+      }
+      if (!canInvite) return res.status(403).json({ error: 'You are not on this project' })
+
+      const sentinelEmail = 'link:' + jobRole
+
+      // Return existing pending link for this role if present
+      const { data: existing } = await supabase
+        .from('team_invites')
+        .select('token, expires_at, id')
+        .eq('project_id', projectId)
+        .eq('invitee_email', sentinelEmail)
+        .eq('status', 'pending')
+        .gte('expires_at', new Date().toISOString())
+        .order('invited_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (existing?.token) {
+        return res.json({
+          token: existing.token,
+          expiresAt: existing.expires_at,
+          link: APP_URL + '/join/' + existing.token,
+          projectName: project.title,
+        })
+      }
+
+      const inviteToken = Math.random().toString(36).slice(2, 18) + Math.random().toString(36).slice(2, 18)
+      const inviteId = Math.random().toString(36).slice(2, 10)
+
+      const { data: created, error: createErr } = await supabase
+        .from('team_invites')
+        .insert({
+          id: inviteId,
+          project_id: projectId,
+          inviter_id: user.id,
+          invitee_email: sentinelEmail,
+          invitee_name: '',
+          job_role: jobRole,
+          token: inviteToken,
+          status: 'pending',
+        })
+        .select('token, expires_at')
+        .single()
+
+      if (createErr) {
+        console.error('[create_project_link insert]', createErr)
+        return res.status(500).json({ error: 'Failed to create invite link' })
+      }
+
+      return res.json({
+        token: created.token,
+        expiresAt: created.expires_at,
+        link: APP_URL + '/join/' + created.token,
+        projectName: project.title,
+      })
+    }
+
     // ── SEND PROJECT-LEVEL INVITE ─────────────────────────────────────────────
     // Body: { action:'send_project', projectId, email, name?, jobRole }
     // Creates a row in team_invites (NOT workspace_invites) so the invitee

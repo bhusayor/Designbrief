@@ -103,10 +103,15 @@ export async function getInviteByToken(inviteToken) {
 }
 
 // ── Accept an invite ──────────────────────────
-export async function acceptInvite(inviteToken, userId) {
+// `displayName` is used as a fallback when the invite has no invitee_name —
+// e.g. for "invite link" invites where invitee_email is a sentinel like
+// "link:Collaborator" and no recipient was specified up front.
+export async function acceptInvite(inviteToken, userId, displayName = '') {
   const invite = await getInviteByToken(inviteToken)
   if (!invite) throw new Error('Invite not found')
-  if (invite.status === 'accepted') {
+  const isLinkInvite = typeof invite.invitee_email === 'string' && invite.invitee_email.startsWith('link:')
+  // Link invites are reusable — don't reject if status='accepted'.
+  if (!isLinkInvite && invite.status === 'accepted') {
     throw new Error('This invite has already been accepted')
   }
   if (new Date(invite.expires_at) < new Date()) {
@@ -121,22 +126,25 @@ export async function acceptInvite(inviteToken, userId) {
       user_id: userId,
       invited_by: invite.inviter_id,
       job_role: invite.job_role,
-      display_name: invite.invitee_name,
+      display_name: invite.invitee_name || displayName || '',
       status: 'active',
     }, { onConflict: 'project_id,user_id' })
 
   if (memberError) throw memberError
 
-  // Mark invite as accepted
-  const { error: updateError } = await supabase
-    .from('team_invites')
-    .update({
-      status: 'accepted',
-      accepted_at: new Date().toISOString(),
-    })
-    .eq('token', inviteToken)
+  // Mark single-recipient invites as accepted. Keep link invites in
+  // 'pending' state so the same link can still be used by other people.
+  if (!isLinkInvite) {
+    const { error: updateError } = await supabase
+      .from('team_invites')
+      .update({
+        status: 'accepted',
+        accepted_at: new Date().toISOString(),
+      })
+      .eq('token', inviteToken)
 
-  if (updateError) throw updateError
+    if (updateError) throw updateError
+  }
 
   return { projectId: invite.project_id, invite }
 }

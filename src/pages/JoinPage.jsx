@@ -43,8 +43,11 @@ export default function JoinPage() {
       try {
         const data = await getInviteByToken(joinToken)
         if (data) {
+          // Link invites store a sentinel email like "link:Collaborator" — don't
+          // expose that as a real email to the user.
+          const isLinkInvite = typeof data.invitee_email === 'string' && data.invitee_email.startsWith('link:')
           setInvite(data)
-          setAuthEmail(data.invitee_email || '')
+          setAuthEmail(isLinkInvite ? '' : (data.invitee_email || ''))
           setAuthName(data.invitee_name || '')
           setPhase('invite')
         } else {
@@ -79,7 +82,12 @@ export default function JoinPage() {
   async function handleAcceptInvite() {
     setPhase('accepting')
     try {
-      const result = await acceptInvite(invite.token, authUser.id)
+      const fallbackName =
+        authUser?.user_metadata?.name ||
+        authUser?.user_metadata?.full_name ||
+        authUser?.email?.split('@')[0] ||
+        ''
+      const result = await acceptInvite(invite.token, authUser.id, fallbackName)
       localStorage.removeItem('db-join-token')
 
       // Fetch the project — requires the "Team members can view invited projects"
@@ -278,8 +286,11 @@ export default function JoinPage() {
               </div>
             </div>
 
-            {/* ── Authenticated: email matches ── */}
-            {authUser && authUser.email?.toLowerCase() === invite.invitee_email?.toLowerCase() && (
+            {/* ── Authenticated: email matches OR link invite (no email lock) ── */}
+            {authUser && (
+              (typeof invite.invitee_email === 'string' && invite.invitee_email.startsWith('link:')) ||
+              authUser.email?.toLowerCase() === invite.invitee_email?.toLowerCase()
+            ) && (
               <div>
                 <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 12, color: 'var(--color-text-soft)', margin: '0 0 14px' }}>
                   Joining as <strong>{authUser.email}</strong>
@@ -290,8 +301,10 @@ export default function JoinPage() {
               </div>
             )}
 
-            {/* ── Authenticated: wrong email ── */}
-            {authUser && authUser.email?.toLowerCase() !== invite.invitee_email?.toLowerCase() && (
+            {/* ── Authenticated: wrong email (only for email-specific invites) ── */}
+            {authUser &&
+              !(typeof invite.invitee_email === 'string' && invite.invitee_email.startsWith('link:')) &&
+              authUser.email?.toLowerCase() !== invite.invitee_email?.toLowerCase() && (
               <div>
                 <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 12, color: 'var(--color-amber)', margin: '0 0 8px' }}>
                   This invite was sent to {invite.invitee_email}
@@ -340,10 +353,12 @@ export default function JoinPage() {
                       type="email"
                       value={authEmail}
                       onChange={e => setAuthEmail(e.target.value)}
-                      readOnly={!!invite.invitee_email}
+                      readOnly={!!invite.invitee_email && !invite.invitee_email.startsWith('link:')}
                       placeholder="your@email.com"
                       required
-                      style={invite.invitee_email ? { ...inputStyle, opacity: 0.6, cursor: 'not-allowed' } : inputStyle}
+                      style={(!!invite.invitee_email && !invite.invitee_email.startsWith('link:'))
+                        ? { ...inputStyle, opacity: 0.6, cursor: 'not-allowed' }
+                        : inputStyle}
                     />
                   </div>
 
