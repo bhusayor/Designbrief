@@ -822,19 +822,34 @@ export default function TeamCollab() {
     }
   }, [ctxProjects, activeProjectId])
 
-  // If this device is sitting on the `default` placeholder but the DB has a
-  // real project, jump to it so the user lands on their actual data.
-  // setActiveProject (not openProject) — we want to stay on TeamCollab.
+  // Cross-device active-project sync: always follow the most-recently
+  // updated project from the DB. Whenever ctxProjects (sorted by
+  // updated_at desc upstream) changes its top entry, this device jumps
+  // to it.
+  //
+  // Triggers:
+  //   - Initial load (Device B opens TC → lands on Device A's last project)
+  //   - Device A switches projects → bumps updated_at → realtime/polling
+  //     pushes the new ordering → Device B follows
+  //   - Local switch on this device → updated_at bump → effect runs but
+  //     top.id already === activeProjectId → returns early (no jitter)
   useEffect(() => {
-    if (activeProjectId !== 'default') return
     if (!Array.isArray(ctxProjects) || ctxProjects.length === 0) return
     const target = ctxProjects[0]
-    console.log('[TC] auto-switching from default → real project', target.id, target.title)
+    if (!target?.id) return
+    if (target.id === activeProjectId) return
+    // Don't snap away from a brand-new local-only tab the user just created
+    // (it isn't in ctxProjects yet until the PATCH lands).
+    const localOnly = !ctxProjects.some(p => p.id === activeProjectId)
+                      && activeProjectId !== 'default'
+                      && activeProjectId
+    if (localOnly) return
+    console.log('[TC] sync: switching to most-recent project', target.id, target.title)
     setActiveProjectId(target.id)
     try { localStorage.setItem('teamcollab-active-project', target.id) } catch {}
     setProjectTitle(target.title || 'Untitled')
     if (setActiveProject) setActiveProject(target)
-  }, [activeProjectId, ctxProjects])
+  }, [ctxProjects?.[0]?.id])
 
   // ── Auto-save tasks to DB ─────────────────────────────────────────────────
   // Fires whenever kanban.tasks OR authUser changes (add, edit, move, delete,
@@ -2321,6 +2336,13 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   function handleSwitchProject(id) {
     if (id === activeProjectId) return
     switchWithTransition(id, projects)
+    // Touch the project's updated_at so other devices know this is the
+    // most-recently-active one and auto-follow.
+    if (renameProjectInDB && id !== 'default') {
+      const existing = ctxProjects?.find(p => p.id === id) || projects?.find(p => p.id === id)
+      const title = existing?.title || 'Untitled'
+      renameProjectInDB(id, title, 'team')
+    }
   }
 
   function handleRenameProject(projectId, newTitle) {
@@ -4329,21 +4351,14 @@ STYLE:
                       setDragOverTaskId(null)
                     }}
                   >
-                    {/* Skeleton cards while loading from DB */}
-                    {tasksLoading && colTasks.length === 0 && [0, 1, 2].map(i => (
-                      <div key={i} style={{ background: 'var(--color-surface)', borderRadius: 10, padding: '12px 14px', marginBottom: 8, animation: 'pulse 1.4s ease infinite', animationDelay: i * 0.15 + 's' }}>
-                        <div style={{ height: 10, background: 'var(--color-border)', borderRadius: 5, width: '70%', marginBottom: 8 }} />
-                        <div style={{ height: 8, background: 'var(--color-border)', borderRadius: 5, width: '45%' }} />
-                      </div>
-                    ))}
                     {/* Fetch-error notice */}
-                    {taskLoadError && colTasks.length === 0 && !tasksLoading && (
+                    {taskLoadError && colTasks.length === 0 && (
                       <div style={{ padding: '12px 8px', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 11, color: '#dc2626' }}>
                         Failed to load tasks. Try refreshing.
                       </div>
                     )}
                     {colTasks.map(task => <React.Fragment key={task.id}>{TaskCard({ task })}</React.Fragment>)}
-                    {colTasks.length === 0 && !isTaskDropTarget && !tasksLoading && !taskLoadError && (
+                    {colTasks.length === 0 && !isTaskDropTarget && !taskLoadError && (
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0' }}>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.5 }}>No tasks yet</div>
                       </div>
