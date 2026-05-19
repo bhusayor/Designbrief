@@ -605,7 +605,6 @@ export default function TeamCollab() {
   const projectMenuRef = useRef(null)
   // Auto-save to DB: tracks prev task IDs per project to detect deletions
   const dbSaveTimerRef = useRef(null)
-  const prevDbStateRef = useRef(null) // { projectId, ids: Set<string> }
   const flushSaveRef = useRef(null)   // holds the latest doSave fn for unmount flush
   // Tracks task IDs the server has confirmed at least once. Lets the polling
   // merge tell 'pending save' (never seen) from 'deleted remotely' (seen, gone).
@@ -885,38 +884,31 @@ export default function TeamCollab() {
   }, [ctxProjects?.[0]?.id, ctxProjects?.length])
 
   // ── Auto-save tasks to DB ─────────────────────────────────────────────────
-  // Fires whenever kanban.tasks OR authUser changes (add, edit, move, delete,
-  // drag-drop, and also when auth finishes loading after tasks are already set).
-  // Debounced 1.5s to batch rapid changes. Tracks deletions per-project via ref.
+  // Fires whenever kanban.tasks OR authUser changes. Debounced 1.5s to batch
+  // rapid changes.
+  //
+  // IMPORTANT: this used to also diff against prev state and call
+  // deleteTaskFromDB for any task ID that disappeared from kanban — but that
+  // racy "diff and delete" logic would wrongly nuke the OTHER project's
+  // tasks during project switches, because:
+  //   - localStorage caches can hold task IDs that don't match the fresh DB
+  //   - realtime DELETE events for cascaded tasks (from a deleted project)
+  //     trim the kanban DURING the project transition, and the deletion
+  //     logic then re-sent those deletes for any task that happened to
+  //     share the same project_id reference in transit.
+  //
+  // Explicit user deletes already call deleteTaskFromDB directly inside
+  // deleteTaskNow. So this auto-save is upsert-only now.
   useEffect(() => {
     const projectId = activeProjectId || activeProject?.id
     if (!projectId || projectId === 'default' || !authUser || !Array.isArray(kanban?.tasks)) return
 
     const currentTasks = kanban.tasks
-    const currentIds = new Set(currentTasks.map(t => t.id))
-
-    let deletedIds = []
-    if (prevDbStateRef.current?.projectId === projectId) {
-      deletedIds = [...prevDbStateRef.current.ids].filter(id => !currentIds.has(id))
-    }
-    prevDbStateRef.current = { projectId, ids: currentIds }
-
-    const snapshotTitle = projectTitle || 'Team Project'
     const snapshotUserId = authUser.id
-    const snapshotIsShared = activeProject?.isShared
-    const snapshotDeletedIds = deletedIds
 
     async function doSave() {
-      // saveTasksToDB hits /api/create-workspace (service role) which already
-      // upserts the project row if missing, so we no longer need the manual
-      // project upsert that was hanging via direct supabase write.
       if (currentTasks.length > 0) {
         await saveTasksToDB(currentTasks, projectId, snapshotUserId)
-      }
-      // Deletions: use the same server path one-by-one. Bulk delete via REST
-      // hangs the same way bulk update did.
-      for (const tid of snapshotDeletedIds) {
-        await deleteTaskFromDB(tid)
       }
     }
 
