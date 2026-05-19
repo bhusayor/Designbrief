@@ -781,14 +781,40 @@ export function AppProvider({ children }) {
     // accidentally become a brief-translator entry, even if a prior bad
     // row exists in DB with section='translator').
     let preservedSection = sectionOverride;
+
+    // Optimistic update — IMPORTANT: handle both "exists" (rename) and
+    // "doesn't exist yet" (create-via-handleNewProject) cases. Without the
+    // upsert behaviour here, a brand-new TC project never landed in
+    // AppContext.projects on Device A, so its realtime echo on Device B
+    // couldn't be cross-referenced and the polling fallback also missed it.
+    const newRow = {
+      id,
+      title,
+      section: sectionOverride || 'team',
+      ts: Date.now(),
+      pinned: false,
+      data: { brief: null, projectName: title, scoring: null, result: null },
+      teamMembers: [],
+      kanban: null,
+      approvalStatus: {},
+      comments: {},
+      locked: false,
+      shareId: null,
+    };
     setProjects(prev => {
+      const idx = prev.findIndex(p => p.id === id);
+      if (idx === -1) return [newRow, ...prev];
       if (!preservedSection) {
-        const existing = prev.find(p => p.id === id);
+        const existing = prev[idx];
         if (existing?.section) preservedSection = existing.section;
       }
       return prev.map(p => p.id === id ? { ...p, title, ...(sectionOverride ? { section: sectionOverride } : {}) } : p);
     });
-    setHistory(prev => prev.map(p => p.id === id ? { ...p, title, ...(sectionOverride ? { section: sectionOverride } : {}) } : p));
+    setHistory(prev => {
+      const idx = prev.findIndex(p => p.id === id);
+      if (idx === -1) return [newRow, ...prev];
+      return prev.map(p => p.id === id ? { ...p, title, ...(sectionOverride ? { section: sectionOverride } : {}) } : p);
+    });
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title, ...(sectionOverride ? { section: sectionOverride } : {}) } : prev);
     if (!authUser) return;
 

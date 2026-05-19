@@ -2298,23 +2298,23 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   // Create a brand-new TC project. Goes through the service-role API
   // (renameProjectInDB → PATCH /api/create-workspace) which upserts the
   // row server-side — same path that fixed cross-device rename sync.
-  // Direct supabase.from('projects').upsert() was hanging silently,
-  // so Device B's realtime INSERT never fired.
   async function handleNewProject() {
     const newProj = { id: uid(), title: 'New Project' }
+    console.log('[TC handleNewProject] creating', newProj, 'authUser:', authUser?.id)
     const updated = [...projects, newProj]
     setProjects(updated)
     saveProjects(updated)
     switchWithTransition(newProj.id, updated)
-    // Persist via the AppContext helper that hits the API. We pass
-    // section='team' so the row never accidentally lands as 'translator'.
-    if (renameProjectInDB) {
-      try {
-        await renameProjectInDB(newProj.id, newProj.title, 'team')
-      } catch (e) {
-        console.error('[TC] handleNewProject:', e)
-        showToast?.('Failed to create project', 'error')
-      }
+    if (!renameProjectInDB) {
+      console.error('[TC handleNewProject] renameProjectInDB not available')
+      return
+    }
+    try {
+      renameProjectInDB(newProj.id, newProj.title, 'team')
+      console.log('[TC handleNewProject] PATCH triggered, expect [renameProject] logs next')
+    } catch (e) {
+      console.error('[TC handleNewProject]', e)
+      showToast?.('Failed to create project', 'error')
     }
   }
 
