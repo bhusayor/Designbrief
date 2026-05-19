@@ -2295,31 +2295,27 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     }, 200)
   }
 
-  function handleNewProject() {
+  // Create a brand-new TC project. Goes through the service-role API
+  // (renameProjectInDB → PATCH /api/create-workspace) which upserts the
+  // row server-side — same path that fixed cross-device rename sync.
+  // Direct supabase.from('projects').upsert() was hanging silently,
+  // so Device B's realtime INSERT never fired.
+  async function handleNewProject() {
     const newProj = { id: uid(), title: 'New Project' }
     const updated = [...projects, newProj]
     setProjects(updated)
     saveProjects(updated)
-    // Persist to DB so other devices see this project. Includes user_id so RLS
-    // allows the insert; updated_at lets realtime listeners order correctly.
-    if (authUser) {
-      supabase.from('projects').upsert(
-        {
-          id: newProj.id,
-          user_id: authUser.id,
-          title: newProj.title,
-          section: 'team',
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' }
-      ).then(({ error }) => {
-        if (error) {
-          console.error('[TC] handleNewProject DB upsert:', error)
-          showToast?.('Failed to create project', 'error')
-        }
-      })
-    }
     switchWithTransition(newProj.id, updated)
+    // Persist via the AppContext helper that hits the API. We pass
+    // section='team' so the row never accidentally lands as 'translator'.
+    if (renameProjectInDB) {
+      try {
+        await renameProjectInDB(newProj.id, newProj.title, 'team')
+      } catch (e) {
+        console.error('[TC] handleNewProject:', e)
+        showToast?.('Failed to create project', 'error')
+      }
+    }
   }
 
   function handleSwitchProject(id) {
