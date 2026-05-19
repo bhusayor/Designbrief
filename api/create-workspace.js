@@ -185,6 +185,270 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── POST: add a subtask (caller must own the parent project) ───────────
+  // Body: { kind:'subtask', task_id, project_id, title }
+  if (req.method === 'POST' && req.body?.kind === 'subtask') {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const { task_id, project_id, title } = req.body
+    if (!task_id || !project_id || !title) {
+      return res.status(400).json({ error: 'task_id, project_id and title required' })
+    }
+    try {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', project_id)
+        .maybeSingle()
+      if (project && project.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+
+      const id = Math.random().toString(36).slice(2, 10)
+      const { data, error } = await supabase
+        .from('subtasks')
+        .insert({ id, task_id, project_id, title })
+        .select('*')
+        .single()
+      if (error) throw error
+      return res.json({ subtask: data })
+    } catch (e) {
+      console.error('[create-workspace POST subtask]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── PATCH: toggle / rename a subtask ────────────────────────────────────
+  // Body: { subtask_id, updates: { completed?, title? } }
+  if (req.method === 'PATCH' && req.body?.subtask_id) {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const { subtask_id, updates } = req.body
+    if (!updates || typeof updates !== 'object') {
+      return res.status(400).json({ error: 'updates required' })
+    }
+
+    try {
+      const { data: sub } = await supabase
+        .from('subtasks')
+        .select('id, project_id')
+        .eq('id', subtask_id)
+        .maybeSingle()
+      if (!sub) return res.status(404).json({ error: 'Subtask not found' })
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', sub.project_id)
+        .maybeSingle()
+      if (project && project.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+
+      const patch = {}
+      if ('completed' in updates) {
+        patch.completed = !!updates.completed
+        patch.completed_at = updates.completed ? new Date().toISOString() : null
+      }
+      if ('title' in updates) patch.title = updates.title
+
+      const { data, error } = await supabase
+        .from('subtasks')
+        .update(patch)
+        .eq('id', subtask_id)
+        .select('*')
+        .single()
+      if (error) throw error
+      return res.json({ subtask: data })
+    } catch (e) {
+      console.error('[create-workspace PATCH subtask]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── DELETE: delete a subtask ────────────────────────────────────────────
+  // Body: { subtask_id }
+  if (req.method === 'DELETE' && req.body?.subtask_id) {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const { subtask_id } = req.body
+    try {
+      const { data: sub } = await supabase
+        .from('subtasks')
+        .select('id, project_id')
+        .eq('id', subtask_id)
+        .maybeSingle()
+      if (!sub) return res.json({ ok: true })
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', sub.project_id)
+        .maybeSingle()
+      if (project && project.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+
+      const { error } = await supabase.from('subtasks').delete().eq('id', subtask_id)
+      if (error) throw error
+      return res.json({ ok: true })
+    } catch (e) {
+      console.error('[create-workspace DELETE subtask]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── POST: add a comment ────────────────────────────────────────────────
+  // Body: { kind:'comment', task_id, project_id, author_name, content }
+  if (req.method === 'POST' && req.body?.kind === 'comment') {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const { task_id, project_id, author_name, content } = req.body
+    if (!task_id || !project_id || !content) {
+      return res.status(400).json({ error: 'task_id, project_id and content required' })
+    }
+    try {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', project_id)
+        .maybeSingle()
+      if (project && project.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not project owner' })
+      }
+
+      const id = Math.random().toString(36).slice(2, 10)
+      const { data, error } = await supabase
+        .from('task_comments')
+        .insert({
+          id, task_id, project_id,
+          user_id: user.id,
+          author_name: author_name || user.email || 'User',
+          content,
+        })
+        .select('*')
+        .single()
+      if (error) throw error
+
+      // Also log to task_activity so the History tab picks it up
+      await supabase.from('task_activity').insert({
+        id: Math.random().toString(36).slice(2, 10),
+        task_id, project_id, user_id: user.id,
+        actor_name: author_name || user.email || 'User',
+        action: 'added comment',
+        new_value: content.slice(0, 80),
+      })
+
+      return res.json({ comment: data })
+    } catch (e) {
+      console.error('[create-workspace POST comment]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── DELETE: delete a comment ───────────────────────────────────────────
+  // Body: { comment_id }
+  if (req.method === 'DELETE' && req.body?.comment_id) {
+    const user = await requireUser(req, res)
+    if (!user) return
+    const { comment_id } = req.body
+    try {
+      const { data: comment } = await supabase
+        .from('task_comments')
+        .select('id, project_id, user_id')
+        .eq('id', comment_id)
+        .maybeSingle()
+      if (!comment) return res.json({ ok: true })
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', comment.project_id)
+        .maybeSingle()
+      const isOwner = project && project.user_id === user.id
+      const isAuthor = comment.user_id === user.id
+      if (!isOwner && !isAuthor) {
+        return res.status(403).json({ error: 'Not allowed' })
+      }
+
+      const { error } = await supabase.from('task_comments').delete().eq('id', comment_id)
+      if (error) throw error
+      return res.json({ ok: true })
+    } catch (e) {
+      console.error('[create-workspace DELETE comment]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── POST: log an activity entry ────────────────────────────────────────
+  // Body: { kind:'activity', task_id, project_id, action, old_value, new_value, actor_name }
+  if (req.method === 'POST' && req.body?.kind === 'activity') {
+    const user = await requireUser(req, res)
+    if (!user) return
+    const { task_id, project_id, action, old_value, new_value, actor_name } = req.body
+    if (!task_id || !project_id || !action) {
+      return res.status(400).json({ error: 'task_id, project_id and action required' })
+    }
+    try {
+      const { error } = await supabase.from('task_activity').insert({
+        id: Math.random().toString(36).slice(2, 10),
+        task_id, project_id,
+        user_id: user.id,
+        actor_name: actor_name || user.email || 'User',
+        action,
+        old_value: old_value || null,
+        new_value: new_value || null,
+      })
+      if (error) throw error
+      return res.json({ ok: true })
+    } catch (e) {
+      console.error('[create-workspace POST activity]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // ── POST: AI-enhance a description ─────────────────────────────────────
+  // Body: { kind:'enhance-description', text, title }
+  if (req.method === 'POST' && req.body?.kind === 'enhance-description') {
+    const user = await requireUser(req, res)
+    if (!user) return
+    const { text, title } = req.body
+    try {
+      const apiKey = process.env.ANTHROPIC_API_KEY
+      if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+
+      const userMsg = `Task title: "${title || 'Untitled'}"\n\nCurrent description:\n"""\n${text || '(empty)'}\n"""\n\nRewrite the description to be clearer, more actionable, and well-structured. Use short paragraphs and bullet points when helpful. Keep the original intent. Output ONLY the new description text, no preamble.`
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 800,
+          messages: [{ role: 'user', content: userMsg }],
+        }),
+      })
+      if (!resp.ok) {
+        const err = await resp.text()
+        return res.status(500).json({ error: 'AI failed: ' + err.slice(0, 200) })
+      }
+      const data = await resp.json()
+      const enhanced = data?.content?.[0]?.text?.trim() || ''
+      return res.json({ description: enhanced })
+    } catch (e) {
+      console.error('[create-workspace POST enhance]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
   // ── DELETE: delete a task (caller must own parent project) ──────────────
   // Body: { task_id }
   if (req.method === 'DELETE' && req.body?.task_id) {

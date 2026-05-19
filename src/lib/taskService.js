@@ -131,7 +131,7 @@ export async function deleteTaskFromDB(taskId) {
   }
 }
 
-// ── Subtask functions ─────────────────────────────────────────────────────────
+// ── Subtask functions (server-side writes bypass RLS) ────────────────────────
 export async function getSubtasks(taskId) {
   const { data } = await supabase
     .from('subtasks')
@@ -142,28 +142,18 @@ export async function getSubtasks(taskId) {
 }
 
 export async function addSubtask(taskId, projectId, title) {
-  const { data, error } = await supabase
-    .from('subtasks')
-    .insert({ id: uid(), task_id: taskId, project_id: projectId, title })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const res = await apiCall('POST', {
+    kind: 'subtask', task_id: taskId, project_id: projectId, title,
+  })
+  return res.subtask
 }
 
 export async function updateSubtask(id, updates) {
-  const { error } = await supabase
-    .from('subtasks')
-    .update({
-      ...updates,
-      completed_at: updates.completed ? new Date().toISOString() : null,
-    })
-    .eq('id', id)
-  if (error) throw error
+  await apiCall('PATCH', { subtask_id: id, updates })
 }
 
 export async function deleteSubtask(id) {
-  await supabase.from('subtasks').delete().eq('id', id)
+  await apiCall('DELETE', { subtask_id: id })
 }
 
 // ── Comment functions ─────────────────────────────────────────────────────────
@@ -177,41 +167,43 @@ export async function getComments(taskId) {
 }
 
 export async function addComment(taskId, projectId, userId, authorName, content) {
-  const { data, error } = await supabase
-    .from('task_comments')
-    .insert({
-      id: uid(),
-      task_id: taskId,
-      project_id: projectId,
-      user_id: userId,
-      author_name: authorName,
-      content,
-    })
-    .select()
-    .single()
-  if (error) throw error
-
-  await logActivity(taskId, projectId, userId, authorName, 'commented', '', content.slice(0, 50))
-
-  return data
+  const res = await apiCall('POST', {
+    kind: 'comment',
+    task_id: taskId,
+    project_id: projectId,
+    author_name: authorName,
+    content,
+  })
+  return res.comment
 }
 
 export async function deleteComment(id) {
-  await supabase.from('task_comments').delete().eq('id', id)
+  await apiCall('DELETE', { comment_id: id })
 }
 
-// ── Activity log functions ────────────────────────────────────────────────────
+// ── Activity log functions (server-side bypasses RLS) ────────────────────────
 export async function logActivity(taskId, projectId, userId, actorName, action, oldValue, newValue) {
-  await supabase.from('task_activity').insert({
-    id: uid(),
-    task_id: taskId,
-    project_id: projectId,
-    user_id: userId,
-    actor_name: actorName,
-    action,
-    old_value: oldValue || null,
-    new_value: newValue || null,
+  try {
+    await apiCall('POST', {
+      kind: 'activity',
+      task_id: taskId,
+      project_id: projectId,
+      action,
+      old_value: oldValue,
+      new_value: newValue,
+      actor_name: actorName,
+    })
+  } catch (e) {
+    console.warn('logActivity error:', e.message)
+  }
+}
+
+// ── AI description enhancement ───────────────────────────────────────────────
+export async function enhanceDescription(text, title) {
+  const res = await apiCall('POST', {
+    kind: 'enhance-description', text, title,
   })
+  return res.description
 }
 
 export async function getActivity(taskId) {

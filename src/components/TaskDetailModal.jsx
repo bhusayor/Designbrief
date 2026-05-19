@@ -9,6 +9,7 @@ import {
   getSubtasks, addSubtask, updateSubtask, deleteSubtask,
   getComments, addComment, deleteComment,
   getActivity, logActivity, updateTaskInDB, mapDBTask,
+  enhanceDescription,
 } from '../lib/taskService'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -140,6 +141,8 @@ export default function TaskDetailModal({
   const [copiedPrompt, setCopiedPrompt] = useState(false)
   const [showLabels, setShowLabels] = useState(false)
   const [newLabel, setNewLabel] = useState('')
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [enhancing, setEnhancing] = useState(false)
 
   // Close any popover when user clicks outside
   const popoverRef = useRef(null)
@@ -149,6 +152,7 @@ export default function TaskDetailModal({
       if (!popoverRef.current.contains(e.target)) {
         setShowStatus(false); setShowPriority(false)
         setShowAssignee(false); setShowLabels(false)
+        setShowMoreMenu(false)
       }
     }
     document.addEventListener('mousedown', onDocClick)
@@ -374,6 +378,23 @@ export default function TaskDetailModal({
     }).catch(() => {})
   }
 
+  // ── AI enhance description ─────────────────────────────────────────────
+  async function handleEnhanceDescription() {
+    if (enhancing) return
+    setEnhancing(true)
+    try {
+      const enhanced = await enhanceDescription(descDraft || task.description || '', task.title)
+      if (enhanced) {
+        setDescDraft(enhanced)
+        await patchTask({ description: enhanced }, 'enhanced description with AI')
+      }
+    } catch (e) {
+      console.error('[enhance]', e)
+    } finally {
+      setEnhancing(false)
+    }
+  }
+
   // ── Derived ────────────────────────────────────────────────────────────
   const statusColor = STATUS_COLORS[task.column] || '#6B7280'
   const priorityMeta = PRIORITY_OPTIONS.find(p => p.id === (task.priority || 'none')) || PRIORITY_OPTIONS[4]
@@ -476,7 +497,31 @@ export default function TaskDetailModal({
               const url = `${window.location.origin}/task/${task.id}`
               navigator.clipboard.writeText(url).catch(() => {})
             }}><ShareIcon style={iconSize()} /></button>
-            <button title="More" style={iconBtn()}><EllipsisHorizontalIcon style={iconSize()} /></button>
+            <div style={{ position: 'relative' }}>
+              <button title="More options" style={iconBtn()} onClick={() => setShowMoreMenu(s => !s)}>
+                <EllipsisHorizontalIcon style={iconSize()} />
+              </button>
+              {showMoreMenu && (
+                <div style={popoverStyle({ top: '100%', right: 0, minWidth: 180 })}>
+                  <div className="tdm-row"
+                    onClick={() => {
+                      setShowMoreMenu(false)
+                      if (window.confirm('Delete this task permanently?')) {
+                        onDelete?.(task.id); onClose?.()
+                      }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 10px', cursor: 'pointer',
+                      fontFamily: 'var(--font-sans)', fontSize: 13,
+                      color: '#EF4444',
+                    }}>
+                    <TrashIcon style={{ width: 13, height: 13 }} />
+                    Delete Task
+                  </div>
+                </div>
+              )}
+            </div>
             <button title="Close" onClick={onClose} style={iconBtn()}>
               <XMarkIcon style={iconSize()} />
             </button>
@@ -521,7 +566,28 @@ export default function TaskDetailModal({
 
               {/* DESCRIPTION */}
               <div style={{ marginTop: 24 }}>
-                <SectionLabel>Description</SectionLabel>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <SectionLabel>Description</SectionLabel>
+                  <button
+                    onClick={handleEnhanceDescription}
+                    disabled={enhancing}
+                    title="Rewrite this description with AI"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: enhancing ? 'var(--color-surface)' : 'var(--color-accent-soft)',
+                      border: '1px solid ' + (enhancing ? 'var(--color-border)' : 'rgba(13,148,136,0.25)'),
+                      borderRadius: 100,
+                      padding: '3px 9px',
+                      fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700,
+                      letterSpacing: '0.02em',
+                      color: enhancing ? 'var(--color-text-muted)' : 'var(--color-accent)',
+                      cursor: enhancing ? 'wait' : 'pointer',
+                      marginBottom: 6,
+                    }}>
+                    <SparklesIcon style={{ width: 11, height: 11 }} />
+                    {enhancing ? 'Enhancing...' : 'Enhance with AI'}
+                  </button>
+                </div>
                 {editingDesc ? (
                   <textarea
                     autoFocus
@@ -847,6 +913,23 @@ export default function TaskDetailModal({
                 )}
               </div>
 
+              {/* Start Date — goes BEFORE Due Date */}
+              <label className="tdm-row" style={{ ...detailRowStyle, display: 'flex' }}>
+                <span style={labelStyle}>Start Date</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {task.startDate ? (
+                    <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{formatDate(task.startDate)}</span>
+                  ) : (
+                    <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>None</span>
+                  )}
+                  <input type="date" value={task.startDate || ''}
+                    onChange={e => changeStartDate(e.target.value)}
+                    style={{ position: 'absolute', opacity: 0, pointerEvents: 'auto', width: 1, height: 1 }} />
+                  <CalendarIcon style={{ width: 13, height: 13, color: 'var(--color-text-muted)', cursor: 'pointer' }}
+                    onClick={e => { e.currentTarget.parentElement.querySelector('input[type=date]').showPicker?.() }} />
+                </div>
+              </label>
+
               {/* Due Date */}
               <label className="tdm-row" style={{ ...detailRowStyle, display: 'flex' }}>
                 <span style={labelStyle}>Due Date</span>
@@ -862,23 +945,6 @@ export default function TaskDetailModal({
                   )}
                   <input type="date" value={task.dueDate || ''}
                     onChange={e => changeDueDate(e.target.value)}
-                    style={{ position: 'absolute', opacity: 0, pointerEvents: 'auto', width: 1, height: 1 }} />
-                  <CalendarIcon style={{ width: 13, height: 13, color: 'var(--color-text-muted)', cursor: 'pointer' }}
-                    onClick={e => { e.currentTarget.parentElement.querySelector('input[type=date]').showPicker?.() }} />
-                </div>
-              </label>
-
-              {/* Start Date */}
-              <label className="tdm-row" style={{ ...detailRowStyle, display: 'flex' }}>
-                <span style={labelStyle}>Start Date</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {task.startDate ? (
-                    <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{formatDate(task.startDate)}</span>
-                  ) : (
-                    <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>None</span>
-                  )}
-                  <input type="date" value={task.startDate || ''}
-                    onChange={e => changeStartDate(e.target.value)}
                     style={{ position: 'absolute', opacity: 0, pointerEvents: 'auto', width: 1, height: 1 }} />
                   <CalendarIcon style={{ width: 13, height: 13, color: 'var(--color-text-muted)', cursor: 'pointer' }}
                     onClick={e => { e.currentTarget.parentElement.querySelector('input[type=date]').showPicker?.() }} />
@@ -953,19 +1019,6 @@ export default function TaskDetailModal({
               </div>
             )}
 
-            {/* DELETE */}
-            {onDelete && (
-              <button
-                onClick={() => { if (window.confirm('Delete this task permanently?')) { onDelete(task.id); onClose?.() } }}
-                style={{
-                  marginTop: 8, width: '100%',
-                  background: 'rgba(239,68,68,0.08)',
-                  border: '1px solid rgba(239,68,68,0.25)',
-                  borderRadius: 9, padding: '9px 14px',
-                  color: '#EF4444', fontFamily: 'var(--font-sans)',
-                  fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                }}>Delete Task</button>
-            )}
           </div>
         </div>
       </div>
