@@ -218,6 +218,9 @@ function ComposerBubble({
           }}
           placeholder="Add a comment..."
           rows={1}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={true}
           style={{
             width: '100%', background: 'transparent', border: 'none', outline: 'none',
             padding: 0, fontSize: 14, color: 'var(--color-text)',
@@ -271,12 +274,11 @@ function ComposerBubble({
             style={{
               background: hasContent ? 'var(--color-accent)' : 'var(--color-border)',
               color: hasContent ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-              border: 'none', borderRadius: 100,
-              width: 30, height: 30, padding: 0,
+              border: 'none', borderRadius: 8,
+              width: 32, height: 32, padding: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: hasContent ? 'pointer' : 'default',
-              transition: 'background 0.15s, transform 0.12s',
-              transform: hasContent ? 'scale(1)' : 'scale(0.95)',
+              transition: 'background 0.15s',
             }}>
             <ArrowUpIcon style={{ width: 15, height: 15 }} />
           </button>
@@ -508,6 +510,7 @@ function CommentRow({
   replying, replyDraft, setReplyDraft, onSubmitReply,
   currentUserName,
   reactionsMap,
+  makeHandlersForComment,
   nested = false,
 }) {
   const up = reaction?.up || 0
@@ -693,37 +696,34 @@ function CommentRow({
             <button onClick={onSubmitReply} disabled={!replyDraft.trim()} style={{
               background: replyDraft.trim() ? 'var(--color-accent)' : 'var(--color-surface)',
               color: replyDraft.trim() ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-              border: 'none', borderRadius: 8, padding: '0 10px',
+              border: 'none', borderRadius: 8,
+              width: 32, height: 32, padding: 0,
               cursor: replyDraft.trim() ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
             }}>
               <ArrowUpIcon style={{ width: 14, height: 14 }} />
             </button>
           </div>
         )}
 
-        {/* Nested replies */}
-        {replies.length > 0 && (
+        {/* Nested replies — pass through the parent's handler factory so each
+            reply gets its OWN wired set of actions (menu/edit/delete/thumbs) */}
+        {replies.length > 0 && makeHandlersForComment && (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {replies.map(r => (
-              <CommentRow
-                key={'r' + r.id}
-                comment={r}
-                isMine={false}  // controlled at parent; nested doesn't show delete
-                reaction={reactionsMap?.[r.id]}
-                editing={false}
-                menuOpen={false}
-                setMenuOpen={() => {}}
-                onStartEdit={() => {}} onSaveEdit={() => {}} onCancelEdit={() => {}}
-                onDelete={() => {}}
-                onCopy={() => navigator.clipboard?.writeText(r.content || '').catch(() => {})}
-                onReply={() => {}}
-                onThumbUp={() => {}}
-                onThumbDown={() => {}}
-                nested
-                reactionsMap={reactionsMap}
-              />
-            ))}
+            {replies.map(r => {
+              const h = makeHandlersForComment(r)
+              return (
+                <CommentRow
+                  key={'r' + r.id}
+                  comment={r}
+                  {...h}
+                  nested
+                  reactionsMap={reactionsMap}
+                  makeHandlersForComment={makeHandlersForComment}
+                />
+              )
+            })}
           </div>
         )}
       </div>
@@ -819,6 +819,9 @@ export default function TaskDetailModal({
   const [shareToast, setShareToast] = useState(null)
   // Mobile-only: switch between left (Task) and right (Details) panels
   const [mobileTab, setMobileTab] = useState('task') // 'task' | 'details'
+  // Ref for the left-panel scroll container so we can auto-scroll to bottom
+  // when a new comment is added (so it doesn't hide behind the composer).
+  const leftScrollRef = useRef(null)
   // Per-comment UI state
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editingCommentDraft, setEditingCommentDraft] = useState('')
@@ -934,6 +937,26 @@ export default function TaskDetailModal({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // Auto-scroll the activity feed to the bottom when comment count grows,
+  // so the newest comment is visible above the composer instead of hidden
+  // behind it. Only fires when we're already near the bottom (don't yank
+  // the user away if they're reading older comments).
+  const prevCommentCountRef = useRef(0)
+  useEffect(() => {
+    const el = leftScrollRef.current
+    if (!el) return
+    const grew = comments.length > prevCommentCountRef.current
+    prevCommentCountRef.current = comments.length
+    if (!grew) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distanceFromBottom < 200) {
+      // Smooth scroll to the very bottom
+      requestAnimationFrame(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      })
+    }
+  }, [comments.length])
 
   // ── Save helper ────────────────────────────────────────────────────────
   async function patchTask(updates, activityAction, oldValue, newValue) {
@@ -1232,15 +1255,24 @@ export default function TaskDetailModal({
     } catch (e) { console.warn('[reaction]', e) }
   }
 
-  // Load existing reactions for the comments we have
+  // Load existing reactions when the set of comment IDs grows. We only
+  // fetch for IDs we don't yet have in `reactions`, and we MERGE into
+  // existing state — never overwrite a locally-set optimistic value or
+  // we'd "lose" a thumbs the user just clicked.
+  const reactionsFetchedRef = useRef(new Set())
   useEffect(() => {
     if (!comments?.length) return
-    const ids = comments.map(c => c.id)
+    const newIds = comments
+      .map(c => c.id)
+      .filter(id => !reactionsFetchedRef.current.has(id))
+    if (newIds.length === 0) return
+    newIds.forEach(id => reactionsFetchedRef.current.add(id))
+
     let cancelled = false
     supabase
       .from('task_comment_reactions')
       .select('comment_id, user_id, reaction')
-      .in('comment_id', ids)
+      .in('comment_id', newIds)
       .then(({ data }) => {
         if (cancelled || !data) return
         const map = {}
@@ -1250,10 +1282,17 @@ export default function TaskDetailModal({
           else if (r.reaction === 'down') map[r.comment_id].down++
           if (r.user_id === authUser?.id) map[r.comment_id].mine = r.reaction
         }
-        setReactions(prev => ({ ...prev, ...map }))
+        setReactions(prev => {
+          const next = { ...prev }
+          for (const id of Object.keys(map)) {
+            // Preserve existing optimistic state if it's already there
+            if (!next[id]) next[id] = map[id]
+          }
+          return next
+        })
       })
     return () => { cancelled = true }
-  }, [comments.map(c => c.id).join(','), authUser?.id])
+  }, [comments.length, authUser?.id])
 
   // ── Share task link (robust: native share → clipboard → execCommand) ───
   async function handleShare() {
@@ -1355,6 +1394,28 @@ export default function TaskDetailModal({
   const statusColor = STATUS_COLORS[task.column] || '#6B7280'
   const priorityMeta = PRIORITY_OPTIONS.find(p => p.id === (task.priority || 'none')) || PRIORITY_OPTIONS[4]
   const overdue = isOverdue(task.dueDate)
+
+  // Build a handler set for any comment (top-level OR reply) so the reply
+  // row gets the same Copy / Edit / Delete / Thumbs / Reply wiring as a
+  // top-level comment.
+  const makeHandlersForComment = (c) => ({
+    isMine: c.user_id === authUser?.id,
+    reaction: reactions[c.id],
+    editing: editingCommentId === c.id,
+    editDraft: editingCommentDraft,
+    setEditDraft: setEditingCommentDraft,
+    menuOpen: openCommentMenuId === c.id,
+    setMenuOpen: (v) => setOpenCommentMenuId(v ? c.id : null),
+    onStartEdit: () => startEditComment(c),
+    onSaveEdit: () => saveEditComment(c),
+    onCancelEdit: () => setEditingCommentId(null),
+    onDelete: () => handleDeleteComment(c.id),
+    onCopy: () => copyComment(c),
+    onReply: () => { setReplyingToId(c.id); setReplyDraft('') },
+    onThumbUp: () => toggleReaction(c, 'up'),
+    onThumbDown: () => toggleReaction(c, 'down'),
+    currentUserName: user?.firstName || user?.name,
+  })
 
   // Compute activity feed view (top-level comments only; replies nested under their parent)
   const topLevelComments = comments.filter(c => !c.parent_id)
@@ -1540,7 +1601,10 @@ export default function TaskDetailModal({
 
           {/* LEFT PANEL */}
           <div style={leftStyle}>
-            <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 16px 12px' : '22px 26px 16px' }}>
+            <div ref={leftScrollRef} style={{
+              flex: 1, minHeight: 0, overflowY: 'auto',
+              padding: isMobile ? '16px 16px 12px' : '22px 26px 16px',
+            }}>
 
               {/* TITLE */}
               {editingTitle ? (
@@ -1787,27 +1851,13 @@ export default function TaskDetailModal({
                         replies={comments
                           .filter(c => c.parent_id === entry.id)
                           .map(c => ({ ...c, __onPreview: setPreviewFile }))}
-                        isMine={entry.user_id === authUser?.id}
-                        reaction={reactions[entry.id]}
-                        editing={editingCommentId === entry.id}
-                        editDraft={editingCommentDraft}
-                        setEditDraft={setEditingCommentDraft}
-                        menuOpen={openCommentMenuId === entry.id}
-                        setMenuOpen={(v) => setOpenCommentMenuId(v ? entry.id : null)}
-                        onStartEdit={() => startEditComment(entry)}
-                        onSaveEdit={() => saveEditComment(entry)}
-                        onCancelEdit={() => setEditingCommentId(null)}
-                        onDelete={() => handleDeleteComment(entry.id)}
-                        onCopy={() => copyComment(entry)}
-                        onReply={() => { setReplyingToId(entry.id); setReplyDraft('') }}
-                        onThumbUp={() => toggleReaction(entry, 'up')}
-                        onThumbDown={() => toggleReaction(entry, 'down')}
+                        {...makeHandlersForComment(entry)}
                         replying={replyingToId === entry.id}
                         replyDraft={replyDraft}
                         setReplyDraft={setReplyDraft}
                         onSubmitReply={() => submitReply(entry)}
-                        currentUserName={user?.firstName || user?.name}
                         reactionsMap={reactions}
+                        makeHandlersForComment={makeHandlersForComment}
                       />
                     ) : (
                       <div key={'a' + entry.id} style={{ display: 'flex', gap: 10, alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)' }}>
@@ -1829,6 +1879,7 @@ export default function TaskDetailModal({
               background: 'var(--color-bg)',
             }}>
               <ComposerBubble
+                key={`composer-${task.id}`}
                 value={newComment}
                 onChange={setNewComment}
                 onSubmit={handleAddComment}
