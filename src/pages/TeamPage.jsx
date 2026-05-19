@@ -100,12 +100,17 @@ function StatusBadge({ status }) {
 
 // ── Invite Modal (inner) ──────────────────────────────────────────────────────
 
-function InviteModal({ workspaceId, onClose, onSent, getHeaders }) {
+function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, getHeaders }) {
   const [emails, setEmails] = useState('')
   const [role, setRole] = useState('member')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // When projectId is supplied, this modal sends PROJECT-level invites
+  // (action='send_project', writes team_invites, /join/:token link).
+  // Otherwise it falls back to WORKSPACE-level invites (the old behaviour).
+  const isProjectMode = !!projectId
 
   async function handleSend() {
     const emailList = emails.split(',').map(e => e.trim()).filter(Boolean)
@@ -123,12 +128,16 @@ function InviteModal({ workspaceId, onClose, onSent, getHeaders }) {
         return
       }
 
+      const body = isProjectMode
+        ? { action: 'send_project', projectId, jobRole: role }
+        : { action: 'send', workspaceId, role }
+
       const results = await Promise.allSettled(
         emailList.map(email =>
           fetch('/api/invite', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authH },
-            body: JSON.stringify({ action: 'send', workspaceId, email, role }),
+            body: JSON.stringify({ ...body, email }),
           }).then(r => r.json())
         )
       )
@@ -455,7 +464,7 @@ function useIsMobile() {
 
 // ── Main TeamPage ─────────────────────────────────────────────────────────────
 
-export default function TeamPage({ onClose }) {
+export default function TeamPage({ onClose, projectId, projectName }) {
   const { workspace, authUser, session } = useApp()
   const isMobile = useIsMobile()
   const [tab, setTab] = useState('all')
@@ -1145,6 +1154,8 @@ export default function TeamPage({ onClose }) {
       {showInviteModal && (
         <InviteModal
           workspaceId={workspace?.id}
+          projectId={projectId}
+          projectName={projectName}
           onClose={() => setShowInviteModal(false)}
           onSent={loadData}
           getHeaders={getAuthHeaders}

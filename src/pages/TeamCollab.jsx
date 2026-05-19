@@ -34,7 +34,6 @@ import BuildInterface from '../components/build/BuildInterface'
 import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
 import TaskDetailModal from '../components/TaskDetailModal'
-import ProjectInviteModal from '../components/ProjectInviteModal'
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 // ─── Board agent tools ────────────────────────────────────────────────────────
@@ -587,7 +586,6 @@ export default function TeamCollab() {
 
   const [showBuildInterface, setShowBuildInterface] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
-  const [showProjectInvite, setShowProjectInvite] = useState(false)
   const [showMoreViews, setShowMoreViews] = useState(false)
   const [showProjectMenu, setShowProjectMenu] = useState(false)
   const [renamingProjectId, setRenamingProjectId] = useState(null)
@@ -3846,7 +3844,7 @@ STYLE:
           const isDone = teamMembers.some(m => m.name?.trim())
           return (
             <button
-              onClick={() => setShowProjectInvite(true)}
+              onClick={() => setShowTeamModal(true)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 7,
                 padding: '6px 14px', borderRadius: 8,
@@ -4850,19 +4848,14 @@ STYLE:
         </div>
       )}
 
-      {/* Team People overlay (workspace settings — kept for future use, no
-          button currently opens it) */}
+      {/* Team People overlay — when opened FROM TeamCollab, we pass projectId
+          so its invite form sends a PROJECT-level invite (not a workspace
+          invite). The TeamPage UI itself is unchanged. */}
       {showTeamModal && (
-        <TeamPage onClose={() => setShowTeamModal(false)} />
-      )}
-
-      {/* Project-level invite — invites collaborator to THIS project only,
-          not to the workspace. Sends /join/:token link. */}
-      {showProjectInvite && (
-        <ProjectInviteModal
+        <TeamPage
+          onClose={() => setShowTeamModal(false)}
           projectId={activeProjectId || activeProject?.id}
           projectName={projectTitle}
-          onClose={() => setShowProjectInvite(false)}
         />
       )}
 
