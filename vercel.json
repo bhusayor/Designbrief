@@ -8,8 +8,28 @@
     "api/build-component.js":    { "maxDuration": 30 },
     "api/invite.js":             { "maxDuration": 15 },
     "api/settings.js":           { "maxDuration": 30 },
-    "api/create-workspace.js":   { "maxDuration": 10 }
+    "api/create-workspace.js":   { "maxDuration": 30 }
   },
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/connectors/figma",  "destination": "/api/connectors" },
     { "source": "/api/connectors/github", "destination": "/api/connectors" },

@@ -875,6 +875,59 @@ export default function TaskDetailModal({
     return () => { cancelled = true }
   }, [task?.id])
 
+  // ── Polling fallback: refetch comments / subtasks / activity every 8s
+  // while the modal is visible. Realtime is preferred (the subscription
+  // catches push events) but it can silently fail when:
+  //   - The relevant table isn't in supabase_realtime publication
+  //   - The websocket dropped during a tab/network blip
+  //   - RLS is misconfigured for the broadcast
+  // Polling guarantees the user sees fresh state within ~8s without
+  // a full page refresh.
+  useEffect(() => {
+    if (!task?.id) return
+    let cancelled = false
+
+    const refetch = async () => {
+      if (cancelled || document.hidden) return
+      try {
+        const [subs, cmts, acts] = await Promise.all([
+          getSubtasks(task.id),
+          getComments(task.id),
+          getActivity(task.id),
+        ])
+        if (cancelled) return
+        // Replace only if length OR most-recent-id differs to avoid
+        // needless re-renders that could disturb in-progress edits
+        setSubtasks(prev => {
+          if (prev.length === subs.length && prev[prev.length - 1]?.id === subs[subs.length - 1]?.id) return prev
+          return subs
+        })
+        setComments(prev => {
+          if (prev.length === cmts.length && prev[prev.length - 1]?.id === cmts[cmts.length - 1]?.id) return prev
+          return cmts
+        })
+        setActivity(prev => {
+          if (prev.length === acts.length && prev[0]?.id === acts[0]?.id) return prev
+          return acts
+        })
+      } catch {
+        /* transient — next tick will retry */
+      }
+    }
+
+    const interval = setInterval(refetch, 8000)
+    const onVis = () => { if (!document.hidden) refetch() }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('focus', refetch)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('focus', refetch)
+    }
+  }, [task?.id])
+
   // ── Real-time subscription for this open task ──────────────────────────
   useEffect(() => {
     if (!task?.id) return
@@ -966,13 +1019,16 @@ export default function TaskDetailModal({
     try {
       await updateTaskInDB(next)
       if (activityAction && projectId && authUser?.id) {
-        logActivity(
+        await logActivity(
           task.id, projectId, authUser.id,
           user?.firstName || user?.name || 'User',
           activityAction,
           oldValue == null ? '' : String(oldValue),
           newValue == null ? '' : String(newValue),
-        ).catch(() => {})
+        )
+        // Refetch activity right after our own write so the History tab
+        // updates immediately, without waiting for realtime or polling.
+        getActivity(task.id).then(d => setActivity(d || [])).catch(() => {})
       }
     } catch (e) {
       console.error('[TaskDetailModal] patchTask', e)
@@ -1831,7 +1887,19 @@ export default function TaskDetailModal({
                   {['all', 'comments', 'history'].map(t => (
                     <div key={t}
                       className={'tdm-tab ' + (activityTab === t ? 'tdm-tab-active' : '')}
-                      onClick={() => setActivityTab(t)}>
+                      onClick={() => {
+                        setActivityTab(t)
+                        // Force a fresh fetch on tab switch so the user sees
+                        // the latest state instead of whatever was cached.
+                        if (task?.id) {
+                          if (t === 'history' || t === 'all') {
+                            getActivity(task.id).then(d => setActivity(d || [])).catch(() => {})
+                          }
+                          if (t === 'comments' || t === 'all') {
+                            getComments(task.id).then(d => setComments(d || [])).catch(() => {})
+                          }
+                        }
+                      }}>
                       {t[0].toUpperCase() + t.slice(1)}
                     </div>
                   ))}
