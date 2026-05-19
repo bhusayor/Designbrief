@@ -5,7 +5,8 @@ import {
   PlusIcon, TrashIcon, CalendarIcon, FlagIcon, UserIcon, TagIcon,
   ChevronDownIcon, SparklesIcon, ClipboardDocumentIcon, CheckIcon,
   ArrowUpIcon, HandThumbUpIcon, HandThumbDownIcon,
-  ArrowUturnLeftIcon, PencilIcon,
+  ArrowUturnLeftIcon, PencilIcon, PaperClipIcon, ArrowDownTrayIcon,
+  PhotoIcon, DocumentIcon,
 } from '@heroicons/react/24/outline'
 import {
   getSubtasks, addSubtask, updateSubtask, deleteSubtask,
@@ -66,25 +67,35 @@ function initialOf(name) {
   return (name || '?')[0]?.toUpperCase() || '?'
 }
 
-// Renders plain text with embedded URLs converted to clickable links that
-// open in a new tab. Splits on URLs but preserves everything else as text.
+// Renders plain text with URLs (http://, https://, www.) auto-linked.
+// Uses exec() in a loop instead of split() to avoid global-regex state
+// bugs that were causing links to render as plain text.
 function renderCommentBody(text) {
   if (!text) return null
-  const urlRegex = /(https?:\/\/[^\s]+)/g
-  const parts = String(text).split(urlRegex)
-  return parts.map((part, i) => {
-    if (urlRegex.test(part)) {
-      // Reset regex state (split + test on same regex has stateful gotcha)
-      urlRegex.lastIndex = 0
-      return (
-        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
-          style={{ color: 'var(--color-accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
-          {part}
-        </a>
-      )
+  const str = String(text)
+  const urlRegex = /\b((?:https?:\/\/|www\.)[^\s<>"')]+[^\s<>"')\.,;:!?])/gi
+  const out = []
+  let lastIndex = 0
+  let match
+  while ((match = urlRegex.exec(str)) !== null) {
+    if (match.index > lastIndex) {
+      out.push(<span key={out.length}>{str.slice(lastIndex, match.index)}</span>)
     }
-    return <span key={i}>{part}</span>
-  })
+    const raw = match[0]
+    const href = raw.startsWith('http') ? raw : `https://${raw}`
+    out.push(
+      <a key={out.length} href={href} target="_blank" rel="noopener noreferrer"
+        onClick={e => e.stopPropagation()}
+        style={{ color: 'var(--color-accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
+        {raw}
+      </a>
+    )
+    lastIndex = match.index + raw.length
+  }
+  if (lastIndex < str.length) {
+    out.push(<span key={out.length}>{str.slice(lastIndex)}</span>)
+  }
+  return out.length ? out : str
 }
 
 // ─── Tiny presentational helpers ────────────────────────────────────────────
@@ -107,6 +118,190 @@ const Avatar = ({ name, size = 24 }) => (
     fontSize: size * 0.42, flexShrink: 0,
   }}>{initialOf(name)}</div>
 )
+
+// ── ComposerBubble: unified avatar + textarea + paperclip + send ────────────
+function ComposerBubble({
+  value, onChange, onSubmit, onAttach, uploading,
+  attachments = [], onRemoveAttachment,
+  userName,
+}) {
+  const [focused, setFocused] = useState(false)
+  const taRef = useRef(null)
+
+  // Auto-grow textarea
+  useEffect(() => {
+    const el = taRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px'
+  }, [value])
+
+  const hasContent = !!value.trim() || attachments.length > 0
+
+  return (
+    <div
+      style={{
+        display: 'flex', gap: 10, alignItems: 'flex-start',
+      }}>
+      <Avatar name={userName} size={32} />
+      <div
+        style={{
+          flex: 1,
+          background: 'var(--color-surface)',
+          border: '1.5px solid ' + (focused ? 'var(--color-accent)' : 'var(--color-border)'),
+          borderRadius: 12,
+          padding: '8px 10px 8px 14px',
+          boxShadow: focused ? '0 0 0 3px var(--color-accent-soft)' : 'none',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+        }}>
+
+        {/* Attachment preview row (pending uploads) */}
+        {attachments.length > 0 && (
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 6,
+            paddingBottom: 8, marginBottom: 8,
+            borderBottom: '1px solid var(--color-border)',
+          }}>
+            {attachments.map((a, idx) => (
+              <AttachmentChip
+                key={a.path || idx}
+                attachment={a}
+                onRemove={() => onRemoveAttachment(idx)}
+                compact
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Textarea */}
+        <textarea
+          ref={taRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault()
+              if (hasContent) onSubmit()
+            }
+          }}
+          placeholder="Add a comment..."
+          rows={1}
+          style={{
+            width: '100%', background: 'transparent', border: 'none', outline: 'none',
+            padding: 0, fontSize: 14, color: 'var(--color-text)',
+            fontFamily: 'var(--font-sans)',
+            minHeight: 22, maxHeight: 160, resize: 'none',
+            lineHeight: 1.55, boxSizing: 'border-box',
+          }}
+        />
+
+        {/* Action row inside the bubble */}
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 6 }}>
+          <button
+            onClick={onAttach}
+            disabled={uploading}
+            title="Attach file"
+            style={{
+              background: 'transparent', border: 'none',
+              padding: 6, borderRadius: 7, cursor: uploading ? 'wait' : 'pointer',
+              color: 'var(--color-text-muted)',
+              display: 'flex', alignItems: 'center',
+            }}>
+            <PaperClipIcon style={{ width: 16, height: 16 }} />
+          </button>
+          {uploading && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 4 }}>Uploading…</span>
+          )}
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={onSubmit}
+            disabled={!hasContent}
+            title="Send comment (⌘+Enter)"
+            style={{
+              background: hasContent ? 'var(--color-accent)' : 'var(--color-border)',
+              color: hasContent ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
+              border: 'none', borderRadius: 100,
+              width: 30, height: 30, padding: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: hasContent ? 'pointer' : 'default',
+              transition: 'background 0.15s, transform 0.12s',
+              transform: hasContent ? 'scale(1)' : 'scale(0.95)',
+            }}>
+            <ArrowUpIcon style={{ width: 15, height: 15 }} />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── AttachmentChip: inline preview/download chip ───────────────────────────
+function AttachmentChip({ attachment, onRemove, compact = false }) {
+  const isImage = attachment.type?.startsWith('image/')
+  const sizeKb = attachment.size ? Math.round(attachment.size / 1024) : null
+
+  if (isImage && !compact) {
+    return (
+      <a href={attachment.url} target="_blank" rel="noopener noreferrer"
+        style={{
+          display: 'inline-block',
+          maxWidth: 280, maxHeight: 200,
+          borderRadius: 10, overflow: 'hidden',
+          border: '1px solid var(--color-border)',
+        }}>
+        <img src={attachment.url} alt={attachment.name}
+          style={{ display: 'block', maxWidth: '100%', maxHeight: 200, objectFit: 'cover' }} />
+      </a>
+    )
+  }
+
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 8,
+      background: compact ? 'var(--color-bg)' : 'var(--color-surface)',
+      border: '1px solid var(--color-border)', borderRadius: 9,
+      padding: '5px 8px 5px 10px',
+      maxWidth: 320,
+    }}>
+      {isImage
+        ? <PhotoIcon style={{ width: 15, height: 15, color: 'var(--color-accent)', flexShrink: 0 }} />
+        : <DocumentIcon style={{ width: 15, height: 15, color: 'var(--color-text-muted)', flexShrink: 0 }} />}
+      <div style={{
+        display: 'flex', flexDirection: 'column', minWidth: 0,
+        fontFamily: 'var(--font-sans)',
+      }}>
+        <span style={{
+          fontSize: 12, fontWeight: 600, color: 'var(--color-text)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          maxWidth: 200,
+        }}>{attachment.name}</span>
+        {sizeKb != null && (
+          <span style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>{sizeKb} KB</span>
+        )}
+      </div>
+      {/* Open / Download button */}
+      <a href={attachment.url} target="_blank" rel="noopener noreferrer" download={attachment.name}
+        title="Open / Download"
+        style={{
+          color: 'var(--color-text-muted)', padding: 4, borderRadius: 6,
+          display: 'flex', alignItems: 'center',
+        }}>
+        <ArrowDownTrayIcon style={{ width: 13, height: 13 }} />
+      </a>
+      {onRemove && (
+        <button onClick={onRemove} title="Remove" style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--color-text-muted)', padding: 2,
+          display: 'flex', alignItems: 'center',
+        }}>
+          <XMarkIcon style={{ width: 12, height: 12 }} />
+        </button>
+      )}
+    </div>
+  )
+}
 
 function CommentRow({
   comment, replies = [], isMine, reaction,
@@ -196,14 +391,28 @@ function CommentRow({
             </div>
           </div>
         ) : (
-          <div style={{
-            marginTop: 4, padding: '8px 12px',
-            background: 'var(--color-surface)',
-            borderRadius: 8,
-            fontFamily: 'var(--font-sans)', fontSize: 13,
-            color: 'var(--color-text)', whiteSpace: 'pre-wrap', lineHeight: 1.5,
-            wordBreak: 'break-word',
-          }}>{renderCommentBody(comment.content)}</div>
+          <div style={{ marginTop: 4 }}>
+            {comment.content && (
+              <div style={{
+                padding: '8px 12px',
+                background: 'var(--color-surface)',
+                borderRadius: 8,
+                fontFamily: 'var(--font-sans)', fontSize: 13,
+                color: 'var(--color-text)', whiteSpace: 'pre-wrap', lineHeight: 1.5,
+                wordBreak: 'break-word',
+              }}>{renderCommentBody(comment.content)}</div>
+            )}
+            {Array.isArray(comment.attachments) && comment.attachments.length > 0 && (
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: 6,
+                marginTop: comment.content ? 6 : 0,
+              }}>
+                {comment.attachments.map((a, idx) => (
+                  <AttachmentChip key={a.path || idx} attachment={a} />
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Reaction strip — thumbs up/down + counts */}
@@ -389,6 +598,10 @@ export default function TaskDetailModal({
   const [replyDraft, setReplyDraft] = useState('')
   // Local reaction map: { [commentId]: { up: number, down: number, mine: 'up'|'down'|null } }
   const [reactions, setReactions] = useState({})
+  // Pending attachments for the next comment to be sent
+  const [pendingAttachments, setPendingAttachments] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
 
   // Description textarea auto-grows with content (capped, then scrolls)
   const descTextareaRef = useRef(null)
@@ -606,16 +819,78 @@ export default function TaskDetailModal({
     } catch (e) { console.error(e) }
   }
 
+  // ── File upload to Supabase Storage ────────────────────────────────────
+  async function handleFilesSelected(files) {
+    if (!files || files.length === 0) return
+    setUploading(true)
+    const uploaded = []
+    for (const file of files) {
+      try {
+        // 5 MB cap per file (Vercel function limit + Supabase free tier sanity)
+        if (file.size > 5 * 1024 * 1024) {
+          setShareToast(`${file.name} is over 5MB`)
+          setTimeout(() => setShareToast(null), 2200)
+          continue
+        }
+        const ext = file.name.split('.').pop() || 'bin'
+        const path = `${task.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+        const { error } = await supabase.storage
+          .from('task-attachments')
+          .upload(path, file, { contentType: file.type || 'application/octet-stream' })
+        if (error) throw error
+        const { data: pub } = supabase.storage.from('task-attachments').getPublicUrl(path)
+        uploaded.push({
+          path,
+          url: pub?.publicUrl,
+          name: file.name,
+          size: file.size,
+          type: file.type || 'application/octet-stream',
+        })
+      } catch (e) {
+        console.error('[upload]', e)
+        setShareToast(`Upload failed: ${e.message || file.name}`)
+        setTimeout(() => setShareToast(null), 2500)
+      }
+    }
+    setUploading(false)
+    if (uploaded.length > 0) {
+      setPendingAttachments(prev => [...prev, ...uploaded])
+    }
+    // reset the input so picking the same file again re-fires onChange
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function removePendingAttachment(idx) {
+    setPendingAttachments(prev => prev.filter((_, i) => i !== idx))
+  }
+
   // ── Comments ───────────────────────────────────────────────────────────
   async function handleAddComment() {
     const c = newComment.trim()
-    if (!c || !authUser?.id) return
+    const atts = pendingAttachments
+    if ((!c && atts.length === 0) || !authUser?.id) return
     setNewComment('')
+    setPendingAttachments([])
     try {
-      const created = await addComment(task.id, projectId, authUser.id,
-        user?.firstName || user?.name || 'User', c)
-      if (created) {
-        setComments(prev => prev.some(x => x.id === created.id) ? prev : [...prev, created])
+      // Use the underlying API directly to pass attachments
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('No session')
+      const res = await fetch('/api/create-workspace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          kind: 'comment',
+          task_id: task.id,
+          project_id: projectId,
+          author_name: user?.firstName || user?.name || 'User',
+          content: c,
+          attachments: atts,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data?.comment) {
+        setComments(prev => prev.some(x => x.id === data.comment.id) ? prev : [...prev, data.comment])
       }
     } catch (e) {
       console.error('[TaskDetailModal] addComment', e)
@@ -1311,55 +1586,30 @@ export default function TaskDetailModal({
               </div>
             </div>
 
-            {/* COMMENT INPUT */}
+            {/* COMMENT COMPOSER */}
             <div style={{
               flexShrink: 0,
-              padding: isMobile ? '10px 14px env(safe-area-inset-bottom, 10px)' : '12px 22px',
+              padding: isMobile ? '10px 12px env(safe-area-inset-bottom, 10px)' : '14px 22px 16px',
               borderTop: '1px solid var(--color-border)',
               background: 'var(--color-bg)',
             }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                <Avatar name={user?.firstName || user?.name} size={26} />
-                <textarea
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                      e.preventDefault(); handleAddComment()
-                    }
-                  }}
-                  placeholder="Add a comment..."
-                  rows={1}
-                  style={{
-                    flex: 1, background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)', borderRadius: 9,
-                    padding: '8px 12px', fontSize: 13, outline: 'none',
-                    fontFamily: 'var(--font-sans)', color: 'var(--color-text)',
-                    boxSizing: 'border-box',
-                    minHeight: 36, maxHeight: 160, resize: 'none',
-                    lineHeight: 1.5,
-                  }}
-                  onInput={e => {
-                    e.target.style.height = 'auto'
-                    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
-                  }}
-                />
-                <button
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim()}
-                  title="Send comment"
-                  style={{
-                    background: newComment.trim() ? 'var(--color-accent)' : 'var(--color-surface)',
-                    color: newComment.trim() ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-                    border: 'none', borderRadius: 9,
-                    width: 36, height: 36, padding: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: newComment.trim() ? 'pointer' : 'default',
-                    flexShrink: 0,
-                  }}>
-                  <ArrowUpIcon style={{ width: 16, height: 16 }} />
-                </button>
-              </div>
+              <ComposerBubble
+                value={newComment}
+                onChange={setNewComment}
+                onSubmit={handleAddComment}
+                onAttach={() => fileInputRef.current?.click()}
+                uploading={uploading}
+                attachments={pendingAttachments}
+                onRemoveAttachment={removePendingAttachment}
+                userName={user?.firstName || user?.name}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{ display: 'none' }}
+                onChange={e => handleFilesSelected(Array.from(e.target.files || []))}
+              />
             </div>
           </div>
 

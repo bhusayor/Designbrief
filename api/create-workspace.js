@@ -339,9 +339,10 @@ export default async function handler(req, res) {
     const user = await requireUser(req, res)
     if (!user) return
 
-    const { task_id, project_id, author_name, content, parent_id } = req.body
-    if (!task_id || !project_id || !content) {
-      return res.status(400).json({ error: 'task_id, project_id and content required' })
+    const { task_id, project_id, author_name, content, parent_id, attachments } = req.body
+    // Allow attachment-only comments (no text content) so users can drop files
+    if (!task_id || !project_id || (!content && !(Array.isArray(attachments) && attachments.length > 0))) {
+      return res.status(400).json({ error: 'task_id, project_id, and content or attachments required' })
     }
     try {
       const { data: project } = await supabase
@@ -358,9 +359,10 @@ export default async function handler(req, res) {
         id, task_id, project_id,
         user_id: user.id,
         author_name: author_name || user.email || 'User',
-        content,
+        content: content || '',
       }
       if (parent_id) row.parent_id = parent_id
+      if (Array.isArray(attachments) && attachments.length > 0) row.attachments = attachments
 
       const { data, error } = await supabase
         .from('task_comments')
