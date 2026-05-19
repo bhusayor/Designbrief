@@ -610,6 +610,9 @@ export default function TeamCollab() {
   // Tracks task IDs the server has confirmed at least once. Lets the polling
   // merge tell 'pending save' (never seen) from 'deleted remotely' (seen, gone).
   const confirmedRemoteIdsRef = useRef(new Set())
+  // Same idea for PROJECT IDs in the TC tab list — distinguishes "pending
+  // create not yet round-tripped to the DB" from "deleted on another device".
+  const seenCtxProjectIdsRef = useRef(new Set())
   // Tracks taskId → timestamp of the most recent LOCAL change. Polling and
   // realtime overrides are skipped for tasks modified locally within the
   // last 6 seconds so a column move (or rename) can't flicker back to its
@@ -786,14 +789,16 @@ export default function TeamCollab() {
       const ctxById = new Map(
         ctxProjects.map(p => [p.id, { id: p.id, title: p.title || 'Untitled' }])
       )
+      const ctxIdSet = new Set(ctxById.keys())
+      const prevSeen = seenCtxProjectIdsRef.current
 
       // If THIS device only has a 'default' placeholder tab but the DB has
-      // real projects for this user, drop the placeholder entirely — the
-      // user owns named projects elsewhere and the placeholder is meaningless.
+      // real projects for this user, drop the placeholder entirely.
       const onlyPlaceholder = prev.length === 1 && prev[0].id === 'default'
       if (onlyPlaceholder && ctxProjects.length > 0) {
         const merged = ctxProjects.map(p => ({ id: p.id, title: p.title || 'Untitled' }))
         try { localStorage.setItem('teamcollab-projects', JSON.stringify(merged)) } catch {}
+        seenCtxProjectIdsRef.current = new Set([...prevSeen, ...ctxIdSet])
         return merged
       }
 
@@ -801,12 +806,25 @@ export default function TeamCollab() {
       const seen = new Set()
       for (const tab of prev) {
         const ctx = ctxById.get(tab.id)
-        if (ctx) { merged.push({ ...tab, title: ctx.title }); seen.add(tab.id); ctxById.delete(tab.id) }
-        else merged.push(tab) // local-only tab (not yet in DB)
+        if (ctx) {
+          merged.push({ ...tab, title: ctx.title })
+          seen.add(tab.id)
+          ctxById.delete(tab.id)
+        } else if (prevSeen.has(tab.id)) {
+          // This tab WAS in ctxProjects before and is NOT now → another device
+          // deleted it. Drop it from the local tab list.
+          continue
+        } else {
+          // Never confirmed by server → local-only pending create. Keep.
+          merged.push(tab)
+        }
       }
+      // Append any new ctxProjects we don't yet have as tabs
       for (const ctx of ctxById.values()) {
         if (!seen.has(ctx.id)) merged.push(ctx)
       }
+
+      seenCtxProjectIdsRef.current = new Set([...prevSeen, ...ctxIdSet])
 
       const same = merged.length === prev.length &&
         merged.every((m, i) => m.id === prev[i].id && m.title === prev[i].title)
@@ -827,34 +845,44 @@ export default function TeamCollab() {
     }
   }, [ctxProjects, activeProjectId])
 
-  // Cross-device active-project sync: always follow the most-recently
-  // updated project from the DB. Whenever ctxProjects (sorted by
-  // updated_at desc upstream) changes its top entry, this device jumps
-  // to it.
-  //
-  // Triggers:
-  //   - Initial load (Device B opens TC → lands on Device A's last project)
-  //   - Device A switches projects → bumps updated_at → realtime/polling
-  //     pushes the new ordering → Device B follows
-  //   - Local switch on this device → updated_at bump → effect runs but
-  //     top.id already === activeProjectId → returns early (no jitter)
+  // Cross-device active-project sync + deletion handling.
+  // Watches both the top-of-list (which signals "Device A is on this now")
+  // AND the full id list (which signals "this project was deleted").
   useEffect(() => {
     if (!Array.isArray(ctxProjects) || ctxProjects.length === 0) return
+
+    const activeStillExists = ctxProjects.some(p => p.id === activeProjectId)
+    // Local-only = id exists in TC tab list but was never confirmed by server
+    // (i.e. brand-new tab the user just created, PATCH still in flight)
+    const localOnly = activeProjectId
+      && activeProjectId !== 'default'
+      && !activeStillExists
+      && !seenCtxProjectIdsRef.current.has(activeProjectId)
+
+    // Case A: active project was deleted on another device → switch to top
+    if (!activeStillExists && !localOnly && activeProjectId && activeProjectId !== 'default') {
+      const target = ctxProjects[0]
+      console.log('[TC] active project was deleted remotely, jumping to', target.id)
+      setActiveProjectId(target.id)
+      try { localStorage.setItem('teamcollab-active-project', target.id) } catch {}
+      setProjectTitle(target.title || 'Untitled')
+      if (setActiveProject) setActiveProject(target)
+      // Clean local cache for the deleted id
+      try { localStorage.removeItem('tc-project-' + activeProjectId) } catch {}
+      return
+    }
+
+    // Case B: Device A switched projects → follow the new top
     const target = ctxProjects[0]
     if (!target?.id) return
     if (target.id === activeProjectId) return
-    // Don't snap away from a brand-new local-only tab the user just created
-    // (it isn't in ctxProjects yet until the PATCH lands).
-    const localOnly = !ctxProjects.some(p => p.id === activeProjectId)
-                      && activeProjectId !== 'default'
-                      && activeProjectId
-    if (localOnly) return
+    if (localOnly) return  // don't snap away from a pending-create tab
     console.log('[TC] sync: switching to most-recent project', target.id, target.title)
     setActiveProjectId(target.id)
     try { localStorage.setItem('teamcollab-active-project', target.id) } catch {}
     setProjectTitle(target.title || 'Untitled')
     if (setActiveProject) setActiveProject(target)
-  }, [ctxProjects?.[0]?.id])
+  }, [ctxProjects?.[0]?.id, ctxProjects?.length])
 
   // ── Auto-save tasks to DB ─────────────────────────────────────────────────
   // Fires whenever kanban.tasks OR authUser changes (add, edit, move, delete,
