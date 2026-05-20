@@ -161,7 +161,8 @@ export default async function handler(req, res) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   let user = null
 
-  if (action !== 'check') {
+  const PUBLIC_ACTIONS = new Set(['check', 'check_project'])
+  if (!PUBLIC_ACTIONS.has(action)) {
     if (!token || token === 'undefined' || token === 'null' || token === 'anonymous' || token.trim() === '')
       return res.status(401).json({ error: 'Missing authorization token' })
 
@@ -618,6 +619,202 @@ export default async function handler(req, res) {
       return res.json({ members: memberDetails })
     }
 
+    // ── LIST PROJECT MEMBERS ──────────────────────────────────────────────────
+    // Body: { action:'list_project_members', projectId }
+    // Returns: the project creator (as PM/admin) + all active team_members.
+    if (action === 'list_project_members') {
+      const { projectId } = req.body
+      if (!projectId) return res.status(400).json({ error: 'projectId required' })
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id, user_id, title, created_at')
+        .eq('id', projectId)
+        .single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+
+      // Caller must be project creator OR an active team_member
+      let canList = project.user_id === user.id
+      if (!canList) {
+        const { data: tm } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('project_id', projectId)
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle()
+        canList = !!tm
+      }
+      if (!canList) return res.status(403).json({ error: 'Access denied' })
+
+      // Project creator → always PM
+      const { data: { user: ownerUser } } = await supabase.auth.admin.getUserById(project.user_id)
+      const ownerRow = {
+        id: project.user_id,
+        role: 'PM',
+        joinedAt: project.created_at,
+        email: ownerUser?.email || '',
+        name:
+          ownerUser?.user_metadata?.name ||
+          ownerUser?.user_metadata?.full_name ||
+          ownerUser?.email?.split('@')[0] ||
+          'Project Manager',
+        isCreator: true,
+      }
+
+      const { data: tms } = await supabase
+        .from('team_members')
+        .select('user_id, job_role, status, created_at, display_name')
+        .eq('project_id', projectId)
+        .eq('status', 'active')
+
+      const memberDetails = await Promise.all(
+        (tms || [])
+          .filter(m => m.user_id !== project.user_id) // exclude duplicate of creator
+          .map(async (m) => {
+            const { data: { user: u } } = await supabase.auth.admin.getUserById(m.user_id)
+            return {
+              id: m.user_id,
+              role: m.job_role || 'Team Member',
+              joinedAt: m.created_at,
+              email: u?.email || '',
+              name:
+                m.display_name ||
+                u?.user_metadata?.name ||
+                u?.user_metadata?.full_name ||
+                u?.email?.split('@')[0] ||
+                'Member',
+              isCreator: false,
+            }
+          })
+      )
+
+      return res.json({ members: [ownerRow, ...memberDetails] })
+    }
+
+    // ── LIST PROJECT INVITES (pending) ────────────────────────────────────────
+    if (action === 'list_project_invites') {
+      const { projectId } = req.body
+      if (!projectId) return res.status(400).json({ error: 'projectId required' })
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id, user_id')
+        .eq('id', projectId)
+        .single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+
+      let canList = project.user_id === user.id
+      if (!canList) {
+        const { data: tm } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('project_id', projectId)
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle()
+        canList = !!tm
+      }
+      if (!canList) return res.status(403).json({ error: 'Access denied' })
+
+      const { data: invites } = await supabase
+        .from('team_invites')
+        .select('id, invitee_email, invitee_name, job_role, status, expires_at, invited_at, token')
+        .eq('project_id', projectId)
+        .eq('status', 'pending')
+        .not('invitee_email', 'like', 'link:%')
+        .order('invited_at', { ascending: false })
+
+      return res.json({ invites: invites || [] })
+    }
+
+    // ── CANCEL PROJECT INVITE ─────────────────────────────────────────────────
+    if (action === 'cancel_project_invite') {
+      const { inviteId, projectId } = req.body
+      if (!inviteId || !projectId) return res.status(400).json({ error: 'inviteId and projectId required' })
+
+      const { data: project } = await supabase
+        .from('projects').select('user_id').eq('id', projectId).single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+      if (project.user_id !== user.id)
+        return res.status(403).json({ error: 'Only the project creator can cancel invites' })
+
+      await supabase
+        .from('team_invites')
+        .update({ status: 'cancelled' })
+        .eq('id', inviteId)
+        .eq('project_id', projectId)
+
+      return res.json({ success: true })
+    }
+
+    // ── RESEND PROJECT INVITE ─────────────────────────────────────────────────
+    if (action === 'resend_project_invite') {
+      const { inviteId, projectId } = req.body
+      if (!inviteId || !projectId) return res.status(400).json({ error: 'inviteId and projectId required' })
+
+      const { data: project } = await supabase
+        .from('projects').select('user_id, title').eq('id', projectId).single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+      if (project.user_id !== user.id)
+        return res.status(403).json({ error: 'Only the project creator can resend invites' })
+
+      const { data: invite } = await supabase
+        .from('team_invites').select('*').eq('id', inviteId).single()
+      if (!invite) return res.status(404).json({ error: 'Invite not found' })
+
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      await supabase
+        .from('team_invites')
+        .update({ status: 'pending', expires_at: expiresAt })
+        .eq('id', inviteId)
+
+      const inviteUrl = APP_URL + '/join/' + invite.token
+      const { data: { user: inviterUser } } = await supabase.auth.admin.getUserById(user.id)
+      const inviterName =
+        inviterUser?.user_metadata?.name ||
+        inviterUser?.user_metadata?.full_name ||
+        inviterUser?.email?.split('@')[0] ||
+        'Someone'
+      const inviterEmail = inviterUser?.email || ''
+
+      resend.emails.send({
+        from: 'DesignBrief AI <onboarding@resend.dev>',
+        to: invite.invitee_email,
+        subject: inviterName + ' invited you to ' + (project.title || 'a project') + ' on DesignBrief',
+        html: projectInviteEmailHTML({
+          projectName: project.title || 'a project',
+          inviterName, inviterEmail,
+          role: invite.job_role || 'Collaborator',
+          inviteUrl,
+        }),
+      }).catch(e => console.error('[resend project invite]', e))
+
+      return res.json({ success: true })
+    }
+
+    // ── REMOVE PROJECT MEMBER ─────────────────────────────────────────────────
+    if (action === 'remove_project_member') {
+      const { projectId, userId } = req.body
+      if (!projectId || !userId) return res.status(400).json({ error: 'projectId and userId required' })
+
+      const { data: project } = await supabase
+        .from('projects').select('user_id').eq('id', projectId).single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+      if (project.user_id !== user.id)
+        return res.status(403).json({ error: 'Only the project creator can remove members' })
+      if (userId === project.user_id)
+        return res.status(400).json({ error: 'Cannot remove the project creator' })
+
+      await supabase
+        .from('team_members')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+
+      return res.json({ success: true })
+    }
+
     // ── REMOVE MEMBER ─────────────────────────────────────────────────────────
     if (action === 'remove_member') {
       const { workspaceId, userId } = req.body
@@ -647,13 +844,64 @@ export default async function handler(req, res) {
       return res.json({ success: true })
     }
 
+    // ── CHECK PROJECT INVITE (public; no auth required) ──────────────────────
+    // Body: { action:'check_project', token }
+    // Returns the team_invites row + the linked project so JoinPage can show
+    // the real project name (and verify the token is still valid).
+    if (action === 'check_project') {
+      const { token: inviteToken } = req.body
+      if (!inviteToken) return res.status(400).json({ error: 'token required' })
+
+      const { data: invite } = await supabase
+        .from('team_invites')
+        .select('id, status, job_role, invitee_email, invitee_name, expires_at, project_id, token')
+        .eq('token', inviteToken)
+        .single()
+
+      if (!invite)
+        return res.status(404).json({ error: 'Invite not found', code: 'NOT_FOUND' })
+
+      const isLinkInvite = typeof invite.invitee_email === 'string' && invite.invitee_email.startsWith('link:')
+
+      // Non-link invites become single-use once accepted
+      if (!isLinkInvite && invite.status === 'accepted')
+        return res.status(400).json({ error: 'This invite has already been accepted', code: 'ALREADY_ACCEPTED' })
+
+      if (invite.status === 'cancelled')
+        return res.status(400).json({ error: 'This invite has been cancelled', code: 'CANCELLED' })
+
+      if (new Date(invite.expires_at) < new Date()) {
+        await supabase.from('team_invites').update({ status: 'expired' }).eq('id', invite.id)
+        return res.status(400).json({ error: 'This invite has expired', code: 'EXPIRED' })
+      }
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id, title, user_id')
+        .eq('id', invite.project_id)
+        .single()
+
+      return res.json({
+        valid: true,
+        isLinkInvite,
+        invite: {
+          token: invite.token,
+          job_role: invite.job_role,
+          invitee_email: isLinkInvite ? null : invite.invitee_email,
+          invitee_name: invite.invitee_name || '',
+          project_id: invite.project_id,
+        },
+        project: project ? { id: project.id, title: project.title } : null,
+      })
+    }
+
     // ── CREATE PROJECT INVITE LINK (no specific email) ───────────────────────
     // Body: { action:'create_project_link', projectId, jobRole? }
     // Writes to team_invites with sentinel email "link:<role>" so the same
     // link can be shared with multiple potential collaborators. Returns
     // /join/:token (NOT /invite/:token) so JoinPage handles it.
     if (action === 'create_project_link') {
-      const { projectId, jobRole = 'Collaborator' } = req.body
+      const { projectId, jobRole = 'Team Member' } = req.body
       if (!projectId) return res.status(400).json({ error: 'projectId required' })
 
       // Verify caller has access to this project
@@ -736,7 +984,7 @@ export default async function handler(req, res) {
     // Creates a row in team_invites (NOT workspace_invites) so the invitee
     // joins ONLY this project — they keep / create their own workspace.
     if (action === 'send_project') {
-      const { projectId, email, name = '', jobRole = 'Collaborator' } = req.body
+      const { projectId, email, name = '', jobRole = 'Team Member' } = req.body
 
       if (!projectId || !email)
         return res.status(400).json({ error: 'projectId and email required' })

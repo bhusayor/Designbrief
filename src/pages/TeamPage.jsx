@@ -53,20 +53,28 @@ function Avatar({ name, size = 32 }) {
 }
 
 function RoleBadge({ role }) {
+  const r = String(role || '').toLowerCase()
   const styles = {
-    owner:  { bg: 'rgba(245,158,11,0.1)',  color: '#92400E', border: 'rgba(245,158,11,0.3)' },
-    admin:  { bg: 'rgba(124,58,237,0.1)',  color: '#7C3AED', border: 'rgba(124,58,237,0.25)' },
-    member: { bg: 'var(--color-surface)',  color: 'var(--color-text-muted)', border: 'var(--color-border)' },
+    // Workspace-level
+    owner:   { bg: 'rgba(245,158,11,0.1)',  color: '#92400E', border: 'rgba(245,158,11,0.3)', label: 'Owner' },
+    admin:   { bg: 'rgba(124,58,237,0.1)',  color: '#7C3AED', border: 'rgba(124,58,237,0.25)', label: 'Admin' },
+    member:  { bg: 'var(--color-surface)',  color: 'var(--color-text-muted)', border: 'var(--color-border)', label: 'Member' },
+    // Project-level
+    pm:      { bg: 'rgba(124,58,237,0.1)',  color: '#7C3AED', border: 'rgba(124,58,237,0.25)', label: 'Project Manager' },
+    'team member':  { bg: 'var(--color-surface)',  color: 'var(--color-text-muted)', border: 'var(--color-border)', label: 'Team Member' },
+    contributor:    { bg: 'var(--color-surface)',  color: 'var(--color-text-muted)', border: 'var(--color-border)', label: 'Contributor' },
+    viewer:  { bg: 'rgba(14,165,233,0.10)', color: '#0369A1', border: 'rgba(14,165,233,0.25)', label: 'Viewer' },
+    guest:   { bg: 'rgba(14,165,233,0.10)', color: '#0369A1', border: 'rgba(14,165,233,0.25)', label: 'Guest' },
   }
-  const s = styles[role] || styles.member
+  const s = styles[r] || { ...styles.member, label: role || 'Member' }
   return (
     <span style={{
       fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
       background: s.bg, color: s.color, border: '1px solid ' + s.border,
       borderRadius: 100, padding: '2px 9px',
-      textTransform: 'capitalize', letterSpacing: '0.01em',
+      letterSpacing: '0.01em',
     }}>
-      {role}
+      {s.label}
     </span>
   )
 }
@@ -111,6 +119,11 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
   // (action='send_project', writes team_invites, /join/:token link).
   // Otherwise it falls back to WORKSPACE-level invites (the old behaviour).
   const isProjectMode = !!projectId
+
+  // Default role: PM/Team Member/Viewer for project, Member for workspace
+  useEffect(() => {
+    setRole(isProjectMode ? 'Team Member' : 'member')
+  }, [isProjectMode])
 
   async function handleSend() {
     const emailList = emails.split(',').map(e => e.trim()).filter(Boolean)
@@ -188,10 +201,12 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
         }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: 3 }}>
-              Invite members
+              {isProjectMode ? 'Invite to project' : 'Invite members'}
             </div>
             <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-              Invite members to your workspace by email
+              {isProjectMode
+                ? <>Add collaborators to <strong style={{ color: 'var(--color-text)' }}>{projectName || 'this project'}</strong> by email</>
+                : 'Invite members to your workspace by email'}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -247,10 +262,14 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
               Role
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {[
-                { value: 'member', label: 'Member', desc: 'View and work on projects' },
-                { value: 'admin',  label: 'Admin',  desc: 'Invite others, manage workspace settings' },
-              ].map(opt => (
+              {(isProjectMode ? [
+                { value: 'PM',          label: 'Project Manager (PM)', desc: 'Manages the board, timelines, members, and tasks' },
+                { value: 'Team Member', label: 'Team Member',          desc: 'Completes tasks, updates statuses, comments, uploads files' },
+                { value: 'Viewer',      label: 'Viewer / Guest',       desc: 'Read-only access. Tracks progress and views reports' },
+              ] : [
+                { value: 'member', label: 'Member',        desc: 'View and work on projects' },
+                { value: 'admin',  label: 'Administrator', desc: 'Manages billing, integrations, permissions, and workflows' },
+              ]).map(opt => (
                 <label key={opt.value} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '9px 12px',
@@ -316,9 +335,9 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
   // link behaviour (workspace_invites, /invite/:token).
   const isProjectMode = !!projectId
 
-  // For workspace links the role is member|admin. For project links it is a
-  // free-form "job role" — default to Collaborator (most common case).
-  const [role, setRole] = useState(isProjectMode ? 'Collaborator' : 'member')
+  // For workspace links the role is member|admin. For project links it follows
+  // the role hierarchy: PM / Team Member / Viewer. Default to Team Member.
+  const [role, setRole] = useState(isProjectMode ? 'Team Member' : 'member')
   const [linkData, setLinkData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -423,16 +442,14 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
           }}>
             {isProjectMode ? (
               <>
-                <option value="Collaborator">Collaborator</option>
-                <option value="Designer">Designer</option>
-                <option value="Developer">Developer</option>
-                <option value="Reviewer">Reviewer</option>
-                <option value="PM">Project Manager</option>
+                <option value="PM">Project Manager (PM)</option>
+                <option value="Team Member">Team Member</option>
+                <option value="Viewer">Viewer / Guest</option>
               </>
             ) : (
               <>
                 <option value="member">Member</option>
-                <option value="admin">Admin</option>
+                <option value="admin">Administrator (Admin)</option>
               </>
             )}
           </select>
@@ -501,6 +518,8 @@ function useIsMobile() {
 export default function TeamPage({ onClose, projectId, projectName }) {
   const { workspace, authUser, session } = useApp()
   const isMobile = useIsMobile()
+  const isProjectMode = !!projectId
+
   const [tab, setTab] = useState('all')
   const [apiMembers, setApiMembers] = useState([])   // from API
   const [pendingInvites, setPendingInvites] = useState([])
@@ -517,8 +536,10 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuPos, setMenuPos] = useState(null)
 
-  // Owner is always available from auth context — no API call needed
-  const ownerRow = authUser ? {
+  // In WORKSPACE mode we know the signed-in user is the owner — synthesize that row
+  // locally so the table renders immediately. In PROJECT mode the API returns the
+  // project creator with role 'PM' explicitly, so we don't need a local placeholder.
+  const ownerRow = (!isProjectMode && authUser) ? {
     id: authUser.id,
     role: 'owner',
     joinedAt: workspace?.created_at || null,
@@ -531,15 +552,18 @@ export default function TeamPage({ onClose, projectId, projectName }) {
     isPending: false,
   } : null
 
-  // Derived member list: owner always first, then other API members
-  const members = [
-    ...(ownerRow ? [ownerRow] : []),
-    ...apiMembers.filter(m => m.id !== authUser?.id),
-  ]
+  // Derived member list
+  const members = isProjectMode
+    ? apiMembers
+    : [
+        ...(ownerRow ? [ownerRow] : []),
+        ...apiMembers.filter(m => m.id !== authUser?.id),
+      ]
 
   useEffect(() => {
-    if (workspace?.id) loadData()
-  }, [workspace?.id])
+    if (isProjectMode && projectId) loadData()
+    else if (!isProjectMode && workspace?.id) loadData()
+  }, [workspace?.id, projectId, isProjectMode])
 
   // close on Escape
   useEffect(() => {
@@ -593,14 +617,21 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   }
 
   async function loadData() {
-    if (!workspace?.id) return
+    if (isProjectMode ? !projectId : !workspace?.id) return
     setLoading(true)
     setError('')
     try {
       const h = await getAuthHeaders()
+      const membersBody = isProjectMode
+        ? { action: 'list_project_members', projectId }
+        : { action: 'list_members', workspaceId: workspace.id }
+      const invitesBody = isProjectMode
+        ? { action: 'list_project_invites', projectId }
+        : { action: 'list', workspaceId: workspace.id }
+
       const [membersRes, invitesRes] = await Promise.all([
-        fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify({ action: 'list_members', workspaceId: workspace.id }) }).then(r => r.json()),
-        fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify({ action: 'list', workspaceId: workspace.id }) }).then(r => r.json()),
+        fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify(membersBody) }).then(r => r.json()),
+        fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify(invitesBody) }).then(r => r.json()),
       ])
       const fetchedMembers = membersRes.members || []
       setApiMembers(fetchedMembers)
@@ -614,12 +645,16 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   }
 
   async function handleRemoveMember(userId) {
-    if (!confirm('Remove this member from the workspace?')) return
+    const target = isProjectMode ? 'project' : 'workspace'
+    if (!confirm('Remove this member from the ' + target + '?')) return
     try {
       const h = await getAuthHeaders()
+      const body = isProjectMode
+        ? { action: 'remove_project_member', projectId, userId }
+        : { action: 'remove_member', workspaceId: workspace.id, userId }
       await fetch('/api/invite', {
         method: 'POST', headers: h,
-        body: JSON.stringify({ action: 'remove_member', workspaceId: workspace.id, userId }),
+        body: JSON.stringify(body),
       })
       setApiMembers(prev => prev.filter(m => m.id !== userId))
       setSelected(prev => { const next = new Set(prev); next.delete(userId); return next })
@@ -642,9 +677,12 @@ export default function TeamPage({ onClose, projectId, projectName }) {
     setResendingId(row.inviteId)
     try {
       const h = await getAuthHeaders()
+      const body = isProjectMode
+        ? { action: 'resend_project_invite', projectId, inviteId: row.inviteId }
+        : { action: 'resend', workspaceId: workspace.id, inviteId: row.inviteId }
       const res = await fetch('/api/invite', {
         method: 'POST', headers: h,
-        body: JSON.stringify({ action: 'resend', workspaceId: workspace.id, inviteId: row.inviteId }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) { const d = await res.json(); setError(d.error || 'Failed to resend') }
     } catch (e) { setError(e.message) }
@@ -654,9 +692,12 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   async function handleCancelInvite(inviteId) {
     try {
       const h = await getAuthHeaders()
+      const body = isProjectMode
+        ? { action: 'cancel_project_invite', projectId, inviteId }
+        : { action: 'cancel', workspaceId: workspace.id, inviteId }
       await fetch('/api/invite', {
         method: 'POST', headers: h,
-        body: JSON.stringify({ action: 'cancel', workspaceId: workspace.id, inviteId }),
+        body: JSON.stringify(body),
       })
       setPendingInvites(prev => prev.filter(i => i.id !== inviteId))
     } catch (e) { setError(e.message) }
@@ -709,20 +750,36 @@ export default function TeamPage({ onClose, projectId, projectName }) {
     else setSelected(new Set(filteredRows.map(r => r.id)))
   }
 
-  const isOwner = members.find(m => m.id === authUser?.id)?.role === 'owner'
+  // In project mode the creator is the "owner" for permission purposes.
+  // The creator row comes back from the API with isCreator:true.
+  const isOwner = isProjectMode
+    ? !!members.find(m => m.id === authUser?.id && m.isCreator)
+    : members.find(m => m.id === authUser?.id)?.role === 'owner'
+
+  // Workspace invites use {invited_email, role, expires_at}
+  // Project invites use   {invitee_email, job_role, expires_at, invited_at}
+  // Normalise into a single row shape used by the renderer.
+  const mappedPending = pendingInvites.map(i => ({
+    id: i.id,
+    name: i.invitee_email || i.invited_email,
+    email: i.invitee_email || i.invited_email,
+    role: i.job_role || i.role,
+    joinedAt: null,
+    isPending: true,
+    inviteId: i.id,
+    expiresAt: i.expires_at,
+  }))
 
   const allRows = [
     ...members
       .map(m => ({ ...m, isPending: false }))
-      .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : 0)),
-    ...(tab === 'all' || tab === 'pending'
-      ? pendingInvites.map(i => ({
-          id: i.id, name: i.invited_email, email: i.invited_email,
-          role: i.role, joinedAt: null,
-          isPending: true, inviteId: i.id, expiresAt: i.expires_at,
-        }))
-      : []
-    ),
+      .sort((a, b) => {
+        // Creator/PM/owner first
+        const aFirst = a.isCreator || a.role === 'owner' || a.role === 'PM'
+        const bFirst = b.isCreator || b.role === 'owner' || b.role === 'PM'
+        return aFirst === bFirst ? 0 : aFirst ? -1 : 1
+      }),
+    ...(tab === 'all' || tab === 'pending' ? mappedPending : []),
   ]
 
   const filteredRows = allRows.filter(r => {
@@ -828,12 +885,22 @@ export default function TeamPage({ onClose, projectId, projectName }) {
           {/* Page header */}
           <div style={{ marginBottom: 24 }}>
             <h1 style={{ fontWeight: 800, fontSize: isMobile ? 20 : 24, letterSpacing: '-0.04em', color: 'var(--color-text)', margin: '0 0 6px' }}>
-              Team members
+              {isProjectMode ? 'Project members' : 'Team members'}
             </h1>
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.6 }}>
-              Inviting people to{' '}
-              <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{workspace?.name}</strong>
-              {' '}gives access to shared projects and briefs.
+              {isProjectMode ? (
+                <>
+                  Inviting people to{' '}
+                  <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{projectName || 'this project'}</strong>
+                  {' '}gives access to the project board, tasks, and comments — without joining your workspace.
+                </>
+              ) : (
+                <>
+                  Inviting people to{' '}
+                  <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{workspace?.name}</strong>
+                  {' '}gives access to shared projects and briefs.
+                </>
+              )}
             </p>
           </div>
 
@@ -893,9 +960,19 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                 appearance: 'none', WebkitAppearance: 'none', boxSizing: 'border-box',
               }}>
                 <option value="all">All roles</option>
-                <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
-                <option value="member">Member</option>
+                {isProjectMode ? (
+                  <>
+                    <option value="PM">Project Manager</option>
+                    <option value="Team Member">Team Member</option>
+                    <option value="Viewer">Viewer</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="owner">Owner</option>
+                    <option value="admin">Admin</option>
+                    <option value="member">Member</option>
+                  </>
+                )}
               </select>
               <ChevronDownIcon style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
             </div>
@@ -1066,12 +1143,17 @@ export default function TeamPage({ onClose, projectId, projectName }) {
               }}>
                 {/* Checkbox */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <input type="checkbox"
-                    checked={selected.has(row.id)}
-                    onChange={() => row.role !== 'owner' && toggleSelect(row.id)}
-                    disabled={row.role === 'owner'}
-                    style={{ width: 14, height: 14, cursor: row.role === 'owner' ? 'not-allowed' : 'pointer', accentColor: '#7C3AED', opacity: row.role === 'owner' ? 0.35 : 1 }}
-                  />
+                  {(() => {
+                    const isProtected = row.role === 'owner' || row.isCreator
+                    return (
+                      <input type="checkbox"
+                        checked={selected.has(row.id)}
+                        onChange={() => !isProtected && toggleSelect(row.id)}
+                        disabled={isProtected}
+                        style={{ width: 14, height: 14, cursor: isProtected ? 'not-allowed' : 'pointer', accentColor: '#7C3AED', opacity: isProtected ? 0.35 : 1 }}
+                      />
+                    )
+                  })()}
                 </div>
 
                 {/* Name + email */}
@@ -1108,20 +1190,13 @@ export default function TeamPage({ onClose, projectId, projectName }) {
 
                 {/* Role */}
                 <div>
-                  {row.role === 'owner' ? (
+                  {row.isCreator || row.role === 'owner' ? (
                     <span className="tp-owner-role" style={{ cursor: 'default' }}>
-                      <span style={{
-                        fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-                        background: 'rgba(245,158,11,0.07)', color: '#92400E',
-                        border: '1px solid rgba(245,158,11,0.2)',
-                        borderRadius: 100, padding: '2px 9px',
-                        textTransform: 'capitalize', letterSpacing: '0.01em',
-                        opacity: 0.7,
-                      }}>
-                        owner
-                      </span>
+                      <RoleBadge role={isProjectMode ? 'PM' : 'owner'} />
                       <span className="tp-owner-tooltip">
-                        Owners can manage all collaborators, projects, and connections.
+                        {isProjectMode
+                          ? 'The project creator. Manages the project board, members, and timelines.'
+                          : 'Owners can manage all collaborators, projects, and connections.'}
                       </span>
                     </span>
                   ) : (
@@ -1167,7 +1242,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                     >
                       <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
                     </button>
-                  ) : isOwner && row.id !== authUser?.id ? (
+                  ) : isOwner && row.id !== authUser?.id && !row.isCreator ? (
                     <button onClick={() => handleRemoveMember(row.id)} title="Remove member" style={{
                       width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',

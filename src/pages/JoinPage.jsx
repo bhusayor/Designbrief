@@ -14,6 +14,7 @@ export default function JoinPage() {
 
   const [phase, setPhase] = useState('loading')
   const [invite, setInvite] = useState(null)
+  const [project, setProject] = useState(null)
   const [error, setError] = useState(null)
 
   // Inline auth state (for unauthenticated visitors)
@@ -41,12 +42,29 @@ export default function JoinPage() {
       localStorage.setItem('db-join-token', joinToken)
 
       try {
-        const data = await getInviteByToken(joinToken)
+        // Prefer the server-side check_project endpoint — it returns the
+        // linked project (title etc.) which the public anon Supabase client
+        // typically can't read for shared projects due to RLS.
+        let serverInvite = null
+        let serverProject = null
+        try {
+          const res = await fetch('/api/invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'check_project', token: joinToken }),
+          })
+          const json = await res.json()
+          if (res.ok && json.valid) {
+            serverInvite = json.invite
+            serverProject = json.project
+          }
+        } catch {}
+
+        const data = serverInvite || await getInviteByToken(joinToken)
         if (data) {
-          // Link invites store a sentinel email like "link:Collaborator" — don't
-          // expose that as a real email to the user.
           const isLinkInvite = typeof data.invitee_email === 'string' && data.invitee_email.startsWith('link:')
           setInvite(data)
+          setProject(serverProject)
           setAuthEmail(isLinkInvite ? '' : (data.invitee_email || ''))
           setAuthName(data.invitee_name || '')
           setPhase('invite')
@@ -272,8 +290,8 @@ export default function JoinPage() {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)' }}>PROJECT</span>
-                <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>
-                  A design project
+                <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: 14, color: 'var(--color-text)', textAlign: 'right', maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {project?.title || 'A project'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
