@@ -77,19 +77,75 @@ export function mapDBTask(t) {
 }
 
 // ── Load all tasks for a project ──────────────────────────────────────────────
+// Routes through the service-role API. The direct anon-key Supabase read
+// can silently return [] for invited members if any RLS edge case
+// blocks them (status mismatch, stale policy, etc). The server uses
+// userHasProjectAccess() which checks owner OR active team_member.
 export async function loadTasksFromDB(projectId) {
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('position', { ascending: true })
+  if (!projectId) return []
+  try {
+    if (!cachedToken) {
+      const { data } = await supabase.auth.getSession()
+      cachedToken = data?.session?.access_token || null
+    }
+    if (!cachedToken) {
+      // Not signed in — best-effort anon read (will probably be empty
+      // for shared projects, but works for owned ones)
+      const { data } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('position', { ascending: true })
+      return (data || []).map(mapDBTask)
+    }
 
-  if (error) {
-    console.error('loadTasksFromDB error:', error)
+    const res = await fetch(
+      `/api/create-workspace?kind=tasks&project_id=${encodeURIComponent(projectId)}`,
+      { headers: { Authorization: `Bearer ${cachedToken}` } },
+    )
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      console.error('[loadTasksFromDB] API error:', res.status, err)
+      return []
+    }
+    const json = await res.json()
+    return (json.tasks || []).map(mapDBTask)
+  } catch (e) {
+    console.error('[loadTasksFromDB] failed:', e.message)
     return []
   }
+}
 
-  return (data || []).map(mapDBTask)
+// ── Load project settings (brief, kanban_columns) ───────────────────────────
+export async function loadProjectSettings(projectId) {
+  if (!projectId) return null
+  try {
+    if (!cachedToken) {
+      const { data } = await supabase.auth.getSession()
+      cachedToken = data?.session?.access_token || null
+    }
+    if (!cachedToken) return null
+    const res = await fetch(
+      `/api/create-workspace?kind=project_settings&project_id=${encodeURIComponent(projectId)}`,
+      { headers: { Authorization: `Bearer ${cachedToken}` } },
+    )
+    if (!res.ok) return null
+    const json = await res.json()
+    return json.project || null
+  } catch (e) {
+    console.error('[loadProjectSettings] failed:', e.message)
+    return null
+  }
+}
+
+// ── Save kanban_columns to a project ────────────────────────────────────────
+export async function saveKanbanColumns(projectId, columns) {
+  if (!projectId || !Array.isArray(columns)) return
+  try {
+    await apiCall('PATCH', { project_id: projectId, updates: { kanban_columns: columns } })
+  } catch (e) {
+    console.error('[saveKanbanColumns] failed:', e.message)
+  }
 }
 
 // ── Update a single task (server-side PATCH bypasses RLS) ─────────────────────

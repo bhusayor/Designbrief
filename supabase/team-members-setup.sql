@@ -111,7 +111,13 @@ create index if not exists team_invites_email_idx on team_invites(invitee_email)
 
 
 -- ═════════════════════════════════════════════════════════════════════
--- 2. PROJECTS — let team members READ projects they were invited to
+-- 2a. PROJECTS — add kanban_columns column so column layout syncs
+-- ═════════════════════════════════════════════════════════════════════
+
+alter table projects add column if not exists kanban_columns jsonb;
+
+-- ═════════════════════════════════════════════════════════════════════
+-- 2b. PROJECTS — let team members READ projects they were invited to
 -- ═════════════════════════════════════════════════════════════════════
 -- Without this, loadProjectsFromDB returns null for shared projects,
 -- and the invitee sees an empty board.

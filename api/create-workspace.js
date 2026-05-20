@@ -681,22 +681,51 @@ STRICT OUTPUT RULES:
     }
 
     // Whitelist allowed columns so callers can't update sensitive fields
-    const allowed = ['title', 'pinned', 'locked', 'section', 'kanban', 'team_members', 'approval_status', 'comments']
+    const allowed = [
+      'title', 'pinned', 'locked', 'section', 'kanban', 'team_members',
+      'approval_status', 'comments', 'kanban_columns', 'brief_text',
+    ]
     const patch = { updated_at: new Date().toISOString() }
     for (const k of allowed) if (k in updates) patch[k] = updates[k]
 
+    // Owner-only fields: renaming, pinning, locking, section, and
+    // team_members JSON are still admin-only. kanban / kanban_columns /
+    // brief_text are project-edit fields that any active Editor may
+    // change (the Viewer block is enforced client-side; the API mirrors
+    // that distinction here).
+    const OWNER_ONLY = new Set(['title', 'pinned', 'locked', 'section', 'team_members', 'approval_status'])
+    const wantsOwnerOnly = Object.keys(patch).some(k => OWNER_ONLY.has(k))
+
     try {
-      // Verify ownership server-side, then upsert. Upsert covers the case
-      // where the row doesn't yet exist (TC-created project that hasn't
-      // had its first save).
+      // Verify access server-side, then upsert.
       const { data: existing } = await supabase
         .from('projects')
         .select('id, user_id')
         .eq('id', project_id)
         .maybeSingle()
 
-      if (existing && existing.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+      const isOwner = existing && existing.user_id === user.id
+      let isEditor = false
+      if (existing && !isOwner) {
+        const { data: tm } = await supabase
+          .from('team_members')
+          .select('job_role')
+          .eq('project_id', project_id)
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle()
+        const role = String(tm?.job_role || '').toLowerCase()
+        // Anything that isn't Viewer counts as Editor for write purposes
+        isEditor = !!tm && role !== 'viewer' && role !== 'guest'
+      }
+
+      if (existing && !isOwner) {
+        if (wantsOwnerOnly) {
+          return res.status(403).json({ error: 'Only the project Admin can change this' })
+        }
+        if (!isEditor) {
+          return res.status(403).json({ error: 'Read-only access' })
+        }
       }
 
       // For new rows only, default section to 'team' so the project doesn't
@@ -707,13 +736,15 @@ STRICT OUTPUT RULES:
         patch.section = 'team'
       }
 
+      // Preserve the original owner on UPDATEs — an Editor patching
+      // brief / kanban must NOT silently overwrite user_id with their own.
+      const upsertRow = existing
+        ? { id: project_id, user_id: existing.user_id, ...patch }
+        : { id: project_id, user_id: user.id, ...patch }
+
       const { data, error } = await supabase
         .from('projects')
-        .upsert({
-          id: project_id,
-          user_id: user.id,
-          ...patch,
-        }, { onConflict: 'id' })
+        .upsert(upsertRow, { onConflict: 'id' })
         .select('*')
         .single()
 
@@ -770,6 +801,40 @@ STRICT OUTPUT RULES:
     const { data: { user }, error: userErr } = await supabase.auth.getUser(accessToken)
     if (userErr || !user) {
       return res.status(401).json({ error: 'Invalid or expired token' })
+    }
+
+    // GET ?kind=tasks&project_id=X — return all tasks for a project. Used by
+    // invited members whose anon-key SELECT may be blocked by stale or
+    // misconfigured RLS. Service-role read bypasses RLS entirely.
+    if (req.query?.kind === 'tasks' && req.query?.project_id) {
+      const projectId = String(req.query.project_id)
+      const ok = await userHasProjectAccess(user.id, projectId)
+      if (!ok) return res.status(403).json({ error: 'Not a project member' })
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('position', { ascending: true })
+
+      if (error) return res.status(500).json({ error: error.message })
+      return res.json({ tasks: data || [] })
+    }
+
+    // GET ?kind=project_settings&project_id=X — kanban_columns + brief etc.
+    // Used so invited members can see the admin's column layout.
+    if (req.query?.kind === 'project_settings' && req.query?.project_id) {
+      const projectId = String(req.query.project_id)
+      const ok = await userHasProjectAccess(user.id, projectId)
+      if (!ok) return res.status(403).json({ error: 'Not a project member' })
+
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, title, brief_text, kanban_columns, kanban')
+        .eq('id', projectId)
+        .single()
+      if (error) return res.status(500).json({ error: error.message })
+      return res.json({ project: data })
     }
 
     try {

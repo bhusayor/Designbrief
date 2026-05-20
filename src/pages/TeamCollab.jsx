@@ -25,6 +25,7 @@ import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaude
 import { getProjectInvites } from '../lib/teamService'
 import {
   saveTasksToDB, loadTasksFromDB, updateTaskInDB, deleteTaskFromDB, mapDBTask,
+  loadProjectSettings,
   calculateDueDates, calculateProgress, logActivity,
 } from '../lib/taskService'
 import TeamPage from './TeamPage'
@@ -758,6 +759,7 @@ export default function TeamCollab() {
     loadTasksFromDB(projectId).then(tasks => {
       setTasksLoading(false)
       confirmedRemoteIdsRef.current = new Set(tasks.map(t => t.id))
+      console.log('[TC] loadTasksFromDB →', tasks.length, 'tasks for', projectId)
       // Always replace kanban with the new project's tasks — even when
       // tasks.length === 0. Previously we skipped the setKanban call for
       // empty results, which left the OLD project's tasks visible after
@@ -774,7 +776,41 @@ export default function TeamCollab() {
       setTaskLoadError(true)
       console.error('[TC] loadTasksFromDB:', e)
     })
+
+    // Also load the project's shared kanban_columns (the Admin's column
+    // layout). Falls back to whatever's in localStorage if the DB row
+    // hasn't been migrated yet.
+    loadProjectSettings(projectId).then(p => {
+      if (!p) return
+      if (Array.isArray(p.kanban_columns) && p.kanban_columns.length) {
+        console.log('[TC] loaded kanban_columns from DB:', p.kanban_columns.length)
+        setCustomCols(p.kanban_columns)
+        try { localStorage.setItem('tc-cols-' + projectId, JSON.stringify(p.kanban_columns)) } catch {}
+      }
+      if (p.brief_text != null && !briefText) {
+        setBriefText(p.brief_text)
+      }
+    }).catch(() => {})
   }, [activeProject?.id, activeProjectId, authUser?.id])
+
+  // ── Realtime: keep customCols in sync when the Admin edits columns ───────
+  // The projects realtime listener in AppContext keeps activeProject up to
+  // date — we just need to propagate kanbanColumns into local customCols
+  // state so collaborators see the same layout without a refresh.
+  useEffect(() => {
+    const incoming = activeProject?.kanbanColumns
+    if (!Array.isArray(incoming) || incoming.length === 0) return
+    setCustomCols(prev => {
+      // Shallow compare — only update if actually different to avoid
+      // a re-render loop with our own writes.
+      if (prev.length === incoming.length
+        && prev.every((c, i) => c.id === incoming[i].id && c.label === incoming[i].label && c.color === incoming[i].color)
+      ) {
+        return prev
+      }
+      return incoming
+    })
+  }, [activeProject?.kanbanColumns])
 
   // After a page refresh the activeProjectId is restored from localStorage but
   // activeProject (AppContext) is null. Look the project up in ctxProjects
@@ -1312,6 +1348,14 @@ Return JSON:
   function saveCustomCols(cols) {
     setCustomCols(cols)
     localStorage.setItem('tc-cols-' + (activeProjectId || 'default'), JSON.stringify(cols))
+    // Persist to the DB so collaborators on shared projects see the same
+    // column layout. Skip the placeholder 'default' project id.
+    const pid = activeProjectId
+    if (pid && pid !== 'default' && authUser) {
+      import('../lib/taskService').then(({ saveKanbanColumns }) => {
+        saveKanbanColumns(pid, cols)
+      }).catch(() => {})
+    }
   }
 
   function handleRenameColumn(colId) {

@@ -43,6 +43,7 @@ function formatProjectRow(p, extra = {}) {
     },
     teamMembers: p.team_members || [],
     kanban: p.kanban,
+    kanbanColumns: p.kanban_columns || null,
     approvalStatus: p.approval_status || {},
     comments: p.comments || {},
     locked: p.locked || false,
