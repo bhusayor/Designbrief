@@ -1,21 +1,58 @@
 -- ─────────────────────────────────────────────────────────────────────
 -- TEAM RBAC + CROSS-USER VISIBILITY — ONE-SHOT SETUP
 -- ─────────────────────────────────────────────────────────────────────
--- Safe to run multiple times. Run this in Supabase → SQL Editor if
--- invited users can't see the project, the kanban board, tasks,
--- subtasks, comments, or activity.
+-- Safe to run multiple times.
 --
--- What it does:
---   1. Creates / repairs team_members and team_invites tables
---   2. Grants invited members SELECT on the project they were invited to
---   3. Grants invited members read + manage on tasks / subtasks /
---      comments / activity for that project
---   4. Enables Supabase Realtime on the cross-user tables so changes
---      appear live for all collaborators
+-- This script:
+--   1. Defines two SECURITY DEFINER helpers (is_project_owner /
+--      is_project_member) that bypass RLS when checking project access.
+--      Using them in policies AVOIDS the 42P17 "infinite recursion"
+--      error you get when projects' policy queries team_members and
+--      team_members' policy queries projects.
+--   2. Repairs / creates team_members + team_invites
+--   3. Adds kanban_columns to projects + lets active members read /
+--      Editors update the shared project row
+--   4. Repairs RLS on tasks / subtasks / task_comments / task_activity
+--   5. Adds every cross-user table to the supabase_realtime publication
+--   6. Sets REPLICA IDENTITY FULL on those tables so UPDATE events
+--      broadcast the full row (jsonb included) — required for kanban
+--      column renames to propagate without a refresh.
 -- ─────────────────────────────────────────────────────────────────────
 
+
 -- ═════════════════════════════════════════════════════════════════════
--- 1. TEAM_MEMBERS  + TEAM_INVITES TABLES
+-- 0. SECURITY DEFINER HELPERS — break RLS recursion
+-- ═════════════════════════════════════════════════════════════════════
+
+create or replace function is_project_owner(p_project_id text, p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from projects
+    where id = p_project_id and user_id = p_user_id
+  );
+$$;
+
+create or replace function is_project_member(p_project_id text, p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from team_members
+    where project_id = p_project_id
+      and user_id = p_user_id
+      and status = 'active'
+  );
+$$;
+
+
+-- ═════════════════════════════════════════════════════════════════════
+-- 1. TEAM_MEMBERS + TEAM_INVITES TABLES
 -- ═════════════════════════════════════════════════════════════════════
 
 create table if not exists team_members (
@@ -58,50 +95,59 @@ create table if not exists team_invites (
 alter table team_members enable row level security;
 alter table team_invites enable row level security;
 
--- team_members policies
+-- ── team_members policies (no self-reference, no cross-reference) ──
+-- Drop ALL prior names so we start clean
 drop policy if exists "Project members can view team" on team_members;
-create policy "Project members can view team"
-  on team_members for select
+drop policy if exists "Project owners can manage team" on team_members;
+drop policy if exists "Invitee can join own row" on team_members;
+drop policy if exists "Members can update own record" on team_members;
+drop policy if exists "team_members_select" on team_members;
+drop policy if exists "team_members_insert" on team_members;
+drop policy if exists "team_members_update" on team_members;
+drop policy if exists "team_members_delete" on team_members;
+
+create policy "team_members_select" on team_members for select
   using (
     user_id = auth.uid()
-    or project_id in (select id from projects where user_id = auth.uid())
-    or project_id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
+    or is_project_owner(project_id, auth.uid())
+    or is_project_member(project_id, auth.uid())
   );
 
-drop policy if exists "Project owners can manage team" on team_members;
-create policy "Project owners can manage team"
-  on team_members for all
-  using (project_id in (select id from projects where user_id = auth.uid()))
-  with check (project_id in (select id from projects where user_id = auth.uid()));
+create policy "team_members_insert" on team_members for insert
+  with check (
+    user_id = auth.uid()
+    or is_project_owner(project_id, auth.uid())
+  );
 
-drop policy if exists "Invitee can join own row" on team_members;
-create policy "Invitee can join own row"
-  on team_members for insert
-  with check (user_id = auth.uid());
+create policy "team_members_update" on team_members for update
+  using (
+    user_id = auth.uid()
+    or is_project_owner(project_id, auth.uid())
+  );
 
-drop policy if exists "Members can update own record" on team_members;
-create policy "Members can update own record"
-  on team_members for update
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+create policy "team_members_delete" on team_members for delete
+  using (
+    user_id = auth.uid()
+    or is_project_owner(project_id, auth.uid())
+  );
 
--- team_invites policies
+-- ── team_invites policies ──
 drop policy if exists "Anyone can read invite by token" on team_invites;
-create policy "Anyone can read invite by token"
-  on team_invites for select using (true);
-
 drop policy if exists "Inviter can manage their invites" on team_invites;
-create policy "Inviter can manage their invites"
-  on team_invites for all
+drop policy if exists "Invitee can update their invite" on team_invites;
+drop policy if exists "team_invites_select" on team_invites;
+drop policy if exists "team_invites_all" on team_invites;
+drop policy if exists "team_invites_update" on team_invites;
+
+create policy "team_invites_select" on team_invites for select
+  using (true);  -- public read by token; client filters by token=...
+
+create policy "team_invites_all" on team_invites for all
   using (inviter_id = auth.uid())
   with check (inviter_id = auth.uid());
 
-drop policy if exists "Invitee can update their invite" on team_invites;
-create policy "Invitee can update their invite"
-  on team_invites for update using (true);
+create policy "team_invites_update" on team_invites for update
+  using (true);
 
 create index if not exists team_members_project_idx on team_members(project_id);
 create index if not exists team_members_user_idx on team_members(user_id);
@@ -111,52 +157,32 @@ create index if not exists team_invites_email_idx on team_invites(invitee_email)
 
 
 -- ═════════════════════════════════════════════════════════════════════
--- 2a. PROJECTS — add kanban_columns column so column layout syncs
+-- 2. PROJECTS — column for kanban layout + RLS for team members
 -- ═════════════════════════════════════════════════════════════════════
 
 alter table projects add column if not exists kanban_columns jsonb;
 
--- ═════════════════════════════════════════════════════════════════════
--- 2b. PROJECTS — let team members READ projects they were invited to
--- ═════════════════════════════════════════════════════════════════════
--- Without this, loadProjectsFromDB returns null for shared projects,
--- and the invitee sees an empty board.
-
+-- Existing "Users can manage own projects" stays (defined in schema.sql)
+-- We just add the policies for invited team members. Drop legacy names first.
 drop policy if exists "Team members can view invited projects" on projects;
-create policy "Team members can view invited projects"
-  on projects for select
-  using (
-    id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  );
-
--- Allow Editor-level members to UPDATE shared projects (brief / kanban
--- jsonb columns the legacy code writes to). Viewer/Admin gating is
--- enforced at the API layer; this just removes the RLS block.
 drop policy if exists "Team members can edit shared projects" on projects;
-create policy "Team members can edit shared projects"
-  on projects for update
-  using (
-    id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  )
-  with check (
-    id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  );
+drop policy if exists "projects_select_member" on projects;
+drop policy if exists "projects_update_member" on projects;
+
+create policy "projects_select_member" on projects for select
+  using (is_project_member(id, auth.uid()));
+
+-- Editors (any active member; Viewer block is enforced in the API/app)
+-- may update jsonb fields like brief_text / kanban / kanban_columns.
+create policy "projects_update_member" on projects for update
+  using (is_project_member(id, auth.uid()))
+  with check (is_project_member(id, auth.uid()));
 
 
 -- ═════════════════════════════════════════════════════════════════════
--- 3. TASKS / SUBTASKS / COMMENTS / ACTIVITY — visible to all members
+-- 3. TASKS / SUBTASKS / COMMENTS / ACTIVITY
 -- ═════════════════════════════════════════════════════════════════════
 
--- ── TASKS ──
 do $$ begin
   if not exists (select 1 from pg_tables where tablename = 'tasks') then
     create table tasks (
@@ -189,31 +215,23 @@ end $$;
 alter table tasks enable row level security;
 
 drop policy if exists "Project members can view tasks" on tasks;
-create policy "Project members can view tasks"
-  on tasks for select using (
-    user_id = auth.uid()
-    or project_id in (select id from projects where user_id = auth.uid())
-    or project_id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  );
-
 drop policy if exists "Project members can manage tasks" on tasks;
-create policy "Project members can manage tasks"
-  on tasks for all using (
-    project_id in (select id from projects where user_id = auth.uid())
-    or project_id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  ) with check (
-    project_id in (select id from projects where user_id = auth.uid())
-    or project_id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  );
+drop policy if exists "tasks_select" on tasks;
+drop policy if exists "tasks_all" on tasks;
+
+create policy "tasks_select" on tasks for select using (
+  user_id = auth.uid()
+  or is_project_owner(project_id, auth.uid())
+  or is_project_member(project_id, auth.uid())
+);
+
+create policy "tasks_all" on tasks for all using (
+  is_project_owner(project_id, auth.uid())
+  or is_project_member(project_id, auth.uid())
+) with check (
+  is_project_owner(project_id, auth.uid())
+  or is_project_member(project_id, auth.uid())
+);
 
 -- ── SUBTASKS ──
 do $$ begin
@@ -231,16 +249,13 @@ do $$ begin
 end $$;
 
 alter table subtasks enable row level security;
-
 drop policy if exists "Task access grants subtask access" on subtasks;
-create policy "Task access grants subtask access"
-  on subtasks for all using (
-    project_id in (select id from projects where user_id = auth.uid())
-    or project_id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  );
+drop policy if exists "subtasks_all" on subtasks;
+
+create policy "subtasks_all" on subtasks for all using (
+  is_project_owner(project_id, auth.uid())
+  or is_project_member(project_id, auth.uid())
+);
 
 -- ── TASK COMMENTS ──
 do $$ begin
@@ -260,16 +275,13 @@ do $$ begin
 end $$;
 
 alter table task_comments enable row level security;
-
 drop policy if exists "Project members can manage comments" on task_comments;
-create policy "Project members can manage comments"
-  on task_comments for all using (
-    project_id in (select id from projects where user_id = auth.uid())
-    or project_id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  );
+drop policy if exists "comments_all" on task_comments;
+
+create policy "comments_all" on task_comments for all using (
+  is_project_owner(project_id, auth.uid())
+  or is_project_member(project_id, auth.uid())
+);
 
 -- ── TASK ACTIVITY ──
 do $$ begin
@@ -289,29 +301,27 @@ do $$ begin
 end $$;
 
 alter table task_activity enable row level security;
-
 drop policy if exists "Project members can view activity" on task_activity;
-create policy "Project members can view activity"
-  on task_activity for select using (
-    project_id in (select id from projects where user_id = auth.uid())
-    or project_id in (
-      select project_id from team_members
-      where user_id = auth.uid() and status = 'active'
-    )
-  );
-
 drop policy if exists "Authenticated users can log activity" on task_activity;
-create policy "Authenticated users can log activity"
-  on task_activity for insert with check (auth.uid() is not null);
+drop policy if exists "activity_select" on task_activity;
+drop policy if exists "activity_insert" on task_activity;
+
+create policy "activity_select" on task_activity for select using (
+  is_project_owner(project_id, auth.uid())
+  or is_project_member(project_id, auth.uid())
+);
+
+create policy "activity_insert" on task_activity for insert
+  with check (auth.uid() is not null);
 
 
 -- ═════════════════════════════════════════════════════════════════════
--- 4. REALTIME — broadcast inserts/updates/deletes to all members
+-- 4. REALTIME PUBLICATION + REPLICA IDENTITY FULL
 -- ═════════════════════════════════════════════════════════════════════
--- The client subscribes to postgres_changes on these tables; Supabase
--- only forwards events if the table is in the supabase_realtime
--- publication AND replica identity is set so the full updated row
--- (including jsonb columns like kanban_columns) is broadcast on UPDATE.
+-- REPLICA IDENTITY FULL is required so UPDATE events carry the whole
+-- new row (jsonb columns included). Without this, payload.new for
+-- kanban_columns arrives undefined and column renames look like a
+-- no-op until the user refreshes.
 
 do $$
 declare
@@ -323,7 +333,6 @@ begin
       'team_members', 'team_invites'
     ])
   loop
-    -- add table to publication if not already there
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and tablename = t
@@ -331,10 +340,6 @@ begin
       execute format('alter publication supabase_realtime add table %I', t);
     end if;
 
-    -- REPLICA IDENTITY FULL is required for UPDATE events to carry the
-    -- whole new row. Without this, payload.new arrives with only the
-    -- primary key and kanban_columns (jsonb) is undefined — which is
-    -- why column renames seem to need a refresh.
     execute format('alter table %I replica identity full', t);
   end loop;
 end $$;
@@ -352,10 +357,12 @@ create index if not exists activity_task_idx on task_activity(task_id);
 
 
 -- ─────────────────────────────────────────────────────────────────────
--- VERIFY — run any of these after the script. Should each return rows
+-- VERIFY (uncomment to run)
 -- ─────────────────────────────────────────────────────────────────────
 -- select tablename, policyname from pg_policies
 --   where tablename in ('projects','tasks','subtasks','task_comments','task_activity','team_members','team_invites')
 --   order by tablename, policyname;
--- select tablename from pg_publication_tables where pubname = 'supabase_realtime' order by tablename;
+-- select tablename, relreplident from pg_publication_tables pt
+--   join pg_class c on c.relname = pt.tablename
+--   where pubname = 'supabase_realtime' order by tablename;
 -- select * from team_members order by joined_at desc limit 10;
