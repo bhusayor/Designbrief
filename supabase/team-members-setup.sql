@@ -78,6 +78,10 @@ begin
   end if;
 end $$;
 
+-- Per-project AI credit ceiling, set by the project Admin from the
+-- Project Members table. NULL = no limit assigned yet.
+alter table team_members add column if not exists credit_limit integer;
+
 create table if not exists team_invites (
   id text primary key,
   project_id text references projects(id) on delete cascade not null,

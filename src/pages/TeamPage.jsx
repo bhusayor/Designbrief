@@ -16,6 +16,7 @@ import {
   ChevronDownIcon,
   ArrowPathIcon,
   EllipsisHorizontalIcon,
+  CurrencyDollarIcon,
 } from '@heroicons/react/24/outline'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -109,6 +110,155 @@ function RoleSelect({ value, onChange }) {
         transform: 'translateY(-50%)',
         width: 11, height: 11, color: colors.text, pointerEvents: 'none',
       }} />
+    </div>
+  )
+}
+
+// Small modal the Admin uses to set a per-project credit ceiling for a member.
+// Empty input clears the limit (∞). Closes on Escape, backdrop click, and Save.
+function CreditLimitModal({ member, onClose, onSave }) {
+  const [value, setValue] = useState(
+    member?.creditLimit != null ? String(member.creditLimit) : ''
+  )
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  async function handleSave() {
+    setError('')
+    const trimmed = value.trim()
+    let parsed = null
+    if (trimmed !== '') {
+      const n = Number(trimmed)
+      if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+        setError('Enter a whole number ≥ 0, or leave blank for no limit.')
+        return
+      }
+      parsed = n
+    }
+    setSaving(true)
+    try {
+      await onSave(parsed)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 700,
+        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+          borderRadius: 16, width: '100%', maxWidth: 420,
+          fontFamily: 'var(--font-sans)', overflow: 'hidden',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
+        }}
+      >
+        <div style={{
+          padding: '18px 22px 14px', borderBottom: '1px solid var(--color-border)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: 7,
+                background: 'rgba(124,58,237,0.10)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <CurrencyDollarIcon style={{ width: 14, height: 14, color: '#7C3AED' }} />
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)' }}>
+                Set credit limit
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              For <strong style={{ color: 'var(--color-text)' }}>{member?.name || member?.email}</strong>
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            width: 28, height: 28, borderRadius: 8, background: 'transparent', border: 'none',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--color-text-muted)', flexShrink: 0,
+          }}>
+            <XMarkIcon style={{ width: 15, height: 15 }} />
+          </button>
+        </div>
+
+        <div style={{ padding: '16px 22px 20px' }}>
+          <label style={{
+            display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            color: 'var(--color-text-muted)', marginBottom: 6,
+          }}>
+            Total credit
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={value}
+            onChange={e => { setValue(e.target.value); setError('') }}
+            onKeyDown={e => { if (e.key === 'Enter') handleSave() }}
+            placeholder="Leave blank for no limit"
+            autoFocus
+            style={{
+              width: '100%', background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)', borderRadius: 10,
+              padding: '10px 12px', fontFamily: 'var(--font-sans)',
+              fontSize: 13, color: 'var(--color-text)', outline: 'none',
+              boxSizing: 'border-box',
+            }}
+            onFocus={e => { e.target.style.borderColor = '#7C3AED'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.12)' }}
+            onBlur={e => { e.target.style.borderColor = 'var(--color-border)'; e.target.style.boxShadow = 'none' }}
+          />
+          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
+            Max number of AI credits this member can spend on this project.
+          </div>
+
+          {error && (
+            <div style={{
+              marginTop: 12, padding: '8px 12px',
+              background: '#FEF2F2', border: '1px solid #FECACA',
+              borderRadius: 8, fontSize: 12, color: '#DC2626',
+            }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+            <button onClick={onClose} style={{
+              padding: '9px 18px', background: 'transparent', border: '1px solid var(--color-border)',
+              borderRadius: 9, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+              fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)',
+            }}>
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving} style={{
+              padding: '9px 20px',
+              background: saving ? 'var(--color-border)' : '#7C3AED',
+              color: 'white', border: 'none', borderRadius: 9,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+            }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -569,6 +719,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   const [memberCredits, setMemberCredits] = useState({})
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuPos, setMenuPos] = useState(null)
+  const [creditModalFor, setCreditModalFor] = useState(null)
 
   // In WORKSPACE mode we know the signed-in user is the owner — synthesize that row
   // locally so the table renders immediately. In PROJECT mode the API returns the
@@ -1175,8 +1326,9 @@ export default function TeamPage({ onClose, projectId, projectName }) {
             {/* Header row */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '36px minmax(180px, 1fr) 80px 80px 80px 80px 40px',
-              padding: '8px 16px', background: 'var(--color-surface)',
+              gridTemplateColumns: '36px minmax(220px, 2fr) 130px 90px 90px 100px 90px 40px',
+              gap: 14,
+              padding: '10px 18px', background: 'var(--color-surface)',
               borderBottom: '1px solid var(--color-border)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1186,7 +1338,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                   style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#7C3AED' }}
                 />
               </div>
-              {['Name', 'Role', 'Joined', 'Credits', 'Status', ''].map(h => (
+              {['Name', 'Role', 'Joined', 'Credit used', 'Total credit', 'Status', ''].map(h => (
                 <div key={h} style={{
                   fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
                   letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -1211,8 +1363,9 @@ export default function TeamPage({ onClose, projectId, projectName }) {
             ) : filteredRows.map((row, i) => (
               <div key={row.id || i} className="tp-row" style={{
                 display: 'grid',
-                gridTemplateColumns: '36px minmax(180px, 1fr) 80px 80px 80px 80px 40px',
-                padding: '10px 16px', alignItems: 'center',
+                gridTemplateColumns: '36px minmax(220px, 2fr) 130px 90px 90px 100px 90px 40px',
+                gap: 14,
+                padding: '12px 18px', alignItems: 'center',
                 borderBottom: i < filteredRows.length - 1 ? '1px solid var(--color-border)' : 'none',
                 background: selected.has(row.id) ? 'rgba(124,58,237,0.04)' : 'transparent',
                 transition: 'background 0.1s',
@@ -1293,9 +1446,16 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                   {row.isPending ? '—' : timeAgo(row.joinedAt)}
                 </div>
 
-                {/* Credits */}
+                {/* Credit used */}
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
                   {row.isPending ? '—' : (memberCredits[row.id] ?? 0)}
+                </div>
+
+                {/* Total credit (per-project credit limit) */}
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  {row.isPending || row.isCreator || row.role === 'owner'
+                    ? '—'
+                    : (row.creditLimit ?? '∞')}
                 </div>
 
                 {/* Status */}
@@ -1326,16 +1486,30 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                     >
                       <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
                     </button>
-                  ) : isOwner && row.id !== authUser?.id && !row.isCreator ? (
-                    <button onClick={() => handleRemoveMember(row.id)} title="Remove member" style={{
-                      width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: 'var(--color-text-muted)', transition: 'all 0.15s',
-                    }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = 'rgba(220,38,38,0.06)' }}
-                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
+                  ) : isAdmin && row.id !== authUser?.id && !row.isCreator ? (
+                    <button
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => {
+                        e.stopPropagation()
+                        const memberKey = 'm:' + row.id
+                        if (openMenuId === memberKey) {
+                          setOpenMenuId(null); setMenuPos(null)
+                        } else {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                          setOpenMenuId(memberKey)
+                        }
+                      }}
+                      title="Actions"
+                      style={{
+                        width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: openMenuId === ('m:' + row.id) ? '#7C3AED' : 'var(--color-text-muted)', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#7C3AED'; e.currentTarget.style.background = 'rgba(124,58,237,0.06)' }}
+                      onMouseLeave={e => { e.currentTarget.style.color = openMenuId === ('m:' + row.id) ? '#7C3AED' : 'var(--color-text-muted)'; e.currentTarget.style.background = 'transparent' }}
                     >
-                      <TrashIcon style={{ width: 13, height: 13 }} />
+                      <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
                     </button>
                   ) : null}
                 </div>
@@ -1357,8 +1531,63 @@ export default function TeamPage({ onClose, projectId, projectName }) {
         />
       )}
 
-      {/* Pending row actions dropdown — portal to escape overflow:auto clipping */}
+      {/* Row actions dropdown — portal to escape overflow:auto clipping.
+          Two flavours, dispatched on the openMenuId prefix:
+            - 'm:<userId>' → active member row → Delete + Set credit limit
+            - anything else  → pending-invite row → Resend + Cancel */}
       {openMenuId && menuPos && (() => {
+        const isMemberMenu = typeof openMenuId === 'string' && openMenuId.startsWith('m:')
+
+        if (isMemberMenu) {
+          const userId = openMenuId.slice(2)
+          const openMember = members.find(m => m.id === userId)
+          if (!openMember) return null
+          return ReactDOM.createPortal(
+            <div
+              onMouseDown={e => e.stopPropagation()}
+              style={{
+                position: 'fixed', top: menuPos.top, right: menuPos.right,
+                background: 'var(--color-card)', border: '1px solid var(--color-border)',
+                borderRadius: 9, boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                zIndex: 9999, minWidth: 200, overflow: 'hidden',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <button
+                onClick={() => {
+                  setCreditModalFor(openMember)
+                  setOpenMenuId(null); setMenuPos(null)
+                }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '10px 14px', background: 'transparent', border: 'none',
+                  cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', textAlign: 'left',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                <CurrencyDollarIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)' }} />
+                Set credit limit
+              </button>
+              <div style={{ height: 1, background: 'var(--color-border)', margin: '0 10px' }} />
+              <button
+                onClick={() => { handleRemoveMember(userId); setOpenMenuId(null); setMenuPos(null) }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '10px 14px', background: 'transparent', border: 'none',
+                  cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#dc2626', textAlign: 'left',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.06)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                <TrashIcon style={{ width: 13, height: 13 }} />
+                Delete
+              </button>
+            </div>,
+            document.body
+          )
+        }
+
         const openRow = allRows.find(r => r.inviteId === openMenuId)
         if (!openRow) return null
         return ReactDOM.createPortal(
@@ -1406,6 +1635,37 @@ export default function TeamPage({ onClose, projectId, projectName }) {
           document.body
         )
       })()}
+
+      {/* Set Credit Limit modal — only mounted when a member is selected */}
+      {creditModalFor && (
+        <CreditLimitModal
+          member={creditModalFor}
+          onClose={() => setCreditModalFor(null)}
+          onSave={async value => {
+            try {
+              const h = await getAuthHeaders()
+              const res = await fetch('/api/invite', {
+                method: 'POST', headers: h,
+                body: JSON.stringify({
+                  action: 'update_project_member_credit',
+                  projectId, userId: creditModalFor.id,
+                  creditLimit: value,
+                }),
+              })
+              if (!res.ok) {
+                const d = await res.json().catch(() => ({}))
+                setError(d.error || 'Failed to set credit limit')
+                return
+              }
+              // Optimistic local update
+              setApiMembers(prev => prev.map(m => m.id === creditModalFor.id ? { ...m, creditLimit: value } : m))
+              setCreditModalFor(null)
+            } catch (e) {
+              setError(e.message)
+            }
+          }}
+        />
+      )}
     </>
   )
 }

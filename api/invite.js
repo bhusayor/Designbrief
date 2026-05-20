@@ -664,7 +664,7 @@ export default async function handler(req, res) {
 
       const { data: tms, error: tmsErr } = await supabase
         .from('team_members')
-        .select('user_id, job_role, status, joined_at, display_name')
+        .select('user_id, job_role, status, joined_at, display_name, credit_limit')
         .eq('project_id', projectId)
         .eq('status', 'active')
 
@@ -699,6 +699,7 @@ export default async function handler(req, res) {
                 u?.user_metadata?.full_name ||
                 u?.email?.split('@')[0] ||
                 'Member',
+              creditLimit: m.credit_limit,
               isCreator: false,
             }
           })
@@ -837,6 +838,42 @@ export default async function handler(req, res) {
       if (upErr) return res.status(500).json({ error: upErr.message })
 
       return res.json({ success: true, role })
+    }
+
+    // ── UPDATE PROJECT MEMBER CREDIT LIMIT ────────────────────────────────────
+    // Body: { action:'update_project_member_credit', projectId, userId, creditLimit }
+    // Only the project creator (Admin) may set credit limits.
+    // creditLimit must be a positive integer or null (to clear it).
+    if (action === 'update_project_member_credit') {
+      const { projectId, userId, creditLimit } = req.body
+      if (!projectId || !userId)
+        return res.status(400).json({ error: 'projectId and userId required' })
+
+      // Validate: null / undefined clears the limit; otherwise must be int >= 0
+      let value = null
+      if (creditLimit !== null && creditLimit !== undefined && creditLimit !== '') {
+        const n = Number(creditLimit)
+        if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n))
+          return res.status(400).json({ error: 'creditLimit must be a non-negative integer or null' })
+        value = n
+      }
+
+      const { data: project } = await supabase
+        .from('projects').select('user_id').eq('id', projectId).single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+      if (project.user_id !== user.id)
+        return res.status(403).json({ error: 'Only the project Admin can set credit limits' })
+      if (userId === project.user_id)
+        return res.status(400).json({ error: "The Admin's credit limit isn't set here" })
+
+      const { error: upErr } = await supabase
+        .from('team_members')
+        .update({ credit_limit: value })
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+      if (upErr) return res.status(500).json({ error: upErr.message })
+
+      return res.json({ success: true, creditLimit: value })
     }
 
     // ── REMOVE PROJECT MEMBER ─────────────────────────────────────────────────
