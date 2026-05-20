@@ -396,7 +396,15 @@ export function AppProvider({ children }) {
       }
       console.log('[loadProjectsFromDB] fetched', data?.length || 0, 'owned projects');
 
-      const ownFormatted = (data || []).map(p => formatProjectRow(p));
+      // Normalise legacy roles (Team Member / Collaborator / PM / etc.)
+      // into the Editor/Viewer hierarchy used by the new RBAC.
+      function normaliseRole(r) {
+        const v = String(r || '').toLowerCase()
+        if (v === 'viewer' || v === 'guest') return 'Viewer'
+        return 'Editor'
+      }
+
+      const ownFormatted = (data || []).map(p => formatProjectRow(p, { currentUserRole: 'Admin' }));
       const ownIds = new Set(ownFormatted.map(p => p.id));
 
       // 2. Shared projects — where this user is a team_member but not the owner.
@@ -409,7 +417,11 @@ export function AppProvider({ children }) {
 
       const sharedFormatted = (memberData || [])
         .filter(m => m.projects && !ownIds.has(m.project_id))
-        .map(m => formatProjectRow(m.projects, { isShared: true, myRole: m.job_role }));
+        .map(m => formatProjectRow(m.projects, {
+          isShared: true,
+          myRole: m.job_role,
+          currentUserRole: normaliseRole(m.job_role),
+        }));
 
       const allFormatted = [...ownFormatted, ...sharedFormatted];
 
@@ -457,14 +469,20 @@ export function AppProvider({ children }) {
       }, (payload) => {
         console.log('[projects realtime] event:', payload.eventType, payload.new?.id || payload.old?.id, payload);
         if (payload.eventType === 'INSERT') {
-          const incoming = formatProjectRow(payload.new);
+          // For owned projects we can immediately tag the role as Admin.
+          // For shared projects the team_members realtime listener triggers
+          // a full refetch which assigns the correct role.
+          const extra = payload.new?.user_id === authUser.id ? { currentUserRole: 'Admin' } : {};
+          const incoming = formatProjectRow(payload.new, extra);
           setProjects(prev => prev.some(p => p.id === incoming.id) ? prev : [incoming, ...prev]);
           setHistory(prev => prev.some(p => p.id === incoming.id) ? prev : [incoming, ...prev]);
         } else if (payload.eventType === 'UPDATE') {
+          // Preserve currentUserRole / isShared (not on the projects payload)
+          // by merging incoming onto prev.
           const incoming = formatProjectRow(payload.new);
-          setProjects(prev => prev.map(p => p.id === incoming.id ? { ...p, ...incoming } : p));
-          setHistory(prev => prev.map(p => p.id === incoming.id ? { ...p, ...incoming } : p));
-          setActiveProjectState(prev => prev?.id === incoming.id ? { ...prev, ...incoming } : prev);
+          setProjects(prev => prev.map(p => p.id === incoming.id ? { ...p, ...incoming, currentUserRole: p.currentUserRole, isShared: p.isShared } : p));
+          setHistory(prev => prev.map(p => p.id === incoming.id ? { ...p, ...incoming, currentUserRole: p.currentUserRole, isShared: p.isShared } : p));
+          setActiveProjectState(prev => prev?.id === incoming.id ? { ...prev, ...incoming, currentUserRole: prev.currentUserRole, isShared: prev.isShared } : prev);
         } else if (payload.eventType === 'DELETE') {
           const goneId = payload.old?.id;
           if (!goneId) return;

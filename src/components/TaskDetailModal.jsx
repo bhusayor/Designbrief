@@ -767,7 +767,12 @@ export default function TaskDetailModal({
   onUpdate,
   onDelete,
   onClose,
+  currentUserRole = 'Admin', // 'Admin' | 'Editor' | 'Viewer'
 }) {
+  // RBAC: Viewers can read everything and post comments, but cannot edit
+  // the task itself or delete it. Admin and Editor have full task-edit rights.
+  const canEdit = currentUserRole !== 'Viewer'
+  const canDelete = currentUserRole === 'Admin'
   // ── Track viewport for mobile bottom-sheet variant ─────────────────────
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' && window.innerWidth <= 768
@@ -1013,6 +1018,9 @@ export default function TaskDetailModal({
 
   // ── Save helper ────────────────────────────────────────────────────────
   async function patchTask(updates, activityAction, oldValue, newValue) {
+    // RBAC: Viewers cannot mutate the task itself. Their comment writes go
+    // through a separate code path that remains open.
+    if (!canEdit) return
     const next = { ...task, ...updates }
     setTask(next)
     onUpdate?.(next)
@@ -1597,22 +1605,32 @@ export default function TaskDetailModal({
               </button>
               {showMoreMenu && (
                 <div style={popoverStyle({ top: '100%', right: 0, minWidth: 180 })}>
-                  <div className="tdm-row"
-                    onClick={() => {
-                      setShowMoreMenu(false)
-                      if (window.confirm('Delete this task permanently?')) {
-                        onDelete?.(task.id); onClose?.()
-                      }
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 10px', cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)', fontSize: 13,
-                      color: '#EF4444',
+                  {canDelete ? (
+                    <div className="tdm-row"
+                      onClick={() => {
+                        setShowMoreMenu(false)
+                        if (window.confirm('Delete this task permanently?')) {
+                          onDelete?.(task.id); onClose?.()
+                        }
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '8px 10px', cursor: 'pointer',
+                        fontFamily: 'var(--font-sans)', fontSize: 13,
+                        color: '#EF4444',
+                      }}>
+                      <TrashIcon style={{ width: 13, height: 13 }} />
+                      Delete Task
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '8px 10px',
+                      fontFamily: 'var(--font-sans)', fontSize: 12,
+                      color: 'var(--color-text-muted)',
                     }}>
-                    <TrashIcon style={{ width: 13, height: 13 }} />
-                    Delete Task
-                  </div>
+                      Only the project Admin can delete tasks.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1680,12 +1698,12 @@ export default function TaskDetailModal({
                 />
               ) : (
                 <h1
-                  onClick={() => { setTitleDraft(task.title || ''); setEditingTitle(true) }}
+                  onClick={() => { if (canEdit) { setTitleDraft(task.title || ''); setEditingTitle(true) } }}
                   style={{
                     margin: 0, padding: '4px 0',
                     fontFamily: 'var(--font-sans)', fontSize: isMobile ? 19 : 24, fontWeight: 700,
                     color: 'var(--color-text)', letterSpacing: '-0.02em',
-                    cursor: 'text', lineHeight: 1.3,
+                    cursor: canEdit ? 'text' : 'default', lineHeight: 1.3,
                   }}>
                   {task.title || 'Untitled task'}
                 </h1>

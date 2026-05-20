@@ -647,18 +647,18 @@ export default async function handler(req, res) {
       }
       if (!canList) return res.status(403).json({ error: 'Access denied' })
 
-      // Project creator → always PM
+      // Project creator → always Admin
       const { data: { user: ownerUser } } = await supabase.auth.admin.getUserById(project.user_id)
       const ownerRow = {
         id: project.user_id,
-        role: 'PM',
+        role: 'Admin',
         joinedAt: project.created_at,
         email: ownerUser?.email || '',
         name:
           ownerUser?.user_metadata?.name ||
           ownerUser?.user_metadata?.full_name ||
           ownerUser?.email?.split('@')[0] ||
-          'Project Manager',
+          'Admin',
         isCreator: true,
       }
 
@@ -668,6 +668,15 @@ export default async function handler(req, res) {
         .eq('project_id', projectId)
         .eq('status', 'active')
 
+      // Normalise legacy roles into the new Editor/Viewer hierarchy. Anything
+      // that isn't explicitly Viewer becomes Editor (this includes legacy
+      // values like Team Member, Collaborator, Designer, Developer, PM, etc).
+      function normaliseRole(r) {
+        const v = String(r || '').toLowerCase()
+        if (v === 'viewer' || v === 'guest') return 'Viewer'
+        return 'Editor'
+      }
+
       const memberDetails = await Promise.all(
         (tms || [])
           .filter(m => m.user_id !== project.user_id) // exclude duplicate of creator
@@ -675,7 +684,8 @@ export default async function handler(req, res) {
             const { data: { user: u } } = await supabase.auth.admin.getUserById(m.user_id)
             return {
               id: m.user_id,
-              role: m.job_role || 'Team Member',
+              role: normaliseRole(m.job_role),
+              rawRole: m.job_role || '',
               joinedAt: m.created_at,
               email: u?.email || '',
               name:
@@ -793,6 +803,37 @@ export default async function handler(req, res) {
       return res.json({ success: true })
     }
 
+    // ── UPDATE PROJECT MEMBER ROLE ────────────────────────────────────────────
+    // Body: { action:'update_project_member_role', projectId, userId, role }
+    // Only the project creator (Admin) may change a member's role.
+    // role must be one of: 'Editor' | 'Viewer'  (Admin cannot be assigned.)
+    if (action === 'update_project_member_role') {
+      const { projectId, userId, role } = req.body
+      if (!projectId || !userId || !role)
+        return res.status(400).json({ error: 'projectId, userId, and role required' })
+
+      const ALLOWED = new Set(['Editor', 'Viewer'])
+      if (!ALLOWED.has(role))
+        return res.status(400).json({ error: 'role must be Editor or Viewer' })
+
+      const { data: project } = await supabase
+        .from('projects').select('user_id').eq('id', projectId).single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+      if (project.user_id !== user.id)
+        return res.status(403).json({ error: 'Only the project Admin can change roles' })
+      if (userId === project.user_id)
+        return res.status(400).json({ error: "The Admin's role cannot be changed" })
+
+      const { error: upErr } = await supabase
+        .from('team_members')
+        .update({ job_role: role })
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+      if (upErr) return res.status(500).json({ error: upErr.message })
+
+      return res.json({ success: true, role })
+    }
+
     // ── REMOVE PROJECT MEMBER ─────────────────────────────────────────────────
     if (action === 'remove_project_member') {
       const { projectId, userId } = req.body
@@ -901,29 +942,23 @@ export default async function handler(req, res) {
     // link can be shared with multiple potential collaborators. Returns
     // /join/:token (NOT /invite/:token) so JoinPage handles it.
     if (action === 'create_project_link') {
-      const { projectId, jobRole = 'Team Member' } = req.body
+      const { projectId, jobRole = 'Editor' } = req.body
       if (!projectId) return res.status(400).json({ error: 'projectId required' })
 
-      // Verify caller has access to this project
+      // Only the project creator (Admin) may generate invite links.
       const { data: project } = await supabase
         .from('projects')
         .select('id, user_id, title')
         .eq('id', projectId)
         .single()
       if (!project) return res.status(404).json({ error: 'Project not found' })
+      if (project.user_id !== user.id)
+        return res.status(403).json({ error: 'Only the project Admin can create invite links' })
 
-      let canInvite = project.user_id === user.id
-      if (!canInvite) {
-        const { data: member } = await supabase
-          .from('team_members')
-          .select('id')
-          .eq('project_id', projectId)
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .maybeSingle()
-        canInvite = !!member
-      }
-      if (!canInvite) return res.status(403).json({ error: 'You are not on this project' })
+      // Reject roles that cannot be assigned via invite link
+      const LINK_ALLOWED = new Set(['Editor', 'Viewer'])
+      if (!LINK_ALLOWED.has(jobRole))
+        return res.status(400).json({ error: 'Invite-link role must be Editor or Viewer' })
 
       const sentinelEmail = 'link:' + jobRole
 
@@ -984,7 +1019,7 @@ export default async function handler(req, res) {
     // Creates a row in team_invites (NOT workspace_invites) so the invitee
     // joins ONLY this project — they keep / create their own workspace.
     if (action === 'send_project') {
-      const { projectId, email, name = '', jobRole = 'Team Member' } = req.body
+      const { projectId, email, name = '', jobRole = 'Editor' } = req.body
 
       if (!projectId || !email)
         return res.status(400).json({ error: 'projectId and email required' })
@@ -993,7 +1028,7 @@ export default async function handler(req, res) {
       if (!emailRegex.test(email))
         return res.status(400).json({ error: 'Invalid email address' })
 
-      // Verify the caller actually has access to this project (owner or member)
+      // Only the project creator (Admin) may invite members.
       const { data: project } = await supabase
         .from('projects')
         .select('id, user_id, title')
@@ -1001,20 +1036,13 @@ export default async function handler(req, res) {
         .single()
       if (!project)
         return res.status(404).json({ error: 'Project not found' })
+      if (project.user_id !== user.id)
+        return res.status(403).json({ error: 'Only the project Admin can invite members' })
 
-      let canInvite = project.user_id === user.id
-      if (!canInvite) {
-        const { data: member } = await supabase
-          .from('team_members')
-          .select('id')
-          .eq('project_id', projectId)
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .maybeSingle()
-        canInvite = !!member
-      }
-      if (!canInvite)
-        return res.status(403).json({ error: 'You are not on this project' })
+      // Email-invites can also assign Editor or Viewer only (Admin cannot be given via invite)
+      const SEND_ALLOWED = new Set(['Editor', 'Viewer'])
+      if (!SEND_ALLOWED.has(jobRole))
+        return res.status(400).json({ error: 'Invite role must be Editor or Viewer' })
 
       // Block re-invite if a pending one already exists
       const { data: existingInvite } = await supabase

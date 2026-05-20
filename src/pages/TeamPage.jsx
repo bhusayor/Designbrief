@@ -79,6 +79,40 @@ function RoleBadge({ role }) {
   )
 }
 
+// Inline role picker — used in the project members table by the Admin to
+// switch a member between Editor and Viewer. Visually mirrors RoleBadge
+// when collapsed.
+function RoleSelect({ value, onChange }) {
+  const v = value === 'Viewer' ? 'Viewer' : 'Editor'
+  const colors = v === 'Viewer'
+    ? { bg: 'rgba(14,165,233,0.10)', text: '#0369A1', border: 'rgba(14,165,233,0.25)' }
+    : { bg: 'var(--color-surface)',  text: 'var(--color-text-muted)', border: 'var(--color-border)' }
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <select
+        value={v}
+        onChange={e => onChange?.(e.target.value)}
+        style={{
+          appearance: 'none', WebkitAppearance: 'none',
+          fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+          background: colors.bg, color: colors.text,
+          border: '1px solid ' + colors.border,
+          borderRadius: 100, padding: '2px 22px 2px 9px',
+          cursor: 'pointer', outline: 'none',
+        }}
+      >
+        <option value="Editor">Editor</option>
+        <option value="Viewer">Viewer</option>
+      </select>
+      <ChevronDownIcon style={{
+        position: 'absolute', right: 6, top: '50%',
+        transform: 'translateY(-50%)',
+        width: 11, height: 11, color: colors.text, pointerEvents: 'none',
+      }} />
+    </div>
+  )
+}
+
 function StatusBadge({ status }) {
   if (status === 'pending') return (
     <span style={{
@@ -756,6 +790,38 @@ export default function TeamPage({ onClose, projectId, projectName }) {
     ? !!members.find(m => m.id === authUser?.id && m.isCreator)
     : members.find(m => m.id === authUser?.id)?.role === 'owner'
 
+  // In project mode, only the project Admin can invite, remove members,
+  // and change roles. `isAdmin` is true only when the signed-in user is
+  // the project creator.
+  const isAdmin = isProjectMode
+    ? !!members.find(m => m.id === authUser?.id && m.isCreator)
+    : isOwner
+
+  async function handleChangeRole(userId, nextRole) {
+    if (!isAdmin || !isProjectMode) return
+    // Optimistic update
+    setApiMembers(prev => prev.map(m => m.id === userId ? { ...m, role: nextRole } : m))
+    try {
+      const h = await getAuthHeaders()
+      const res = await fetch('/api/invite', {
+        method: 'POST', headers: h,
+        body: JSON.stringify({
+          action: 'update_project_member_role',
+          projectId, userId, role: nextRole,
+        }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error || 'Failed to update role')
+        // Re-fetch to recover on failure
+        loadData()
+      }
+    } catch (e) {
+      setError(e.message)
+      loadData()
+    }
+  }
+
   // Workspace invites use {invited_email, role, expires_at}
   // Project invites use   {invitee_email, job_role, expires_at, invited_at}
   // Normalise into a single row shape used by the renderer.
@@ -995,7 +1061,8 @@ export default function TeamPage({ onClose, projectId, projectName }) {
               {selected.size > 0 ? `Export ${selected.size}` : 'Export'}
             </button>
 
-            {/* Invite link — triggers popup */}
+            {/* Invite link — triggers popup. In project mode, only the Admin can create invite links. */}
+            {(!isProjectMode || isAdmin) && (
             <div style={{ position: 'relative', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
               <button
                 onClick={() => setShowInviteLinkPopup(v => !v)}
@@ -1025,8 +1092,10 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                 />
               )}
             </div>
+            )}
 
-            {/* Invite members */}
+            {/* Invite members — admin-only in project mode */}
+            {(!isProjectMode || isAdmin) && (
             <button onClick={() => setShowInviteModal(true)} style={{
               flex: isMobile ? '1 1 100%' : '0 0 auto',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 16px',
@@ -1041,6 +1110,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
               <UserPlusIcon style={{ width: 14, height: 14 }} />
               Invite members
             </button>
+            )}
           </div>
 
           {/* Bulk action bar */}
@@ -1191,15 +1261,23 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                 {/* Role */}
                 <div>
                   {row.isCreator || row.role === 'owner' ? (
+                    // Project creator / workspace owner — role is fixed (Admin/Owner)
                     <span className="tp-owner-role" style={{ cursor: 'default' }}>
-                      <RoleBadge role={isProjectMode ? 'PM' : 'owner'} />
+                      <RoleBadge role={isProjectMode ? 'Admin' : 'owner'} />
                       <span className="tp-owner-tooltip">
                         {isProjectMode
-                          ? 'The project creator. Manages the project board, members, and timelines.'
+                          ? "The project creator's role is Admin and cannot be changed."
                           : 'Owners can manage all collaborators, projects, and connections.'}
                       </span>
                     </span>
+                  ) : isProjectMode && !row.isPending && isAdmin ? (
+                    // Admin viewing a non-creator project member → editable role select
+                    <RoleSelect
+                      value={row.role === 'Viewer' ? 'Viewer' : 'Editor'}
+                      onChange={next => handleChangeRole(row.id, next)}
+                    />
                   ) : (
+                    // Everyone else / pending invites → read-only badge
                     <RoleBadge role={row.role} />
                   )}
                 </div>

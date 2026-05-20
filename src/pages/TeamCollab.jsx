@@ -496,6 +496,19 @@ export default function TeamCollab() {
   const isMobile = windowWidth <= 480
   const isTablet = windowWidth > 480 && windowWidth <= 768
 
+  // ── Role-based access control ─────────────────────────────────────────────
+  // currentUserRole on a project is one of: 'Admin' | 'Editor' | 'Viewer'.
+  // - Admin     = project creator: full control + invites + delete + role mgmt
+  // - Editor    = invited collaborator: edit brief, create/move tasks, comment
+  // - Viewer    = read-only: view + comment only
+  // Projects the user owns default to Admin; shared projects carry the role
+  // assigned in team_members. New projects (no activeProject yet) default to
+  // Admin so the creation flow is never blocked.
+  const myRole = activeProject?.currentUserRole || 'Admin'
+  const isProjectAdmin = myRole === 'Admin'
+  const canEdit = myRole === 'Admin' || myRole === 'Editor'
+  const isViewer = myRole === 'Viewer'
+
   const websiteTemplate = getWebsiteTemplate(selectedWebsiteTemplate || 'saas-landing')
 
   // Hydrate from localStorage immediately so the board shows without waiting for
@@ -2373,6 +2386,16 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   function handleRenameProject(projectId, newTitle) {
     const trimmed = newTitle.trim()
     if (!trimmed) return
+    // RBAC: only the project Admin (creator) may rename a project.
+    if (projectId !== 'default') {
+      const target = ctxProjects.find(p => p.id === projectId)
+      const targetRole = target?.currentUserRole || (target?.isShared ? 'Editor' : 'Admin')
+      if (targetRole !== 'Admin') {
+        showToast?.('Only the project Admin can rename this project')
+        setRenamingProjectId(null)
+        return
+      }
+    }
     console.log('[TC handleRenameProject]', { projectId, trimmed, isDefault: projectId === 'default' })
 
     // `default` is the placeholder ID for the first-ever tab — it has never
@@ -2458,6 +2481,14 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   }
 
   function handleDeleteProject(projectId) {
+    // RBAC: only the project Admin (creator) may delete the project.
+    const target = ctxProjects.find(p => p.id === projectId)
+    const targetRole = target?.currentUserRole || (target?.isShared ? 'Editor' : 'Admin')
+    if (targetRole !== 'Admin') {
+      showToast?.('Only the project Admin can delete this project')
+      setConfirmDeleteId(null)
+      return
+    }
     if (projects.length <= 1) return
     const updated = projects.filter(p => p.id !== projectId)
     setProjects(updated)
@@ -3053,8 +3084,9 @@ STYLE:
 
     return (
       <div
-        draggable
+        draggable={canEdit}
         onDragStart={e => {
+          if (!canEdit) { e.preventDefault(); return }
           e.stopPropagation()
           draggedTaskRef.current = task   // set ref immediately — no re-render lag
           setDraggedTask(task)
@@ -3082,6 +3114,7 @@ STYLE:
         onDrop={e => {
           e.preventDefault()
           e.stopPropagation()
+          if (!canEdit) return
           const dt = draggedTaskRef.current
           if (!dt || dt.id === task.id) return
           const targetCol = task.column
@@ -3522,6 +3555,7 @@ STYLE:
           authUser={authUser}
           user={user}
           teamMembers={teamMembers}
+          currentUserRole={myRole}
           onUpdate={updateTask}
           onDelete={deleteTaskNow}
           onClose={() => {
@@ -4021,12 +4055,17 @@ STYLE:
                     {!isMobile && 'Build with AI'}
                   </button>
                 )}
-                {!isMobile && (
+                {!isMobile && canEdit && (
                   <button onClick={() => createAndOpenTask(customCols[0]?.id || KANBAN_COLS[0])}
                     style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, minHeight: 'unset' }}>
                     <PlusIcon style={{ width: 13, height: 13 }} />
                     Add Task
                   </button>
+                )}
+                {isViewer && !isMobile && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'rgba(14,165,233,0.10)', border: '1px solid rgba(14,165,233,0.25)', color: '#0369A1', borderRadius: 8, fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600 }}>
+                    Viewer · read-only
+                  </span>
                 )}
                 {!isMobile && connectorData?.linear?.teams?.length > 0 && kanban?.tasks?.length > 0 && (
                   <button
@@ -4361,6 +4400,7 @@ STYLE:
                     }}
                     onDrop={e => {
                       e.preventDefault()
+                      if (!canEdit) return
                       const dt = draggedTaskRef.current
                       if (!dt) return
                       if (dragOverTaskId) return
@@ -4391,6 +4431,7 @@ STYLE:
                     {isTaskDropTarget && colTasks.length === 0 && (
                       <div style={{ height: 60, border: '1.5px dashed #3B82F680', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, color: '#3B82F6' }}>Drop here</div>
                     )}
+                    {canEdit && (
                     <button
                       onClick={() => createAndOpenTask(col.id)}
                       onMouseDown={e => e.stopPropagation()}
@@ -4401,6 +4442,7 @@ STYLE:
                       <PlusIcon style={{ width: 13, height: 13 }} />
                       Add task
                     </button>
+                    )}
                   </div>
                 </div>
               )
@@ -4642,26 +4684,27 @@ STYLE:
               <div style={{ padding: '10px 24px 16px', borderTop: 'none', background: 'var(--color-bg)', flexShrink: 0 }}>
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => handleFileUpload(e.target.files[0])} />
                 <div
-                  style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 14, overflow: 'visible', transition: 'border-color 0.15s, box-shadow 0.15s' }}
-                  onFocusCapture={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.1)' }}
+                  style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: 14, overflow: 'visible', transition: 'border-color 0.15s, box-shadow 0.15s', opacity: canEdit ? 1 : 0.55 }}
+                  onFocusCapture={e => { if (canEdit) { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.1)' } }}
                   onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <textarea
                     ref={chatInputRef}
                     value={input}
                     onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
-                    placeholder={kanban?.tasks?.length ? 'Ask anything about this project...' : 'Describe your project or paste a brief...'}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (canEdit) handleChatSend() } }}
+                    placeholder={canEdit ? (kanban?.tasks?.length ? 'Ask anything about this project...' : 'Describe your project or paste a brief...') : 'Viewers cannot edit this brief'}
+                    readOnly={!canEdit}
                     rows={1}
-                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', display: 'block', boxSizing: 'border-box', overflowY: 'hidden', height: 'auto' }}
+                    style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.6, padding: '12px 14px 6px', display: 'block', boxSizing: 'border-box', overflowY: 'hidden', height: 'auto', cursor: canEdit ? 'text' : 'not-allowed' }}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '4px 10px 10px' }}>
                     <button
-                      onPointerDown={e => { e.preventDefault(); handleChatSend() }}
-                      disabled={!input.trim() || isTyping}
-                      style={{ width: 30, height: 30, borderRadius: 9, background: input.trim() && !isTyping ? 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)' : 'var(--color-border)', border: 'none', cursor: input.trim() && !isTyping ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s', boxShadow: input.trim() && !isTyping ? '0 2px 8px rgba(139,92,246,0.3)' : 'none' }}
+                      onPointerDown={e => { e.preventDefault(); if (canEdit) handleChatSend() }}
+                      disabled={!canEdit || !input.trim() || isTyping}
+                      style={{ width: 30, height: 30, borderRadius: 9, background: canEdit && input.trim() && !isTyping ? 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)' : 'var(--color-border)', border: 'none', cursor: canEdit && input.trim() && !isTyping ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s', boxShadow: canEdit && input.trim() && !isTyping ? '0 2px 8px rgba(139,92,246,0.3)' : 'none' }}
                     >
-                      <ArrowUpIcon style={{ width: 13, height: 13, color: input.trim() && !isTyping ? 'white' : 'var(--color-text-muted)' }} />
+                      <ArrowUpIcon style={{ width: 13, height: 13, color: canEdit && input.trim() && !isTyping ? 'white' : 'var(--color-text-muted)' }} />
                     </button>
                   </div>
                 </div>
