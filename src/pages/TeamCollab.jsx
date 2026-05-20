@@ -793,12 +793,16 @@ export default function TeamCollab() {
     }).catch(() => {})
   }, [activeProject?.id, activeProjectId, authUser?.id])
 
-  // ── Realtime: keep customCols in sync when the Admin edits columns ───────
-  // The projects realtime listener in AppContext keeps activeProject up to
-  // date — we just need to propagate kanbanColumns into local customCols
-  // state so collaborators see the same layout without a refresh.
+  // ── Realtime + polling: keep customCols in sync when the Admin edits ─────
+  // We watch BOTH activeProject.kanbanColumns (updated by the projects
+  // realtime channel) AND the matching entry in ctxProjects (updated by
+  // the 5-second polling fallback in AppContext). Either path is enough
+  // to propagate column renames / additions to the collaborator's board.
   useEffect(() => {
-    const incoming = activeProject?.kanbanColumns
+    const pid = activeProjectId || activeProject?.id
+    if (!pid) return
+    const fromCtx = ctxProjects?.find(p => p.id === pid)?.kanbanColumns
+    const incoming = activeProject?.kanbanColumns || fromCtx
     if (!Array.isArray(incoming) || incoming.length === 0) return
     setCustomCols(prev => {
       // Shallow compare — only update if actually different to avoid
@@ -808,9 +812,10 @@ export default function TeamCollab() {
       ) {
         return prev
       }
+      console.log('[TC] customCols updated from remote:', incoming.map(c => c.label).join(', '))
       return incoming
     })
-  }, [activeProject?.kanbanColumns])
+  }, [activeProject?.kanbanColumns, ctxProjects, activeProjectId, activeProject?.id])
 
   // After a page refresh the activeProjectId is restored from localStorage but
   // activeProject (AppContext) is null. Look the project up in ctxProjects

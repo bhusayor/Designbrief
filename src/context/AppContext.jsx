@@ -437,6 +437,15 @@ export function AppProvider({ children }) {
       // ctxProjects, including TeamCollab. That re-render redefines components
       // declared inside TeamCollab (InlineAddTask etc.) and wipes their local
       // input state, making typing 'disappear' for slow typists.
+      const sameColumns = (a, b) => {
+        if (a === b) return true;
+        if (!Array.isArray(a) || !Array.isArray(b)) return false;
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i]?.id !== b[i]?.id || a[i]?.label !== b[i]?.label || a[i]?.color !== b[i]?.color) return false;
+        }
+        return true;
+      };
       const sameAsPrev = (prev) => {
         if (!Array.isArray(prev) || prev.length !== allFormatted.length) return false;
         for (let i = 0; i < allFormatted.length; i++) {
@@ -447,11 +456,32 @@ export function AppProvider({ children }) {
           if (a.section !== b.section) return false;
           if (a.pinned !== b.pinned) return false;
           if (a.ts !== b.ts) return false;
+          // kanban_columns changes are written to projects.updated_at so
+          // `ts` should differ — but check explicitly to survive any
+          // server-side clock skew or skipped touched_at update.
+          if (!sameColumns(a.kanbanColumns, b.kanbanColumns)) return false;
         }
         return true;
       };
       setProjects(prev => sameAsPrev(prev) ? prev : allFormatted);
       setHistory(prev => sameAsPrev(prev) ? prev : allFormatted);
+
+      // Also refresh activeProject so consumers watching it
+      // (TeamCollab's customCols / projectTitle / brief sync) pick up
+      // changes that arrive via the polling fallback, not just realtime.
+      setActiveProjectState(prev => {
+        if (!prev?.id) return prev;
+        const incoming = allFormatted.find(p => p.id === prev.id);
+        if (!incoming) return prev;
+        // Identical? leave reference alone to avoid unnecessary re-renders.
+        if (prev.ts === incoming.ts
+          && prev.title === incoming.title
+          && sameColumns(prev.kanbanColumns, incoming.kanbanColumns)
+        ) {
+          return prev;
+        }
+        return { ...prev, ...incoming, currentUserRole: prev.currentUserRole, isShared: prev.isShared };
+      });
     } catch (e) {
       console.error('[AppContext] loadProjectsFromDB exception:', e);
     }
