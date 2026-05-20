@@ -667,12 +667,18 @@ export default function TeamPage({ onClose, projectId, projectName }) {
         fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify(membersBody) }).then(r => r.json()),
         fetch('/api/invite', { method: 'POST', headers: h, body: JSON.stringify(invitesBody) }).then(r => r.json()),
       ])
+      console.log('[team page] members response:', membersRes)
+      console.log('[team page] invites response:', invitesRes)
+      if (membersRes.error) {
+        setError('Members: ' + membersRes.error)
+      }
       const fetchedMembers = membersRes.members || []
       setApiMembers(fetchedMembers)
       setPendingInvites(invitesRes.invites || [])
       loadCredits(fetchedMembers.map(m => m.id))
     } catch (e) {
       console.error('[team page]', e)
+      setError(e.message)
     } finally {
       setLoading(false)
     }

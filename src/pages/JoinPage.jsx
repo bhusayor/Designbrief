@@ -105,7 +105,16 @@ export default function JoinPage() {
         authUser?.user_metadata?.full_name ||
         authUser?.email?.split('@')[0] ||
         ''
-      const result = await acceptInvite(invite.token, authUser.id, fallbackName)
+      let result
+      try {
+        result = await acceptInvite(invite.token, authUser.id, fallbackName)
+      } catch (err) {
+        console.error('[JoinPage] acceptInvite failed:', err)
+        throw new Error(
+          'Could not join the project. ' + (err.message || 'Unknown error') +
+          ' — If this keeps happening, run the SQL block from supabase/team-members-setup.sql in the Supabase SQL editor.'
+        )
+      }
       localStorage.removeItem('db-join-token')
 
       // Prefer the project returned by the server (service role bypasses RLS).

@@ -662,11 +662,16 @@ export default async function handler(req, res) {
         isCreator: true,
       }
 
-      const { data: tms } = await supabase
+      const { data: tms, error: tmsErr } = await supabase
         .from('team_members')
-        .select('user_id, job_role, status, created_at, display_name')
+        .select('user_id, job_role, status, joined_at, display_name')
         .eq('project_id', projectId)
         .eq('status', 'active')
+
+      if (tmsErr) {
+        console.error('[list_project_members] team_members select failed', tmsErr)
+        return res.status(500).json({ error: 'Failed to load team members: ' + tmsErr.message })
+      }
 
       // Normalise legacy roles into the new Editor/Viewer hierarchy. Anything
       // that isn't explicitly Viewer becomes Editor (this includes legacy
@@ -686,7 +691,7 @@ export default async function handler(req, res) {
               id: m.user_id,
               role: normaliseRole(m.job_role),
               rawRole: m.job_role || '',
-              joinedAt: m.created_at,
+              joinedAt: m.joined_at,
               email: u?.email || '',
               name:
                 m.display_name ||
@@ -988,24 +993,63 @@ export default async function handler(req, res) {
             .update({ status: 'accepted', accepted_at: new Date().toISOString() })
             .eq('id', invite.id)
         }
-        return res.json({ success: true, projectId: invite.project_id, alreadyAdmin: true })
+        const { data: ownProject } = await supabase
+          .from('projects').select('*').eq('id', invite.project_id).single()
+        return res.json({
+          success: true,
+          projectId: invite.project_id,
+          project: ownProject || null,
+          jobRole: 'Admin',
+          alreadyAdmin: true,
+        })
       }
 
-      // Upsert team_members row (service role → bypasses RLS)
-      const { error: memberErr } = await supabase
-        .from('team_members')
-        .upsert({
-          project_id: invite.project_id,
-          user_id: user.id,
-          invited_by: invite.inviter_id,
-          job_role: invite.job_role || 'Editor',
-          display_name: invite.invitee_name || displayName || user.email?.split('@')[0] || '',
-          status: 'active',
-        }, { onConflict: 'project_id,user_id' })
+      // Insert team_members row (service role → bypasses RLS). We avoid the
+      // onConflict path because the unique constraint on (project_id, user_id)
+      // may not exist in every environment. Instead: explicit existence check,
+      // then INSERT or UPDATE.
+      const memberRow = {
+        project_id: invite.project_id,
+        user_id: user.id,
+        invited_by: invite.inviter_id,
+        job_role: invite.job_role || 'Editor',
+        display_name: invite.invitee_name || displayName || user.email?.split('@')[0] || '',
+        status: 'active',
+      }
 
-      if (memberErr) {
-        console.error('[accept_project_invite] team_members upsert failed', memberErr)
-        return res.status(500).json({ error: 'Failed to join project: ' + memberErr.message })
+      const { data: existingMember, error: existingErr } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('project_id', invite.project_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (existingErr) {
+        console.error('[accept_project_invite] team_members existence check failed', existingErr)
+        return res.status(500).json({ error: 'Failed to read team_members: ' + existingErr.message })
+      }
+
+      if (existingMember) {
+        const { error: updateErr } = await supabase
+          .from('team_members')
+          .update({
+            job_role: memberRow.job_role,
+            display_name: memberRow.display_name,
+            status: 'active',
+          })
+          .eq('id', existingMember.id)
+        if (updateErr) {
+          console.error('[accept_project_invite] team_members update failed', updateErr)
+          return res.status(500).json({ error: 'Failed to update team_members: ' + updateErr.message })
+        }
+      } else {
+        const { error: insertErr } = await supabase
+          .from('team_members')
+          .insert(memberRow)
+        if (insertErr) {
+          console.error('[accept_project_invite] team_members insert failed', insertErr)
+          return res.status(500).json({ error: 'Failed to insert team_members: ' + insertErr.message })
+        }
       }
 
       // Mark single-recipient invites accepted. Leave link invites pending
