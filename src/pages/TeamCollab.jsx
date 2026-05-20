@@ -794,28 +794,51 @@ export default function TeamCollab() {
   }, [activeProject?.id, activeProjectId, authUser?.id])
 
   // ── Realtime + polling: keep customCols in sync when the Admin edits ─────
-  // We watch BOTH activeProject.kanbanColumns (updated by the projects
-  // realtime channel) AND the matching entry in ctxProjects (updated by
-  // the 5-second polling fallback in AppContext). Either path is enough
-  // to propagate column renames / additions to the collaborator's board.
-  useEffect(() => {
-    const pid = activeProjectId || activeProject?.id
-    if (!pid) return
-    const fromCtx = ctxProjects?.find(p => p.id === pid)?.kanbanColumns
-    const incoming = activeProject?.kanbanColumns || fromCtx
+  // Three paths converge on the same setCustomCols:
+  //   1. Supabase broadcast on 'tc-cols-<projectId>' (sub-second; fired
+  //      directly from saveCustomCols on the other client)
+  //   2. postgres_changes UPDATE on projects (realtime, ~1s, requires
+  //      REPLICA IDENTITY FULL so the jsonb arrives in payload.new)
+  //   3. The 5s polling fallback in AppContext
+  function applyIncomingCols(incoming) {
     if (!Array.isArray(incoming) || incoming.length === 0) return
     setCustomCols(prev => {
-      // Shallow compare — only update if actually different to avoid
-      // a re-render loop with our own writes.
       if (prev.length === incoming.length
         && prev.every((c, i) => c.id === incoming[i].id && c.label === incoming[i].label && c.color === incoming[i].color)
       ) {
         return prev
       }
       console.log('[TC] customCols updated from remote:', incoming.map(c => c.label).join(', '))
+      try { localStorage.setItem('tc-cols-' + (activeProjectId || 'default'), JSON.stringify(incoming)) } catch {}
       return incoming
     })
+  }
+
+  // Path 2 + 3 — driven by AppContext's realtime/polling refresh
+  useEffect(() => {
+    const pid = activeProjectId || activeProject?.id
+    if (!pid) return
+    const fromCtx = ctxProjects?.find(p => p.id === pid)?.kanbanColumns
+    const incoming = activeProject?.kanbanColumns || fromCtx
+    applyIncomingCols(incoming)
   }, [activeProject?.kanbanColumns, ctxProjects, activeProjectId, activeProject?.id])
+
+  // Path 1 — direct broadcast channel for sub-second column updates
+  useEffect(() => {
+    const pid = activeProjectId || activeProject?.id
+    if (!pid || pid === 'default' || !authUser) return
+    const ch = supabase
+      .channel('tc-cols-' + pid, { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'kanban_columns' }, msg => {
+        const cols = msg?.payload?.cols
+        if (Array.isArray(cols)) {
+          console.log('[TC] customCols broadcast received')
+          applyIncomingCols(cols)
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [activeProjectId, activeProject?.id, authUser?.id])
 
   // After a page refresh the activeProjectId is restored from localStorage but
   // activeProject (AppContext) is null. Look the project up in ctxProjects
@@ -1360,6 +1383,21 @@ Return JSON:
       import('../lib/taskService').then(({ saveKanbanColumns }) => {
         saveKanbanColumns(pid, cols)
       }).catch(() => {})
+      // Fast path: broadcast the new column layout on a per-project
+      // realtime channel. Subscribers on other devices apply it without
+      // waiting for postgres_changes to roundtrip (~50-200ms vs ~1s+).
+      try {
+        const ch = supabase.channel('tc-cols-' + pid, { config: { broadcast: { self: false } } })
+        ch.subscribe(status => {
+          if (status === 'SUBSCRIBED') {
+            ch.send({ type: 'broadcast', event: 'kanban_columns', payload: { cols } })
+            // Tear down after sending — re-create per save to avoid leak
+            setTimeout(() => supabase.removeChannel(ch), 250)
+          }
+        })
+      } catch (e) {
+        console.warn('[TC] broadcast columns failed:', e?.message)
+      }
     }
   }
 

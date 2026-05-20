@@ -310,7 +310,8 @@ create policy "Authenticated users can log activity"
 -- ═════════════════════════════════════════════════════════════════════
 -- The client subscribes to postgres_changes on these tables; Supabase
 -- only forwards events if the table is in the supabase_realtime
--- publication.
+-- publication AND replica identity is set so the full updated row
+-- (including jsonb columns like kanban_columns) is broadcast on UPDATE.
 
 do $$
 declare
@@ -329,6 +330,12 @@ begin
     ) then
       execute format('alter publication supabase_realtime add table %I', t);
     end if;
+
+    -- REPLICA IDENTITY FULL is required for UPDATE events to carry the
+    -- whole new row. Without this, payload.new arrives with only the
+    -- primary key and kanban_columns (jsonb) is undefined — which is
+    -- why column renames seem to need a refresh.
+    execute format('alter table %I replica identity full', t);
   end loop;
 end $$;
 
