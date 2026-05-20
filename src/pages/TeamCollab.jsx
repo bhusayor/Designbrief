@@ -491,7 +491,7 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
 
 
 export default function TeamCollab() {
-  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, user, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB } = useContext(AppContext)
+  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, user, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB, touchProject } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth <= 480
@@ -502,10 +502,19 @@ export default function TeamCollab() {
   // - Admin     = project creator: full control + invites + delete + role mgmt
   // - Editor    = invited collaborator: edit brief, create/move tasks, comment
   // - Viewer    = read-only: view + comment only
-  // Projects the user owns default to Admin; shared projects carry the role
-  // assigned in team_members. New projects (no activeProject yet) default to
-  // Admin so the creation flow is never blocked.
-  const myRole = activeProject?.currentUserRole || 'Admin'
+  //
+  // Derive STRICTLY from the project whose id matches activeProjectId so a
+  // switch from Project A (Viewer) to Project B (Admin) never bleeds the
+  // previous role's restrictions onto the new board. We look up by id in
+  // ctxProjects rather than reading activeProject.currentUserRole because
+  // activeProject can lag a tick during transitions.
+  const targetProjectId = activeProjectId || activeProject?.id
+  const projectInCtx = ctxProjects?.find(p => p.id === targetProjectId)
+  const myRole = (
+    (activeProject?.id === targetProjectId ? activeProject?.currentUserRole : null)
+    || projectInCtx?.currentUserRole
+    || 'Admin'
+  )
   const isProjectAdmin = myRole === 'Admin'
   const canEdit = myRole === 'Admin' || myRole === 'Editor'
   const isViewer = myRole === 'Viewer'
@@ -2462,11 +2471,11 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
     if (id === activeProjectId) return
     switchWithTransition(id, projects)
     // Touch the project's updated_at so other devices know this is the
-    // most-recently-active one and auto-follow.
-    if (renameProjectInDB && id !== 'default') {
-      const existing = ctxProjects?.find(p => p.id === id) || projects?.find(p => p.id === id)
-      const title = existing?.title || 'Untitled'
-      renameProjectInDB(id, title, 'team')
+    // most-recently-active one and auto-follow. Uses touchProject (no
+    // owner-only fields in the PATCH) so Editor/Viewer can also bump it
+    // when they switch to a shared board.
+    if (touchProject && id !== 'default') {
+      touchProject(id)
     }
   }
 

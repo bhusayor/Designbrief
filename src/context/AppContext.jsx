@@ -913,6 +913,27 @@ export function AppProvider({ children }) {
     })();
   }, [authUser, session, showToast]);
 
+  // touchProject: bump projects.updated_at WITHOUT changing any owner-only
+  // fields (title / pinned / locked / section). The API allows any active
+  // member to fire this — used by handleSwitchProject so the user's "most
+  // recently viewed" project syncs across their own devices regardless of
+  // whether they're Admin / Editor / Viewer on it.
+  const touchProject = useCallback(async (id) => {
+    if (!id || id === 'default') return;
+    const accessToken = session?.access_token;
+    if (!accessToken) return;
+    try {
+      await fetch('/api/create-workspace', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ project_id: id, updates: {} }),
+      });
+    } catch {}
+  }, [session]);
+
   const shareProject = useCallback((project) => {
     const url = `${window.location.origin}/project/${project.shareId}`;
     navigator.clipboard.writeText(url).then(() => {
@@ -1056,6 +1077,7 @@ export function AppProvider({ children }) {
     deleteProject,
     pinProject,
     renameProject,
+    touchProject,
     shareProject,
 
     // History actions
