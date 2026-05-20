@@ -81,13 +81,18 @@ function RoleBadge({ role }) {
 }
 
 // Inline role picker — used in the project members table by the Admin to
-// switch a member between Editor and Viewer. Visually mirrors RoleBadge
-// when collapsed.
+// switch a member between Admin / Editor / Viewer. Visually mirrors
+// RoleBadge when collapsed.
 function RoleSelect({ value, onChange }) {
-  const v = value === 'Viewer' ? 'Viewer' : 'Editor'
-  const colors = v === 'Viewer'
-    ? { bg: 'rgba(14,165,233,0.10)', text: '#0369A1', border: 'rgba(14,165,233,0.25)' }
-    : { bg: 'var(--color-surface)',  text: 'var(--color-text-muted)', border: 'var(--color-border)' }
+  const v = value === 'Admin' ? 'Admin'
+    : value === 'Viewer' ? 'Viewer'
+    : 'Editor'
+  const palette = {
+    Admin:  { bg: 'rgba(124,58,237,0.10)', text: '#7C3AED', border: 'rgba(124,58,237,0.30)' },
+    Editor: { bg: 'var(--color-surface)',  text: 'var(--color-text-muted)', border: 'var(--color-border)' },
+    Viewer: { bg: 'rgba(14,165,233,0.10)', text: '#0369A1', border: 'rgba(14,165,233,0.25)' },
+  }
+  const colors = palette[v]
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
       <select
@@ -102,6 +107,7 @@ function RoleSelect({ value, onChange }) {
           cursor: 'pointer', outline: 'none',
         }}
       >
+        <option value="Admin">Admin</option>
         <option value="Editor">Editor</option>
         <option value="Viewer">Viewer</option>
       </select>
@@ -306,7 +312,7 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
 
   // Default role: PM/Team Member/Viewer for project, Member for workspace
   useEffect(() => {
-    setRole(isProjectMode ? 'Team Member' : 'member')
+    setRole(isProjectMode ? 'Editor' : 'member')
   }, [isProjectMode])
 
   async function handleSend() {
@@ -447,9 +453,9 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {(isProjectMode ? [
-                { value: 'PM',          label: 'Project Manager (PM)', desc: 'Manages the board, timelines, members, and tasks' },
-                { value: 'Team Member', label: 'Team Member',          desc: 'Completes tasks, updates statuses, comments, uploads files' },
-                { value: 'Viewer',      label: 'Viewer / Guest',       desc: 'Read-only access. Tracks progress and views reports' },
+                { value: 'Admin',  label: 'Admin',  desc: 'Full control. Invite members, manage roles, delete project.' },
+                { value: 'Editor', label: 'Editor', desc: 'Edit brief, create and move tasks, add comments.' },
+                { value: 'Viewer', label: 'Viewer', desc: 'Read-only access. Can comment but not edit.' },
               ] : [
                 { value: 'member', label: 'Member',        desc: 'View and work on projects' },
                 { value: 'admin',  label: 'Administrator', desc: 'Manages billing, integrations, permissions, and workflows' },
@@ -520,8 +526,7 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
   const isProjectMode = !!projectId
 
   // For workspace links the role is member|admin. For project links the
-  // invite-link role is Editor or Viewer (Admin/PM cannot be assigned via
-  // a shareable link). Default to Editor.
+  // invite-link role is Admin, Editor or Viewer. Default to Editor.
   const [role, setRole] = useState(isProjectMode ? 'Editor' : 'member')
   const [linkData, setLinkData] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -578,7 +583,7 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
   return (
     <div ref={popupRef} style={{
       position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-      width: 300, background: 'var(--color-card)',
+      width: 340, background: 'var(--color-card)',
       border: '1px solid var(--color-border)', borderRadius: 14,
       boxShadow: 'var(--shadow-lg)', zIndex: 100, padding: '18px 18px 16px',
       fontFamily: 'var(--font-sans)',
@@ -613,31 +618,50 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
         )}
       </p>
 
-      {/* Role dropdown */}
+      {/* Role picker — titles + one-line descriptions */}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           Join as
         </label>
-        <div style={{ position: 'relative' }}>
-          <select value={role} onChange={e => setRole(e.target.value)} style={{
-            width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-            borderRadius: 9, padding: '8px 32px 8px 12px', fontFamily: 'var(--font-sans)',
-            fontSize: 13, color: 'var(--color-text)', outline: 'none', cursor: 'pointer',
-            appearance: 'none', WebkitAppearance: 'none', boxSizing: 'border-box',
-          }}>
-            {isProjectMode ? (
-              <>
-                <option value="Editor">Editor</option>
-                <option value="Viewer">Viewer</option>
-              </>
-            ) : (
-              <>
-                <option value="member">Member</option>
-                <option value="admin">Administrator (Admin)</option>
-              </>
-            )}
-          </select>
-          <ChevronDownIcon style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {(isProjectMode ? [
+            { value: 'Admin',  label: 'Admin',  desc: 'Full control. Invite, manage roles, delete project.' },
+            { value: 'Editor', label: 'Editor', desc: 'Edit brief, create and move tasks, comment.' },
+            { value: 'Viewer', label: 'Viewer', desc: 'Read-only. Can comment but not edit.' },
+          ] : [
+            { value: 'member', label: 'Member',        desc: 'View and work on projects.' },
+            { value: 'admin',  label: 'Administrator', desc: 'Manages billing, integrations, permissions.' },
+          ]).map(opt => {
+            const selected = role === opt.value
+            return (
+              <button key={opt.value} type="button" onClick={() => setRole(opt.value)} style={{
+                textAlign: 'left', cursor: 'pointer',
+                display: 'flex', alignItems: 'flex-start', gap: 9,
+                padding: '8px 10px',
+                border: '1px solid ' + (selected ? '#7C3AED' : 'var(--color-border)'),
+                background: selected ? 'rgba(124,58,237,0.06)' : 'var(--color-surface)',
+                borderRadius: 9, transition: 'all 0.15s',
+              }}>
+                <span style={{
+                  flexShrink: 0, marginTop: 2,
+                  width: 14, height: 14, borderRadius: '50%',
+                  border: '1.5px solid ' + (selected ? '#7C3AED' : 'var(--color-border)'),
+                  background: selected ? '#7C3AED' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {selected && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#fff' }} />}
+                </span>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>
+                    {opt.label}
+                  </span>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.45, marginTop: 1 }}>
+                    {opt.desc}
+                  </span>
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -1185,8 +1209,8 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                 <option value="all">All roles</option>
                 {isProjectMode ? (
                   <>
-                    <option value="PM">Project Manager</option>
-                    <option value="Team Member">Team Member</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Editor">Editor</option>
                     <option value="Viewer">Viewer</option>
                   </>
                 ) : (
@@ -1432,7 +1456,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                   ) : isProjectMode && !row.isPending && isAdmin ? (
                     // Admin viewing a non-creator project member → editable role select
                     <RoleSelect
-                      value={row.role === 'Viewer' ? 'Viewer' : 'Editor'}
+                      value={row.role === 'Admin' ? 'Admin' : row.role === 'Viewer' ? 'Viewer' : 'Editor'}
                       onChange={next => handleChangeRole(row.id, next)}
                     />
                   ) : (

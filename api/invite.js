@@ -11,6 +11,29 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 const APP_URL = process.env.APP_URL || 'https://designbrief-vert.vercel.app'
 
+// Returns true if userId is the project creator OR an active team_member
+// with job_role='Admin'. Used for Admin-only endpoints (invite, role
+// management, credit limits, member removal, etc).
+async function isProjectAdmin(userId, projectId) {
+  if (!userId || !projectId) return false
+  const { data: project } = await supabase
+    .from('projects')
+    .select('user_id')
+    .eq('id', projectId)
+    .maybeSingle()
+  if (project && project.user_id === userId) return true
+
+  const { data: member } = await supabase
+    .from('team_members')
+    .select('job_role')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .maybeSingle()
+  if (!member) return false
+  return String(member.job_role || '').toLowerCase() === 'admin'
+}
+
 function projectInviteEmailHTML({ projectName, inviterName, inviterEmail, role, inviteUrl }) {
   return `
 <!DOCTYPE html>
@@ -673,11 +696,14 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to load team members: ' + tmsErr.message })
       }
 
-      // Normalise legacy roles into the new Editor/Viewer hierarchy. Anything
-      // that isn't explicitly Viewer becomes Editor (this includes legacy
-      // values like Team Member, Collaborator, Designer, Developer, PM, etc).
+      // Normalise legacy roles into the Admin/Editor/Viewer hierarchy.
+      //   'admin'            → Admin (invited co-admins)
+      //   'viewer' | 'guest' → Viewer
+      //   anything else      → Editor (covers legacy Team Member,
+      //                        Collaborator, Designer, Developer, PM, etc.)
       function normaliseRole(r) {
         const v = String(r || '').toLowerCase()
+        if (v === 'admin') return 'Admin'
         if (v === 'viewer' || v === 'guest') return 'Viewer'
         return 'Editor'
       }
@@ -752,8 +778,8 @@ export default async function handler(req, res) {
       const { data: project } = await supabase
         .from('projects').select('user_id').eq('id', projectId).single()
       if (!project) return res.status(404).json({ error: 'Project not found' })
-      if (project.user_id !== user.id)
-        return res.status(403).json({ error: 'Only the project creator can cancel invites' })
+      if (!(await isProjectAdmin(user.id, projectId)))
+        return res.status(403).json({ error: 'Only the project Admin can cancel invites' })
 
       await supabase
         .from('team_invites')
@@ -772,8 +798,8 @@ export default async function handler(req, res) {
       const { data: project } = await supabase
         .from('projects').select('user_id, title').eq('id', projectId).single()
       if (!project) return res.status(404).json({ error: 'Project not found' })
-      if (project.user_id !== user.id)
-        return res.status(403).json({ error: 'Only the project creator can resend invites' })
+      if (!(await isProjectAdmin(user.id, projectId)))
+        return res.status(403).json({ error: 'Only the project Admin can resend invites' })
 
       const { data: invite } = await supabase
         .from('team_invites').select('*').eq('id', inviteId).single()
@@ -818,17 +844,19 @@ export default async function handler(req, res) {
       if (!projectId || !userId || !role)
         return res.status(400).json({ error: 'projectId, userId, and role required' })
 
-      const ALLOWED = new Set(['Editor', 'Viewer'])
+      const ALLOWED = new Set(['Admin', 'Editor', 'Viewer'])
       if (!ALLOWED.has(role))
-        return res.status(400).json({ error: 'role must be Editor or Viewer' })
+        return res.status(400).json({ error: 'role must be Admin, Editor, or Viewer' })
 
       const { data: project } = await supabase
         .from('projects').select('user_id').eq('id', projectId).single()
       if (!project) return res.status(404).json({ error: 'Project not found' })
-      if (project.user_id !== user.id)
+      if (!(await isProjectAdmin(user.id, projectId)))
         return res.status(403).json({ error: 'Only the project Admin can change roles' })
+      // The project creator's role is locked even from other Admins —
+      // they remain the founder Admin and can't be demoted.
       if (userId === project.user_id)
-        return res.status(400).json({ error: "The Admin's role cannot be changed" })
+        return res.status(400).json({ error: "The project creator's role cannot be changed" })
 
       const { error: upErr } = await supabase
         .from('team_members')
@@ -861,10 +889,10 @@ export default async function handler(req, res) {
       const { data: project } = await supabase
         .from('projects').select('user_id').eq('id', projectId).single()
       if (!project) return res.status(404).json({ error: 'Project not found' })
-      if (project.user_id !== user.id)
+      if (!(await isProjectAdmin(user.id, projectId)))
         return res.status(403).json({ error: 'Only the project Admin can set credit limits' })
       if (userId === project.user_id)
-        return res.status(400).json({ error: "The Admin's credit limit isn't set here" })
+        return res.status(400).json({ error: "The project creator's credit limit isn't set here" })
 
       const { error: upErr } = await supabase
         .from('team_members')
@@ -884,8 +912,8 @@ export default async function handler(req, res) {
       const { data: project } = await supabase
         .from('projects').select('user_id').eq('id', projectId).single()
       if (!project) return res.status(404).json({ error: 'Project not found' })
-      if (project.user_id !== user.id)
-        return res.status(403).json({ error: 'Only the project creator can remove members' })
+      if (!(await isProjectAdmin(user.id, projectId)))
+        return res.status(403).json({ error: 'Only the project Admin can remove members' })
       if (userId === project.user_id)
         return res.status(400).json({ error: 'Cannot remove the project creator' })
 
@@ -1123,20 +1151,20 @@ export default async function handler(req, res) {
       const { projectId, jobRole = 'Editor' } = req.body
       if (!projectId) return res.status(400).json({ error: 'projectId required' })
 
-      // Only the project creator (Admin) may generate invite links.
+      // Only project Admins (creator OR invited Admin) may generate invite links.
       const { data: project } = await supabase
         .from('projects')
         .select('id, user_id, title')
         .eq('id', projectId)
         .single()
       if (!project) return res.status(404).json({ error: 'Project not found' })
-      if (project.user_id !== user.id)
+      if (!(await isProjectAdmin(user.id, projectId)))
         return res.status(403).json({ error: 'Only the project Admin can create invite links' })
 
-      // Reject roles that cannot be assigned via invite link
-      const LINK_ALLOWED = new Set(['Editor', 'Viewer'])
+      // Invite-link roles: Admin, Editor, Viewer
+      const LINK_ALLOWED = new Set(['Admin', 'Editor', 'Viewer'])
       if (!LINK_ALLOWED.has(jobRole))
-        return res.status(400).json({ error: 'Invite-link role must be Editor or Viewer' })
+        return res.status(400).json({ error: 'Invite-link role must be Admin, Editor, or Viewer' })
 
       const sentinelEmail = 'link:' + jobRole
 
@@ -1214,13 +1242,13 @@ export default async function handler(req, res) {
         .single()
       if (!project)
         return res.status(404).json({ error: 'Project not found' })
-      if (project.user_id !== user.id)
+      if (!(await isProjectAdmin(user.id, projectId)))
         return res.status(403).json({ error: 'Only the project Admin can invite members' })
 
-      // Email-invites can also assign Editor or Viewer only (Admin cannot be given via invite)
-      const SEND_ALLOWED = new Set(['Editor', 'Viewer'])
+      // Invite roles: Admin, Editor, Viewer
+      const SEND_ALLOWED = new Set(['Admin', 'Editor', 'Viewer'])
       if (!SEND_ALLOWED.has(jobRole))
-        return res.status(400).json({ error: 'Invite role must be Editor or Viewer' })
+        return res.status(400).json({ error: 'Invite role must be Admin, Editor, or Viewer' })
 
       // Block re-invite if a pending one already exists
       const { data: existingInvite } = await supabase

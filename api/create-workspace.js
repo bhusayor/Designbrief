@@ -92,8 +92,8 @@ async function userHasProjectAccess(userId, projectId) {
 }
 
 // Returns the user's role on the project:
-//   'Admin'   — project creator
-//   'Editor'  — active team_member with any role that isn't Viewer/Guest
+//   'Admin'   — project creator OR active team_member with job_role='Admin'
+//   'Editor'  — active team_member with any other non-Viewer role
 //   'Viewer'  — active team_member with role Viewer/Guest
 //   null      — no access at all
 // Normalises legacy roles (Team Member / Collaborator / PM / etc.) into
@@ -117,6 +117,7 @@ async function userProjectRole(userId, projectId) {
   if (!member) return null
   const r = String(member.job_role || '').toLowerCase()
   if (r === 'viewer' || r === 'guest') return 'Viewer'
+  if (r === 'admin') return 'Admin'
   return 'Editor'
 }
 
@@ -137,6 +138,21 @@ async function requireEditor(req, res, userId, projectId, opts = {}) {
   }
   res.status(403).json({ error: 'Not a project member' })
   return { ok: false, role: null }
+}
+
+// Strict admin gate. Project creator OR an invited member whose job_role
+// resolves to 'Admin'. Used for the admin-only endpoints (invite, manage
+// roles, set credit limits, remove members, etc).
+async function requireAdmin(req, res, userId, projectId, opts = {}) {
+  const role = await userProjectRole(userId, projectId)
+  if (role === 'Admin') return { ok: true, role }
+  res.status(403).json({
+    error: opts.label
+      ? `Only the project Admin can ${opts.label}`
+      : 'Only the project Admin can do this',
+    code: 'ADMIN_ONLY',
+  })
+  return { ok: false, role }
 }
 
 export default async function handler(req, res) {

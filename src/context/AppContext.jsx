@@ -404,9 +404,10 @@ export function AppProvider({ children }) {
       console.log('[loadProjectsFromDB] fetched', data?.length || 0, 'owned projects');
 
       // Normalise legacy roles (Team Member / Collaborator / PM / etc.)
-      // into the Editor/Viewer hierarchy used by the new RBAC.
+      // into the Admin/Editor/Viewer hierarchy used by the new RBAC.
       function normaliseRole(r) {
         const v = String(r || '').toLowerCase()
+        if (v === 'admin') return 'Admin'
         if (v === 'viewer' || v === 'guest') return 'Viewer'
         return 'Editor'
       }
