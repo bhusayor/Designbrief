@@ -261,12 +261,18 @@ export function AppProvider({ children }) {
 
       loadCreditsUsed(supabaseUser.id);
 
-      // Redirect to join page only if the user already has a workspace.
-      // New users (no workspace) must complete WorkspaceSetup first — App.jsx's
-      // onComplete callback will navigate them to 'join' after their workspace is created.
+      // Redirect to join page only if the user already has a workspace AND
+      // they actually arrived via an invite link (URL starts with /join/).
+      // A stale db-join-token left over from a failed/abandoned attempt
+      // must NOT trap an existing user on the join screen forever.
       const storedToken = localStorage.getItem('db-join-token');
-      if (storedToken && foundWorkspace) {
+      const onJoinUrl = typeof window !== 'undefined'
+        && window.location.pathname.startsWith('/join/');
+      if (storedToken && foundWorkspace && onJoinUrl) {
         setActiveSectionState('join');
+      } else if (storedToken && !onJoinUrl) {
+        // Clean up the stale token so future auth events don't bounce here.
+        localStorage.removeItem('db-join-token');
       }
     } catch (e) {
       console.error('[AppContext] handleAuthUser error:', e);

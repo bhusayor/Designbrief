@@ -69,10 +69,24 @@ export default function JoinPage() {
           setAuthName(data.invitee_name || '')
           setPhase('invite')
         } else {
+          // The token couldn't be resolved — wipe it so the user isn't sent
+          // back here on the next sign-in.
+          try { localStorage.removeItem('db-join-token') } catch {}
+          try {
+            if (window.location.pathname.startsWith('/join/')) {
+              window.history.replaceState(null, '', '/')
+            }
+          } catch {}
           setPhase('error')
           setError('This invitation is invalid or has expired.')
         }
       } catch {
+        try { localStorage.removeItem('db-join-token') } catch {}
+        try {
+          if (window.location.pathname.startsWith('/join/')) {
+            window.history.replaceState(null, '', '/')
+          }
+        } catch {}
         setPhase('error')
         setError('Could not load invite.')
       }
@@ -173,8 +187,24 @@ export default function JoinPage() {
         setActiveProject(projectEntry)
       }
 
+      // Rewrite the address bar to "/" so a reload (or someone bookmarking
+      // this page) doesn't re-enter the join flow with a now-stale token.
+      try {
+        if (window.location.pathname.startsWith('/join/')) {
+          window.history.replaceState(null, '', '/')
+        }
+      } catch {}
+
       setPhase('done')
     } catch (err) {
+      // A failed accept is terminal for this token — clear it so the user
+      // isn't permanently bounced back to the join screen.
+      try { localStorage.removeItem('db-join-token') } catch {}
+      try {
+        if (window.location.pathname.startsWith('/join/')) {
+          window.history.replaceState(null, '', '/')
+        }
+      } catch {}
       setError(err.message)
       setPhase('error')
     }
