@@ -335,9 +335,10 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
   // link behaviour (workspace_invites, /invite/:token).
   const isProjectMode = !!projectId
 
-  // For workspace links the role is member|admin. For project links it follows
-  // the role hierarchy: PM / Team Member / Viewer. Default to Team Member.
-  const [role, setRole] = useState(isProjectMode ? 'Team Member' : 'member')
+  // For workspace links the role is member|admin. For project links the
+  // invite-link role is Editor or Viewer (Admin/PM cannot be assigned via
+  // a shareable link). Default to Editor.
+  const [role, setRole] = useState(isProjectMode ? 'Editor' : 'member')
   const [linkData, setLinkData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -442,9 +443,8 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
           }}>
             {isProjectMode ? (
               <>
-                <option value="PM">Project Manager (PM)</option>
-                <option value="Team Member">Team Member</option>
-                <option value="Viewer">Viewer / Guest</option>
+                <option value="Editor">Editor</option>
+                <option value="Viewer">Viewer</option>
               </>
             ) : (
               <>
