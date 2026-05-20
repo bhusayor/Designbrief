@@ -57,7 +57,25 @@ function formatProjectRow(p, extra = {}) {
 export function AppProvider({ children }) {
   const [projects, setProjects] = useState([]);
   const [activeProject, setActiveProjectState] = useState(null);
-  const [activeSection, setActiveSectionState] = useState('dashboard');
+  // Remember the active project's id across refreshes — we restore the full
+  // object from ctxProjects once they load. Cleared when activeProject is
+  // explicitly set to null (project deleted or user kicked out).
+  const [activeProjectId, setActiveProjectId] = useState(() => {
+    try { return localStorage.getItem('db-active-project-id') || null } catch { return null }
+  });
+  // Persist activeSection across refreshes so the user lands back on the
+  // page they were on (Team / Document / Library / Connectors / etc.) rather
+  // than being kicked to the dashboard. Sections tied to special URLs
+  // (auth / join / accept-invite / client-intake) are NEVER persisted —
+  // App.jsx's path matcher already handles those on load.
+  const NON_PERSISTABLE_SECTIONS = new Set(['auth', 'join', 'accept-invite', 'client-intake']);
+  const [activeSection, setActiveSectionState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('db-active-section');
+      if (saved && !NON_PERSISTABLE_SECTIONS.has(saved)) return saved;
+    } catch {}
+    return 'dashboard';
+  });
   const [history, setHistory] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [notification, setNotification] = useState(null);
@@ -739,6 +757,44 @@ export function AppProvider({ children }) {
   const setActiveSection = useCallback((section) => {
     setActiveSectionState(section);
   }, []);
+
+  // Persist the active section any time it changes, regardless of which
+  // code path triggered the change (setActiveSection vs direct
+  // setActiveSectionState calls inside this file).
+  useEffect(() => {
+    try {
+      if (activeSection && !NON_PERSISTABLE_SECTIONS.has(activeSection)) {
+        localStorage.setItem('db-active-section', activeSection);
+      }
+    } catch {}
+  }, [activeSection]);
+
+  // Persist the active project's id whenever it changes.
+  useEffect(() => {
+    try {
+      if (activeProject?.id) {
+        localStorage.setItem('db-active-project-id', activeProject.id);
+        if (activeProjectId !== activeProject.id) setActiveProjectId(activeProject.id);
+      } else {
+        localStorage.removeItem('db-active-project-id');
+        if (activeProjectId !== null) setActiveProjectId(null);
+      }
+    } catch {}
+  }, [activeProject?.id]);
+
+  // After projects load, hydrate activeProject from the persisted id so a
+  // refresh on /document or /team lands back on the same project the user
+  // was viewing. Only fires when activeProject is null AND we have a
+  // remembered id AND the matching project exists in ctxProjects.
+  useEffect(() => {
+    if (activeProject) return;
+    if (!activeProjectId) return;
+    if (!Array.isArray(projects) || projects.length === 0) return;
+    const found = projects.find(p => p.id === activeProjectId);
+    if (found) {
+      setActiveProjectState(found);
+    }
+  }, [activeProject, activeProjectId, projects]);
 
   const navigate = setActiveSection;
 
