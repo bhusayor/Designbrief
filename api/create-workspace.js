@@ -817,8 +817,11 @@ STRICT OUTPUT RULES:
         .maybeSingle()
 
       if (!existing) return res.json({ ok: true })
+      // RBAC: Admin (owner) + Editor (any active team_member that isn't
+      // Viewer/Guest) may delete the project. Viewer is blocked.
       if (existing.user_id !== user.id) {
-        return res.status(403).json({ error: 'Not project owner' })
+        const gate = await requireEditor(req, res, user.id, project_id, { label: 'delete this project' })
+        if (!gate.ok) return
       }
 
       const { error } = await supabase

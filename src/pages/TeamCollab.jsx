@@ -1382,6 +1382,11 @@ Return JSON:
   }
 
   function saveCustomCols(cols) {
+    // RBAC: Viewers cannot rename / add / reorder / delete columns.
+    if (isViewer) {
+      showToast?.('Viewers cannot edit the board layout')
+      return
+    }
     setCustomCols(cols)
     localStorage.setItem('tc-cols-' + (activeProjectId || 'default'), JSON.stringify(cols))
     // Persist to the DB so collaborators on shared projects see the same
@@ -2576,11 +2581,11 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   }
 
   function handleDeleteProject(projectId) {
-    // RBAC: only the project Admin (creator) may delete the project.
+    // RBAC: Admin + Editor may delete a project. Viewer cannot.
     const target = ctxProjects.find(p => p.id === projectId)
     const targetRole = target?.currentUserRole || (target?.isShared ? 'Editor' : 'Admin')
-    if (targetRole !== 'Admin') {
-      showToast?.('Only the project Admin can delete this project')
+    if (targetRole === 'Viewer') {
+      showToast?.('Viewers cannot delete this project')
       setConfirmDeleteId(null)
       return
     }
@@ -4139,7 +4144,7 @@ STYLE:
                     )}
                   </div>
                 )}
-                {kanban?.tasks?.length > 0 && (
+                {kanban?.tasks?.length > 0 && canEdit && (
                   <button
                     onClick={() => setShowBuildInterface(true)}
                     style={{ display: 'flex', alignItems: 'center', gap: 5, padding: isMobile ? '5px 8px' : '5px 14px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, boxShadow: '0 1px 6px rgba(124,58,237,0.3)', minHeight: 'unset' }}
