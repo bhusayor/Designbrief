@@ -1103,7 +1103,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', maxWidth: 960, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', maxWidth: 1200, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
 
           {/* Page header */}
           <div style={{ marginBottom: 24 }}>
@@ -1322,7 +1322,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
 
           {/* Table */}
           <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 12, overflowX: 'auto' }}>
-            <div style={{ minWidth: 720, paddingRight: 8, boxSizing: 'border-box' }}>
+            <div style={{ minWidth: 880, boxSizing: 'border-box' }}>
             {/* Header row */}
             <div style={{
               display: 'grid',
