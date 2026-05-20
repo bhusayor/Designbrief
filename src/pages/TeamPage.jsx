@@ -269,6 +269,102 @@ function CreditLimitModal({ member, onClose, onSave }) {
   )
 }
 
+// Confirmation modal shown when the Admin removes a member from the
+// project. The native confirm() dialog was replaced with this so the
+// look matches the rest of the modals and the Admin has a clearer view
+// of who they're removing.
+function RemoveMemberModal({ member, projectName, busy, onClose, onConfirm }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 700,
+        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+          borderRadius: 16, width: '100%', maxWidth: 420,
+          fontFamily: 'var(--font-sans)', overflow: 'hidden',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
+        }}
+      >
+        <div style={{
+          padding: '18px 22px 14px', borderBottom: '1px solid var(--color-border)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: 7,
+                background: 'rgba(220,38,38,0.10)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <TrashIcon style={{ width: 14, height: 14, color: '#DC2626' }} />
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)' }}>
+                Remove member
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} disabled={busy} style={{
+            width: 28, height: 28, borderRadius: 8, background: 'transparent', border: 'none',
+            cursor: busy ? 'not-allowed' : 'pointer', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            color: 'var(--color-text-muted)', flexShrink: 0,
+          }}>
+            <XMarkIcon style={{ width: 15, height: 15 }} />
+          </button>
+        </div>
+
+        <div style={{ padding: '16px 22px 20px' }}>
+          <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', lineHeight: 1.55 }}>
+            Remove <strong>{member?.name || member?.email}</strong>
+            {projectName ? <> from <strong>{projectName}</strong></> : null}?
+          </p>
+          <p style={{ margin: '8px 0 0', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.55 }}>
+            They'll lose access to the board, tasks, comments, and brief immediately.
+            On their device the project disappears from the sidebar and they'll be
+            switched to their most-recent project. Their own workspace and other
+            projects are untouched.
+          </p>
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+            <button onClick={onClose} disabled={busy} style={{
+              padding: '9px 18px', background: 'transparent', border: '1px solid var(--color-border)',
+              borderRadius: 9, cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)',
+              fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)',
+            }}>
+              Cancel
+            </button>
+            <button onClick={onConfirm} disabled={busy} style={{
+              padding: '9px 20px',
+              background: busy ? 'var(--color-border)' : '#DC2626',
+              color: 'white', border: 'none', borderRadius: 9,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <TrashIcon style={{ width: 13, height: 13 }} />
+              {busy ? 'Removing…' : 'Remove member'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function StatusBadge({ status }) {
   if (status === 'pending') return (
     <span style={{
@@ -744,6 +840,8 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuPos, setMenuPos] = useState(null)
   const [creditModalFor, setCreditModalFor] = useState(null)
+  const [removeModalFor, setRemoveModalFor] = useState(null)
+  const [removing, setRemoving] = useState(false)
 
   // In WORKSPACE mode we know the signed-in user is the owner — synthesize that row
   // locally so the table renders immediately. In PROJECT mode the API returns the
@@ -860,17 +958,20 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   }
 
   async function handleRemoveMember(userId) {
-    const target = isProjectMode ? 'project' : 'workspace'
-    if (!confirm('Remove this member from the ' + target + '?')) return
     try {
       const h = await getAuthHeaders()
       const body = isProjectMode
         ? { action: 'remove_project_member', projectId, userId }
         : { action: 'remove_member', workspaceId: workspace.id, userId }
-      await fetch('/api/invite', {
+      const res = await fetch('/api/invite', {
         method: 'POST', headers: h,
         body: JSON.stringify(body),
       })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error || 'Failed to remove member')
+        return
+      }
       setApiMembers(prev => prev.filter(m => m.id !== userId))
       setSelected(prev => { const next = new Set(prev); next.delete(userId); return next })
     } catch (e) { setError(e.message) }
@@ -1595,7 +1696,10 @@ export default function TeamPage({ onClose, projectId, projectName }) {
               </button>
               <div style={{ height: 1, background: 'var(--color-border)', margin: '0 10px' }} />
               <button
-                onClick={() => { handleRemoveMember(userId); setOpenMenuId(null); setMenuPos(null) }}
+                onClick={() => {
+                  setRemoveModalFor(openMember)
+                  setOpenMenuId(null); setMenuPos(null)
+                }}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: 8,
                   padding: '10px 14px', background: 'transparent', border: 'none',
@@ -1659,6 +1763,25 @@ export default function TeamPage({ onClose, projectId, projectName }) {
           document.body
         )
       })()}
+
+      {/* Remove member confirmation modal */}
+      {removeModalFor && (
+        <RemoveMemberModal
+          member={removeModalFor}
+          projectName={isProjectMode ? projectName : (workspace?.name || 'this workspace')}
+          busy={removing}
+          onClose={() => { if (!removing) setRemoveModalFor(null) }}
+          onConfirm={async () => {
+            setRemoving(true)
+            try {
+              await handleRemoveMember(removeModalFor.id)
+              setRemoveModalFor(null)
+            } finally {
+              setRemoving(false)
+            }
+          }}
+        />
+      )}
 
       {/* Set Credit Limit modal — only mounted when a member is selected */}
       {creditModalFor && (

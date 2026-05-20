@@ -563,8 +563,26 @@ export function AppProvider({ children }) {
       }, (payload) => {
         const goneProjectId = payload.old?.project_id;
         if (!goneProjectId) return;
+        // Remove the shared project from sidebar lists
         setProjects(prev => prev.filter(p => !(p.isShared && p.id === goneProjectId)));
         setHistory(prev => prev.filter(p => !(p.isShared && p.id === goneProjectId)));
+        // If the kicked user was viewing this project, drop it from
+        // activeProject — TeamCollab's switch-to-most-recent effect
+        // takes over from there. Also scrub the localStorage caches so
+        // the board state + columns don't linger.
+        setActiveProjectState(prev => prev?.id === goneProjectId ? null : prev);
+        try {
+          if (localStorage.getItem('teamcollab-active-project') === goneProjectId) {
+            localStorage.removeItem('teamcollab-active-project');
+          }
+          localStorage.removeItem('tc-project-' + goneProjectId);
+          localStorage.removeItem('tc-cols-' + goneProjectId);
+          const list = JSON.parse(localStorage.getItem('teamcollab-projects') || '[]');
+          if (Array.isArray(list)) {
+            const filtered = list.filter(p => p.id !== goneProjectId);
+            localStorage.setItem('teamcollab-projects', JSON.stringify(filtered));
+          }
+        } catch {}
       })
       .subscribe();
 

@@ -162,15 +162,22 @@ export default function JoinPage() {
           myRole: role,
         }
 
-        // Inject into TeamCollab's own project list so it persists across navigations
+        // Inject into TeamCollab's own project list so it persists across
+        // navigations. For a BRAND-NEW user the list is empty — we must seed a
+        // placeholder "My Project" too, otherwise their own default project
+        // gets silently replaced by the invited one and "every account comes
+        // with a new project" no longer holds.
         const tcProjects = (() => {
           try { return JSON.parse(localStorage.getItem('teamcollab-projects')) || [] } catch { return [] }
         })()
-        if (!tcProjects.find(p => p.id === project.id)) {
-          localStorage.setItem('teamcollab-projects', JSON.stringify([
-            ...tcProjects, { id: project.id, title: project.title },
-          ]))
+        const nextList = [...tcProjects]
+        if (nextList.length === 0) {
+          nextList.push({ id: 'default', title: 'My Project' })
         }
+        if (!nextList.find(p => p.id === project.id)) {
+          nextList.push({ id: project.id, title: project.title })
+        }
+        localStorage.setItem('teamcollab-projects', JSON.stringify(nextList))
         localStorage.setItem('teamcollab-active-project', project.id)
 
         // Pre-seed per-project state so TeamCollab's loadProjectStateById finds data
