@@ -928,7 +928,10 @@ export default async function handler(req, res) {
         invite: {
           token: invite.token,
           job_role: invite.job_role,
-          invitee_email: isLinkInvite ? null : invite.invitee_email,
+          // Return the raw value (incl. "link:<role>" sentinel for link invites).
+          // The client uses this string to detect link invites; masking it to
+          // null causes the wrong-account branch to fire on JoinPage.
+          invitee_email: invite.invitee_email,
           invitee_name: invite.invitee_name || '',
           project_id: invite.project_id,
         },
