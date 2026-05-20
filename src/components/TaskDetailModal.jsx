@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import ConfirmDeleteModal from './ConfirmDeleteModal'
 import {
   XMarkIcon, ShareIcon, EllipsisHorizontalIcon, EyeIcon,
   PlusIcon, TrashIcon, CalendarIcon, FlagIcon, UserIcon, TagIcon,
@@ -802,6 +803,7 @@ export default function TaskDetailModal({
 
   // ── UI state ───────────────────────────────────────────────────────────
   const [activityTab, setActivityTab] = useState('comments')
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [titleDraft, setTitleDraft] = useState(task?.title || '')
   const [descDraft, setDescDraft] = useState(task?.description || '')
   // If the task opens with no title (created via "+ Add Task"), drop straight
@@ -1609,9 +1611,7 @@ export default function TaskDetailModal({
                     <div className="tdm-row"
                       onClick={() => {
                         setShowMoreMenu(false)
-                        if (window.confirm('Delete this task permanently?')) {
-                          onDelete?.(task.id); onClose?.()
-                        }
+                        setConfirmDelete(true)
                       }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 8,
@@ -2217,6 +2217,26 @@ export default function TaskDetailModal({
         {previewFile && (
           <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
         )}
+
+        {/* Delete task confirmation — shared destructive modal */}
+        <ConfirmDeleteModal
+          open={confirmDelete}
+          title="Delete task?"
+          confirmLabel="Delete task"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            onDelete?.(task.id)
+            setConfirmDelete(false)
+            onClose?.()
+          }}
+          description={
+            <>
+              <strong>{task?.title || 'This task'}</strong> will be permanently
+              removed along with its subtasks, comments, and activity history.
+              This cannot be undone.
+            </>
+          }
+        />
       </div>
     </div>
   )

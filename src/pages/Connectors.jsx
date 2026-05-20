@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { authedFetch, getAuthHeader } from '../lib/getAuthHeader'
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import {
   MagnifyingGlassIcon,
   ArrowLeftIcon,
@@ -208,12 +209,17 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
     }
   }
 
-  async function handleUninstall() {
-    if (!confirm('Uninstall ' + connector.name + '? It will be removed from all projects in this workspace.')) return
+  const [confirmUninstall, setConfirmUninstall] = useState(false)
+
+  function handleUninstall() {
+    setConfirmUninstall(true)
+  }
+
+  async function doUninstall() {
     setLoading(true)
     try {
       const headers = await getAuthHeader()
-      if (!headers) { setLoading(false); return }
+      if (!headers) { setLoading(false); setConfirmUninstall(false); return }
       clearToken(workspaceId, connector.id)
       await fetch('/api/connectors/' + connector.id, {
         method: 'POST',
@@ -221,6 +227,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
         body: JSON.stringify({ type: connector.id, action: 'uninstall', workspaceId, projectId: 'workspace' }),
       })
       onUninstalled()
+      setConfirmUninstall(false)
       onClose()
     } finally {
       setLoading(false)
@@ -522,6 +529,22 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
           )}
         </div>
       </div>
+
+      {/* Uninstall confirmation — shared destructive modal */}
+      <ConfirmDeleteModal
+        open={confirmUninstall}
+        title="Uninstall connector?"
+        confirmLabel="Uninstall"
+        busy={loading}
+        onCancel={() => { if (!loading) setConfirmUninstall(false) }}
+        onConfirm={doUninstall}
+        description={
+          <>
+            <strong>{connector.name}</strong> will be uninstalled and removed
+            from all projects in this workspace. You can re-install it any time.
+          </>
+        }
+      />
     </div>
   )
 }

@@ -35,6 +35,7 @@ import BuildInterface from '../components/build/BuildInterface'
 import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
 import TaskDetailModal from '../components/TaskDetailModal'
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 // ─── Board agent tools ────────────────────────────────────────────────────────
@@ -614,6 +615,7 @@ export default function TeamCollab() {
   const [renameValue, setRenameValue] = useState('')
   const [projectActionMenuId, setProjectActionMenuId] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [confirmDeleteColId, setConfirmDeleteColId] = useState(null)
   const [projectFlash, setProjectFlash] = useState(false)
   const [boardTransitioning, setBoardTransitioning] = useState(false)
   const [tasksLoading, setTasksLoading] = useState(false)
@@ -1422,16 +1424,20 @@ Return JSON:
 
   function handleDeleteColumn(colId) {
     if (customCols.length <= 1) { alert('Cannot delete the last column'); return }
-    if (!confirm('Delete this column? Tasks inside will be moved to the first remaining column.')) {
-      setOpenColMenuId(null); return
-    }
+    setOpenColMenuId(null)
+    setConfirmDeleteColId(colId)
+  }
+
+  function confirmDeleteColumn() {
+    const colId = confirmDeleteColId
+    if (!colId) return
     const targetCol = customCols.find(c => c.id !== colId)?.id
     setKanban(prev => {
       if (!prev?.tasks) return prev
       return { ...prev, tasks: prev.tasks.map(t => t.column === colId ? { ...t, column: targetCol } : t) }
     })
     saveCustomCols(customCols.filter(c => c.id !== colId))
-    setOpenColMenuId(null)
+    setConfirmDeleteColId(null)
   }
 
   function handleMoveColumn(colId, direction) {
@@ -4966,30 +4972,35 @@ STYLE:
         </button>
       )}
 
-      {/* Delete project confirmation */}
-      {confirmDeleteId && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}>
-          <div style={{ background: 'var(--color-card)', borderRadius: 16, padding: '28px 28px 24px', maxWidth: 360, width: 'calc(100% - 40px)', boxShadow: 'var(--shadow-xl)', animation: 'fadeUp 0.2s ease' }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(196,26,26,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <TrashIcon style={{ width: 20, height: 20, color: 'var(--color-red)' }} />
-            </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 17, color: 'var(--color-text)', marginBottom: 8, letterSpacing: '-0.02em' }}>Delete project?</div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--color-text-soft)', lineHeight: 1.6, marginBottom: 24 }}>
-              <strong style={{ color: 'var(--color-text)' }}>{projects.find(p => p.id === confirmDeleteId)?.title || 'This project'}</strong> and all its tasks will be permanently removed. This cannot be undone.
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmDeleteId(null)}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', color: 'var(--color-text)', border: '1px solid var(--color-border)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, minHeight: 'unset' }}>
-                Cancel
-              </button>
-              <button onClick={() => handleDeleteProject(confirmDeleteId)}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'var(--color-red)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 700, minHeight: 'unset' }}>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete project confirmation — shared destructive modal */}
+      <ConfirmDeleteModal
+        open={!!confirmDeleteId}
+        title="Delete project?"
+        confirmLabel="Delete project"
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => handleDeleteProject(confirmDeleteId)}
+        description={
+          <>
+            <strong>{projects.find(p => p.id === confirmDeleteId)?.title || 'This project'}</strong>{' '}
+            and all its tasks will be permanently removed. This cannot be undone.
+          </>
+        }
+      />
+
+      {/* Delete kanban column — same shared modal */}
+      <ConfirmDeleteModal
+        open={!!confirmDeleteColId}
+        title="Delete column?"
+        confirmLabel="Delete column"
+        onCancel={() => setConfirmDeleteColId(null)}
+        onConfirm={confirmDeleteColumn}
+        description={
+          <>
+            <strong>{customCols.find(c => c.id === confirmDeleteColId)?.label || 'This column'}</strong>{' '}
+            will be removed. Tasks inside it will be moved to the first remaining column.
+          </>
+        }
+      />
 
       {/* Team People overlay — when opened FROM TeamCollab, we pass projectId
           so its invite form sends a PROJECT-level invite (not a workspace
