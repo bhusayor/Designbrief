@@ -497,28 +497,6 @@ export default function TeamCollab() {
   const isMobile = windowWidth <= 480
   const isTablet = windowWidth > 480 && windowWidth <= 768
 
-  // ── Role-based access control ─────────────────────────────────────────────
-  // currentUserRole on a project is one of: 'Admin' | 'Editor' | 'Viewer'.
-  // - Admin     = project creator: full control + invites + delete + role mgmt
-  // - Editor    = invited collaborator: edit brief, create/move tasks, comment
-  // - Viewer    = read-only: view + comment only
-  //
-  // Derive STRICTLY from the project whose id matches activeProjectId so a
-  // switch from Project A (Viewer) to Project B (Admin) never bleeds the
-  // previous role's restrictions onto the new board. We look up by id in
-  // ctxProjects rather than reading activeProject.currentUserRole because
-  // activeProject can lag a tick during transitions.
-  const targetProjectId = activeProjectId || activeProject?.id
-  const projectInCtx = ctxProjects?.find(p => p.id === targetProjectId)
-  const myRole = (
-    (activeProject?.id === targetProjectId ? activeProject?.currentUserRole : null)
-    || projectInCtx?.currentUserRole
-    || 'Admin'
-  )
-  const isProjectAdmin = myRole === 'Admin'
-  const canEdit = myRole === 'Admin' || myRole === 'Editor'
-  const isViewer = myRole === 'Viewer'
-
   const websiteTemplate = getWebsiteTemplate(selectedWebsiteTemplate || 'saas-landing')
 
   // Hydrate from localStorage immediately so the board shows without waiting for
@@ -574,6 +552,27 @@ export default function TeamCollab() {
     try { return localStorage.getItem('teamcollab-active-project') || 'default' } catch {}
     return 'default'
   })
+
+  // ── Role-based access control ─────────────────────────────────────────────
+  // currentUserRole on a project is one of: 'Admin' | 'Editor' | 'Viewer'.
+  // - Admin     = project creator: full control + invites + delete + role mgmt
+  // - Editor    = invited collaborator: edit brief, create/move tasks, comment
+  // - Viewer    = read-only: view + comment only
+  //
+  // Derive STRICTLY from the project whose id matches activeProjectId so a
+  // switch from Project A (Viewer) to Project B (Admin) never bleeds the
+  // previous role's restrictions onto the new board.
+  const targetProjectId = activeProjectId || activeProject?.id
+  const projectInCtx = ctxProjects?.find(p => p.id === targetProjectId)
+  const myRole = (
+    (activeProject?.id === targetProjectId ? activeProject?.currentUserRole : null)
+    || projectInCtx?.currentUserRole
+    || 'Admin'
+  )
+  const isProjectAdmin = myRole === 'Admin'
+  const canEdit = myRole === 'Admin' || myRole === 'Editor'
+  const isViewer = myRole === 'Viewer'
+
   const [conversationHistory, setConversationHistory] = useState([])
   const [chatHistory, setChatHistory] = useState([])
   const [isTyping, setIsTyping] = useState(false)
