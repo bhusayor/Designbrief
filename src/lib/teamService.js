@@ -103,50 +103,40 @@ export async function getInviteByToken(inviteToken) {
 }
 
 // ── Accept an invite ──────────────────────────
-// `displayName` is used as a fallback when the invite has no invitee_name —
-// e.g. for "invite link" invites where invitee_email is a sentinel like
-// "link:Collaborator" and no recipient was specified up front.
+// Routes through /api/invite (service role) so RLS on team_members can't
+// block the recipient from inserting their own membership row.
+// `displayName` is a fallback for link invites where invitee_name is empty.
 export async function acceptInvite(inviteToken, userId, displayName = '') {
-  const invite = await getInviteByToken(inviteToken)
-  if (!invite) throw new Error('Invite not found')
-  const isLinkInvite = typeof invite.invitee_email === 'string' && invite.invitee_email.startsWith('link:')
-  // Link invites are reusable — don't reject if status='accepted'.
-  if (!isLinkInvite && invite.status === 'accepted') {
-    throw new Error('This invite has already been accepted')
-  }
-  if (new Date(invite.expires_at) < new Date()) {
-    throw new Error('This invite has expired')
-  }
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token
+  if (!token) throw new Error('Not authenticated')
 
-  // Add user to team_members
-  const { error: memberError } = await supabase
-    .from('team_members')
-    .upsert({
-      project_id: invite.project_id,
-      user_id: userId,
-      invited_by: invite.inviter_id,
-      job_role: invite.job_role,
-      display_name: invite.invitee_name || displayName || '',
-      status: 'active',
-    }, { onConflict: 'project_id,user_id' })
-
-  if (memberError) throw memberError
-
-  // Mark single-recipient invites as accepted. Keep link invites in
-  // 'pending' state so the same link can still be used by other people.
-  if (!isLinkInvite) {
-    const { error: updateError } = await supabase
-      .from('team_invites')
-      .update({
-        status: 'accepted',
-        accepted_at: new Date().toISOString(),
-      })
-      .eq('token', inviteToken)
-
-    if (updateError) throw updateError
+  const res = await fetch('/api/invite', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + token,
+    },
+    body: JSON.stringify({
+      action: 'accept_project_invite',
+      token: inviteToken,
+      displayName,
+    }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to accept invite')
   }
 
-  return { projectId: invite.project_id, invite }
+  // Best-effort: still fetch the invite row so JoinPage gets the same
+  // shape it always had (its caller reads { projectId, invite }).
+  const invite = await getInviteByToken(inviteToken).catch(() => null)
+  return {
+    projectId: data.projectId,
+    project: data.project || null,
+    jobRole: data.jobRole || 'Editor',
+    invite,
+  }
 }
 
 // ── Get team members for a project ────────────

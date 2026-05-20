@@ -939,6 +939,100 @@ export default async function handler(req, res) {
       })
     }
 
+    // ── ACCEPT PROJECT INVITE ─────────────────────────────────────────────────
+    // Body: { action:'accept_project_invite', token, displayName? }
+    // Authenticated. Inserts a team_members row using the service-role key
+    // so RLS on team_members can't block the recipient from joining.
+    if (action === 'accept_project_invite') {
+      const { token: inviteToken, displayName = '' } = req.body
+      if (!inviteToken) return res.status(400).json({ error: 'token required' })
+
+      const { data: invite } = await supabase
+        .from('team_invites')
+        .select('*')
+        .eq('token', inviteToken)
+        .single()
+      if (!invite) return res.status(404).json({ error: 'Invite not found' })
+
+      const isLinkInvite = typeof invite.invitee_email === 'string' && invite.invitee_email.startsWith('link:')
+
+      // Single-recipient invites become invalid once accepted.
+      if (!isLinkInvite && invite.status === 'accepted')
+        return res.status(400).json({ error: 'This invite has already been accepted', code: 'ALREADY_ACCEPTED' })
+
+      if (invite.status === 'cancelled')
+        return res.status(400).json({ error: 'This invite has been cancelled', code: 'CANCELLED' })
+
+      if (new Date(invite.expires_at) < new Date()) {
+        await supabase.from('team_invites').update({ status: 'expired' }).eq('id', invite.id)
+        return res.status(400).json({ error: 'This invite has expired', code: 'EXPIRED' })
+      }
+
+      // For email-specific invites verify the signed-in user matches.
+      if (!isLinkInvite && invite.invitee_email && user.email?.toLowerCase() !== invite.invitee_email.toLowerCase()) {
+        return res.status(403).json({
+          error: 'This invite was sent to ' + invite.invitee_email + '. Please sign in with that email.',
+          code: 'EMAIL_MISMATCH',
+        })
+      }
+
+      // Skip the creator joining their own project (would create a duplicate row)
+      const { data: project } = await supabase
+        .from('projects').select('user_id, id').eq('id', invite.project_id).single()
+      if (!project) return res.status(404).json({ error: 'Project not found' })
+      if (project.user_id === user.id) {
+        // Already the project Admin — just mark invite accepted (if email-specific) and return
+        if (!isLinkInvite) {
+          await supabase
+            .from('team_invites')
+            .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+            .eq('id', invite.id)
+        }
+        return res.json({ success: true, projectId: invite.project_id, alreadyAdmin: true })
+      }
+
+      // Upsert team_members row (service role → bypasses RLS)
+      const { error: memberErr } = await supabase
+        .from('team_members')
+        .upsert({
+          project_id: invite.project_id,
+          user_id: user.id,
+          invited_by: invite.inviter_id,
+          job_role: invite.job_role || 'Editor',
+          display_name: invite.invitee_name || displayName || user.email?.split('@')[0] || '',
+          status: 'active',
+        }, { onConflict: 'project_id,user_id' })
+
+      if (memberErr) {
+        console.error('[accept_project_invite] team_members upsert failed', memberErr)
+        return res.status(500).json({ error: 'Failed to join project: ' + memberErr.message })
+      }
+
+      // Mark single-recipient invites accepted. Leave link invites pending
+      // so the same link is reusable.
+      if (!isLinkInvite) {
+        await supabase
+          .from('team_invites')
+          .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+          .eq('id', invite.id)
+      }
+
+      // Return the shared project so the client doesn't need to refetch it
+      // with the anon key (which RLS may block for a brand-new member).
+      const { data: fullProject } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', invite.project_id)
+        .single()
+
+      return res.json({
+        success: true,
+        projectId: invite.project_id,
+        project: fullProject || null,
+        jobRole: invite.job_role || 'Editor',
+      })
+    }
+
     // ── CREATE PROJECT INVITE LINK (no specific email) ───────────────────────
     // Body: { action:'create_project_link', projectId, jobRole? }
     // Writes to team_invites with sentinel email "link:<role>" so the same

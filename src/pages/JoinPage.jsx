@@ -108,15 +108,22 @@ export default function JoinPage() {
       const result = await acceptInvite(invite.token, authUser.id, fallbackName)
       localStorage.removeItem('db-join-token')
 
-      // Fetch the project — requires the "Team members can view invited projects"
-      // RLS policy on the projects table (supabase/team-project-read.sql).
-      const { data: project } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', result.projectId)
-        .single()
+      // Prefer the project returned by the server (service role bypasses RLS).
+      // Fall back to an anon-key fetch only if the API didn't include it.
+      let project = result.project
+      if (!project) {
+        const { data: rlsProject } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', result.projectId)
+          .single()
+        project = rlsProject
+      }
 
       if (project) {
+        const role = result.jobRole || 'Editor'
+        const currentUserRole = role.toLowerCase() === 'viewer' || role.toLowerCase() === 'guest'
+          ? 'Viewer' : 'Editor'
         const projectEntry = {
           id: project.id,
           title: project.title,
@@ -128,6 +135,8 @@ export default function JoinPage() {
           teamMembers: project.team_members || [],
           kanban: project.kanban,
           isShared: true,
+          currentUserRole,
+          myRole: role,
         }
 
         // Inject into TeamCollab's own project list so it persists across navigations
