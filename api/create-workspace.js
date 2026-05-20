@@ -91,6 +91,54 @@ async function userHasProjectAccess(userId, projectId) {
   return !!member
 }
 
+// Returns the user's role on the project:
+//   'Admin'   — project creator
+//   'Editor'  — active team_member with any role that isn't Viewer/Guest
+//   'Viewer'  — active team_member with role Viewer/Guest
+//   null      — no access at all
+// Normalises legacy roles (Team Member / Collaborator / PM / etc.) into
+// 'Editor', matching the client-side normaliseRole() in AppContext.
+async function userProjectRole(userId, projectId) {
+  if (!userId || !projectId) return null
+  const { data: project } = await supabase
+    .from('projects')
+    .select('user_id')
+    .eq('id', projectId)
+    .maybeSingle()
+  if (project && project.user_id === userId) return 'Admin'
+
+  const { data: member } = await supabase
+    .from('team_members')
+    .select('job_role')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .maybeSingle()
+  if (!member) return null
+  const r = String(member.job_role || '').toLowerCase()
+  if (r === 'viewer' || r === 'guest') return 'Viewer'
+  return 'Editor'
+}
+
+// Hard gate for write endpoints. Admin + Editor pass; Viewer is blocked.
+// Returns { ok: true } on success, or sends a 403 response and returns
+// { ok: false } so the handler can early-return.
+async function requireEditor(req, res, userId, projectId, opts = {}) {
+  const role = await userProjectRole(userId, projectId)
+  if (role === 'Admin' || role === 'Editor') return { ok: true, role }
+  if (role === 'Viewer') {
+    res.status(403).json({
+      error: opts.label
+        ? `Viewers cannot ${opts.label}`
+        : 'Read-only access — Viewers cannot edit this project',
+      code: 'VIEWER_FORBIDDEN',
+    })
+    return { ok: false, role: 'Viewer' }
+  }
+  res.status(403).json({ error: 'Not a project member' })
+  return { ok: false, role: null }
+}
+
 export default async function handler(req, res) {
   setCors(res)
 
@@ -123,10 +171,8 @@ export default async function handler(req, res) {
       // the save hasn't landed yet), allow the upsert — the body MUST
       // include project_id in updates for us to be able to create the row.
       if (task) {
-        const ok = await userHasProjectAccess(user.id, task.project_id)
-        if (!ok) {
-          return res.status(403).json({ error: 'Not a project member' })
-        }
+        const gate = await requireEditor(req, res, user.id, task.project_id, { label: 'edit tasks' })
+        if (!gate.ok) return
         const { data, error } = await supabase
           .from('tasks')
           .update(patch)
@@ -142,15 +188,15 @@ export default async function handler(req, res) {
       if (!projectIdFromBody) {
         return res.status(404).json({ error: 'Task not found and no project_id provided' })
       }
-      const okUpsert = await userHasProjectAccess(user.id, projectIdFromBody)
       // Allow creation even if project doesn't exist yet (initial creation flow)
       const { data: projectExists } = await supabase
         .from('projects')
         .select('id')
         .eq('id', projectIdFromBody)
         .maybeSingle()
-      if (projectExists && !okUpsert) {
-        return res.status(403).json({ error: 'Not a project member' })
+      if (projectExists) {
+        const gate = await requireEditor(req, res, user.id, projectIdFromBody, { label: 'create tasks' })
+        if (!gate.ok) return
       }
 
       const { data, error } = await supabase
@@ -190,10 +236,8 @@ export default async function handler(req, res) {
         .eq('id', project_id)
         .maybeSingle()
       if (project) {
-        const ok = await userHasProjectAccess(user.id, project_id)
-        if (!ok) {
-          return res.status(403).json({ error: 'Not a project member' })
-        }
+        const gate = await requireEditor(req, res, user.id, project_id, { label: 'save tasks' })
+        if (!gate.ok) return
       }
       // If project doesn't exist yet, create it (FK)
       if (!project) {
@@ -251,9 +295,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'task_id, project_id and title required' })
     }
     try {
-      if (!(await userHasProjectAccess(user.id, project_id))) {
-        return res.status(403).json({ error: 'Not a project member' })
-      }
+      const gate = await requireEditor(req, res, user.id, project_id, { label: 'add subtasks' })
+      if (!gate.ok) return
 
       const id = Math.random().toString(36).slice(2, 10)
       const { data, error } = await supabase
@@ -288,9 +331,8 @@ export default async function handler(req, res) {
         .maybeSingle()
       if (!sub) return res.status(404).json({ error: 'Subtask not found' })
 
-      if (!(await userHasProjectAccess(user.id, sub.project_id))) {
-        return res.status(403).json({ error: 'Not a project member' })
-      }
+      const gate = await requireEditor(req, res, user.id, sub.project_id, { label: 'edit subtasks' })
+      if (!gate.ok) return
 
       const patch = {}
       if ('completed' in updates) {
@@ -328,9 +370,8 @@ export default async function handler(req, res) {
         .maybeSingle()
       if (!sub) return res.json({ ok: true })
 
-      if (!(await userHasProjectAccess(user.id, sub.project_id))) {
-        return res.status(403).json({ error: 'Not a project member' })
-      }
+      const gate = await requireEditor(req, res, user.id, sub.project_id, { label: 'delete subtasks' })
+      if (!gate.ok) return
 
       const { error } = await supabase.from('subtasks').delete().eq('id', subtask_id)
       if (error) throw error
@@ -526,6 +567,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'task_id, project_id and action required' })
     }
     try {
+      // Activity entries log writes. Viewers don't perform writes, so any
+      // log attempt from a Viewer is suspicious — block it.
+      const gate = await requireEditor(req, res, user.id, project_id, { label: 'log activity' })
+      if (!gate.ok) return
       const { error } = await supabase.from('task_activity').insert({
         id: Math.random().toString(36).slice(2, 10),
         task_id, project_id,
@@ -656,9 +701,8 @@ STRICT OUTPUT RULES:
         .maybeSingle()
       if (!task) return res.json({ ok: true })
 
-      if (!(await userHasProjectAccess(user.id, task.project_id))) {
-        return res.status(403).json({ error: 'Not a project member' })
-      }
+      const gate = await requireEditor(req, res, user.id, task.project_id, { label: 'delete tasks' })
+      if (!gate.ok) return
 
       const { error } = await supabase.from('tasks').delete().eq('id', task_id)
       if (error) throw error
