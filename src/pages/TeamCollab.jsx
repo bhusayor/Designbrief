@@ -3721,6 +3721,7 @@ STYLE:
           authUser={authUser}
           user={user}
           teamMembers={teamMembers}
+          projectMembers={projectMembers}
           currentUserRole={myRole}
           onUpdate={updateTask}
           onDelete={deleteTaskNow}
@@ -3741,11 +3742,26 @@ STYLE:
         open={showAddTaskModal}
         onClose={() => { setShowAddTaskModal(false); setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: KANBAN_COLS[0] }) }}
         onSave={(formData) => {
+          // Resolve the picked assignee name → real auth user_id when
+          // we can match against a project member. Lets the kanban show
+          // the assignee's profile photo immediately after creation.
+          const firstAssignee = formData.assignees[0] || null
+          let assignedUserId = null
+          if (firstAssignee) {
+            const lower = firstAssignee.toLowerCase()
+            for (const [uid, m] of Object.entries(projectMembers || {})) {
+              if ((m.name || '').toLowerCase() === lower) {
+                assignedUserId = uid
+                break
+              }
+            }
+          }
           const newTask = {
             id: 'manual-' + uid(), title: formData.title,
             description: formData.description,
             assignees: formData.assignees,
-            assignedName: formData.assignees[0] || null,
+            assignedName: firstAssignee,
+            assignedUserId,
             assignedRole: '', dueDate: formData.dueDate,
             priority: formData.priority, column: formData.column,
             source: 'manual', subtasks: [], estimatedDays: 1,

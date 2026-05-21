@@ -279,6 +279,7 @@ export default async function handler(req, res) {
         column_name: t.column || t.column_name || 'To Do',
         assigned_role: t.assignedRole || t.assigned_role || '',
         assigned_name: t.assignedName || t.assigned_name || '',
+        assigned_user_id: t.assignedUserId || t.assigned_user_id || null,
         priority: t.priority || 'MEDIUM',
         estimated_days: t.estimatedDays || t.estimated_days || 1,
         due_date: t.dueDate || t.due_date || null,

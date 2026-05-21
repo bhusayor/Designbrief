@@ -128,15 +128,25 @@ const SectionLabel = ({ children }) => (
   }}>{children}</div>
 )
 
-const Avatar = ({ name, size = 24 }) => (
+const Avatar = ({ name, src, size = 24 }) => (
   <div style={{
     width: size, height: size, borderRadius: '50%',
-    background: 'var(--color-text)',
+    background: src ? 'var(--color-surface)' : 'var(--color-text)',
     color: 'var(--color-bg)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontFamily: 'var(--font-sans)', fontWeight: 700,
-    fontSize: size * 0.42, flexShrink: 0,
-  }}>{initialOf(name)}</div>
+    fontSize: size * 0.42, flexShrink: 0, overflow: 'hidden',
+    border: src ? '1px solid var(--color-border)' : 'none',
+  }}>
+    {src ? (
+      <img
+        src={src}
+        alt={name || ''}
+        onError={e => { e.currentTarget.style.display = 'none' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    ) : initialOf(name)}
+  </div>
 )
 
 // ── ComposerBubble: unified avatar + textarea + + menu + send ───────────────
@@ -765,6 +775,7 @@ export default function TaskDetailModal({
   authUser,
   user,
   teamMembers = [],
+  projectMembers = {}, // { [user_id]: { name, avatarUrl, email } }
   onUpdate,
   onDelete,
   onClose,
@@ -1078,8 +1089,24 @@ export default function TaskDetailModal({
     setShowAssignee(false)
     const name = member?.name || member?.role || ''
     const role = member?.role || ''
-    if (name === (task.assignedName || '')) return
-    await patchTask({ assignedName: name, assignedRole: role }, 'assigned', task.assignedName || 'Unassigned', name || 'Unassigned')
+    // userId may come from a project_members row (real auth user) or from
+    // the explicit "Assign to me" button. Persisting it lets the kanban
+    // resolve the assignee's avatar even after a refresh.
+    const userId = member?.userId || member?.id || null
+    if (
+      name === (task.assignedName || '') &&
+      userId === (task.assignedUserId || null)
+    ) return
+    await patchTask(
+      {
+        assignedName: name,
+        assignedRole: role,
+        assignedUserId: userId || null,
+      },
+      'assigned',
+      task.assignedName || 'Unassigned',
+      name || 'Unassigned',
+    )
   }
 
   async function changeDueDate(iso) {
@@ -2035,43 +2062,85 @@ export default function TaskDetailModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 24 }}>
 
               {/* Assignee */}
-              <div style={{ position: 'relative' }}>
-                <div className="tdm-row" style={detailRowStyle} onClick={() => setShowAssignee(s => !s)}>
-                  <span style={labelStyle}>Assignee</span>
-                  {task.assignedName ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Avatar name={task.assignedName} size={22} />
-                      <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{task.assignedName}</span>
+              {(() => {
+                // Build the picker list. Real project members (with auth
+                // user_ids + avatars) come first; the local pseudo team
+                // members are appended only if they aren't already
+                // represented by a real member with the same name.
+                const realMembers = Object.entries(projectMembers || {}).map(([uid, m]) => ({
+                  userId: uid,
+                  name: m.name || '',
+                  email: m.email || '',
+                  avatarUrl: m.avatarUrl || null,
+                  role: '',
+                }))
+                const realNames = new Set(realMembers.map(m => (m.name || '').toLowerCase()))
+                const pseudoMembers = (teamMembers || [])
+                  .filter(m => !realNames.has((m.name || '').toLowerCase()))
+                  .map(m => ({
+                    userId: null,
+                    name: m.name || m.role || '',
+                    email: '',
+                    avatarUrl: null,
+                    role: m.role || '',
+                  }))
+                const pickerList = [...realMembers, ...pseudoMembers]
+                // Avatar URL for the currently-assigned user — prefer the
+                // live authUser.user_metadata when the assignee is self.
+                const isSelf = task.assignedUserId && task.assignedUserId === authUser?.id
+                const currentAvatar = isSelf
+                  ? (authUser?.user_metadata?.avatar_url || projectMembers?.[task.assignedUserId]?.avatarUrl || null)
+                  : (task.assignedUserId ? projectMembers?.[task.assignedUserId]?.avatarUrl : null)
+                return (
+                  <div style={{ position: 'relative' }}>
+                    <div className="tdm-row" style={detailRowStyle} onClick={() => setShowAssignee(s => !s)}>
+                      <span style={labelStyle}>Assignee</span>
+                      {task.assignedName ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Avatar name={task.assignedName} src={currentAvatar} size={22} />
+                          <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{task.assignedName}</span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Unassigned</span>
+                      )}
                     </div>
-                  ) : (
-                    <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Unassigned</span>
-                  )}
-                </div>
-                {showAssignee && (
-                  <div style={popoverStyle({ top: '100%', right: 0, minWidth: 200 })}>
-                    {teamMembers.length === 0 && (
-                      <div style={{ padding: '8px 10px', fontSize: 12, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>No team members yet</div>
-                    )}
-                    {teamMembers.map(m => (
-                      <div key={m.id} onClick={() => changeAssignee(m)} className="tdm-row"
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)' }}>
-                        <Avatar name={m.name || m.role} size={22} />
-                        <span>{m.name || m.role}</span>
+                    {showAssignee && (
+                      <div style={popoverStyle({ top: '100%', right: 0, minWidth: 220 })}>
+                        {pickerList.length === 0 && (
+                          <div style={{ padding: '8px 10px', fontSize: 12, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>No team members yet</div>
+                        )}
+                        {pickerList.map(m => (
+                          <div key={m.userId || ('pseudo:' + m.name + ':' + m.role)} onClick={() => changeAssignee(m)} className="tdm-row"
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)' }}>
+                            <Avatar name={m.name || m.role} src={m.avatarUrl} size={22} />
+                            <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {m.name || m.role}
+                              {m.userId === authUser?.id && (
+                                <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>you</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                        <div onClick={() => changeAssignee(null)} className="tdm-row"
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)' }}>
+                          Unassign
+                        </div>
                       </div>
-                    ))}
-                    <div onClick={() => changeAssignee(null)} className="tdm-row"
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)' }}>
-                      Unassign
-                    </div>
+                    )}
+                    {!task.assignedName && authUser?.id && (
+                      <div style={{ padding: '0 10px 4px', fontSize: 11, color: 'var(--color-accent)', fontFamily: 'var(--font-sans)', cursor: 'pointer' }}
+                        onClick={() => changeAssignee({
+                          userId: authUser.id,
+                          name: user?.name || user?.firstName || authUser.user_metadata?.full_name || authUser.email?.split('@')[0],
+                          avatarUrl: authUser?.user_metadata?.avatar_url || null,
+                          role: '',
+                        })}>
+                        Assign to me
+                      </div>
+                    )}
                   </div>
-                )}
-                {!task.assignedName && authUser?.id && (
-                  <div style={{ padding: '0 10px 4px', fontSize: 11, color: 'var(--color-accent)', fontFamily: 'var(--font-sans)', cursor: 'pointer' }}
-                    onClick={() => changeAssignee({ name: user?.firstName || user?.name, role: '' })}>
-                    Assign to me
-                  </div>
-                )}
-              </div>
+                )
+              })()}
 
               {/* Labels */}
               <div style={{ position: 'relative' }}>
