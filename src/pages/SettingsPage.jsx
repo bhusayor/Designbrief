@@ -166,7 +166,7 @@ function blurInput(e) {
 
 function ProfileSection({ callSettings, onSaved }) {
   const isMobile = useIsMobile()
-  const { authUser, updateUser, user } = useApp()
+  const { authUser, updateUser, user, refreshAuthUser } = useApp()
   const [name, setName] = useState(
     user?.name ||
     authUser?.user_metadata?.full_name ||
@@ -261,7 +261,11 @@ function ProfileSection({ callSettings, onSaved }) {
       if (!publicUrl) throw new Error('Could not resolve public URL')
 
       await callSettings({ action: 'update_avatar', avatarUrl: publicUrl })
+      // refreshSession() alone often doesn't pull new user_metadata —
+      // explicitly fetch the latest user row and overwrite local state so
+      // every consumer of authUser re-renders with the new URL.
       try { await supabase.auth.refreshSession() } catch {}
+      try { await refreshAuthUser?.() } catch {}
       setUploadProgress(100)
       onSaved?.('Profile photo updated')
       // Brief 100% flash before clearing the bar
@@ -283,6 +287,7 @@ function ProfileSection({ callSettings, onSaved }) {
     try {
       await callSettings({ action: 'remove_avatar' })
       try { await supabase.auth.refreshSession() } catch {}
+      try { await refreshAuthUser?.() } catch {}
       onSaved?.('Profile photo removed')
     } catch (e) {
       setAvatarError(e.message || 'Could not remove photo')

@@ -156,6 +156,7 @@ function ComposerBubble({
   uploading,
   attachments = [], onRemoveAttachment,
   userName,
+  userAvatar,
 }) {
   const [focused, setFocused] = useState(false)
   const [showAttachMenu, setShowAttachMenu] = useState(false)
@@ -184,7 +185,7 @@ function ComposerBubble({
 
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-      <Avatar name={userName} size={32} />
+      <Avatar name={userName} src={userAvatar} size={32} />
       <div
         style={{
           flex: 1, position: 'relative',
@@ -520,10 +521,13 @@ function CommentRow({
   onThumbUp, onThumbDown,
   replying, replyDraft, setReplyDraft, onSubmitReply,
   currentUserName,
+  currentUserAvatar,
+  resolveAvatar,
   reactionsMap,
   makeHandlersForComment,
   nested = false,
 }) {
+  const authorAvatar = resolveAvatar ? resolveAvatar(comment) : null
   const up = reaction?.up || 0
   const down = reaction?.down || 0
   const mine = reaction?.mine || null
@@ -550,7 +554,7 @@ function CommentRow({
 
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginLeft: nested ? 36 : 0 }}>
-      <Avatar name={comment.author_name} size={nested ? 22 : 28} />
+      <Avatar name={comment.author_name} src={authorAvatar} size={nested ? 22 : 28} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--color-text)' }}>{comment.author_name}</span>
@@ -687,7 +691,7 @@ function CommentRow({
         {/* Inline reply composer */}
         {replying && !nested && (
           <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-            <Avatar name={currentUserName} size={22} />
+            <Avatar name={currentUserName} src={currentUserAvatar} size={22} />
             <textarea
               autoFocus
               value={replyDraft}
@@ -732,6 +736,9 @@ function CommentRow({
                   nested
                   reactionsMap={reactionsMap}
                   makeHandlersForComment={makeHandlersForComment}
+                  currentUserName={currentUserName}
+                  currentUserAvatar={currentUserAvatar}
+                  resolveAvatar={resolveAvatar}
                 />
               )
             })}
@@ -1510,6 +1517,31 @@ export default function TaskDetailModal({
     currentUserName: user?.firstName || user?.name,
   })
 
+  // The signed-in user's own avatar — pulled live from auth metadata so a
+  // fresh upload appears immediately on the reply composer + their comments.
+  const currentUserAvatar = authUser?.user_metadata?.avatar_url || null
+
+  // Resolve an avatar URL for any comment / activity row. Tries (in order):
+  //   1. row.user_id → projectMembers (with self override to authUser
+  //      metadata so the current user always sees their newest photo).
+  //   2. row.author_name / row.actor_name → case-insensitive name match
+  //      against projectMembers (covers older rows without user_id).
+  //   3. null (Avatar falls back to initials).
+  function resolveAvatar(row) {
+    if (!row) return null
+    const uid = row.user_id || row.userId || null
+    if (uid && uid === authUser?.id) {
+      return authUser?.user_metadata?.avatar_url || projectMembers?.[uid]?.avatarUrl || null
+    }
+    if (uid && projectMembers?.[uid]?.avatarUrl) return projectMembers[uid].avatarUrl
+    const name = (row.author_name || row.actor_name || row.name || '').toLowerCase()
+    if (name) {
+      const match = Object.values(projectMembers || {}).find(m => (m.name || '').toLowerCase() === name)
+      if (match?.avatarUrl) return match.avatarUrl
+    }
+    return null
+  }
+
   // Compute activity feed view (top-level comments only; replies nested under their parent)
   const topLevelComments = comments.filter(c => !c.parent_id)
   const filteredActivity = activityTab === 'comments'
@@ -1971,10 +2003,13 @@ export default function TaskDetailModal({
                         onSubmitReply={() => submitReply(entry)}
                         reactionsMap={reactions}
                         makeHandlersForComment={makeHandlersForComment}
+                        currentUserName={currentUserName}
+                        currentUserAvatar={currentUserAvatar}
+                        resolveAvatar={resolveAvatar}
                       />
                     ) : (
                       <div key={'a' + entry.id} style={{ display: 'flex', gap: 10, alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)' }}>
-                        <Avatar name={entry.actor_name} size={22} />
+                        <Avatar name={entry.actor_name} src={resolveAvatar({ user_id: entry.user_id, author_name: entry.actor_name })} size={22} />
                         <span><b style={{ color: 'var(--color-text)' }}>{entry.actor_name}</b> {entry.action}{entry.new_value && entry.action !== 'added comment' ? ` to ${entry.new_value}` : ''}</span>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, marginLeft: 'auto' }}>{timeAgo(entry.created_at)}</span>
                       </div>
@@ -2002,6 +2037,7 @@ export default function TaskDetailModal({
                 attachments={pendingAttachments}
                 onRemoveAttachment={removePendingAttachment}
                 userName={user?.firstName || user?.name}
+                userAvatar={currentUserAvatar}
               />
               <input
                 ref={documentInputRef}
@@ -2259,7 +2295,7 @@ export default function TaskDetailModal({
               <div className="tdm-row" style={{ ...detailRowStyle, cursor: 'default' }}>
                 <span style={labelStyle}>Reporter</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Avatar name={user?.firstName || user?.name} size={22} />
+                  <Avatar name={user?.firstName || user?.name} src={currentUserAvatar} size={22} />
                   <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{user?.firstName || user?.name || 'You'}</span>
                 </div>
               </div>

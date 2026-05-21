@@ -723,6 +723,23 @@ export function AppProvider({ children }) {
     });
   }
 
+  // Force a fresh fetch of the auth user (NOT just the session). Important
+  // after server-side user_metadata edits — refreshSession() only renews
+  // tokens, it doesn't always rebuild the user object with the new metadata.
+  // Calling getUser() pulls the latest row from auth.users and we then
+  // overwrite our local authUser so every consumer re-renders with the new
+  // avatar_url / name / etc.
+  const refreshAuthUser = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setAuthUser(user);
+      return user || null;
+    } catch (e) {
+      console.error('[refreshAuthUser]', e);
+      return null;
+    }
+  }, []);
+
   // ── Sign Out ──────────────────────────────────────────────────────────────
 
   function signOut() {
@@ -1190,6 +1207,7 @@ export function AppProvider({ children }) {
     // User
     user,
     updateUser,
+    refreshAuthUser,
 
     // Auth
     authUser,
