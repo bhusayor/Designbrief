@@ -17,6 +17,8 @@ import {
   ArrowLeftIcon,
   LinkIcon,
   TrashIcon,
+  CameraIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import Connectors from './Connectors'
 
@@ -175,6 +177,13 @@ function ProfileSection({ callSettings, onSaved }) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
+  // Avatar — read from auth.user_metadata so it survives refreshes and
+  // appears immediately for every component subscribed to authUser.
+  const avatarUrl = authUser?.user_metadata?.avatar_url || ''
+  const [avatarBusy, setAvatarBusy] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
+  const fileInputRef = useRef(null)
+
   const email = authUser?.email || user?.email || ''
 
   const initials = name.trim()
@@ -196,6 +205,58 @@ function ProfileSection({ callSettings, onSaved }) {
     }
   }
 
+  async function handleAvatarFile(file) {
+    if (!file || !authUser?.id) return
+    setAvatarError('')
+    if (!file.type?.startsWith('image/')) {
+      setAvatarError('Please choose an image file (PNG, JPG, GIF, WebP).')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Image is too large (max 5 MB).')
+      return
+    }
+    setAvatarBusy(true)
+    try {
+      // Path convention: <user-id>/<timestamp>.<ext> — matches the storage RLS
+      // policy which requires the first folder segment to equal auth.uid().
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase().slice(0, 5)
+      const path = `${authUser.id}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { cacheControl: '3600', upsert: true, contentType: file.type })
+      if (upErr) throw upErr
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+      const publicUrl = data?.publicUrl
+      if (!publicUrl) throw new Error('Could not resolve public URL')
+      await callSettings({ action: 'update_avatar', avatarUrl: publicUrl })
+      // Refresh the session so authUser.user_metadata picks up the new url
+      try { await supabase.auth.refreshSession() } catch {}
+      onSaved?.('Profile photo updated')
+    } catch (e) {
+      console.error('[avatar upload]', e)
+      setAvatarError(e.message || 'Upload failed')
+    } finally {
+      setAvatarBusy(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    if (!avatarUrl) return
+    setAvatarBusy(true)
+    setAvatarError('')
+    try {
+      await callSettings({ action: 'remove_avatar' })
+      try { await supabase.auth.refreshSession() } catch {}
+      onSaved?.('Profile photo removed')
+    } catch (e) {
+      setAvatarError(e.message || 'Could not remove photo')
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
+
   return (
     <div>
       <h1 style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.04em', color: 'var(--color-text)', margin: '0 0 4px' }}>
@@ -205,25 +266,117 @@ function ProfileSection({ callSettings, onSaved }) {
         Personalise how others see and interact with you on DesignBrief.
       </p>
 
-      {/* Avatar preview */}
+      {/* Avatar preview + upload */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 14,
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'flex-start' : 'center',
+        gap: isMobile ? 14 : 16,
         padding: '16px 0 20px', borderBottom: '1px solid var(--color-border)',
       }}>
-        <div style={{
-          width: 52, height: 52, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 18,
-          color: 'white', flexShrink: 0, letterSpacing: '-0.02em',
-        }}>
-          {initials}
+        {/* Avatar circle — clickable to upload */}
+        <div
+          onClick={() => !avatarBusy && fileInputRef.current?.click()}
+          style={{
+            position: 'relative',
+            width: 72, height: 72, borderRadius: '50%',
+            background: avatarUrl ? 'var(--color-surface)' : 'linear-gradient(135deg, #7C3AED, #A855F7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 26,
+            color: 'white', flexShrink: 0, letterSpacing: '-0.02em',
+            cursor: avatarBusy ? 'wait' : 'pointer',
+            overflow: 'hidden',
+            border: '1px solid var(--color-border)',
+            transition: 'transform 0.15s',
+          }}
+          title="Change profile photo"
+          onMouseEnter={e => { if (!avatarBusy) e.currentTarget.style.transform = 'scale(1.02)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+        >
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={name || 'Profile'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={e => { e.currentTarget.style.display = 'none' }}
+            />
+          ) : (
+            <span>{initials}</span>
+          )}
+          {/* Hover overlay with camera */}
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: avatarBusy ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0)',
+            opacity: avatarBusy ? 1 : 0,
+            transition: 'background 0.15s, opacity 0.15s',
+            pointerEvents: 'none',
+          }} className="avatar-overlay">
+            <CameraIcon style={{ width: 22, height: 22, color: 'white' }} />
+          </div>
         </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 3 }}>
+
+        {/* Name / email + action buttons */}
+        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {name || 'Your name'}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{email}</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {email}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarBusy}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 12px',
+                background: '#7C3AED', color: 'white',
+                border: 'none', borderRadius: 8,
+                cursor: avatarBusy ? 'not-allowed' : 'pointer',
+                fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+                opacity: avatarBusy ? 0.6 : 1,
+              }}
+            >
+              <ArrowUpTrayIcon style={{ width: 12, height: 12 }} />
+              {avatarUrl ? 'Change photo' : 'Upload photo'}
+            </button>
+            {avatarUrl && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                disabled={avatarBusy}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 12px',
+                  background: 'transparent', color: 'var(--color-text-muted)',
+                  border: '1px solid var(--color-border)', borderRadius: 8,
+                  cursor: avatarBusy ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+                }}
+              >
+                <TrashIcon style={{ width: 12, height: 12 }} />
+                Remove
+              </button>
+            )}
+          </div>
+          {avatarError && (
+            <div style={{
+              fontSize: 12, color: '#DC2626', marginTop: 8,
+              display: 'flex', gap: 4, alignItems: 'center',
+            }}>
+              <ExclamationCircleIcon style={{ width: 12, height: 12, flexShrink: 0 }} />
+              {avatarError}
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+            onChange={e => handleAvatarFile(e.target.files?.[0])}
+            style={{ display: 'none' }}
+          />
         </div>
       </div>
 

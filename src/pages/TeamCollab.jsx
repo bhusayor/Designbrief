@@ -619,6 +619,11 @@ export default function TeamCollab() {
   const [projectFlash, setProjectFlash] = useState(false)
   const [boardTransitioning, setBoardTransitioning] = useState(false)
   const [tasksLoading, setTasksLoading] = useState(false)
+  // Map of user_id → { name, avatarUrl } for every member of the active
+  // project. Used by TaskCard so each assignee renders with their
+  // profile photo (or initials fallback). Populated alongside the task
+  // load below; refreshed whenever the project changes.
+  const [projectMembers, setProjectMembers] = useState({})
   const [taskLoadError, setTaskLoadError] = useState(false)
 
   const messagesEndRef = useRef(null)
@@ -801,6 +806,29 @@ export default function TeamCollab() {
         setBriefText(p.brief_text)
       }
     }).catch(() => {})
+
+    // Fetch project members so we can render their avatars on tasks
+    // they're assigned to. Service-role endpoint — works for owners
+    // and invited members alike. Falls back to an empty map on error.
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) return
+        const res = await fetch('/api/invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ action: 'list_project_members', projectId }),
+        })
+        if (!res.ok) return
+        const json = await res.json()
+        const map = {}
+        for (const m of (json.members || [])) {
+          map[m.id] = { name: m.name, avatarUrl: m.avatarUrl, email: m.email }
+        }
+        setProjectMembers(map)
+      } catch {}
+    })()
   }, [activeProject?.id, activeProjectId, authUser?.id])
 
   // ── Realtime + polling: keep customCols in sync when the Admin edits ─────
@@ -3187,6 +3215,17 @@ STYLE:
     const isDropIndicator = dragOverTaskId === task.id && draggedTask && draggedTask.id !== task.id
     const priorityColor = PRIORITY_COLORS[task.priority] || '#6B7280'
     const assigneeName = task.assignedName || task.assignee || null
+    // Resolve assignee avatar: prefer the projectMembers map (keyed by
+    // user_id) when the task has an assigned_user_id; otherwise fall
+    // back to a name match (case-insensitive) so legacy tasks without
+    // a user_id still get a photo when the name matches a member.
+    const assigneeMember = task.assignedUserId
+      ? projectMembers[task.assignedUserId]
+      : (assigneeName
+          ? Object.values(projectMembers).find(m => (m.name || '').toLowerCase() === assigneeName.toLowerCase())
+          : null)
+    const assigneeAvatar = assigneeMember?.avatarUrl || null
+    const assigneeInitial = (assigneeName || '?')[0]?.toUpperCase()
 
     return (
       <div
@@ -3288,10 +3327,23 @@ STYLE:
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           {/* Left: assignee */}
           {assigneeName ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
-                {assigneeName[0]?.toUpperCase()}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }} title={assigneeName}>
+              {assigneeAvatar ? (
+                <img
+                  src={assigneeAvatar}
+                  alt={assigneeName}
+                  onError={e => { e.currentTarget.style.display = 'none' }}
+                  style={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    objectFit: 'cover', flexShrink: 0,
+                    border: '1px solid var(--color-border)',
+                  }}
+                />
+              ) : (
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--color-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 10, color: 'var(--color-bg)', flexShrink: 0 }}>
+                  {assigneeInitial}
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px dashed var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

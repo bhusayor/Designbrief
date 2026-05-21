@@ -42,6 +42,39 @@ export default async function handler(req, res) {
       return res.json({ success: true })
     }
 
+    // ── UPDATE AVATAR URL ─────────────────────────────────────────────────────
+    // Body: { action:'update_avatar', avatarUrl }
+    // The client uploads the file to the `avatars` storage bucket directly,
+    // then sends us the public URL to persist in auth user_metadata.
+    if (action === 'update_avatar') {
+      const { avatarUrl } = req.body
+      if (typeof avatarUrl !== 'string' || !avatarUrl.startsWith('http')) {
+        return res.status(400).json({ error: 'avatarUrl must be an http(s) URL' })
+      }
+      const { error } = await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: {
+          ...user.user_metadata,
+          avatar_url: avatarUrl,
+        },
+      })
+      if (error) throw error
+      return res.json({ success: true, avatarUrl })
+    }
+
+    // ── REMOVE AVATAR ─────────────────────────────────────────────────────────
+    // Body: { action:'remove_avatar' }
+    // Clears the avatar_url from user_metadata. The file in storage is left
+    // behind — cheap to keep, and avoids races with old URLs still in flight.
+    if (action === 'remove_avatar') {
+      const next = { ...user.user_metadata }
+      delete next.avatar_url
+      const { error } = await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: next,
+      })
+      if (error) throw error
+      return res.json({ success: true })
+    }
+
     // ── UPDATE WORKSPACE NAME ─────────────────────────────────────────────────
     if (action === 'update_workspace_name') {
       const { workspaceId, name } = req.body

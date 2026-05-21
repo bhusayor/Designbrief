@@ -39,17 +39,29 @@ function getAvatarColor(name) {
   return colors[i]
 }
 
-function Avatar({ name, size = 32 }) {
+function Avatar({ name, src, size = 32 }) {
   const { bg, color } = getAvatarColor(name)
+  const [errored, setErrored] = useState(false)
+  const showImage = src && !errored
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%',
-      background: bg,
+      background: showImage ? 'var(--color-surface)' : bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'var(--font-sans)', fontWeight: 700,
       fontSize: size * 0.35, color, flexShrink: 0,
+      overflow: 'hidden',
     }}>
-      {getInitials(name)}
+      {showImage ? (
+        <img
+          src={src}
+          alt={name || ''}
+          onError={() => setErrored(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : (
+        getInitials(name)
+      )}
     </div>
   )
 }
@@ -1425,7 +1437,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                       <EnvelopeIcon style={{ width: 13, height: 13, color: 'var(--color-text-muted)' }} />
                     </div>
                   ) : (
-                    <Avatar name={row.name} size={32} />
+                    <Avatar name={row.name} src={row.avatarUrl} size={32} />
                   )}
                   <div style={{ minWidth: 0 }}>
                     <div style={{

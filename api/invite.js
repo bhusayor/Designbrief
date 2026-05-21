@@ -682,6 +682,7 @@ export default async function handler(req, res) {
           ownerUser?.user_metadata?.full_name ||
           ownerUser?.email?.split('@')[0] ||
           'Admin',
+        avatarUrl: ownerUser?.user_metadata?.avatar_url || null,
         isCreator: true,
       }
 
@@ -725,6 +726,7 @@ export default async function handler(req, res) {
                 u?.user_metadata?.full_name ||
                 u?.email?.split('@')[0] ||
                 'Member',
+              avatarUrl: u?.user_metadata?.avatar_url || null,
               creditLimit: m.credit_limit,
               isCreator: false,
             }
