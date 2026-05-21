@@ -134,6 +134,7 @@ export async function acceptInvite(inviteToken, userId, displayName = '') {
   return {
     projectId: data.projectId,
     project: data.project || null,
+    tasks: Array.isArray(data.tasks) ? data.tasks : [],
     jobRole: data.jobRole || 'Editor',
     invite,
   }

@@ -3,6 +3,7 @@ import AppContext from '../context/AppContext'
 import { Button, Badge } from '../components/ui'
 import { ROLE_META } from '../lib/constants'
 import { getInviteByToken, acceptInvite } from '../lib/teamService'
+import { mapDBTask } from '../lib/taskService'
 import { supabase } from '../lib/supabase'
 
 export default function JoinPage() {
@@ -180,16 +181,20 @@ export default function JoinPage() {
         localStorage.setItem('teamcollab-projects', JSON.stringify(nextList))
         localStorage.setItem('teamcollab-active-project', project.id)
 
-        // Pre-seed per-project state so TeamCollab's loadProjectStateById finds data
-        const hasCachedState = !!localStorage.getItem('tc-project-' + project.id)
-        if (!hasCachedState) {
-          localStorage.setItem('tc-project-' + project.id, JSON.stringify({
-            teamMembers: project.team_members || [],
-            kanban: project.kanban || { tasks: [] },
-            projectTitle: project.title,
-            briefText: project.brief_text || '',
-          }))
-        }
+        // Pre-seed per-project state so TeamCollab's loadProjectStateById
+        // finds data — INCLUDING the project's tasks. Without this the
+        // invitee briefly sees an empty board ("No tasks yet") before the
+        // async loadTasksFromDB resolves and fills it. The accept API
+        // returns the tasks alongside the project so we can hydrate the
+        // local cache straight away.
+        const seedTasks = Array.isArray(result.tasks) ? result.tasks.map(mapDBTask) : []
+        localStorage.setItem('tc-project-' + project.id, JSON.stringify({
+          teamMembers: project.team_members || [],
+          kanban: { tasks: seedTasks },
+          projectTitle: project.title,
+          briefText: project.brief_text || '',
+          phase: seedTasks.length > 0 ? 'kanban' : 'brief',
+        }))
 
         setActiveProject(projectEntry)
       }
@@ -202,7 +207,11 @@ export default function JoinPage() {
         }
       } catch {}
 
+      // Land the invitee on the project board immediately — no "Open
+      // Project Board" intermediate step. The activeProject is already
+      // set above, so TeamCollab will pick it up on render.
       setPhase('done')
+      navigate('team')
     } catch (err) {
       // A failed accept is terminal for this token — clear it so the user
       // isn't permanently bounced back to the join screen.

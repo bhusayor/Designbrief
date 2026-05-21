@@ -1695,8 +1695,10 @@ export default function TaskDetailModal({
     currentUserName: user?.firstName || user?.name,
   })
 
-  // The signed-in user's own avatar — pulled live from auth metadata so a
-  // fresh upload appears immediately on the reply composer + their comments.
+  // The signed-in user's name + avatar — pulled live from auth metadata so
+  // a fresh upload / rename appears immediately on the reply composer + on
+  // their own comments / activity entries.
+  const currentUserName = user?.firstName || user?.name || authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || ''
   const currentUserAvatar = authUser?.user_metadata?.avatar_url || null
 
   // Flat list of mention candidates for the composer's @ dropdown + the

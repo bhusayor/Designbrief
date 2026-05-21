@@ -1128,18 +1128,19 @@ export default async function handler(req, res) {
           .eq('id', invite.id)
       }
 
-      // Return the shared project so the client doesn't need to refetch it
-      // with the anon key (which RLS may block for a brand-new member).
-      const { data: fullProject } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', invite.project_id)
-        .single()
+      // Return the shared project + its tasks so the invitee lands on a
+      // fully-populated board with no empty-state flicker. RLS for tasks
+      // is also bypassed here via the service-role key.
+      const [{ data: fullProject }, { data: projectTasks }] = await Promise.all([
+        supabase.from('projects').select('*').eq('id', invite.project_id).single(),
+        supabase.from('tasks').select('*').eq('project_id', invite.project_id).order('position', { ascending: true }),
+      ])
 
       return res.json({
         success: true,
         projectId: invite.project_id,
         project: fullProject || null,
+        tasks: projectTasks || [],
         jobRole: invite.job_role || 'Editor',
       })
     }
