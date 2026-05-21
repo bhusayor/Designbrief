@@ -181,6 +181,7 @@ function ProfileSection({ callSettings, onSaved }) {
   // appears immediately for every component subscribed to authUser.
   const avatarUrl = authUser?.user_metadata?.avatar_url || ''
   const [avatarBusy, setAvatarBusy] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [avatarError, setAvatarError] = useState('')
   const fileInputRef = useRef(null)
 
@@ -217,25 +218,58 @@ function ProfileSection({ callSettings, onSaved }) {
       return
     }
     setAvatarBusy(true)
+    setUploadProgress(0)
     try {
-      // Path convention: <user-id>/<timestamp>.<ext> — matches the storage RLS
-      // policy which requires the first folder segment to equal auth.uid().
       const ext = (file.name.split('.').pop() || 'png').toLowerCase().slice(0, 5)
       const path = `${authUser.id}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { cacheControl: '3600', upsert: true, contentType: file.type })
-      if (upErr) throw upErr
+
+      // Fresh access token for the storage REST call
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Session expired')
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      if (!supabaseUrl) throw new Error('Supabase URL not configured')
+
+      // POST to storage REST directly so we can track real upload progress
+      // via XMLHttpRequest. The supabase-js upload() doesn't expose progress.
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', `${supabaseUrl}/storage/v1/object/avatars/${path}`)
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        xhr.setRequestHeader('Content-Type', file.type)
+        xhr.setRequestHeader('x-upsert', 'true')
+        xhr.setRequestHeader('cache-control', '3600')
+        xhr.upload.addEventListener('progress', e => {
+          if (e.lengthComputable) {
+            // Cap visible progress at 95% during transfer — the last 5% is
+            // reserved for the server-side write + the user_metadata patch.
+            setUploadProgress(Math.min(95, Math.round((e.loaded / e.total) * 95)))
+          }
+        })
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve()
+          else reject(new Error(xhr.responseText || `Upload failed (${xhr.status})`))
+        }
+        xhr.onerror = () => reject(new Error('Network error during upload'))
+        xhr.send(file)
+      })
+
+      setUploadProgress(97)
       const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-      const publicUrl = data?.publicUrl
+      // Bust browser cache so the new image shows immediately
+      const publicUrl = data?.publicUrl ? `${data.publicUrl}?v=${Date.now()}` : null
       if (!publicUrl) throw new Error('Could not resolve public URL')
+
       await callSettings({ action: 'update_avatar', avatarUrl: publicUrl })
-      // Refresh the session so authUser.user_metadata picks up the new url
       try { await supabase.auth.refreshSession() } catch {}
+      setUploadProgress(100)
       onSaved?.('Profile photo updated')
+      // Brief 100% flash before clearing the bar
+      setTimeout(() => setUploadProgress(0), 600)
     } catch (e) {
       console.error('[avatar upload]', e)
       setAvatarError(e.message || 'Upload failed')
+      setUploadProgress(0)
     } finally {
       setAvatarBusy(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -350,17 +384,46 @@ function ProfileSection({ callSettings, onSaved }) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '7px 12px',
-                  background: 'transparent', color: 'var(--color-text-muted)',
-                  border: '1px solid var(--color-border)', borderRadius: 8,
+                  background: 'transparent', color: '#DC2626',
+                  border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8,
                   cursor: avatarBusy ? 'not-allowed' : 'pointer',
                   fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+                  transition: 'all 0.15s',
                 }}
+                onMouseEnter={e => { if (!avatarBusy) { e.currentTarget.style.background = 'rgba(220,38,38,0.08)'; e.currentTarget.style.borderColor = '#DC2626' } }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.3)' }}
               >
                 <TrashIcon style={{ width: 12, height: 12 }} />
                 Remove
               </button>
             )}
           </div>
+          {/* Upload progress — shows real percentage tracked via XHR */}
+          {avatarBusy && uploadProgress > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4,
+                fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '0.04em',
+              }}>
+                <span>UPLOADING</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div style={{
+                width: '100%', height: 6, borderRadius: 999,
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${uploadProgress}%`, height: '100%',
+                  background: 'linear-gradient(90deg, #7C3AED, #A855F7)',
+                  transition: 'width 0.18s ease',
+                  borderRadius: 999,
+                }} />
+              </div>
+            </div>
+          )}
           {avatarError && (
             <div style={{
               fontSize: 12, color: '#DC2626', marginTop: 8,

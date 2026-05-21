@@ -829,7 +829,9 @@ export default function TeamCollab() {
         setProjectMembers(map)
       } catch {}
     })()
-  }, [activeProject?.id, activeProjectId, authUser?.id])
+    // Re-fire when authUser.user_metadata.avatar_url changes so the user's
+    // own avatar shows up on their kanban cards immediately after upload.
+  }, [activeProject?.id, activeProjectId, authUser?.id, authUser?.user_metadata?.avatar_url])
 
   // ── Realtime + polling: keep customCols in sync when the Admin edits ─────
   // Three paths converge on the same setCustomCols:
@@ -3219,12 +3221,18 @@ STYLE:
     // user_id) when the task has an assigned_user_id; otherwise fall
     // back to a name match (case-insensitive) so legacy tasks without
     // a user_id still get a photo when the name matches a member.
+    // If the assignee IS the signed-in user, prefer the live
+    // authUser.user_metadata.avatar_url — it updates instantly after
+    // upload without waiting for the projectMembers refetch.
+    const isSelf = task.assignedUserId && task.assignedUserId === authUser?.id
     const assigneeMember = task.assignedUserId
       ? projectMembers[task.assignedUserId]
       : (assigneeName
           ? Object.values(projectMembers).find(m => (m.name || '').toLowerCase() === assigneeName.toLowerCase())
           : null)
-    const assigneeAvatar = assigneeMember?.avatarUrl || null
+    const assigneeAvatar = isSelf
+      ? (authUser?.user_metadata?.avatar_url || assigneeMember?.avatarUrl || null)
+      : (assigneeMember?.avatarUrl || null)
     const assigneeInitial = (assigneeName || '?')[0]?.toUpperCase()
 
     return (

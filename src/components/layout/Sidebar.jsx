@@ -152,12 +152,16 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     activeChat, setActiveChat,
     deleteHistory, pinHistory, renameHistory, shareHistory,
     theme, showToast,
-    user, signOut,
+    user, signOut, authUser,
     setActiveProject,
     intakeForms,
     workspace,
     creditsUsed, creditsLimit,
   } = useContext(AppContext)
+
+  // Profile-picture URL — from auth.user_metadata so any change in Settings
+  // shows up here immediately after the session refresh fires.
+  const sidebarAvatarUrl = authUser?.user_metadata?.avatar_url || null
 
   // Desktop: auto-collapse on tablet width
   const [collapsedDesktop, setCollapsedDesktop] = useState(() => !isMobile && window.innerWidth < 1024)
@@ -728,13 +732,23 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           >
             <div style={{
               width: '28px', height: '28px', borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-2-soft))',
+              background: sidebarAvatarUrl ? 'var(--color-surface)' : 'linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-2-soft))',
               border: '1px solid var(--color-border)',
               color: 'var(--color-accent)',
               fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '11px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              overflow: 'hidden',
             }}>
-              {initials}
+              {sidebarAvatarUrl ? (
+                <img
+                  src={sidebarAvatarUrl}
+                  alt={user?.name || 'Profile'}
+                  onError={e => { e.currentTarget.style.display = 'none' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
             </div>
 
             {!collapsed && (
