@@ -83,13 +83,57 @@ const URL_REGEX = new RegExp(
 
 // Renders plain text with URLs auto-linked. exec() loop avoids the
 // stateful split+test bug we had before.
-function renderCommentBody(text) {
+// Highlights @mentions inside a plain-text segment as accent-coloured chips.
+// Tries to match against a `members` list — when present, a name match
+// strengthens the highlight to a soft accent-bg pill.
+function highlightMentions(text, members) {
+  if (!text) return text
+  // @Name — allows letters/digits/dot/hyphen/underscore/apostrophe, plus a
+  // single space between two name parts (matches "@John Doe", "@Joe").
+  // We greedily try a two-word capture first so multi-word names work, but
+  // fall back to a single word if there's no member-list to anchor on.
+  const re = /@([A-Za-z][A-Za-z0-9._'-]*(?:\s[A-Za-z][A-Za-z0-9._'-]*)?)/g
+  const out = []
+  let lastIndex = 0
+  let m
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > lastIndex) out.push(text.slice(lastIndex, m.index))
+    const display = m[1]
+    const matched = (members || []).find(p => (p.name || '').toLowerCase() === display.toLowerCase())
+    out.push(
+      <span key={out.length} style={{
+        color: 'var(--color-accent)',
+        background: matched ? 'var(--color-accent-soft)' : 'transparent',
+        borderRadius: 4, padding: matched ? '0 3px' : 0,
+        fontWeight: 600,
+      }}>@{display}</span>
+    )
+    lastIndex = m.index + m[0].length
+  }
+  if (lastIndex < text.length) out.push(text.slice(lastIndex))
+  return out
+}
+
+function renderCommentBody(text, members) {
   if (!text) return null
   const str = String(text)
   const re = new RegExp(URL_REGEX.source, URL_REGEX.flags)
   const out = []
   let lastIndex = 0
   let match
+  function pushText(chunk) {
+    if (!chunk) return
+    const mentioned = highlightMentions(chunk, members)
+    if (Array.isArray(mentioned)) {
+      mentioned.forEach((n, i) => out.push(
+        typeof n === 'string'
+          ? <span key={out.length + ':' + i}>{n}</span>
+          : <span key={out.length + ':' + i}>{n}</span>,
+      ))
+    } else {
+      out.push(<span key={out.length}>{mentioned}</span>)
+    }
+  }
   while ((match = re.exec(str)) !== null) {
     // Strip trailing punctuation that shouldn't be part of the link
     let raw = match[0]
@@ -98,9 +142,7 @@ function renderCommentBody(text) {
       extra = raw[raw.length - 1] + extra
       raw = raw.slice(0, -1)
     }
-    if (match.index > lastIndex) {
-      out.push(<span key={out.length}>{str.slice(lastIndex, match.index)}</span>)
-    }
+    if (match.index > lastIndex) pushText(str.slice(lastIndex, match.index))
     const href = raw.startsWith('http') ? raw : `https://${raw.replace(/^www\./, '')}`
     out.push(
       <a key={out.length} href={href} target="_blank" rel="noopener noreferrer"
@@ -112,9 +154,7 @@ function renderCommentBody(text) {
     if (extra) out.push(<span key={out.length}>{extra}</span>)
     lastIndex = match.index + match[0].length
   }
-  if (lastIndex < str.length) {
-    out.push(<span key={out.length}>{str.slice(lastIndex)}</span>)
-  }
+  if (lastIndex < str.length) pushText(str.slice(lastIndex))
   return out.length ? out : str
 }
 
@@ -157,11 +197,62 @@ function ComposerBubble({
   attachments = [], onRemoveAttachment,
   userName,
   userAvatar,
+  members = [],   // [{ userId, name, avatarUrl }] for @mentions
 }) {
   const [focused, setFocused] = useState(false)
   const [showAttachMenu, setShowAttachMenu] = useState(false)
   const taRef = useRef(null)
   const attachBtnRef = useRef(null)
+
+  // @mention autocomplete state. mentionStart points at the index of the '@'
+  // currently being completed; mentionQuery is the text typed after it.
+  // mentionIndex tracks the highlighted suggestion for keyboard nav.
+  const [mentionStart, setMentionStart] = useState(-1)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionIndex, setMentionIndex] = useState(0)
+
+  const filteredMentions = mentionStart === -1
+    ? []
+    : (members || [])
+      .filter(m => (m.name || '').toLowerCase().includes(mentionQuery.toLowerCase()))
+      .slice(0, 6)
+
+  // Detect '@' immediately before the caret; opens / updates the dropdown.
+  function syncMentionFromCaret(text, caret) {
+    const upToCaret = text.slice(0, caret)
+    const atIdx = upToCaret.lastIndexOf('@')
+    if (atIdx === -1) { setMentionStart(-1); setMentionQuery(''); return }
+    // Must be at start of input OR preceded by whitespace
+    const prev = atIdx === 0 ? ' ' : upToCaret[atIdx - 1]
+    if (!/\s/.test(prev)) { setMentionStart(-1); setMentionQuery(''); return }
+    const fragment = upToCaret.slice(atIdx + 1)
+    // Spaces close the mention
+    if (/\s/.test(fragment)) { setMentionStart(-1); setMentionQuery(''); return }
+    setMentionStart(atIdx)
+    setMentionQuery(fragment)
+    setMentionIndex(0)
+  }
+
+  function insertMention(member) {
+    if (!member || mentionStart === -1) return
+    const el = taRef.current
+    const caret = el ? el.selectionStart : value.length
+    const before = value.slice(0, mentionStart)
+    const after = value.slice(caret)
+    const inserted = `@${(member.name || '').replace(/\s+/g, ' ')} `
+    const next = before + inserted + after
+    onChange(next)
+    setMentionStart(-1)
+    setMentionQuery('')
+    // Restore caret after the inserted mention on the next tick
+    requestAnimationFrame(() => {
+      const newPos = (before + inserted).length
+      if (el) {
+        el.focus()
+        try { el.setSelectionRange(newPos, newPos) } catch {}
+      }
+    })
+  }
 
   // Auto-grow textarea
   useEffect(() => {
@@ -219,16 +310,36 @@ function ComposerBubble({
         <textarea
           ref={taRef}
           value={value}
-          onChange={e => onChange(e.target.value)}
+          onChange={e => {
+            onChange(e.target.value)
+            syncMentionFromCaret(e.target.value, e.target.selectionStart)
+          }}
+          onSelect={e => syncMentionFromCaret(e.target.value, e.target.selectionStart)}
+          onKeyUp={e => syncMentionFromCaret(e.currentTarget.value, e.currentTarget.selectionStart)}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false)
+            // Delay closing so the dropdown's onMouseDown can fire first
+            setTimeout(() => setMentionStart(-1), 120)
+          }}
           onKeyDown={e => {
+            // @mention navigation has priority while the dropdown is open
+            if (mentionStart !== -1 && filteredMentions.length > 0) {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(filteredMentions.length - 1, i + 1)); return }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(0, i - 1)); return }
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault()
+                insertMention(filteredMentions[mentionIndex])
+                return
+              }
+              if (e.key === 'Escape') { e.preventDefault(); setMentionStart(-1); return }
+            }
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               e.preventDefault()
               if (hasContent) onSubmit()
             }
           }}
-          placeholder="Add a comment..."
+          placeholder="Add a comment… use @ to mention a teammate"
           rows={1}
           autoComplete="off"
           autoCorrect="off"
@@ -241,6 +352,54 @@ function ComposerBubble({
             lineHeight: 1.55, boxSizing: 'border-box',
           }}
         />
+
+        {/* @mention dropdown — floats above the textarea, anchored to the bubble */}
+        {mentionStart !== -1 && filteredMentions.length > 0 && (
+          <div style={{
+            position: 'absolute', bottom: '100%', left: 0,
+            marginBottom: 8, minWidth: 240, maxWidth: 320,
+            background: 'var(--color-bg)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 10,
+            boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+            padding: 4, zIndex: 20,
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: 'var(--color-text-muted)', padding: '6px 9px 4px',
+            }}>
+              Mention a teammate
+            </div>
+            {filteredMentions.map((m, idx) => {
+              const active = idx === mentionIndex
+              return (
+                <div
+                  key={m.userId}
+                  onMouseDown={e => { e.preventDefault(); insertMention(m) }}
+                  onMouseEnter={() => setMentionIndex(idx)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '7px 9px', borderRadius: 7,
+                    background: active ? 'var(--color-surface)' : 'transparent',
+                    cursor: 'pointer',
+                  }}>
+                  <Avatar name={m.name} src={m.avatarUrl} size={22} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {m.name}
+                    </div>
+                    {m.email && (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {m.email}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* Action row inside the bubble */}
         <div style={{ display: 'flex', alignItems: 'center', marginTop: 6 }}>
@@ -525,6 +684,7 @@ function CommentRow({
   resolveAvatar,
   reactionsMap,
   makeHandlersForComment,
+  mentionMembers = [],
   nested = false,
 }) {
   const authorAvatar = resolveAvatar ? resolveAvatar(comment) : null
@@ -643,7 +803,7 @@ function CommentRow({
                 fontFamily: 'var(--font-sans)', fontSize: 13,
                 color: 'var(--color-text)', whiteSpace: 'pre-wrap', lineHeight: 1.5,
                 wordBreak: 'break-word',
-              }}>{renderCommentBody(comment.content)}</div>
+              }}>{renderCommentBody(comment.content, mentionMembers)}</div>
             )}
             {Array.isArray(comment.attachments) && comment.attachments.length > 0 && (
               <div style={{
@@ -739,6 +899,7 @@ function CommentRow({
                   currentUserName={currentUserName}
                   currentUserAvatar={currentUserAvatar}
                   resolveAvatar={resolveAvatar}
+                  mentionMembers={mentionMembers}
                 />
               )
             })}
@@ -834,6 +995,7 @@ export default function TaskDetailModal({
   const [showStatus, setShowStatus] = useState(false)
   const [showPriority, setShowPriority] = useState(false)
   const [showAssignee, setShowAssignee] = useState(false)
+  const [showReporter, setShowReporter] = useState(false)
   const [aiPromptOpen, setAiPromptOpen] = useState(true)
   const [copiedPrompt, setCopiedPrompt] = useState(false)
   const [showLabels, setShowLabels] = useState(false)
@@ -1113,6 +1275,22 @@ export default function TaskDetailModal({
       'assigned',
       task.assignedName || 'Unassigned',
       name || 'Unassigned',
+    )
+  }
+
+  async function changeReporter(member) {
+    setShowReporter(false)
+    const userId = member?.userId || member?.id || null
+    if (userId === (task.reporterId || null)) return
+    const reporterName = member?.name || null
+    const prevName = task.reporterId
+      ? (projectMembers?.[task.reporterId]?.name || 'previous reporter')
+      : (user?.firstName || user?.name || 'no reporter')
+    await patchTask(
+      { reporterId: userId },
+      'changed reporter',
+      prevName,
+      reporterName || 'Unassigned',
     )
   }
 
@@ -1520,6 +1698,15 @@ export default function TaskDetailModal({
   // The signed-in user's own avatar — pulled live from auth metadata so a
   // fresh upload appears immediately on the reply composer + their comments.
   const currentUserAvatar = authUser?.user_metadata?.avatar_url || null
+
+  // Flat list of mention candidates for the composer's @ dropdown + the
+  // mention highlighter inside rendered comments.
+  const mentionMembers = Object.entries(projectMembers || {}).map(([uid, m]) => ({
+    userId: uid,
+    name: m.name || '',
+    email: m.email || '',
+    avatarUrl: m.avatarUrl || null,
+  }))
 
   // Resolve an avatar URL for any comment / activity row. Tries (in order):
   //   1. row.user_id → projectMembers (with self override to authUser
@@ -2006,6 +2193,7 @@ export default function TaskDetailModal({
                         currentUserName={currentUserName}
                         currentUserAvatar={currentUserAvatar}
                         resolveAvatar={resolveAvatar}
+                        mentionMembers={mentionMembers}
                       />
                     ) : (
                       <div key={'a' + entry.id} style={{ display: 'flex', gap: 10, alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)' }}>
@@ -2038,6 +2226,7 @@ export default function TaskDetailModal({
                 onRemoveAttachment={removePendingAttachment}
                 userName={user?.firstName || user?.name}
                 userAvatar={currentUserAvatar}
+                members={mentionMembers}
               />
               <input
                 ref={documentInputRef}
@@ -2291,14 +2480,61 @@ export default function TaskDetailModal({
                 )}
               </div>
 
-              {/* Reporter */}
-              <div className="tdm-row" style={{ ...detailRowStyle, cursor: 'default' }}>
-                <span style={labelStyle}>Reporter</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Avatar name={user?.firstName || user?.name} src={currentUserAvatar} size={22} />
-                  <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{user?.firstName || user?.name || 'You'}</span>
-                </div>
-              </div>
+              {/* Reporter — picker mirrors the Assignee row */}
+              {(() => {
+                const realMembers = Object.entries(projectMembers || {}).map(([uid, m]) => ({
+                  userId: uid,
+                  name: m.name || '',
+                  email: m.email || '',
+                  avatarUrl: m.avatarUrl || null,
+                }))
+                // If there's no explicit reporter yet, default to the signed-in user.
+                const reporterId = task.reporterId || authUser?.id || null
+                const reporterMember = reporterId ? projectMembers?.[reporterId] : null
+                const reporterIsSelf = reporterId && reporterId === authUser?.id
+                const reporterName =
+                  task.reporterName
+                  || reporterMember?.name
+                  || (reporterIsSelf ? (user?.firstName || user?.name || authUser?.email?.split('@')[0]) : null)
+                  || 'Unassigned'
+                const reporterAvatar = reporterIsSelf
+                  ? (authUser?.user_metadata?.avatar_url || reporterMember?.avatarUrl || null)
+                  : (reporterMember?.avatarUrl || null)
+                return (
+                  <div style={{ position: 'relative' }}>
+                    <div className="tdm-row" style={detailRowStyle} onClick={() => setShowReporter(s => !s)}>
+                      <span style={labelStyle}>Reporter</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Avatar name={reporterName} src={reporterAvatar} size={22} />
+                        <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{reporterName}</span>
+                      </div>
+                    </div>
+                    {showReporter && (
+                      <div style={popoverStyle({ top: '100%', right: 0, minWidth: 220 })}>
+                        {realMembers.length === 0 && (
+                          <div style={{ padding: '8px 10px', fontSize: 12, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>No team members yet</div>
+                        )}
+                        {realMembers.map(m => (
+                          <div key={m.userId} onClick={() => changeReporter(m)} className="tdm-row"
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)' }}>
+                            <Avatar name={m.name} src={m.avatarUrl} size={22} />
+                            <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {m.name}
+                              {m.userId === authUser?.id && (
+                                <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>you</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                        <div onClick={() => changeReporter(null)} className="tdm-row"
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)' }}>
+                          Clear reporter
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
           </div>
