@@ -4,7 +4,6 @@ import { loadTasksFromDB, getProjectActivity } from '../lib/taskService'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import {
   ArrowLeftIcon,
-  ArrowRightIcon,
   Squares2X2Icon,
   EllipsisHorizontalIcon,
   SparklesIcon,
@@ -21,14 +20,14 @@ const DEFAULT_COLS = [
   { id: 'Done', label: 'Done', color: '#16a34a' },
 ]
 
-function useIsMobile() {
-  const [m, setM] = useState(() => window.innerWidth < 720)
+function useViewport() {
+  const [w, setW] = useState(() => window.innerWidth)
   useEffect(() => {
-    const h = () => setM(window.innerWidth < 720)
+    const h = () => setW(window.innerWidth)
     window.addEventListener('resize', h)
     return () => window.removeEventListener('resize', h)
   }, [])
-  return m
+  return { isMobile: w < 720, isTablet: w >= 720 && w < 1024 }
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -41,7 +40,7 @@ function useIsMobile() {
 // ─────────────────────────────────────────────────────────────────────
 export default function ProjectOverview() {
   const { activeProject, navigate, deleteProject } = useContext(AppContext)
-  const isMobile = useIsMobile()
+  const { isMobile, isTablet } = useViewport()
 
   const [tasks, setTasks] = useState([])
   const [activity, setActivity] = useState([])
@@ -155,97 +154,89 @@ export default function ProjectOverview() {
         </button>
       </div>
 
-      {/* ── Body — full-width "big file" card ───────────────────── */}
+      {/* ── Body — full-width, no card wrapper ─────────────────── */}
       <div style={{
         flex: 1, width: '100%',
-        padding: isMobile ? '20px 16px 40px' : '32px 32px 56px',
+        padding: isMobile
+          ? '20px 16px 40px'
+          : isTablet ? '24px 28px 48px' : '32px 40px 56px',
         boxSizing: 'border-box',
+        display: 'flex', flexDirection: 'column', gap: 28,
       }}>
+        {/* Header */}
         <div style={{
-          width: '100%',
-          background: 'var(--color-card)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 18,
-          padding: isMobile ? '22px 18px' : '30px 36px',
-          boxShadow: '0 1px 0 rgba(0,0,0,0.02), 0 8px 28px rgba(0,0,0,0.06)',
-          boxSizing: 'border-box',
-          display: 'flex', flexDirection: 'column', gap: 28,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          gap: 16, flexWrap: 'wrap',
+          paddingBottom: 18, borderBottom: '1px solid var(--color-border)',
         }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 24, lineHeight: 1 }}>
-                  {isManuallyCreated ? '💻' : '🎨'}
-                </span>
-                <h1 style={{
-                  margin: 0, fontWeight: 800, fontSize: isMobile ? 22 : 28,
-                  letterSpacing: '-0.03em', color: 'var(--color-text)',
-                  overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                  {activeProject.title || 'Untitled Project'}
-                </h1>
-                <OriginTag manual={isManuallyCreated} />
-              </div>
-              <div style={{
-                marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)',
-                display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: isMobile ? 22 : 26, lineHeight: 1 }}>
+                {isManuallyCreated ? '💻' : '🎨'}
+              </span>
+              <h1 style={{
+                margin: 0, fontWeight: 800,
+                fontSize: isMobile ? 22 : isTablet ? 26 : 30,
+                letterSpacing: '-0.03em', color: 'var(--color-text)',
+                overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
-                <span>Last updated {timeAgo(activeProject.ts || Date.now())}</span>
-              </div>
+                {activeProject.title || 'Untitled Project'}
+              </h1>
+              <OriginTag manual={isManuallyCreated} />
             </div>
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button onClick={openBoard} style={primaryBtn()}>
-                <Squares2X2Icon style={{ width: 14, height: 14 }} />
-                Open Board
-              </button>
-
-              {/* ⋯ dropdown — currently just Delete; easy to extend */}
-              <div ref={menuRef} style={{ position: 'relative' }}>
-                <button
-                  title="More"
-                  onClick={() => setMenuOpen(o => !o)}
-                  style={iconBtn(menuOpen)}
-                >
-                  <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
-                </button>
-                {menuOpen && (
-                  <div style={{
-                    position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-                    background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-                    borderRadius: 10, minWidth: 180, zIndex: 20,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                    padding: 4,
-                  }}>
-                    <button
-                      onClick={() => { setMenuOpen(false); setConfirmDelete(true) }}
-                      style={{
-                        width: '100%', textAlign: 'left',
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '9px 10px', background: 'transparent', border: 'none',
-                        cursor: 'pointer', borderRadius: 7,
-                        fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
-                        color: '#DC2626',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                    >
-                      <TrashIcon style={{ width: 13, height: 13 }} />
-                      Delete project
-                    </button>
-                  </div>
-                )}
-              </div>
+            <div style={{
+              marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)',
+              display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+            }}>
+              <span>Last updated {timeAgo(activeProject.ts || Date.now())}</span>
             </div>
           </div>
 
-          {/* Task progress */}
-          <Section title="Task progress" action={
-            <button onClick={openBoard} style={ghostBtn()}>
-              Open board <ArrowRightIcon style={{ width: 12, height: 12 }} />
+          {/* ⋯ dropdown — Delete + future actions */}
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              title="More"
+              onClick={() => setMenuOpen(o => !o)}
+              style={iconBtn(menuOpen)}
+            >
+              <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
             </button>
-          }>
+            {menuOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                borderRadius: 10, minWidth: 180, zIndex: 20,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                padding: 4,
+              }}>
+                <button
+                  onClick={() => { setMenuOpen(false); setConfirmDelete(true) }}
+                  style={{
+                    width: '100%', textAlign: 'left',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '9px 10px', background: 'transparent', border: 'none',
+                    cursor: 'pointer', borderRadius: 7,
+                    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+                    color: '#DC2626',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  <TrashIcon style={{ width: 13, height: 13 }} />
+                  Delete project
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Task progress */}
+        <Section title="Task progress" action={
+          <button onClick={openBoard} style={primaryBtn()}>
+            <Squares2X2Icon style={{ width: 14, height: 14 }} />
+            Open board
+          </button>
+        }>
             {loadingTasks ? (
               <SkeletonRow />
             ) : totalTasks === 0 ? (
@@ -306,23 +297,22 @@ export default function ProjectOverview() {
             )}
           </Section>
 
-          {/* Recent activity */}
-          <Section title="Recent activity">
-            {loadingActivity ? (
-              <SkeletonRow />
-            ) : activity.length === 0 ? (
-              <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                No activity yet. Edits, moves, and comments will appear here.
-              </div>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {activity.slice(0, 10).map(a => (
-                  <ActivityRow key={a.id} entry={a} />
-                ))}
-              </ul>
-            )}
-          </Section>
-        </div>
+        {/* Recent activity */}
+        <Section title="Recent activity">
+          {loadingActivity ? (
+            <SkeletonRow />
+          ) : activity.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+              No activity yet. Edits, moves, and comments will appear here.
+            </div>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {activity.slice(0, 10).map(a => (
+                <ActivityRow key={a.id} entry={a} />
+              ))}
+            </ul>
+          )}
+        </Section>
       </div>
 
       {/* Delete confirmation — shared destructive modal */}
@@ -462,15 +452,6 @@ function primaryBtn() {
     color: 'white', border: 'none', borderRadius: 9,
     cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
     boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
-  }
-}
-function ghostBtn() {
-  return {
-    display: 'inline-flex', alignItems: 'center', gap: 4,
-    padding: '5px 9px', background: 'transparent',
-    border: '1px solid var(--color-border)', borderRadius: 7,
-    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-    color: 'var(--color-text-muted)',
   }
 }
 function iconBtn(active) {

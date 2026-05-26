@@ -1,5 +1,46 @@
 import { useState, useRef, useEffect } from 'react';
 
+// Lightweight pill that shows where a sidebar project came from:
+// • intake source → green "Client"
+// • section='team' → purple "Team"
+// • everything else → blue "Brief"
+function OriginPill({ item }) {
+  let label, bg, border, color
+  if (item.source === 'intake') {
+    label = 'Client'
+    bg = 'rgba(22,163,74,0.1)'
+    border = 'rgba(22,163,74,0.2)'
+    color = '#16a34a'
+  } else if (item.section === 'team') {
+    label = 'Team'
+    bg = 'rgba(124,58,237,0.10)'
+    border = 'rgba(124,58,237,0.25)'
+    color = '#7C3AED'
+  } else {
+    label = 'Brief'
+    bg = 'rgba(14,165,233,0.10)'
+    border = 'rgba(14,165,233,0.25)'
+    color = '#0369A1'
+  }
+  return (
+    <span style={{
+      background: bg,
+      border: '1px solid ' + border,
+      borderRadius: 4,
+      padding: '1px 5px',
+      fontFamily: "'Urbanist', sans-serif",
+      fontSize: 8, fontWeight: 700,
+      color,
+      marginLeft: 5,
+      letterSpacing: '0.04em',
+      textTransform: 'uppercase',
+      flexShrink: 0,
+    }}>
+      {label}
+    </span>
+  )
+}
+
 function formatDate(ts) {
   const d = new Date(ts);
   const now = new Date();
@@ -136,23 +177,8 @@ export default function HistoryItem({
             >
               {item.title}
             </span>
-            {item.source === 'intake' && (
-              <span style={{
-                background: 'rgba(22,163,74,0.1)',
-                border: '1px solid rgba(22,163,74,0.2)',
-                borderRadius: 4,
-                padding: '1px 5px',
-                fontFamily: "'Urbanist', sans-serif",
-                fontSize: 8, fontWeight: 700,
-                color: '#16a34a',
-                marginLeft: 5,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                flexShrink: 0,
-              }}>
-                Client
-              </span>
-            )}
+            {/* Origin tag — Client (intake) / Team Collab / Brief */}
+            <OriginPill item={item} />
           </>
         )}
 

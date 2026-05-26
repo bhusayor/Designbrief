@@ -153,7 +153,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     deleteHistory, pinHistory, renameHistory, shareHistory,
     theme, showToast,
     user, signOut, authUser,
-    setActiveProject,
+    setActiveProject, openProject,
     intakeForms,
     workspace,
     creditsUsed, creditsLimit,
@@ -223,10 +223,11 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
 
   const initials = (user?.firstName || user?.name || 'D')[0].toUpperCase()
 
-  // Recents only shows translator/intake briefs — NOT TeamCollab project
-  // boards (section='team'), which live in the TeamCollab project switcher.
+  // Recents shows every project — translator briefs, intake briefs, AND
+  // TeamCollab project boards (section='team'). Each row carries an
+  // origin tag (Brief / Team Collab / Client) so the user can tell them
+  // apart at a glance.
   const sortedHistory = [...history]
-    .filter(h => h.section !== 'team')
     .sort(
       (a, b) =>
         (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
@@ -554,7 +555,15 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
                   key={item.id}
                   item={item}
                   active={activeChat === item.id}
-                  onClick={h => { setActiveChat(h.id); navigate(h.section); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
+                  onClick={h => {
+                    setActiveChat(h.id)
+                    // Team Collab projects open in the Project Overview page;
+                    // translator / intake briefs navigate to their authoring view.
+                    if (h.section === 'team') openProject?.(h)
+                    else navigate(h.section)
+                    setShowSettings(false)
+                    if (isMobile) setMobileSidebarOpen(false)
+                  }}
                   onDelete={deleteHistory}
                   onPin={pinHistory}
                   onRename={renameHistory}
