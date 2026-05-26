@@ -477,7 +477,14 @@ export default function ProjectLibrary() {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: isMobile ? '0 16px 40px' : isTablet ? '0 24px 50px' : '0 40px 60px' }}>
+      <div style={{
+        width: '100%', boxSizing: 'border-box',
+        padding: isMobile
+          ? '24px 16px'
+          : isTablet
+            ? '32px 24px'
+            : '40px 48px',
+      }}>
 
         {/* Header */}
         <div style={{
@@ -598,8 +605,12 @@ export default function ProjectLibrary() {
             {filtered.length > 0 && (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '12px',
+                gridTemplateColumns: isMobile
+                  ? '1fr'
+                  : isTablet
+                    ? 'repeat(2, 1fr)'
+                    : 'repeat(4, 1fr)',
+                gap: '16px',
               }}>
                 {filtered.map(item => (
                   <ProjectCard
