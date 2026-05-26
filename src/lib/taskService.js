@@ -280,6 +280,19 @@ export async function getActivity(taskId) {
   return data || []
 }
 
+// Fetch every activity row for an entire project (across all tasks). Used
+// by the Project Overview page so we can show one consolidated timeline.
+export async function getProjectActivity(projectId, limit = 50) {
+  if (!projectId) return []
+  const { data } = await supabase
+    .from('task_activity')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return data || []
+}
+
 // ── Due date helpers ──────────────────────────────────────────────────────────
 export function calculateDueDates(tasks, startDate) {
   const start = startDate ? new Date(startDate) : new Date()

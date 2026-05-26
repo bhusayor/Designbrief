@@ -8,6 +8,7 @@ import IntakeBuilder from './pages/IntakeBuilder';
 import ClientIntakePage from './pages/ClientIntakePage';
 import JoinPage from './pages/JoinPage';
 import ProjectDocument from './pages/ProjectDocument';
+import ProjectOverview from './pages/ProjectOverview';
 import TeamCollab from './pages/TeamCollab';
 import ProjectLibrary from './pages/ProjectLibrary';
 import Connectors from './pages/Connectors';
@@ -63,6 +64,7 @@ function AppRouter() {
     'client-intake': <ClientIntakePage />,
     join:            <JoinPage />,
     document:        <ProjectDocument />,
+    'project-overview': <ProjectOverview />,
     team:            <TeamCollab />,
     library:         <ProjectLibrary />,
     connectors:      <Connectors />,

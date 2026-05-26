@@ -823,7 +823,12 @@ export function AppProvider({ children }) {
       title:   project.title   ?? project.data?.projectName ?? 'Untitled',
     };
     setActiveProjectState(normalized);
-    setActiveSectionState('document');
+    // Manually-created TeamCollab projects (section='team') and projects
+    // without a translated brief land on the unified ProjectOverview page.
+    // Translated briefs continue to open ProjectDocument as before.
+    const hasBrief = !!(normalized.data?.brief || normalized.brief_text);
+    const isManual = normalized.section === 'team' || !hasBrief;
+    setActiveSectionState(isManual ? 'project-overview' : 'document');
   }, []);
 
   // ── Projects ──────────────────────────────────────────────────────────────
