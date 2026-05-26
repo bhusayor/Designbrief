@@ -49,11 +49,25 @@ function normalise(item) {
 
 // ─── ProjectCard ──────────────────────────────────────────────────────────────
 
+// Origin label + colour for the small pill in the top-right of every
+// project card. Mirrors the OriginPill in the sidebar so users see the
+// same vocabulary everywhere.
+function projectOrigin(item) {
+  if (item.source === 'intake') {
+    return { label: 'Client', color: '#16a34a', bg: 'rgba(22,163,74,0.10)', border: 'rgba(22,163,74,0.25)' }
+  }
+  if (item.section === 'team') {
+    return { label: 'Team Collab', color: '#7C3AED', bg: 'rgba(124,58,237,0.10)', border: 'rgba(124,58,237,0.25)' }
+  }
+  return { label: 'Brief', color: '#0369A1', bg: 'rgba(14,165,233,0.10)', border: 'rgba(14,165,233,0.25)' }
+}
+
 function ProjectCard({ item, onClick }) {
   const project  = normalise(item);
   const verdict  = project.scoring?.verdict;
   const toneWords = project.result?.toneWords?.slice(0, 3) ?? [];
   const members  = project.teamMembers?.slice(0, 4) ?? [];
+  const origin   = projectOrigin(item);
 
   function handleEnter(e) {
     e.currentTarget.style.borderColor = 'var(--color-border-hover)';
@@ -83,12 +97,29 @@ function ProjectCard({ item, onClick }) {
         <span style={{
           fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '14px',
           color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          minWidth: 0, flex: 1,
         }}>
           {project.title}
         </span>
-        {verdict && (
-          <Badge color={verdictColor(verdict)} size="sm">{verdict}</Badge>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {verdict && (
+            <Badge color={verdictColor(verdict)} size="sm">{verdict}</Badge>
+          )}
+          <span style={{
+            background: origin.bg,
+            border: '1px solid ' + origin.border,
+            color: origin.color,
+            borderRadius: 4,
+            padding: '2px 7px',
+            fontFamily: "'Urbanist', sans-serif",
+            fontSize: 9, fontWeight: 700,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+          }}>
+            {origin.label}
+          </span>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
