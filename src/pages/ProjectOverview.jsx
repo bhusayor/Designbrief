@@ -1,14 +1,15 @@
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext, useRef } from 'react'
 import AppContext from '../context/AppContext'
 import { loadTasksFromDB, getProjectActivity } from '../lib/taskService'
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import {
+  ArrowLeftIcon,
   ArrowRightIcon,
   Squares2X2Icon,
-  ClipboardDocumentListIcon,
-  ClockIcon,
   EllipsisHorizontalIcon,
   SparklesIcon,
   PencilSquareIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 
 // Default kanban columns — mirrored from TeamCollab so the swimlane
@@ -33,29 +34,30 @@ function useIsMobile() {
 // ─────────────────────────────────────────────────────────────────────
 // Project Overview
 //
-// New unified project page. Currently rendered for projects created in
-// TeamCollab (no brief). The user clicks a project in the sidebar →
-// AppContext.openProject sends manually-created projects here instead
-// of ProjectDocument.
-//
-// Tabs:
-//   Overview (default) — progress, mini swimlane, recent activity, team
-//   Board              — opens the full kanban (navigates to TeamCollab)
-//   Activity           — full activity timeline
+// Single-page "big file" view of a manually-created TeamCollab project.
+// No tabs — every section is stacked on one page, full-width, with a
+// back arrow at the top-left. The ⋯ icon opens a small dropdown menu
+// that exposes Delete (routed through the shared ConfirmDeleteModal).
 // ─────────────────────────────────────────────────────────────────────
 export default function ProjectOverview() {
-  const { activeProject, navigate, setActiveProject, authUser } = useContext(AppContext)
+  const { activeProject, navigate, deleteProject } = useContext(AppContext)
   const isMobile = useIsMobile()
-  const [tab, setTab] = useState('overview')
+
   const [tasks, setTasks] = useState([])
   const [activity, setActivity] = useState([])
   const [loadingTasks, setLoadingTasks] = useState(true)
   const [loadingActivity, setLoadingActivity] = useState(true)
 
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const menuRef = useRef(null)
+
   const projectId = activeProject?.id
   const hasBrief = !!(activeProject?.data?.brief || activeProject?.brief_text)
   const isManuallyCreated = activeProject?.section === 'team' || !hasBrief
 
+  // Load tasks
   useEffect(() => {
     if (!projectId || projectId === 'default') {
       setTasks([])
@@ -69,6 +71,7 @@ export default function ProjectOverview() {
       .finally(() => setLoadingTasks(false))
   }, [projectId])
 
+  // Load activity
   useEffect(() => {
     if (!projectId || projectId === 'default') {
       setActivity([])
@@ -82,8 +85,16 @@ export default function ProjectOverview() {
       .finally(() => setLoadingActivity(false))
   }, [projectId])
 
-  // Column buckets, using DEFAULT_COLS as a stable summary. Tasks with a
-  // column_name outside the defaults are dropped into "Other".
+  // Close the ⋯ dropdown when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return
+    function handler(e) {
+      if (!menuRef.current?.contains(e.target)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuOpen])
+
   const columns = DEFAULT_COLS
   const tasksByCol = columns.map(c => ({
     ...c,
@@ -94,8 +105,21 @@ export default function ProjectOverview() {
   const progressPct = totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100)
 
   function openBoard() {
-    // Keep activeProject as-is and switch to TeamCollab.
     navigate('team')
+  }
+
+  async function handleDelete() {
+    if (!projectId) { setConfirmDelete(false); return }
+    setDeleting(true)
+    try {
+      await deleteProject?.(projectId)
+      setConfirmDelete(false)
+      navigate('dashboard')
+    } catch (e) {
+      console.error('[ProjectOverview delete]', e)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (!activeProject) {
@@ -108,101 +132,216 @@ export default function ProjectOverview() {
 
   return (
     <div style={{
-      height: '100dvh', overflow: 'auto', background: 'var(--color-bg)',
+      minHeight: '100dvh', width: '100%',
+      background: 'var(--color-bg)',
       fontFamily: 'var(--font-sans)',
+      display: 'flex', flexDirection: 'column',
     }}>
-      {/* ── Header ───────────────────────────────────────────────────── */}
+      {/* ── Top bar with Back button ────────────────────────────── */}
       <div style={{
-        padding: isMobile ? '20px 16px 0' : '32px 40px 0',
-        maxWidth: 1100, margin: '0 auto', boxSizing: 'border-box',
+        padding: isMobile ? '14px 16px' : '18px 32px',
+        borderBottom: '1px solid var(--color-border)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: 'var(--color-bg)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 22, lineHeight: 1 }}>
-                {isManuallyCreated ? '💻' : '🎨'}
-              </span>
-              <h1 style={{
-                margin: 0, fontWeight: 800, fontSize: isMobile ? 22 : 26,
-                letterSpacing: '-0.03em', color: 'var(--color-text)',
-                overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>
-                {activeProject.title || 'Untitled Project'}
-              </h1>
-              <OriginTag manual={isManuallyCreated} />
-            </div>
-            <div style={{
-              marginTop: 6, fontSize: 12, color: 'var(--color-text-muted)',
-              display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
-            }}>
-              <span>Last updated {timeAgo(activeProject.ts || Date.now())}</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={openBoard} style={primaryBtn()}>
-              <Squares2X2Icon style={{ width: 14, height: 14 }} />
-              Open Board
-            </button>
-            <button title="More" style={iconBtn()}>
-              <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={() => navigate('dashboard')}
+          style={backBtn()}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface)'; e.currentTarget.style.color = 'var(--color-text)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+        >
+          <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+          Back
+        </button>
+      </div>
 
-        {/* ── Tabs ─────────────────────────────────────────────────── */}
+      {/* ── Body — full-width "big file" card ───────────────────── */}
+      <div style={{
+        flex: 1, width: '100%',
+        padding: isMobile ? '20px 16px 40px' : '32px 32px 56px',
+        boxSizing: 'border-box',
+      }}>
         <div style={{
-          marginTop: 22,
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex', gap: 4,
-          overflowX: 'auto',
+          width: '100%',
+          background: 'var(--color-card)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 18,
+          padding: isMobile ? '22px 18px' : '30px 36px',
+          boxShadow: '0 1px 0 rgba(0,0,0,0.02), 0 8px 28px rgba(0,0,0,0.06)',
+          boxSizing: 'border-box',
+          display: 'flex', flexDirection: 'column', gap: 28,
         }}>
-          <TabBtn label="Overview" active={tab === 'overview'} onClick={() => setTab('overview')} icon={ClipboardDocumentListIcon} />
-          <TabBtn label="Board" active={tab === 'board'} onClick={openBoard} icon={Squares2X2Icon} />
-          <TabBtn label="Activity" active={tab === 'activity'} onClick={() => setTab('activity')} icon={ClockIcon} />
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 24, lineHeight: 1 }}>
+                  {isManuallyCreated ? '💻' : '🎨'}
+                </span>
+                <h1 style={{
+                  margin: 0, fontWeight: 800, fontSize: isMobile ? 22 : 28,
+                  letterSpacing: '-0.03em', color: 'var(--color-text)',
+                  overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {activeProject.title || 'Untitled Project'}
+                </h1>
+                <OriginTag manual={isManuallyCreated} />
+              </div>
+              <div style={{
+                marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)',
+                display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+              }}>
+                <span>Last updated {timeAgo(activeProject.ts || Date.now())}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button onClick={openBoard} style={primaryBtn()}>
+                <Squares2X2Icon style={{ width: 14, height: 14 }} />
+                Open Board
+              </button>
+
+              {/* ⋯ dropdown — currently just Delete; easy to extend */}
+              <div ref={menuRef} style={{ position: 'relative' }}>
+                <button
+                  title="More"
+                  onClick={() => setMenuOpen(o => !o)}
+                  style={iconBtn(menuOpen)}
+                >
+                  <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
+                </button>
+                {menuOpen && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                    background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                    borderRadius: 10, minWidth: 180, zIndex: 20,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                    padding: 4,
+                  }}>
+                    <button
+                      onClick={() => { setMenuOpen(false); setConfirmDelete(true) }}
+                      style={{
+                        width: '100%', textAlign: 'left',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '9px 10px', background: 'transparent', border: 'none',
+                        cursor: 'pointer', borderRadius: 7,
+                        fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+                        color: '#DC2626',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <TrashIcon style={{ width: 13, height: 13 }} />
+                      Delete project
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Task progress */}
+          <Section title="Task progress" action={
+            <button onClick={openBoard} style={ghostBtn()}>
+              Open board <ArrowRightIcon style={{ width: 12, height: 12 }} />
+            </button>
+          }>
+            {loadingTasks ? (
+              <SkeletonRow />
+            ) : totalTasks === 0 ? (
+              <EmptyTasks onAdd={openBoard} />
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 22, color: 'var(--color-text)' }}>
+                    {doneTasks} <span style={{ fontWeight: 500, color: 'var(--color-text-muted)', fontSize: 14 }}>of {totalTasks} tasks done</span>
+                  </span>
+                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                    {progressPct}%
+                  </span>
+                </div>
+                <div style={{
+                  width: '100%', height: 8, borderRadius: 999,
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    width: `${progressPct}%`, height: '100%',
+                    background: 'linear-gradient(90deg, #7C3AED, #16a34a)',
+                    transition: 'width 0.25s ease',
+                  }} />
+                </div>
+
+                {/* Mini swimlane summary */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+                  gap: 12, marginTop: 18,
+                }}>
+                  {tasksByCol.map(col => (
+                    <div key={col.id} style={{
+                      background: 'var(--color-surface)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 10, padding: '10px 12px',
+                    }}>
+                      <div style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                        color: 'var(--color-text-muted)', marginBottom: 4,
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}>
+                        <span style={{
+                          width: 6, height: 6, borderRadius: '50%', background: col.color, display: 'inline-block',
+                        }} />
+                        {col.label}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 18, color: 'var(--color-text)' }}>
+                        {col.tasks.length}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </Section>
+
+          {/* Recent activity */}
+          <Section title="Recent activity">
+            {loadingActivity ? (
+              <SkeletonRow />
+            ) : activity.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                No activity yet. Edits, moves, and comments will appear here.
+              </div>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {activity.slice(0, 10).map(a => (
+                  <ActivityRow key={a.id} entry={a} />
+                ))}
+              </ul>
+            )}
+          </Section>
         </div>
       </div>
 
-      {/* ── Body ──────────────────────────────────────────────────── */}
-      <div style={{
-        padding: isMobile ? '20px 16px 40px' : '24px 40px 56px',
-        maxWidth: 1100, margin: '0 auto', boxSizing: 'border-box',
-      }}>
-        {tab === 'overview' && (
-          <OverviewTab
-            totalTasks={totalTasks}
-            doneTasks={doneTasks}
-            progressPct={progressPct}
-            tasksByCol={tasksByCol}
-            activity={activity.slice(0, 5)}
-            loading={loadingTasks}
-            onOpenBoard={openBoard}
-            isManuallyCreated={isManuallyCreated}
-            isMobile={isMobile}
-          />
-        )}
-        {tab === 'activity' && (
-          <ActivityTab activity={activity} loading={loadingActivity} />
-        )}
-      </div>
+      {/* Delete confirmation — shared destructive modal */}
+      <ConfirmDeleteModal
+        open={confirmDelete}
+        title="Delete project?"
+        confirmLabel="Delete project"
+        busy={deleting}
+        onCancel={() => { if (!deleting) setConfirmDelete(false) }}
+        onConfirm={handleDelete}
+        description={
+          <>
+            <strong>{activeProject.title || 'This project'}</strong> and all its
+            tasks, comments, and activity will be permanently removed. This cannot
+            be undone.
+          </>
+        }
+      />
     </div>
-  )
-}
-
-// ── Tab button ────────────────────────────────────────────────────────
-function TabBtn({ label, active, onClick, icon: Icon }) {
-  return (
-    <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 6,
-      padding: '10px 14px', background: 'transparent', border: 'none',
-      borderBottom: '2px solid ' + (active ? 'var(--color-accent)' : 'transparent'),
-      cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13,
-      fontWeight: active ? 700 : 500,
-      color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
-      transition: 'all 0.15s', flexShrink: 0,
-    }}>
-      <Icon style={{ width: 14, height: 14 }} />
-      {label}
-    </button>
   )
 }
 
@@ -224,121 +363,28 @@ function OriginTag({ manual }) {
   )
 }
 
-// ── Overview tab ──────────────────────────────────────────────────────
-function OverviewTab({
-  totalTasks, doneTasks, progressPct, tasksByCol, activity,
-  loading, onOpenBoard, isManuallyCreated, isMobile,
-}) {
+// ── Section ───────────────────────────────────────────────────────────
+function Section({ title, action, children }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Progress card */}
-      <SectionCard
-        title="Task progress"
-        action={<button onClick={onOpenBoard} style={ghostBtn()}>Open board <ArrowRightIcon style={{ width: 12, height: 12 }} /></button>}
-      >
-        {loading ? (
-          <SkeletonRow />
-        ) : totalTasks === 0 ? (
-          <EmptyTasks onAdd={onOpenBoard} />
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 22, color: 'var(--color-text)' }}>
-                {doneTasks} <span style={{ fontWeight: 500, color: 'var(--color-text-muted)', fontSize: 14 }}>of {totalTasks} tasks done</span>
-              </span>
-              <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                {progressPct}%
-              </span>
-            </div>
-            <div style={{
-              width: '100%', height: 8, borderRadius: 999,
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                width: `${progressPct}%`, height: '100%',
-                background: 'linear-gradient(90deg, #7C3AED, #16a34a)',
-                transition: 'width 0.25s ease',
-              }} />
-            </div>
-
-            {/* Mini swimlane summary */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-              gap: 12, marginTop: 18,
-            }}>
-              {tasksByCol.map(col => (
-                <div key={col.id} style={{
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 10, padding: '10px 12px',
-                }}>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-                    letterSpacing: '0.06em', textTransform: 'uppercase',
-                    color: 'var(--color-text-muted)', marginBottom: 4,
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}>
-                    <span style={{
-                      width: 6, height: 6, borderRadius: '50%', background: col.color, display: 'inline-block',
-                    }} />
-                    {col.label}
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 18, color: 'var(--color-text)' }}>
-                    {col.tasks.length}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </SectionCard>
-
-      {/* Recent activity */}
-      <SectionCard title="Recent activity">
-        {loading ? (
-          <SkeletonRow />
-        ) : activity.length === 0 ? (
-          <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-            No activity yet. Edits, moves, and comments will appear here.
-          </div>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {activity.map(a => (
-              <ActivityRow key={a.id} entry={a} />
-            ))}
-          </ul>
-        )}
-      </SectionCard>
-    </div>
+    <section>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 12, gap: 10,
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+          color: 'var(--color-text-muted)',
+        }}>{title}</div>
+        {action}
+      </div>
+      {children}
+    </section>
   )
 }
 
-// ── Activity tab ──────────────────────────────────────────────────────
-function ActivityTab({ activity, loading }) {
-  return (
-    <SectionCard title="Project activity">
-      {loading ? (
-        <SkeletonRow />
-      ) : activity.length === 0 ? (
-        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-          No activity yet.
-        </div>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {activity.map(a => (
-            <ActivityRow key={a.id} entry={a} verbose />
-          ))}
-        </ul>
-      )}
-    </SectionCard>
-  )
-}
-
-// ── Activity row ──────────────────────────────────────────────────────
-function ActivityRow({ entry, verbose = false }) {
+// ── ActivityRow ───────────────────────────────────────────────────────
+function ActivityRow({ entry }) {
   const action = entry.action || ''
   const oldVal = entry.old_value || ''
   const newVal = entry.new_value || ''
@@ -356,7 +402,7 @@ function ActivityRow({ entry, verbose = false }) {
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)' }}>
           <strong style={{ fontWeight: 600 }}>{entry.actor_name || 'Someone'}</strong>{' '}
           <span style={{ color: 'var(--color-text-muted)' }}>{action}</span>
-          {verbose && (oldVal || newVal) && (
+          {(oldVal || newVal) && (
             <span style={{ color: 'var(--color-text-muted)' }}>
               {oldVal && <> from <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{oldVal}</strong></>}
               {newVal && <> to <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{newVal}</strong></>}
@@ -368,30 +414,6 @@ function ActivityRow({ entry, verbose = false }) {
         </div>
       </div>
     </li>
-  )
-}
-
-// ── SectionCard ───────────────────────────────────────────────────────
-function SectionCard({ title, action, children }) {
-  return (
-    <section style={{
-      background: 'var(--color-card)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 14, padding: 18,
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 12, gap: 10,
-      }}>
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-          letterSpacing: '0.08em', textTransform: 'uppercase',
-          color: 'var(--color-text-muted)',
-        }}>{title}</div>
-        {action}
-      </div>
-      {children}
-    </section>
   )
 }
 
@@ -424,6 +446,15 @@ function EmptyTasks({ onAdd }) {
 }
 
 // ── Style helpers ─────────────────────────────────────────────────────
+function backBtn() {
+  return {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '7px 12px', background: 'transparent',
+    border: '1px solid var(--color-border)', borderRadius: 8,
+    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+    color: 'var(--color-text-muted)', transition: 'all 0.15s',
+  }
+}
 function primaryBtn() {
   return {
     display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -442,10 +473,11 @@ function ghostBtn() {
     color: 'var(--color-text-muted)',
   }
 }
-function iconBtn() {
+function iconBtn(active) {
   return {
     width: 32, height: 32, borderRadius: 8,
-    background: 'transparent', border: '1px solid var(--color-border)',
+    background: active ? 'var(--color-surface)' : 'transparent',
+    border: '1px solid var(--color-border)',
     cursor: 'pointer', color: 'var(--color-text-muted)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   }
