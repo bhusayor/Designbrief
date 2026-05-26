@@ -154,12 +154,10 @@ export default function ProjectOverview() {
         </button>
       </div>
 
-      {/* ── Body — full-width, no card wrapper ─────────────────── */}
+      {/* ── Body — true full-width, no horizontal padding ──────── */}
       <div style={{
         flex: 1, width: '100%',
-        padding: isMobile
-          ? '20px 16px 40px'
-          : isTablet ? '24px 28px 48px' : '32px 40px 56px',
+        padding: isMobile ? '20px 0 40px' : '32px 0 56px',
         boxSizing: 'border-box',
         display: 'flex', flexDirection: 'column', gap: 28,
       }}>
@@ -167,13 +165,12 @@ export default function ProjectOverview() {
         <div style={{
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           gap: 16, flexWrap: 'wrap',
+          paddingLeft: isMobile ? 16 : 28,
+          paddingRight: isMobile ? 16 : 28,
           paddingBottom: 18, borderBottom: '1px solid var(--color-border)',
         }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: isMobile ? 22 : 26, lineHeight: 1 }}>
-                {isManuallyCreated ? '💻' : '🎨'}
-              </span>
               <h1 style={{
                 margin: 0, fontWeight: 800,
                 fontSize: isMobile ? 22 : isTablet ? 26 : 30,
@@ -231,7 +228,7 @@ export default function ProjectOverview() {
         </div>
 
         {/* Task progress */}
-        <Section title="Task progress" action={
+        <Section title="Task progress" isMobile={isMobile} action={
           <button onClick={openBoard} style={primaryBtn()}>
             <Squares2X2Icon style={{ width: 14, height: 14 }} />
             Open board
@@ -298,7 +295,7 @@ export default function ProjectOverview() {
           </Section>
 
         {/* Recent activity */}
-        <Section title="Recent activity">
+        <Section title="Recent activity" isMobile={isMobile}>
           {loadingActivity ? (
             <SkeletonRow />
           ) : activity.length === 0 ? (
@@ -354,12 +351,15 @@ function OriginTag({ manual }) {
 }
 
 // ── Section ───────────────────────────────────────────────────────────
-function Section({ title, action, children }) {
+function Section({ title, action, children, isMobile }) {
   return (
-    <section>
+    <section style={{
+      paddingLeft: isMobile ? 16 : 28,
+      paddingRight: isMobile ? 16 : 28,
+    }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 12, gap: 10,
+        marginBottom: 12, gap: 10, flexWrap: 'wrap',
       }}>
         <div style={{
           fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,

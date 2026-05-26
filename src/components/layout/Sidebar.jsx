@@ -223,11 +223,11 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
 
   const initials = (user?.firstName || user?.name || 'D')[0].toUpperCase()
 
-  // Recents shows every project — translator briefs, intake briefs, AND
-  // TeamCollab project boards (section='team'). Each row carries an
-  // origin tag (Brief / Team Collab / Client) so the user can tell them
-  // apart at a glance.
+  // Recents only shows translator/intake briefs — NOT TeamCollab project
+  // boards (section='team'), which live in the Projects library +
+  // TeamCollab project switcher.
   const sortedHistory = [...history]
+    .filter(h => h.section !== 'team')
     .sort(
       (a, b) =>
         (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
