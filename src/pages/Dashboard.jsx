@@ -272,6 +272,7 @@ export default function Dashboard() {
     connectorData,
     workspace,
     consumeCredits,
+    userPlan, openUpgradeModal,
   } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
@@ -702,6 +703,27 @@ The flow should be realistic for this product. Return only the JSON array.`,
               {tmpl.name}
             </button>
           ))}
+          {/* Pro-only: custom templates */}
+          {userPlan !== 'pro' && (
+            <button
+              onClick={() => openUpgradeModal?.('custom_templates')}
+              title="Custom brief templates are a Pro feature"
+              style={{
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                border: '1px dashed rgba(124,58,237,0.4)',
+                background: 'rgba(124,58,237,0.06)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 11, fontWeight: 600,
+                color: '#7C3AED',
+                transition: 'var(--transition-fast)',
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              🔒 My Custom Templates
+            </button>
+          )}
         </div>
 
         {/* agency-deck uses the existing full ResultView; all others use BriefRenderer */}

@@ -244,7 +244,7 @@ function EmptyState({ navigate }) {
 // ─── ProjectDocument ──────────────────────────────────────────────────────────
 
 export default function ProjectDocument() {
-  const { activeProject, showToast, navigate, userPlan } = useContext(AppContext);
+  const { activeProject, showToast, navigate, userPlan, openUpgradeModal } = useContext(AppContext);
 
   const r = activeProject?.result  ?? null;
   const s = activeProject?.scoring ?? null;
@@ -305,6 +305,12 @@ export default function ProjectDocument() {
   }
 
   function handleSendForApproval() {
+    // Shareable link is a paid feature (Starter + Pro). Free users get
+    // bounced to the upgrade modal instead of generating an approval URL.
+    if (userPlan === 'free') {
+      openUpgradeModal?.('shareable_link');
+      return;
+    }
     const approvalId = Math.random().toString(36).slice(2, 9);
     const link = `${window.location.origin}/approval/${approvalId}`;
     setShareLink(link);
@@ -430,9 +436,38 @@ export default function ProjectDocument() {
             size="sm"
             title={userPlan === 'free' ? 'Free-plan exports include a watermark. Upgrade to remove it.' : undefined}
             onClick={() => downloadBrief(r, s, { plan: userPlan })}>
-            ⬇ {userPlan === 'free' ? 'Download (Free)' : 'Download'}
+            ⬇ {userPlan === 'free' ? 'Export PDF (Free)' : 'Export PDF'}
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleSendForApproval}>🔗 Send for Approval</Button>
+
+          {/* DOCX — Pro only */}
+          {userPlan !== 'pro' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              title="DOCX export is Pro only"
+              onClick={() => openUpgradeModal?.('docx_export')}>
+              🔒 Export DOCX
+            </Button>
+          )}
+
+          {/* White-label — Pro only */}
+          {userPlan !== 'pro' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              title="White-label export is Pro only"
+              onClick={() => openUpgradeModal?.('white_label')}>
+              🔒 White label
+            </Button>
+          )}
+
+          <Button
+            variant="secondary"
+            size="sm"
+            title={userPlan === 'free' ? 'Upgrade to share your brief as a public link' : undefined}
+            onClick={handleSendForApproval}>
+            {userPlan === 'free' ? '🔒 Share' : '🔗 Share'}
+          </Button>
           {!locked && (
             <Button variant="primary" size="sm" onClick={() => navigate('team')}>Build Team →</Button>
           )}
