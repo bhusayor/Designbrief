@@ -111,6 +111,13 @@ export function AppProvider({ children }) {
       return cached ? JSON.parse(cached) : null;
     } catch { return null; }
   });
+  const [workspaces, setWorkspaces] = useState(() => {
+    try {
+      const cached = localStorage.getItem('db-workspaces');
+      const parsed = cached ? JSON.parse(cached) : null;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
   const [workspaceLoading, setWorkspaceLoading] = useState(() => {
     // If we have a cached workspace, don't show a loading spinner on return visits
     try { return !localStorage.getItem('db-workspace'); } catch { return true; }
@@ -246,7 +253,9 @@ export function AppProvider({ children }) {
           setAuthUser(null);
           setSession(null);
           setWorkspace(null);
+          setWorkspaces([]);
           localStorage.removeItem('db-workspace');
+          localStorage.removeItem('db-workspaces');
           localStorage.removeItem('db-plan-state');
           setWorkspaceLoading(false);
           setCreditsUsed(0);
@@ -426,7 +435,19 @@ export function AppProvider({ children }) {
       const body = await res.json();
       console.log('[loadWorkspace] client userId:', userId);
       console.log('[loadWorkspace] server response:', body);
-      const ws = body.workspace;
+      const list = Array.isArray(body.workspaces) ? body.workspaces : (body.workspace ? [body.workspace] : []);
+
+      try {
+        localStorage.setItem('db-workspaces', JSON.stringify(list));
+      } catch {}
+      setWorkspaces(list);
+
+      // Pick the active workspace: prefer the one cached in db-workspace, else
+      // the first one in the list. This keeps the user on whichever workspace
+      // they last switched to across refreshes.
+      let activeId = null;
+      try { activeId = JSON.parse(localStorage.getItem('db-workspace') || 'null')?.id; } catch {}
+      const ws = list.find(w => w.id === activeId) || list[0] || null;
 
       if (ws) {
         localStorage.setItem('db-workspace', JSON.stringify(ws));
@@ -867,6 +888,62 @@ export function AppProvider({ children }) {
     }
   }, [authUser?.id]);
 
+  // ── Multi-workspace: create + switch ──────────────────────────────────────
+  // Paid plans can host multiple workspaces. The API enforces the per-plan
+  // cap; we surface a friendly toast + open the upgrade modal on 403.
+
+  const createWorkspace = useCallback(async (name) => {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return { ok: false, reason: 'empty_name' };
+    if (!session?.access_token) return { ok: false, reason: 'no_session' };
+    try {
+      const res = await fetch('/api/create-workspace', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ workspaceName: trimmed, plan: userPlan }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (body?.error === 'workspace_limit_reached') {
+          setUpgradeReason('workspaces');
+          showToast?.(body.message || 'Workspace limit reached.', 'warning');
+        } else {
+          showToast?.(body.error || 'Failed to create workspace', 'error');
+        }
+        return { ok: false, reason: body?.error || 'http_' + res.status };
+      }
+      const ws = body.workspace;
+      if (!ws) return { ok: false, reason: 'no_workspace' };
+      setWorkspaces(prev => {
+        const next = [...prev, ws];
+        try { localStorage.setItem('db-workspaces', JSON.stringify(next)); } catch {}
+        return next;
+      });
+      // Switch to the new workspace immediately.
+      localStorage.setItem('db-workspace', JSON.stringify(ws));
+      setWorkspace(ws);
+      loadConnectorData(ws.id);
+      showToast?.(`Workspace "${ws.name}" created`, 'success');
+      return { ok: true, workspace: ws };
+    } catch (e) {
+      console.error('[createWorkspace]', e);
+      showToast?.('Failed to create workspace', 'error');
+      return { ok: false, reason: 'exception' };
+    }
+  }, [session, userPlan, showToast]);
+
+  const switchWorkspace = useCallback((id) => {
+    const ws = workspaces.find(w => w.id === id);
+    if (!ws) return false;
+    localStorage.setItem('db-workspace', JSON.stringify(ws));
+    setWorkspace(ws);
+    loadConnectorData(ws.id);
+    return true;
+  }, [workspaces]);
+
   // ── Sign Out ──────────────────────────────────────────────────────────────
 
   function signOut() {
@@ -876,7 +953,7 @@ export function AppProvider({ children }) {
 
     // Remove the exact key Supabase uses (storageKey: 'designbrief-auth-v1')
     // plus any legacy sb-* keys and app state.
-    ['designbrief-auth-v1', 'db-workspace', 'db-workspace-history', 'db-plan-state'].forEach(k =>
+    ['designbrief-auth-v1', 'db-workspace', 'db-workspaces', 'db-workspace-history', 'db-plan-state'].forEach(k =>
       localStorage.removeItem(k)
     );
     Object.keys(localStorage).forEach(k => {
@@ -1405,7 +1482,10 @@ export function AppProvider({ children }) {
     // Workspace
     workspace,
     setWorkspace,
+    workspaces,
     loadWorkspace,
+    createWorkspace,
+    switchWorkspace,
     workspaceLoading,
     workspaceLoadError,
 

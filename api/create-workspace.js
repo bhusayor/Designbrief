@@ -907,8 +907,6 @@ STRICT OUTPUT RULES:
         .select('*')
         .eq('owner_id', user.id)
         .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
 
       if (ownedErr) throw ownedErr
 
@@ -920,19 +918,23 @@ STRICT OUTPUT RULES:
 
       if (memberErr) throw memberErr
 
-      const memberWorkspace =
-        memberRows?.find(m => m.workspaces)?.workspaces || null
+      const ownedList = owned || []
+      const ownedIds = new Set(ownedList.map(w => w.id))
+      const memberList = (memberRows || [])
+        .map(m => m.workspaces && ({ ...m.workspaces, _role: m.role }))
+        .filter(w => w && !ownedIds.has(w.id))
 
-      const workspace = owned || memberWorkspace
+      const workspaces = [...ownedList, ...memberList]
+      const workspace = workspaces[0] || null
 
-      // Diagnostic: surface DB state so we can debug login loop
       return res.json({
         workspace,
+        workspaces,
         debug: {
           authedUserId: user.id,
           authedEmail: user.email,
-          ownedWorkspaceFound: !!owned,
-          memberWorkspaceCount: memberRows?.length || 0,
+          ownedWorkspaceCount: ownedList.length,
+          memberWorkspaceCount: memberList.length,
         },
       })
     } catch (e) {
@@ -944,13 +946,58 @@ STRICT OUTPUT RULES:
   // ── POST: create a workspace ────────────────────────────────────────────
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { userId, workspaceName, plan } = req.body
+  const { userId: bodyUserId, workspaceName, plan } = req.body
 
-  if (!userId || !workspaceName) {
-    return res.status(400).json({ error: 'userId and workspaceName required' })
+  if (!workspaceName) {
+    return res.status(400).json({ error: 'workspaceName required' })
+  }
+
+  // For the initial sign-up flow the client posts unauthenticated with the
+  // freshly-created userId. For "create another workspace" the request is
+  // authed — in that case we enforce the plan's workspace limit.
+  let userId = bodyUserId
+  let enforceLimit = false
+  const authHeader = req.headers.authorization || req.headers.Authorization
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const { data: { user } } = await supabase.auth.getUser(authHeader.slice(7))
+    if (user) {
+      userId = user.id
+      enforceLimit = true
+    }
+  }
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId required' })
   }
 
   try {
+    if (enforceLimit) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', userId)
+        .single()
+      const planKey = String(profile?.plan || 'free').toLowerCase()
+      const limits = { free: 1, starter: 3, pro: Infinity }
+      const cap = limits[planKey] ?? 1
+
+      const { count } = await supabase
+        .from('workspaces')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', userId)
+
+      if ((count || 0) >= cap) {
+        return res.status(403).json({
+          error: 'workspace_limit_reached',
+          message: planKey === 'free'
+            ? 'Free plan is limited to 1 workspace. Upgrade to create more.'
+            : `Your ${planKey} plan allows up to ${cap} workspace${cap === 1 ? '' : 's'}.`,
+          plan: planKey,
+          limit: cap,
+        })
+      }
+    }
+
     const { data: workspace, error } = await supabase
       .from('workspaces')
       .insert({

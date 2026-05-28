@@ -159,7 +159,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     user, signOut, authUser,
     setActiveProject, openProject,
     intakeForms,
-    workspace,
+    workspace, workspaces, createWorkspace, switchWorkspace,
     userPlan, userCredits,
     creditsUsed, creditsLimit, creditsResetAt,
     openUpgradeModal,
@@ -187,6 +187,9 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
   // On mobile the sidebar is always expanded (never icon-collapsed)
   const collapsed = isMobile ? false : collapsedDesktop
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false)
+  const [newWorkspaceName, setNewWorkspaceName] = useState('')
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -955,68 +958,172 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
             }}>
               All Workspaces
             </div>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '6px 8px', borderRadius: 'var(--radius-md)',
-              background: 'var(--color-sidebar-item-active)', marginBottom: 2,
-            }}>
-              <div style={{
-                width: 22, height: 22, borderRadius: 6,
-                background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 10,
-                color: 'white', flexShrink: 0,
-              }}>
-                {(workspace?.name || 'D')[0].toUpperCase()}
-              </div>
-              <span style={{
-                fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-                color: 'var(--color-text)', flex: 1,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {workspace?.name || 'My Workspace'}
-              </span>
-              <CheckIcon style={{ width: 13, height: 13, color: 'var(--color-accent)', flexShrink: 0 }} />
-            </div>
+            {(() => {
+              const list = (workspaces && workspaces.length) ? workspaces : (workspace ? [workspace] : [])
+              return list.map(w => {
+                const isActive = w.id === workspace?.id
+                return (
+                  <button
+                    key={w.id}
+                    onClick={() => {
+                      if (!isActive) switchWorkspace?.(w.id)
+                      setShowWorkspaceMenu(false)
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--color-sidebar-item-hover)' }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                    style={{
+                      width: '100%',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '6px 8px', borderRadius: 'var(--radius-md)',
+                      background: isActive ? 'var(--color-sidebar-item-active)' : 'transparent',
+                      border: 'none',
+                      cursor: isActive ? 'default' : 'pointer',
+                      marginBottom: 2,
+                      transition: 'var(--transition-fast)',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 6,
+                      background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 10,
+                      color: 'white', flexShrink: 0,
+                    }}>
+                      {(w.name || 'D')[0].toUpperCase()}
+                    </div>
+                    <span style={{
+                      fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+                      color: 'var(--color-text)', flex: 1,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {w.name || 'Untitled workspace'}
+                    </span>
+                    {isActive && (
+                      <CheckIcon style={{ width: 13, height: 13, color: 'var(--color-accent)', flexShrink: 0 }} />
+                    )}
+                  </button>
+                )
+              })
+            })()}
           </div>
           <div style={{ padding: '4px 14px 12px' }}>
-            <button
-              onClick={() => {
-                setShowWorkspaceMenu(false)
-                openUpgradeModal?.('workspaces')
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--color-accent)'
-                e.currentTarget.style.color = 'var(--color-accent)'
-                e.currentTarget.style.background = 'var(--color-accent-soft)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--color-border)'
-                e.currentTarget.style.color = 'var(--color-text-muted)'
-                e.currentTarget.style.background = 'transparent'
-              }}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 8px', background: 'transparent',
-                border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)',
-                cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
-                color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
-              }}
-            >
+            {showCreateWorkspace ? (
               <div style={{
-                width: 20, height: 20, borderRadius: 5,
-                border: '1.5px dashed currentColor',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                display: 'flex', flexDirection: 'column', gap: 6,
+                padding: 8, background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
               }}>
-                <PlusIcon style={{ width: 10, height: 10 }} />
+                <input
+                  autoFocus
+                  value={newWorkspaceName}
+                  onChange={e => setNewWorkspaceName(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === 'Escape') { setShowCreateWorkspace(false); setNewWorkspaceName('') }
+                    if (e.key === 'Enter' && newWorkspaceName.trim() && !creatingWorkspace) {
+                      setCreatingWorkspace(true)
+                      const r = await createWorkspace?.(newWorkspaceName)
+                      setCreatingWorkspace(false)
+                      if (r?.ok) {
+                        setShowCreateWorkspace(false)
+                        setNewWorkspaceName('')
+                        setShowWorkspaceMenu(false)
+                      }
+                    }
+                  }}
+                  placeholder="Workspace name"
+                  style={{
+                    width: '100%', padding: '7px 10px',
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)',
+                    color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
+                    fontSize: 12, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => { setShowCreateWorkspace(false); setNewWorkspaceName('') }}
+                    style={{
+                      flex: 1, padding: '6px 8px', background: 'transparent',
+                      border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)',
+                      color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!newWorkspaceName.trim() || creatingWorkspace}
+                    onClick={async () => {
+                      setCreatingWorkspace(true)
+                      const r = await createWorkspace?.(newWorkspaceName)
+                      setCreatingWorkspace(false)
+                      if (r?.ok) {
+                        setShowCreateWorkspace(false)
+                        setNewWorkspaceName('')
+                        setShowWorkspaceMenu(false)
+                      }
+                    }}
+                    style={{
+                      flex: 1, padding: '6px 8px',
+                      background: (!newWorkspaceName.trim() || creatingWorkspace) ? 'var(--color-border)' : 'var(--color-accent)',
+                      border: 'none', borderRadius: 'var(--radius-sm)',
+                      color: 'white', fontFamily: 'var(--font-sans)',
+                      fontSize: 11, fontWeight: 700,
+                      cursor: (!newWorkspaceName.trim() || creatingWorkspace) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {creatingWorkspace ? 'Creating…' : 'Create'}
+                  </button>
+                </div>
               </div>
-              Create new workspace
-              {userPlan === 'free' && (
-                <span title="Upgrade to create multiple workspaces" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }}>
-                  <LockClosedIcon style={{ width: 11, height: 11, color: '#7C3AED' }} />
-                </span>
-              )}
-            </button>
+            ) : (
+              <button
+                onClick={() => {
+                  // Free plan or already at the cap → upsell. Otherwise open the inline input.
+                  const caps = { free: 1, starter: 3, pro: Infinity }
+                  const cap = caps[userPlan] ?? 1
+                  const count = (workspaces?.length ?? (workspace ? 1 : 0))
+                  if (userPlan === 'free' || count >= cap) {
+                    setShowWorkspaceMenu(false)
+                    openUpgradeModal?.('workspaces')
+                  } else {
+                    setShowCreateWorkspace(true)
+                  }
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--color-accent)'
+                  e.currentTarget.style.color = 'var(--color-accent)'
+                  e.currentTarget.style.background = 'var(--color-accent-soft)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--color-border)'
+                  e.currentTarget.style.color = 'var(--color-text-muted)'
+                  e.currentTarget.style.background = 'transparent'
+                }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 8px', background: 'transparent',
+                  border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
+                  color: 'var(--color-text-muted)', transition: 'var(--transition-fast)',
+                }}
+              >
+                <div style={{
+                  width: 20, height: 20, borderRadius: 5,
+                  border: '1.5px dashed currentColor',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <PlusIcon style={{ width: 10, height: 10 }} />
+                </div>
+                Create new workspace
+                {userPlan === 'free' && (
+                  <span title="Upgrade to create multiple workspaces" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }}>
+                    <LockClosedIcon style={{ width: 11, height: 11, color: '#7C3AED' }} />
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
