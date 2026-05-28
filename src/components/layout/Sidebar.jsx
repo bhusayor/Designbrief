@@ -23,6 +23,7 @@ import {
   LinkIcon,
   XMarkIcon,
   Bars3Icon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline'
 
 function PanelLeftClose({ size = 15, color = 'currentColor' }) {
@@ -953,7 +954,10 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           </div>
           <div style={{ padding: '4px 14px 12px' }}>
             <button
-              onClick={() => alert('Multiple workspaces available on Pro plan.')}
+              onClick={() => {
+                setShowWorkspaceMenu(false)
+                openUpgradeModal?.('workspaces')
+              }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--color-accent)'
                 e.currentTarget.style.color = 'var(--color-accent)'
@@ -980,6 +984,11 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
                 <PlusIcon style={{ width: 10, height: 10 }} />
               </div>
               Create new workspace
+              {userPlan === 'free' && (
+                <span title="Upgrade to create multiple workspaces" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }}>
+                  <LockClosedIcon style={{ width: 11, height: 11, color: '#7C3AED' }} />
+                </span>
+              )}
             </button>
           </div>
         </div>

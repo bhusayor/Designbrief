@@ -669,8 +669,15 @@ export default function ProjectLibrary() {
               </div>
             )}
 
-            {filtered.length > 0 && (
-              <div style={{
+            {filtered.length > 0 && (() => {
+              // Free-plan history cap: show 5 most-recent. The rest are
+              // rendered behind a blurred lock teaser so the user can see
+              // they exist and click through to upgrade.
+              const HISTORY_CAP = 5
+              const isFree = userPlan === 'free'
+              const visible = isFree ? filtered.slice(0, HISTORY_CAP) : filtered
+              const hidden = isFree ? filtered.slice(HISTORY_CAP) : []
+              const gridStyle = {
                 display: 'grid',
                 gridTemplateColumns: isMobile
                   ? '1fr'
@@ -678,16 +685,67 @@ export default function ProjectLibrary() {
                     ? 'repeat(2, 1fr)'
                     : 'repeat(4, 1fr)',
                 gap: '16px',
-              }}>
-                {filtered.map(item => (
-                  <ProjectCard
-                    key={item.id}
-                    item={item}
-                    onClick={() => openProject(item)}
-                  />
-                ))}
-              </div>
-            )}
+              }
+              return (
+                <>
+                  <div style={gridStyle}>
+                    {visible.map(item => (
+                      <ProjectCard
+                        key={item.id}
+                        item={item}
+                        onClick={() => openProject(item)}
+                      />
+                    ))}
+                  </div>
+
+                  {hidden.length > 0 && (
+                    <div style={{ marginTop: 22, position: 'relative' }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '12px 16px', marginBottom: 12,
+                        background: 'rgba(124,58,237,0.06)',
+                        border: '1px solid rgba(124,58,237,0.25)',
+                        borderRadius: 12, flexWrap: 'wrap',
+                      }}>
+                        <LockClosedIcon style={{ width: 16, height: 16, color: '#7C3AED', flexShrink: 0 }} />
+                        <div style={{ minWidth: 0, flex: 1, fontFamily: "'Urbanist', sans-serif", fontSize: 13, color: 'var(--color-text)' }}>
+                          +{hidden.length} older brief{hidden.length === 1 ? '' : 's'} hidden
+                          <span style={{ color: 'var(--color-text-muted)' }}> · Upgrade to access your full brief history.</span>
+                        </div>
+                        <button
+                          onClick={() => openUpgradeModal?.('history')}
+                          style={{
+                            padding: '7px 14px',
+                            background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                            color: 'white', border: 'none', borderRadius: 9,
+                            cursor: 'pointer',
+                            fontFamily: "'Urbanist', sans-serif", fontSize: 12, fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                          }}>
+                          Upgrade →
+                        </button>
+                      </div>
+
+                      {/* Blurred / greyed teaser grid underneath */}
+                      <div
+                        onClick={() => openUpgradeModal?.('history')}
+                        style={{
+                          ...gridStyle,
+                          filter: 'blur(3px) saturate(0.6)',
+                          opacity: 0.55,
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                        }}
+                      >
+                        {hidden.slice(0, 8).map(item => (
+                          <ProjectCard key={'locked-' + item.id} item={item} onClick={() => {}} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </>
         )}
 

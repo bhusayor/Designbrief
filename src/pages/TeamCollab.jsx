@@ -492,7 +492,7 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
 
 
 export default function TeamCollab() {
-  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, user, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB, touchProject, userPlan, openUpgradeModal } = useContext(AppContext)
+  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, user, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB, touchProject, userPlan, openUpgradeModal, consumeCredits } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth <= 480
@@ -1530,6 +1530,11 @@ Return JSON:
   }
 
   async function handleGeneratePrompt(task) {
+    // Free-plan credit gate (3 credits per AI task prompt)
+    if (consumeCredits) {
+      const r = await consumeCredits('ai_task_prompt')
+      if (!r.ok) return
+    }
     setPromptModalTask(task)
     setPromptModalOpen(true)
     setGeneratedPrompt('')
@@ -3077,6 +3082,11 @@ STYLE:
 
   async function handleGenerateKanban() {
     if (!teamMembers.length) return
+    // Free-plan credit gate (8 credits per kanban generation)
+    if (consumeCredits) {
+      const r = await consumeCredits('kanban_generation')
+      if (!r.ok) return
+    }
     setLoading(true)
     addMessage('ai', 'Building your kanban board and assigning tasks...')
     const contextualBrief = projectTitle ? '# ' + projectTitle + '\n\n' + briefText : briefText

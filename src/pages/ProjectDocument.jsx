@@ -12,8 +12,9 @@ import { labelStyle } from '../lib/chartUtils';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function downloadBrief(r, s) {
+function downloadBrief(r, s, opts = {}) {
   if (!r) return;
+  const isFree = opts.plan === 'free';
   const lines = [
     `TRANSLATED BRIEF — ${r.projectTitle ?? 'Untitled'}`,
     '='.repeat(60),
@@ -67,6 +68,13 @@ function downloadBrief(r, s) {
     '',
     '─── RED FLAGS ───',
     ...(r.redFlags ?? []).map(f => `  ⚠ ${f}`),
+    // Free-plan watermark footer
+    ...(isFree ? [
+      '',
+      '─'.repeat(60),
+      'Generated with DesignBrief AI',
+      'designbrief.app · Upgrade to remove watermark',
+    ] : []),
   ].filter(l => l !== undefined);
 
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
@@ -236,7 +244,7 @@ function EmptyState({ navigate }) {
 // ─── ProjectDocument ──────────────────────────────────────────────────────────
 
 export default function ProjectDocument() {
-  const { activeProject, showToast, navigate } = useContext(AppContext);
+  const { activeProject, showToast, navigate, userPlan } = useContext(AppContext);
 
   const r = activeProject?.result  ?? null;
   const s = activeProject?.scoring ?? null;
@@ -417,7 +425,13 @@ export default function ProjectDocument() {
 
         {/* Right — actions */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-          <Button variant="secondary" size="sm" onClick={() => downloadBrief(r, s)}>⬇ Download</Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            title={userPlan === 'free' ? 'Free-plan exports include a watermark. Upgrade to remove it.' : undefined}
+            onClick={() => downloadBrief(r, s, { plan: userPlan })}>
+            ⬇ {userPlan === 'free' ? 'Download (Free)' : 'Download'}
+          </Button>
           <Button variant="secondary" size="sm" onClick={handleSendForApproval}>🔗 Send for Approval</Button>
           {!locked && (
             <Button variant="primary" size="sm" onClick={() => navigate('team')}>Build Team →</Button>

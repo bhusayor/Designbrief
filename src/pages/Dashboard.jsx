@@ -271,6 +271,7 @@ export default function Dashboard() {
     setActiveProjectBriefResult,
     connectorData,
     workspace,
+    consumeCredits,
   } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
@@ -370,6 +371,13 @@ export default function Dashboard() {
         fullContext += '\n\n--- Attached: ' + f.name + ' ---\n' + f.content
     })
     if (!fullContext.trim()) return
+
+    // Free-plan credit gate (10 credits per translation). On insufficient
+    // credits the upgrade modal is opened automatically by consumeCredits.
+    if (consumeCredits) {
+      const r = await consumeCredits('brief_translation')
+      if (!r.ok) return
+    }
 
     setPhase('loading')
     setStoredBriefText(fullContext)
