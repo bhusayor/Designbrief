@@ -105,19 +105,27 @@ export default async function handler(req, res) {
   if (action === 'verify_payment') {
     try {
       const { tx_ref, transaction_id } = req.body
-      if (!tx_ref || !transaction_id) return res.status(400).json({ error: 'tx_ref + transaction_id required' })
-      // Confirm the tx belongs to this user
+      if (!tx_ref) return res.status(400).json({ error: 'tx_ref required' })
+      // Confirm the tx belongs to this user (prevents granting other people's plans)
       if (!String(tx_ref).startsWith('db_' + user.id + '_')) {
         return res.status(403).json({ error: 'tx_ref does not belong to user' })
       }
       const secret = process.env.FLW_SECRET_KEY || process.env.FLUTTERWAVE_SECRET_KEY
       if (!secret) return res.status(500).json({ error: 'Flutterwave secret not configured' })
-      const r = await fetch('https://api.flutterwave.com/v3/transactions/' + transaction_id + '/verify', {
-        headers: { Authorization: 'Bearer ' + secret },
-      })
+
+      // Prefer the direct transaction lookup when we have an id; fall back
+      // to the by-reference endpoint when only tx_ref is known (e.g. the
+      // Flutterwave inline modal was dismissed before the callback fired).
+      const url = transaction_id
+        ? 'https://api.flutterwave.com/v3/transactions/' + encodeURIComponent(transaction_id) + '/verify'
+        : 'https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=' + encodeURIComponent(tx_ref)
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + secret } })
       const j = await r.json()
       if (j.status !== 'success' || j.data?.status !== 'successful') {
-        return res.status(400).json({ error: 'verification failed', detail: j.message })
+        return res.status(400).json({
+          error: 'verification failed',
+          detail: j.message || j.data?.status || 'unknown',
+        })
       }
       const result = await grantPlanFromTransaction(j.data)
       return res.json(result)

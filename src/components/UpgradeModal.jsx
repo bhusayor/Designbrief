@@ -1,5 +1,6 @@
 import { useContext, useEffect } from 'react'
 import AppContext from '../context/AppContext'
+import { supabase } from '../lib/supabase'
 import {
   XMarkIcon,
   BoltIcon,
@@ -160,6 +161,40 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
     }
     const amount = plan === 'pro' ? 29 : 12
     const tx_ref = `db_${authUser.id}_${plan}_${Date.now()}`
+
+    // Tracks whether the callback already verified + granted the plan,
+    // so the onclose handler doesn't duplicate the work.
+    let activated = false
+
+    async function activatePlan(data) {
+      if (activated) return
+      activated = true
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) throw new Error('No session')
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({
+            action: 'verify_payment',
+            tx_ref: data?.tx_ref || tx_ref,
+            transaction_id: data?.transaction_id,
+          }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          showToast?.('Payment received — couldn\'t verify automatically: ' + (json.error || 'try refreshing'), 'error')
+          return
+        }
+        showToast?.('Plan activated 🎉', 'success')
+        try { await refreshAuthUser?.() } catch {}
+      } catch (e) {
+        console.error('[activatePlan]', e)
+        showToast?.('Payment received — please refresh to see your new plan.', 'info')
+      }
+    }
+
     onClose?.()
     window.FlutterwaveCheckout({
       public_key: publicKey,
@@ -177,14 +212,27 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
         logo: 'https://designbrief-vert.vercel.app/favicon.svg',
       },
       meta: { user_id: authUser.id, plan },
-      callback: async () => {
-        // The webhook is the source of truth. Refresh the local auth
-        // user so the UI rehydrates the new plan if the server already
-        // applied it by the time we get here.
-        showToast?.('Payment received — activating your plan…', 'success')
-        try { await refreshAuthUser?.() } catch {}
+      callback: async (data) => {
+        // Flutterwave fires this when the charge finishes. We close the
+        // modal explicitly so the user doesn't sit on the success
+        // screen, then verify + grant the plan server-side. This works
+        // even when the webhook is misconfigured or delayed because the
+        // /api/settings 'verify_payment' action re-checks the
+        // transaction against Flutterwave directly.
+        try { window.closePaymentModal?.() } catch {}
+        if (data?.status === 'successful' || data?.status === 'completed') {
+          await activatePlan(data)
+        } else {
+          showToast?.('Payment was not completed.', 'info')
+        }
       },
-      onclose: () => { /* user dismissed without paying — no toast */ },
+      onclose: async () => {
+        // If the modal is dismissed AFTER a successful charge but
+        // before our callback verified, run activation here so the
+        // user is never stuck without a plan. activated flag prevents
+        // a double-grant.
+        await activatePlan({})
+      },
     })
   }
 
