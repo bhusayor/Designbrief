@@ -604,8 +604,8 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         <div style={{ flex: 1 }} />
       )}
 
-      {/* ── Credits + Upgrade (Free + Starter only, desktop/tablet) ───────── */}
-      {!collapsed && (userPlan === 'free' || userPlan === 'starter') && !isMobile && (() => {
+      {/* ── Credits panel (every plan, desktop/tablet) ───────────────────── */}
+      {!collapsed && !isMobile && (() => {
         const remaining = Math.max(0, Math.min(creditsLimit, userCredits ?? 0))
         const usedAmount = Math.max(0, creditsLimit - remaining)
         const pct = creditsLimit > 0 ? (usedAmount / creditsLimit) * 100 : 0
@@ -661,28 +661,29 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
             <div style={{
               fontFamily: 'var(--font-sans)', fontSize: 11,
               color: exhausted ? '#EF4444' : critical ? '#EF4444' : low ? '#B45309' : 'var(--color-text-muted)',
-              marginBottom: 10, lineHeight: 1.45,
+              marginBottom: userPlan === 'pro' ? 0 : 10, lineHeight: 1.45,
             }}>
               {exhausted ? `0 / ${creditsLimit} · Credits used up`
                 : `${remaining} / ${creditsLimit} credits remaining`}
-              {userPlan === 'starter' && daysToReset != null && !exhausted && (
+              {(userPlan === 'starter' || userPlan === 'pro') && daysToReset != null && !exhausted && (
                 <div style={{ marginTop: 4, color: 'var(--color-text-muted)' }}>
                   Resets in {daysToReset} day{daysToReset === 1 ? '' : 's'}
                 </div>
               )}
-              {exhausted && (
+              {exhausted && userPlan !== 'pro' && (
                 <div style={{ marginTop: 4, color: '#EF4444', fontWeight: 600 }}>
                   Upgrade to continue using AI features
                 </div>
               )}
-              {!exhausted && (critical || low) && (
+              {!exhausted && (critical || low) && userPlan !== 'pro' && (
                 <div style={{ marginTop: 4, color: '#B45309', fontWeight: 600 }}>
                   Running low — upgrade to get more
                 </div>
               )}
             </div>
 
-            {/* Upgrade button → opens the global UpgradeModal */}
+            {/* Upgrade button — hidden on Pro since there's nothing higher */}
+            {userPlan !== 'pro' && (
             <button
               onClick={() => openUpgradeModal?.('credits')}
               onMouseEnter={e => {
@@ -709,6 +710,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               </div>
               <ArrowRightIcon style={{ width: 12, height: 12, opacity: 0.8 }} />
             </button>
+            )}
           </div>
         )
       })()}

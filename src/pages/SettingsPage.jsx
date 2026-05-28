@@ -670,10 +670,35 @@ function WorkspaceGeneralSection({ callSettings, onSaved }) {
 
 function PlansSection() {
   const isMobile = useIsMobile()
-  const { workspace, creditsUsed, creditsLimit } = useApp()
-  const plan = workspace?.plan || 'free'
-  const pct = creditsLimit > 0 ? Math.round((creditsUsed / creditsLimit) * 100) : 0
-  const barColor = pct >= 90 ? '#dc2626' : pct >= 70 ? '#f59e0b' : '#7C3AED'
+  const { userPlan, userCredits, creditsUsed, creditsLimit, openUpgradeModal } = useApp()
+  // Reads from userPlan (profiles.plan) — the source of truth that
+  // updates immediately after a successful Flutterwave upgrade.
+  const plan = userPlan || 'free'
+  const remaining = Math.max(0, Math.min(creditsLimit, userCredits ?? 0))
+  const usedPct = creditsLimit > 0 ? Math.round(((creditsLimit - remaining) / creditsLimit) * 100) : 0
+  const barColor = usedPct >= 90 ? '#dc2626' : usedPct >= 70 ? '#f59e0b' : '#7C3AED'
+
+  // Pretty label + pill colour per plan.
+  const planLabel = plan === 'pro' ? 'Pro ✦' : plan === 'starter' ? 'Starter' : 'Free plan'
+  const pillBg = plan === 'pro' ? 'rgba(124,58,237,0.10)'
+    : plan === 'starter' ? 'rgba(14,165,233,0.10)'
+    : 'var(--color-surface)'
+  const pillBorder = plan === 'pro' ? 'rgba(124,58,237,0.30)'
+    : plan === 'starter' ? 'rgba(14,165,233,0.30)'
+    : 'var(--color-border)'
+  const pillColor = plan === 'pro' ? '#7C3AED'
+    : plan === 'starter' ? '#0369A1'
+    : 'var(--color-text-muted)'
+
+  // Per-plan description that swaps in real-time as the plan changes.
+  const planDescription = plan === 'pro'
+    ? "You're on the Pro plan — unlimited projects, 1,000 credits / month, up to 10 team members, white-label exports, and client intake forms."
+    : plan === 'starter'
+      ? "You're on the Starter plan — 300 credits / month, 10 projects, 2 team members per project, clean PDF exports."
+      : "You're on the Free plan. Upgrade to Starter or Pro for more credits, more projects, and team collaboration."
+
+  // CTA: Free / Starter can still upgrade. Pro hides the button.
+  const ctaLabel = plan === 'starter' ? 'Upgrade to Pro' : 'Upgrade plan'
 
   return (
     <div>
@@ -681,27 +706,26 @@ function PlansSection() {
         Plans & credits
       </h1>
       <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 28px', lineHeight: 1.6 }}>
-        Manage your subscription and daily AI usage.
+        Manage your subscription and monthly AI usage.
       </p>
 
       <SettingRow
         label="Current plan"
-        description="You are on the Free plan. Upgrade to Pro for unlimited brief translations, project builds, and priority support."
+        description={planDescription}
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: 10, width: isMobile ? '100%' : 'auto' }}>
           <span style={{
-            fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-            background: plan === 'pro' ? 'rgba(124,58,237,0.1)' : 'var(--color-surface)',
-            border: '1px solid ' + (plan === 'pro' ? 'rgba(124,58,237,0.25)' : 'var(--color-border)'),
+            fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+            background: pillBg,
+            border: '1px solid ' + pillBorder,
             borderRadius: 100, padding: '3px 12px',
-            color: plan === 'pro' ? '#7C3AED' : 'var(--color-text-muted)',
-            textTransform: 'capitalize',
+            color: pillColor,
           }}>
-            {plan === 'pro' ? 'Pro plan' : 'Free plan'}
+            {planLabel}
           </span>
           {plan !== 'pro' && (
             <button
-              onClick={() => alert('Pro plan coming soon! 500 credits/day for $19/mo.')}
+              onClick={() => openUpgradeModal?.('general')}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px',
                 background: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
@@ -711,7 +735,7 @@ function PlansSection() {
               }}
             >
               <BoltIcon style={{ width: 13, height: 13 }} />
-              Upgrade to Pro
+              {ctaLabel}
             </button>
           )}
         </div>
@@ -719,22 +743,24 @@ function PlansSection() {
 
       <SettingRow
         label="AI credits"
-        description="Daily credits for brief translations, AI chat, and build features. Resets every day at midnight UTC."
+        description={plan === 'free'
+          ? 'One-time credits for brief translations, AI tasks, and kanban generation. Upgrade for monthly credit refreshes.'
+          : 'Monthly credits for brief translations, AI tasks, and kanban generation. Refreshes 30 days after your last reset.'}
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: 8, width: isMobile ? '100%' : 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
             <span style={{ fontWeight: 700, fontSize: 20, letterSpacing: '-0.03em', color: 'var(--color-text)', fontFamily: 'var(--font-sans)' }}>
-              {creditsUsed}
+              {remaining}
             </span>
             <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-              / {creditsLimit} used today
+              / {creditsLimit} remaining
             </span>
           </div>
           <div style={{ width: isMobile ? '100%' : 200, height: 6, background: 'var(--color-border)', borderRadius: 99, overflow: 'hidden' }}>
-            <div style={{ width: pct + '%', height: '100%', background: barColor, borderRadius: 99, transition: 'width 0.3s ease' }} />
+            <div style={{ width: usedPct + '%', height: '100%', background: barColor, borderRadius: 99, transition: 'width 0.3s ease' }} />
           </div>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>
-            Resets at midnight UTC
+            {plan === 'free' ? 'Free plan — does not refresh' : 'Refreshes every 30 days'}
           </span>
         </div>
       </SettingRow>
