@@ -23,7 +23,7 @@ function AppRouter() {
     activeSection, setActiveIntakeId, navigate,
     authUser, authLoading,
     workspace, setWorkspace, workspaceLoading, workspaceLoadError, loadWorkspace,
-    showToast, refreshAuthUser,
+    showToast, refreshAuthUser, refreshUserPlan,
   } = useContext(AppContext);
 
   // Handle the Flutterwave redirect (?flw_callback=1&status=…&tx_ref=…&transaction_id=…).
@@ -66,7 +66,10 @@ function AppRouter() {
           showToast?.('Payment received — could not verify: ' + (j.error || 'try refreshing'), 'error');
         } else {
           showToast?.('Plan activated 🎉', 'success');
-          try { await refreshAuthUser?.() } catch {}
+          // refreshAuthUser re-pulls auth.users; refreshUserPlan re-pulls
+          // profiles.plan / credits — the auth-user fetch alone does NOT
+          // see the column updates the webhook just wrote.
+          try { await Promise.all([refreshAuthUser?.(), refreshUserPlan?.()]) } catch {}
         }
       } catch (e) {
         console.error('[flw redirect]', e);

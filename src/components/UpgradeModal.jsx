@@ -120,6 +120,7 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
   const user = ctx?.user
   const showToast = ctx?.showToast
   const refreshAuthUser = ctx?.refreshAuthUser
+  const refreshUserPlan = ctx?.refreshUserPlan
 
   useEffect(() => {
     if (!open) return
@@ -188,7 +189,7 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
           return
         }
         showToast?.('Plan activated 🎉', 'success')
-        try { await refreshAuthUser?.() } catch {}
+        try { await Promise.all([refreshAuthUser?.(), refreshUserPlan?.()]) } catch {}
       } catch (e) {
         console.error('[activatePlan]', e)
         showToast?.('Payment received — please refresh to see your new plan.', 'info')

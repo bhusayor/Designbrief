@@ -781,6 +781,37 @@ export function AppProvider({ children }) {
     }
   }, []);
 
+  // Refetch profiles.plan + credits + reset timestamp and update the
+  // matching context state. Called after a successful upgrade payment so
+  // the sidebar plan badge, credits bar, and every plan-gated screen
+  // reflect the new plan without a page refresh.
+  const refreshUserPlan = useCallback(async () => {
+    if (!authUser?.id) return null;
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan, credits, credits_used, credits_reset_at')
+        .eq('id', authUser.id)
+        .single();
+      if (!profile) return null;
+      const rawPlan = String(profile.plan || 'free').toLowerCase();
+      const planKey = ['free', 'starter', 'pro'].includes(rawPlan) ? rawPlan : 'free';
+      const planCap = planKey === 'pro' ? 1000 : planKey === 'starter' ? 300 : 50;
+      setUserPlan(planKey);
+      setCreditsLimit(planCap);
+      setUserCredits(typeof profile.credits === 'number' ? profile.credits : planCap);
+      setCreditsUsed(profile.credits_used ?? 0);
+      setCreditsResetAt(profile.credits_reset_at || null);
+      // Also bump the cached user object's plan so anything reading
+      // user.plan (rare but legacy) stays consistent.
+      setUser(prev => prev ? { ...prev, plan: planKey } : prev);
+      return profile;
+    } catch (e) {
+      console.error('[refreshUserPlan]', e);
+      return null;
+    }
+  }, [authUser?.id]);
+
   // ── Sign Out ──────────────────────────────────────────────────────────────
 
   function signOut() {
@@ -1290,6 +1321,7 @@ export function AppProvider({ children }) {
     user,
     updateUser,
     refreshAuthUser,
+    refreshUserPlan,
 
     // Auth
     authUser,
