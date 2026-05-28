@@ -117,10 +117,22 @@ export function AppProvider({ children }) {
   });
   const [workspaceLoadError, setWorkspaceLoadError] = useState(false);
 
-  // ── Credits state ─────────────────────────────────────────────────────────
+  // ── Plan + credits state ──────────────────────────────────────────────────
+  // userPlan: 'free' | 'starter' | 'pro' — single source of truth read from
+  // profiles.plan on auth. userCredits is the remaining balance; the sidebar
+  // bar and every gate read from these.
   const FREE_DAILY_LIMIT = 50;
+  const [userPlan, setUserPlan] = useState('free');
+  const [userCredits, setUserCredits] = useState(FREE_DAILY_LIMIT);
   const [creditsUsed, setCreditsUsed] = useState(0);
-  const [creditsLimit] = useState(FREE_DAILY_LIMIT);
+  const [creditsLimit, setCreditsLimit] = useState(FREE_DAILY_LIMIT);
+
+  // ── Upgrade modal global trigger ──────────────────────────────────────────
+  // Any page can call openUpgradeModal('projects' | 'credits' | …) and the
+  // root-level UpgradeModal will render with the matching message.
+  const [upgradeReason, setUpgradeReason] = useState(null);
+  const openUpgradeModal = useCallback((reason) => setUpgradeReason(reason || 'general'), []);
+  const closeUpgradeModal = useCallback(() => setUpgradeReason(null), []);
 
   // ── Template state ────────────────────────────────────────────────────────
   const [selectedBriefTemplate, setSelectedBriefTemplate] = useState('agency-deck');
@@ -255,16 +267,28 @@ export function AppProvider({ children }) {
 
       const firstName = profile?.first_name || fullName.split(' ')[0] || 'Designer';
 
+      // Normalise plan to lower-case keys ('free' | 'starter' | 'pro') so
+      // every consumer can look it up in PLANS without branching.
+      const rawPlan = (profile?.plan || 'free').toString().toLowerCase();
+      const planKey = ['free', 'starter', 'pro'].includes(rawPlan) ? rawPlan : 'free';
+
       const updatedUser = {
         id: supabaseUser.id,
         name: fullName,
         firstName,
         email: supabaseUser.email || '',
-        plan: profile?.plan || 'Free',
+        plan: planKey,
         avatarUrl: profile?.avatar_url || null,
       };
 
       setUser(updatedUser);
+      setUserPlan(planKey);
+      // PLANS.<plan>.credits is the cap; profile.credits is the live balance.
+      // Fall back to the free cap when the column hasn't been added yet.
+      const planCap = planKey === 'pro' ? 1000 : planKey === 'starter' ? 300 : 50;
+      setCreditsLimit(planCap);
+      setUserCredits(typeof profile?.credits === 'number' ? profile.credits : planCap);
+      setCreditsUsed(profile?.credits_used ?? 0);
       localStorage.setItem('db-user', JSON.stringify(updatedUser));
 
       await loadProjectsFromDB(supabaseUser.id);
@@ -1227,10 +1251,19 @@ export function AppProvider({ children }) {
     workspaceLoading,
     workspaceLoadError,
 
-    // Credits
+    // Plan + credits
+    userPlan,
+    setUserPlan,
+    userCredits,
+    setUserCredits,
     creditsUsed,
     creditsLimit,
     setCreditsUsed,
+
+    // Upgrade modal
+    upgradeReason,
+    openUpgradeModal,
+    closeUpgradeModal,
 
     // Templates
     selectedBriefTemplate,

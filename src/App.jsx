@@ -16,6 +16,7 @@ import ProjectBuilder from './pages/ProjectBuilder';
 import Auth from './pages/Auth';
 import WorkspaceSetup from './pages/WorkspaceSetup';
 import AcceptInvite from './pages/AcceptInvite';
+import UpgradeModal from './components/UpgradeModal';
 
 function AppRouter() {
   const {
@@ -189,9 +190,25 @@ function AppRouter() {
   }
 
   return (
-    <AppShell>
-      {pages[activeSection] || <Dashboard />}
-    </AppShell>
+    <>
+      <AppShell>
+        {pages[activeSection] || <Dashboard />}
+      </AppShell>
+      <GlobalUpgradeModal />
+    </>
+  );
+}
+
+// Renders the global UpgradeModal driven by AppContext.upgradeReason
+// so any page can call openUpgradeModal('credits' | 'projects' | …).
+function GlobalUpgradeModal() {
+  const { upgradeReason, closeUpgradeModal } = useContext(AppContext);
+  return (
+    <UpgradeModal
+      open={!!upgradeReason}
+      reason={upgradeReason}
+      onClose={closeUpgradeModal}
+    />
   );
 }
 

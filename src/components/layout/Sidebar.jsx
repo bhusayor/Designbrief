@@ -156,7 +156,9 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     setActiveProject, openProject,
     intakeForms,
     workspace,
+    userPlan, userCredits,
     creditsUsed, creditsLimit,
+    openUpgradeModal,
   } = useContext(AppContext)
 
   // Profile-picture URL — from auth.user_metadata so any change in Settings
@@ -248,10 +250,13 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     }
   }
 
-  function planLabel(plan) {
-    if (plan === 'pro') return 'Pro'
-    if (plan === 'business') return 'Business'
-    return 'Free'
+  // Plan badge label — reads from the user's actual profile.plan,
+  // not the legacy workspace.plan field, so Free / Starter / Pro
+  // always reflects reality.
+  function planLabel(_legacy) {
+    if (userPlan === 'pro') return 'Pro ✦'
+    if (userPlan === 'starter') return 'Starter'
+    return 'Free plan'
   }
 
   // Mobile: fixed drawer sliding in from the left, not in the flex flow
@@ -475,7 +480,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
                 <div style={{
                   fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--color-text-muted)',
                 }}>
-                  {planLabel(workspace?.plan)} plan
+                  {planLabel()}
                 </div>
               </div>
               <ChevronDownIcon style={{
@@ -586,78 +591,101 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         <div style={{ flex: 1 }} />
       )}
 
-      {/* ── Credits + Upgrade (desktop/tablet only — moved to Dashboard top bar on mobile) ── */}
-      {!collapsed && workspace?.plan === 'free' && !isMobile && (
-        <div style={{
-          margin: '0 8px 8px',
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '12px 12px 10px',
-          flexShrink: 0,
-        }}>
-          {/* Header row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>
-              AI Credits
-            </span>
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
-              color: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'var(--color-text-muted)',
-            }}>
-              {creditsUsed}/{creditsLimit}
-            </span>
-          </div>
-
-          {/* Progress bar */}
-          <div style={{ height: 4, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', marginBottom: 8, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              width: Math.min((creditsUsed / creditsLimit) * 100, 100) + '%',
-              background: creditsUsed >= creditsLimit * 0.9 ? '#dc2626' : creditsUsed >= creditsLimit * 0.7 ? '#F59E0B' : 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-              borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease',
-            }} />
-          </div>
-
-          {/* Reset text */}
+      {/* ── Credits + Upgrade (Free plan only, desktop/tablet) ────────────── */}
+      {!collapsed && userPlan === 'free' && !isMobile && (() => {
+        const remaining = Math.max(0, Math.min(creditsLimit, userCredits ?? 0))
+        const usedAmount = Math.max(0, creditsLimit - remaining)
+        const pct = creditsLimit > 0 ? (usedAmount / creditsLimit) * 100 : 0
+        const exhausted = remaining <= 0
+        const critical = remaining > 0 && remaining < 10
+        const low = !critical && !exhausted && remaining <= 20
+        const barColor = exhausted || critical
+          ? '#EF4444'
+          : low ? '#FBBF24' : 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-2) 100%)'
+        const countColor = exhausted || critical ? '#EF4444' : low ? '#B45309' : 'var(--color-text-muted)'
+        return (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--color-text-muted)',
-            marginBottom: 10,
+            margin: '0 8px 8px',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '12px 12px 10px',
+            flexShrink: 0,
           }}>
-            <ClockIcon style={{ width: 10, height: 10, flexShrink: 0 }} />
-            Daily credits reset at midnight UTC
-          </div>
-
-          {/* Upgrade button */}
-          <button
-            onClick={() => alert('Pro plan coming soon! 500 credits/day for $19/mo.')}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-1px)'
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.4)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)'
-            }}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '8px 12px',
-              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
-              color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
-              cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
-              letterSpacing: '-0.01em', transition: 'var(--transition-fast)',
-              boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <BoltIcon style={{ width: 12, height: 12 }} />
-              Upgrade to Pro
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>
+                AI Credits
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, color: countColor }}>
+                {remaining}/{creditsLimit}
+              </span>
             </div>
-            <ArrowRightIcon style={{ width: 12, height: 12, opacity: 0.8 }} />
-          </button>
-        </div>
-      )}
+
+            {/* Progress bar — fill = credits used */}
+            <div style={{ height: 6, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', marginBottom: 8, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: pct + '%',
+                background: barColor,
+                borderRadius: 'var(--radius-full)', transition: 'width 0.4s ease',
+              }} />
+            </div>
+
+            {/* Status text */}
+            <div style={{
+              fontFamily: 'var(--font-sans)', fontSize: 11,
+              color: exhausted ? '#EF4444' : critical ? '#EF4444' : low ? '#B45309' : 'var(--color-text-muted)',
+              marginBottom: 10, lineHeight: 1.45,
+            }}>
+              {exhausted ? `0 / ${creditsLimit} · Credits used up`
+                : `${remaining} / ${creditsLimit} credits remaining`}
+              {exhausted && (
+                <div style={{ marginTop: 4, color: '#EF4444', fontWeight: 600 }}>
+                  Upgrade to continue using AI features
+                </div>
+              )}
+              {!exhausted && critical && (
+                <div style={{ marginTop: 4, color: '#B45309', fontWeight: 600 }}>
+                  Running low — upgrade to get more
+                </div>
+              )}
+              {!exhausted && low && (
+                <div style={{ marginTop: 4, color: '#B45309', fontWeight: 600 }}>
+                  Running low — upgrade to get more
+                </div>
+              )}
+            </div>
+
+            {/* Upgrade button → opens the global UpgradeModal */}
+            <button
+              onClick={() => openUpgradeModal?.('credits')}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-1px)'
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.4)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)'
+              }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%)',
+                color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
+                cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+                letterSpacing: '-0.01em', transition: 'var(--transition-fast)',
+                boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <BoltIcon style={{ width: 12, height: 12 }} />
+                Upgrade
+              </div>
+              <ArrowRightIcon style={{ width: 12, height: 12, opacity: 0.8 }} />
+            </button>
+          </div>
+        )
+      })()}
 
       {/* ── Bottom section ── */}
       <div style={{

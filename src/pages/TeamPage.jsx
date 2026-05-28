@@ -18,6 +18,7 @@ import {
   ArrowPathIcon,
   EllipsisHorizontalIcon,
   CurrencyDollarIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -737,7 +738,7 @@ function useIsMobile() {
 // ── Main TeamPage ─────────────────────────────────────────────────────────────
 
 export default function TeamPage({ onClose, projectId, projectName }) {
-  const { workspace, authUser, session } = useApp()
+  const { workspace, authUser, session, userPlan, openUpgradeModal } = useApp()
   const isMobile = useIsMobile()
   const isProjectMode = !!projectId
 
@@ -1266,7 +1267,11 @@ export default function TeamPage({ onClose, projectId, projectName }) {
             {(!isProjectMode || isAdmin) && (
             <div style={{ position: 'relative', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
               <button
-                onClick={() => setShowInviteLinkPopup(v => !v)}
+                title={userPlan === 'free' ? 'Upgrade to invite teammates' : undefined}
+                onClick={() => {
+                  if (userPlan === 'free') { openUpgradeModal?.('team_members'); return }
+                  setShowInviteLinkPopup(v => !v)
+                }}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px',
                   background: showInviteLinkPopup ? 'rgba(124,58,237,0.08)' : 'var(--color-card)',
@@ -1279,6 +1284,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                 onMouseEnter={e => { if (!showInviteLinkPopup) { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' } }}
                 onMouseLeave={e => { if (!showInviteLinkPopup) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)' } }}
               >
+                {userPlan === 'free' && <LockClosedIcon style={{ width: 12, height: 12 }} />}
                 <LinkIcon style={{ width: 14, height: 14 }} />
                 Invite link
               </button>
@@ -1297,7 +1303,13 @@ export default function TeamPage({ onClose, projectId, projectName }) {
 
             {/* Invite members — admin-only in project mode */}
             {(!isProjectMode || isAdmin) && (
-            <button onClick={() => setShowInviteModal(true)} style={{
+            <button
+              title={userPlan === 'free' ? 'Upgrade to invite teammates' : undefined}
+              onClick={() => {
+                if (userPlan === 'free') { openUpgradeModal?.('team_members'); return }
+                setShowInviteModal(true)
+              }}
+              style={{
               flex: isMobile ? '1 1 100%' : '0 0 auto',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 16px',
               background: 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
@@ -1308,6 +1320,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(124,58,237,0.4)' }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(124,58,237,0.3)' }}
             >
+              {userPlan === 'free' && <LockClosedIcon style={{ width: 12, height: 12 }} />}
               <UserPlusIcon style={{ width: 14, height: 14 }} />
               Invite members
             </button>

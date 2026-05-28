@@ -17,6 +17,7 @@ import {
   SparklesIcon,
   BoltIcon,
   LinkIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -451,6 +452,7 @@ export default function ProjectLibrary() {
   const {
     history, navigate, setActiveProject, openProject,
     intakeForms, loadIntakeForms, showToast,
+    userPlan, openUpgradeModal,
   } = useContext(AppContext);
 
   const windowWidth = useWindowWidth()
@@ -621,6 +623,40 @@ export default function ProjectLibrary() {
         {/* ── All Projects tab ──────────────────────────────────────────────── */}
         {activeTab === 'projects' && (
           <>
+            {/* Free-plan project-limit banner */}
+            {userPlan === 'free' && (() => {
+              const owned = (history || []).filter(p => !p.isShared).length
+              if (owned < 2) return null
+              return (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '12px 16px', marginBottom: 16,
+                  background: 'rgba(124,58,237,0.06)',
+                  border: '1px solid rgba(124,58,237,0.25)',
+                  borderRadius: 12,
+                  flexWrap: 'wrap',
+                }}>
+                  <LockClosedIcon style={{ width: 16, height: 16, color: '#7C3AED', flexShrink: 0 }} />
+                  <div style={{ minWidth: 0, flex: 1, fontFamily: "'Urbanist', sans-serif", fontSize: 13, color: 'var(--color-text)' }}>
+                    You've reached the free-plan project limit ({owned}/2).
+                    <span style={{ color: 'var(--color-text-muted)' }}> Upgrade to add more projects.</span>
+                  </div>
+                  <button
+                    onClick={() => openUpgradeModal?.('projects')}
+                    style={{
+                      padding: '7px 14px',
+                      background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                      color: 'white', border: 'none', borderRadius: 9,
+                      cursor: 'pointer',
+                      fontFamily: "'Urbanist', sans-serif", fontSize: 12, fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}>
+                    Upgrade →
+                  </button>
+                </div>
+              )
+            })()}
+
             {history.length === 0 && <EmptyState navigate={navigate} />}
 
             {history.length > 0 && filtered.length === 0 && (

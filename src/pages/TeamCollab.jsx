@@ -492,7 +492,7 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
 
 
 export default function TeamCollab() {
-  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, user, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB, touchProject } = useContext(AppContext)
+  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, user, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB, touchProject, userPlan, openUpgradeModal } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth <= 480
@@ -2488,6 +2488,14 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   // (renameProjectInDB → PATCH /api/create-workspace) which upserts the
   // row server-side — same path that fixed cross-device rename sync.
   async function handleNewProject() {
+    // Free-plan limit: 2 projects total (counts both owned + shared).
+    if (userPlan === 'free') {
+      const ownedCount = (ctxProjects || []).filter(p => !p.isShared).length
+      if (ownedCount >= 2) {
+        openUpgradeModal?.('projects')
+        return
+      }
+    }
     const newProj = { id: uid(), title: 'New Project' }
     console.log('[TC handleNewProject] creating', newProj, 'authUser:', authUser?.id)
     const updated = [...projects, newProj]
