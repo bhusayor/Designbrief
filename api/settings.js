@@ -6,13 +6,88 @@ const supabase = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 )
 
+// ─── Flutterwave webhook helpers ──────────────────────────────────────────────
+//
+// We piggy-back the webhook on this endpoint to stay under the 12-function
+// Vercel limit. Flutterwave sends a verif-hash header — we check that
+// BEFORE the auth gate so the webhook can call without a Supabase JWT.
+const FLW_PLAN_CREDITS = { starter: 300, pro: 1000 }
+
+async function grantPlanFromTransaction(tx) {
+  // tx_ref format: db_<userId>_<plan>_<timestamp>
+  const parts = String(tx.tx_ref || '').split('_')
+  if (parts[0] !== 'db' || !parts[1] || !parts[2]) return { ok: false, reason: 'bad_tx_ref' }
+  const userId = parts[1]
+  const plan = parts[2]
+  if (!FLW_PLAN_CREDITS[plan]) return { ok: false, reason: 'unknown_plan' }
+
+  // Idempotency: skip if we already granted this exact tx_ref.
+  const { data: existingLog } = await supabase
+    .from('billing_events')
+    .select('id')
+    .eq('tx_ref', tx.tx_ref)
+    .maybeSingle()
+  if (existingLog) return { ok: true, idempotent: true }
+
+  const credits = FLW_PLAN_CREDITS[plan]
+  const nowIso = new Date().toISOString()
+  const { error: upErr } = await supabase
+    .from('profiles')
+    .update({
+      plan,
+      credits,
+      credits_used: 0,
+      credits_reset_at: nowIso,
+      plan_started_at: nowIso,
+    })
+    .eq('id', userId)
+  if (upErr) {
+    console.error('[flw] profile update failed', upErr)
+    return { ok: false, reason: 'profile_update_failed' }
+  }
+
+  // Best-effort audit row. The table is created by the SQL migration in
+  // supabase/flutterwave-billing.sql; if it isn't there the catch keeps
+  // the webhook responding 200 anyway.
+  try {
+    await supabase.from('billing_events').insert({
+      user_id: userId,
+      plan,
+      amount: tx.amount,
+      currency: tx.currency,
+      tx_ref: tx.tx_ref,
+      flw_id: tx.id ? String(tx.id) : null,
+      raw: tx,
+    })
+  } catch {}
+
+  return { ok: true, plan, userId }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, verif-hash')
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).end()
 
+  // ── Flutterwave webhook (BEFORE auth gate) ────────────────────────────────
+  const verifHash = req.headers['verif-hash'] || req.headers['Verif-Hash']
+  if (verifHash) {
+    const expected = process.env.FLW_HASH || process.env.FLUTTERWAVE_HASH
+    if (!expected || verifHash !== expected) {
+      return res.status(401).json({ error: 'bad verif-hash' })
+    }
+    const payload = req.body || {}
+    if (payload.event !== 'charge.completed' || payload.data?.status !== 'successful') {
+      // Acknowledge so Flutterwave doesn't retry indefinitely.
+      return res.json({ ok: true, ignored: true })
+    }
+    const result = await grantPlanFromTransaction(payload.data)
+    return res.json(result)
+  }
+
+  // ── Authed actions ────────────────────────────────────────────────────────
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token || token === 'undefined' || token === 'null' || token.trim() === '')
     return res.status(401).json({ error: 'Unauthorised' })
@@ -22,6 +97,35 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' })
 
   const { action } = req.body
+
+  // Client fallback: verify the tx_ref straight from the Flutterwave API
+  // when the page returns from a redirect (covers the rare case where
+  // the webhook is delayed or misconfigured). This is auth-gated so a
+  // random visitor can't grant themselves a plan.
+  if (action === 'verify_payment') {
+    try {
+      const { tx_ref, transaction_id } = req.body
+      if (!tx_ref || !transaction_id) return res.status(400).json({ error: 'tx_ref + transaction_id required' })
+      // Confirm the tx belongs to this user
+      if (!String(tx_ref).startsWith('db_' + user.id + '_')) {
+        return res.status(403).json({ error: 'tx_ref does not belong to user' })
+      }
+      const secret = process.env.FLW_SECRET_KEY || process.env.FLUTTERWAVE_SECRET_KEY
+      if (!secret) return res.status(500).json({ error: 'Flutterwave secret not configured' })
+      const r = await fetch('https://api.flutterwave.com/v3/transactions/' + transaction_id + '/verify', {
+        headers: { Authorization: 'Bearer ' + secret },
+      })
+      const j = await r.json()
+      if (j.status !== 'success' || j.data?.status !== 'successful') {
+        return res.status(400).json({ error: 'verification failed', detail: j.message })
+      }
+      const result = await grantPlanFromTransaction(j.data)
+      return res.json(result)
+    } catch (e) {
+      console.error('[verify_payment]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
 
   try {
     // ── UPDATE DISPLAY NAME ───────────────────────────────────────────────────

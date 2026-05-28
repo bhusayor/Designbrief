@@ -115,6 +115,10 @@ const PRO_FEATURES = [
 export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
   const ctx = useContext(AppContext)
   const currentPlan = ctx?.userPlan || 'free'
+  const authUser = ctx?.authUser
+  const user = ctx?.user
+  const showToast = ctx?.showToast
+  const refreshAuthUser = ctx?.refreshAuthUser
 
   useEffect(() => {
     if (!open) return
@@ -136,8 +140,52 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
 
   function pickPlan(plan) {
     if (onUpgrade) return onUpgrade(plan)
-    // Default fallback — open settings/billing route if it exists.
-    try { window.location.assign('/?upgrade=' + plan) } catch {}
+
+    // Flutterwave Inline checkout. Public key + payment amount are read
+    // from env at build time. The server-side webhook in /api/settings
+    // grants the plan when charge.completed fires; the client just
+    // needs to open the payment modal and show a friendly result toast.
+    const publicKey = import.meta.env.VITE_FLW_PUBLIC_KEY
+    if (!publicKey) {
+      showToast?.('Billing not configured yet. Email hello@designbrief.app to upgrade.', 'info')
+      return
+    }
+    if (!authUser?.id || !authUser?.email) {
+      showToast?.('Please sign in to upgrade.', 'error')
+      return
+    }
+    if (typeof window === 'undefined' || typeof window.FlutterwaveCheckout !== 'function') {
+      showToast?.('Payment SDK still loading — try again in a moment.', 'info')
+      return
+    }
+    const amount = plan === 'pro' ? 29 : 12
+    const tx_ref = `db_${authUser.id}_${plan}_${Date.now()}`
+    onClose?.()
+    window.FlutterwaveCheckout({
+      public_key: publicKey,
+      tx_ref,
+      amount,
+      currency: 'USD',
+      payment_options: 'card,ussd,banktransfer',
+      customer: {
+        email: authUser.email,
+        name: user?.name || authUser?.user_metadata?.full_name || authUser.email,
+      },
+      customizations: {
+        title: 'DesignBrief AI — ' + (plan === 'pro' ? 'Pro' : 'Starter'),
+        description: plan === 'pro' ? 'Unlimited projects + 1,000 credits' : '10 projects + 300 credits',
+        logo: 'https://designbrief-vert.vercel.app/favicon.svg',
+      },
+      meta: { user_id: authUser.id, plan },
+      callback: async () => {
+        // The webhook is the source of truth. Refresh the local auth
+        // user so the UI rehydrates the new plan if the server already
+        // applied it by the time we get here.
+        showToast?.('Payment received — activating your plan…', 'success')
+        try { await refreshAuthUser?.() } catch {}
+      },
+      onclose: () => { /* user dismissed without paying — no toast */ },
+    })
   }
 
   return (
