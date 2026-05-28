@@ -195,6 +195,13 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
       }
     }
 
+    // Remember the pending payment so App.jsx can pick it up after the
+    // redirect lands. localStorage survives the round-trip; sessionStorage
+    // is wiped by some embedded WebViews.
+    try {
+      localStorage.setItem('db-pending-payment', JSON.stringify({ tx_ref, plan, at: Date.now() }))
+    } catch {}
+
     onClose?.()
     window.FlutterwaveCheckout({
       public_key: publicKey,
@@ -202,6 +209,11 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
       amount,
       currency: 'USD',
       payment_options: 'card,ussd,banktransfer',
+      // The v3 inline modal in production routinely skips the JS
+      // callback — Flutterwave expects a redirect_url and sends the
+      // user back with tx_ref + transaction_id + status in the query
+      // string. App.jsx picks the params up and calls verify_payment.
+      redirect_url: window.location.origin + '/?flw_callback=1',
       customer: {
         email: authUser.email,
         name: user?.name || authUser?.user_metadata?.full_name || authUser.email,
@@ -212,25 +224,16 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
         logo: 'https://designbrief-vert.vercel.app/favicon.svg',
       },
       meta: { user_id: authUser.id, plan },
+      // Belt-and-braces — these fire on browsers that don't take the
+      // redirect path. Whichever runs first wins; activatePlan is
+      // idempotent because billing_events.tx_ref is unique.
       callback: async (data) => {
-        // Flutterwave fires this when the charge finishes. We close the
-        // modal explicitly so the user doesn't sit on the success
-        // screen, then verify + grant the plan server-side. This works
-        // even when the webhook is misconfigured or delayed because the
-        // /api/settings 'verify_payment' action re-checks the
-        // transaction against Flutterwave directly.
         try { window.closePaymentModal?.() } catch {}
         if (data?.status === 'successful' || data?.status === 'completed') {
           await activatePlan(data)
-        } else {
-          showToast?.('Payment was not completed.', 'info')
         }
       },
       onclose: async () => {
-        // If the modal is dismissed AFTER a successful charge but
-        // before our callback verified, run activation here so the
-        // user is never stuck without a plan. activated flag prevents
-        // a double-grant.
         await activatePlan({})
       },
     })

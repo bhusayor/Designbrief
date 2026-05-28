@@ -23,7 +23,59 @@ function AppRouter() {
     activeSection, setActiveIntakeId, navigate,
     authUser, authLoading,
     workspace, setWorkspace, workspaceLoading, workspaceLoadError, loadWorkspace,
+    showToast, refreshAuthUser,
   } = useContext(AppContext);
+
+  // Handle the Flutterwave redirect (?flw_callback=1&status=…&tx_ref=…&transaction_id=…).
+  // We verify the payment server-side, refresh authUser so the new plan
+  // lights up immediately, and strip the params from the URL so a
+  // refresh doesn't re-trigger this flow.
+  useEffect(() => {
+    if (!authUser?.id) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (!sp.has('flw_callback')) return;
+    const status = sp.get('status');
+    const tx_ref = sp.get('tx_ref') || (() => {
+      try { return JSON.parse(localStorage.getItem('db-pending-payment') || 'null')?.tx_ref || null } catch { return null }
+    })();
+    const transaction_id = sp.get('transaction_id');
+
+    // Clean the URL right away so a manual refresh on this page doesn't
+    // re-run verification.
+    try { window.history.replaceState(null, '', window.location.pathname); } catch {}
+
+    if (status !== 'successful' && status !== 'completed') {
+      showToast?.('Payment was not completed.', 'info');
+      try { localStorage.removeItem('db-pending-payment') } catch {}
+      return;
+    }
+
+    (async () => {
+      try {
+        const { supabase } = await import('./lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) throw new Error('Not signed in');
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ action: 'verify_payment', tx_ref, transaction_id }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast?.('Payment received — could not verify: ' + (j.error || 'try refreshing'), 'error');
+        } else {
+          showToast?.('Plan activated 🎉', 'success');
+          try { await refreshAuthUser?.() } catch {}
+        }
+      } catch (e) {
+        console.error('[flw redirect]', e);
+        showToast?.('Payment received — please refresh to see your new plan.', 'info');
+      } finally {
+        try { localStorage.removeItem('db-pending-payment') } catch {}
+      }
+    })();
+  }, [authUser?.id, showToast, refreshAuthUser]);
 
   // After workspace setup, redirect the user back to a pending project invite if one exists.
   function handleWorkspaceSetupComplete(ws) {
