@@ -666,7 +666,11 @@ export default function TeamCollab() {
 
     setProjects([{ id: 'default', title: 'My Project' }])
     setActiveProjectId('default')
-    setKanban({ tasks: [], projectTimeline: '', unassignedTasks: [], missingRoles: [] })
+    // Use null (the "no project loaded" sentinel) rather than an empty
+    // tasks array. The polling fallback skips merges when kanban is null
+    // until the next project is loaded, which prevents stale tasks from
+    // being repopulated while the workspace switch settles.
+    setKanban(null)
     setCustomCols([
       { id: 'To Do',       label: 'To Do',       color: '#6B7280' },
       { id: 'In Progress', label: 'In Progress', color: '#3B82F6' },
@@ -798,7 +802,12 @@ export default function TeamCollab() {
   }, [kanban, teamMembers])
 
   useEffect(() => {
-    const projectId = activeProject?.id || activeProjectId
+    // Use ONLY activeProject?.id (not the activeProjectId fallback) so a
+    // workspace switch can't load tasks for a project that belongs to the
+    // previous workspace. activeProject is gated through the hydrate effect
+    // which only sets it when the project exists in ctxProjects (already
+    // workspace-scoped).
+    const projectId = activeProject?.id
     if (!projectId || projectId === 'default' || !authUser) return
     setTasksLoading(true)
     setTaskLoadError(false)
@@ -892,16 +901,16 @@ export default function TeamCollab() {
 
   // Path 2 + 3 — driven by AppContext's realtime/polling refresh
   useEffect(() => {
-    const pid = activeProjectId || activeProject?.id
+    const pid = activeProject?.id
     if (!pid) return
     const fromCtx = ctxProjects?.find(p => p.id === pid)?.kanbanColumns
     const incoming = activeProject?.kanbanColumns || fromCtx
     applyIncomingCols(incoming)
-  }, [activeProject?.kanbanColumns, ctxProjects, activeProjectId, activeProject?.id])
+  }, [activeProject?.kanbanColumns, ctxProjects, activeProject?.id])
 
   // Path 1 — direct broadcast channel for sub-second column updates
   useEffect(() => {
-    const pid = activeProjectId || activeProject?.id
+    const pid = activeProject?.id
     if (!pid || pid === 'default' || !authUser) return
     const ch = supabase
       .channel('tc-cols-' + pid, { config: { broadcast: { self: false } } })
@@ -914,7 +923,7 @@ export default function TeamCollab() {
       })
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [activeProjectId, activeProject?.id, authUser?.id])
+  }, [activeProject?.id, authUser?.id])
 
   // After a page refresh the activeProjectId is restored from localStorage but
   // activeProject (AppContext) is null. Look the project up in ctxProjects
@@ -1086,7 +1095,7 @@ export default function TeamCollab() {
   // Merges remote changes into local state so team members see updates live.
   // Own writes are ignored (already applied optimistically).
   useEffect(() => {
-    const projectId = activeProjectId || activeProject?.id
+    const projectId = activeProject?.id
     if (!projectId || projectId === 'default' || !authUser) return
 
     const channel = supabase
@@ -1126,7 +1135,7 @@ export default function TeamCollab() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [activeProjectId, activeProject?.id, authUser?.id])
+  }, [activeProject?.id, authUser?.id])
 
   // ── Polling fallback for cross-device task sync ──────────────────────────
   // MERGE not replace — keep any local tasks the server hasn't seen yet so
@@ -1136,7 +1145,7 @@ export default function TeamCollab() {
   // we can tell "pending save" (never on server) from "deleted remotely"
   // (was on server, now isn't).
   useEffect(() => {
-    const projectId = activeProjectId || activeProject?.id
+    const projectId = activeProject?.id
     if (!projectId || projectId === 'default' || !authUser) return
 
     let cancelled = false
@@ -1225,7 +1234,7 @@ export default function TeamCollab() {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('focus', refetch)
     }
-  }, [activeProjectId, activeProject?.id, authUser?.id])
+  }, [activeProject?.id, authUser?.id])
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
