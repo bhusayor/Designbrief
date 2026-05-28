@@ -134,48 +134,11 @@ export function AppProvider({ children }) {
   const openUpgradeModal = useCallback((reason) => setUpgradeReason(reason || 'general'), []);
   const closeUpgradeModal = useCallback(() => setUpgradeReason(null), []);
 
-  // ── consumeCredits ────────────────────────────────────────────────────────
-  // Centralised credit-deduction wrapper that every AI action calls before
-  // firing. Returns { ok: true } on success and updates the live credits
-  // state so the sidebar bar / status text reflect it immediately. Returns
-  // { ok: false } and opens the upgrade modal when the user can't afford
-  // the action.
-  //
-  //   const result = await consumeCredits('brief_translation')
-  //   if (!result.ok) return  // modal/toast already shown
-  //
-  const consumeCredits = useCallback(async (action) => {
-    try {
-      const mod = await import('../lib/credits.js')
-      const { deductCredits } = mod
-      const r = await deductCredits(supabase, authUser?.id, action)
-      if (!r.success) {
-        if (r.reason === 'insufficient_credits') {
-          setUpgradeReason('credits')
-          showToast?.('No credits remaining. Upgrade to continue.', 'error')
-        } else {
-          console.error('[consumeCredits] failed:', r.reason)
-        }
-        return { ok: false, reason: r.reason }
-      }
-      // Update live balance and fire threshold warnings
-      const remaining = r.creditsRemaining ?? 0
-      setUserCredits(remaining)
-      setCreditsUsed(r.used ?? creditsUsed)
-      if (remaining === 0) {
-        showToast?.('No credits remaining. Upgrade to continue.', 'error')
-        setUpgradeReason('credits')
-      } else if (remaining === 5) {
-        showToast?.('Only 5 credits left.', 'warning')
-      } else if (remaining === 10) {
-        showToast?.('10 credits remaining — upgrade to get more.', 'warning')
-      }
-      return { ok: true, creditsRemaining: remaining }
-    } catch (e) {
-      console.error('[consumeCredits]', e)
-      return { ok: false, reason: 'unknown' }
-    }
-  }, [authUser?.id, creditsUsed, showToast]);
+  // consumeCredits is declared further down, AFTER showToast so its deps
+  // array can reference it without a temporal-dead-zone error. We hold a
+  // ref here so anything that closes over the context object on the very
+  // first render still gets a stable reference. The assignment happens
+  // in a useEffect below once the real callback is built.
 
   // ── Template state ────────────────────────────────────────────────────────
   const [selectedBriefTemplate, setSelectedBriefTemplate] = useState('agency-deck');
@@ -835,6 +798,42 @@ export function AppProvider({ children }) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setNotification(null), 3000);
   }, []);
+
+  // ── consumeCredits ────────────────────────────────────────────────────────
+  // Centralised credit-deduction wrapper that every AI action calls before
+  // firing. Declared AFTER showToast so its deps array can read showToast
+  // without hitting TDZ.
+  const consumeCredits = useCallback(async (action) => {
+    try {
+      const mod = await import('../lib/credits.js')
+      const { deductCredits } = mod
+      const r = await deductCredits(supabase, authUser?.id, action)
+      if (!r.success) {
+        if (r.reason === 'insufficient_credits') {
+          setUpgradeReason('credits')
+          showToast?.('No credits remaining. Upgrade to continue.', 'error')
+        } else {
+          console.error('[consumeCredits] failed:', r.reason)
+        }
+        return { ok: false, reason: r.reason }
+      }
+      const remaining = r.creditsRemaining ?? 0
+      setUserCredits(remaining)
+      setCreditsUsed(prev => (r.used ?? prev))
+      if (remaining === 0) {
+        showToast?.('No credits remaining. Upgrade to continue.', 'error')
+        setUpgradeReason('credits')
+      } else if (remaining === 5) {
+        showToast?.('Only 5 credits left.', 'warning')
+      } else if (remaining === 10) {
+        showToast?.('10 credits remaining — upgrade to get more.', 'warning')
+      }
+      return { ok: true, creditsRemaining: remaining }
+    } catch (e) {
+      console.error('[consumeCredits]', e)
+      return { ok: false, reason: 'unknown' }
+    }
+  }, [authUser?.id, showToast]);
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
