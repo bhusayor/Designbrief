@@ -150,12 +150,17 @@ export default function Billing() {
 
   const visibleHistory = showAllHistory ? history : history.slice(0, 12)
 
-  async function handleCancellationDone(reason, accessUntilIso) {
+  async function handleCancellationDone(reason, feedback, accessUntilIso) {
     setCancelOpen(false)
     try {
+      // Compose reason + feedback so support can see both without
+      // adding a new column.
+      const reasonValue = feedback
+        ? `${reason || 'unspecified'} · ${feedback.slice(0, 500)}`
+        : (reason || null)
       await supabase.from('profiles').update({
         plan_status: 'cancelled',
-        cancellation_reason: reason || null,
+        cancellation_reason: reasonValue,
         access_until: accessUntilIso || null,
       }).eq('id', authUser.id)
       await refreshUserPlan?.()
@@ -163,6 +168,26 @@ export default function Billing() {
     } catch (e) {
       console.error('[cancel]', e)
       showToast?.('Could not cancel — try again.', 'error')
+    }
+  }
+
+  async function handlePausePlan() {
+    // Pause = extend access window by 30 days, mark plan_status=paused.
+    // The webhook + check_and_reset_credits already gate refreshes on
+    // plan != 'free', so a paused plan keeps existing balance until
+    // the user resumes (we'd flip plan_status back to 'active').
+    setCancelOpen(false)
+    try {
+      const nextAccess = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      await supabase.from('profiles').update({
+        plan_status: 'paused',
+        access_until: nextAccess,
+      }).eq('id', authUser.id)
+      await refreshUserPlan?.()
+      showToast?.(`Plan paused for 30 days. Resume anytime from Billing.`, 'success')
+    } catch (e) {
+      console.error('[pause]', e)
+      showToast?.('Could not pause — try again.', 'error')
     }
   }
 
@@ -268,7 +293,8 @@ export default function Billing() {
         onClose={() => setCancelOpen(false)}
         plan={userPlan}
         renewalAt={resetDate}
-        onConfirm={(reason) => handleCancellationDone(reason, resetDate?.toISOString())}
+        onConfirm={(reason, feedback) => handleCancellationDone(reason, feedback, resetDate?.toISOString())}
+        onPause={handlePausePlan}
         isMobile={isMobile}
       />
 
@@ -636,57 +662,108 @@ function ChangePlanCard({ userPlan, onUpgrade, onDowngrade, isMobile, isTablet }
         gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr 1fr' : '1fr 1fr 1fr',
         gap: 12,
       }}>
-        {PLANS.map(p => {
-          const isCurrent = p === userPlan
-          const isUpgrade = PLANS.indexOf(p) > PLANS.indexOf(userPlan)
-          const pill = PLAN_PILL[p]
-          return (
-            <div key={p} style={{
-              background: 'var(--color-card)',
-              border: isCurrent ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-              borderRadius: 14, padding: 16,
-              display: 'flex', flexDirection: 'column', gap: 12,
-            }}>
-              <div>
-                <span style={pillStyle(pill)}>{pill.label}</span>
-                <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22, color: 'var(--color-text)', letterSpacing: '-0.03em' }}>
-                    {p === 'free' ? '$0' : '$' + PLAN_PRICES[p]}
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                    {p === 'free' ? '' : '/mo'}
-                  </span>
-                </div>
-              </div>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {PLAN_FEATURES[p].map(f => (
-                  <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--color-text)' }}>
-                    <CheckIcon style={{ width: 12, height: 12, color: '#16A34A', flexShrink: 0 }} />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button
-                disabled={isCurrent}
-                onClick={() => isUpgrade ? onUpgrade(p) : onDowngrade(p)}
-                style={{
-                  marginTop: 'auto',
-                  padding: '9px 12px',
-                  background: isCurrent ? 'var(--color-surface)' : isUpgrade ? 'linear-gradient(135deg, #7C3AED, #A855F7)' : 'transparent',
-                  color: isCurrent ? 'var(--color-text-muted)' : isUpgrade ? 'white' : 'var(--color-text)',
-                  border: isCurrent ? '1px solid var(--color-border)' : isUpgrade ? 'none' : '1px solid var(--color-border)',
-                  borderRadius: 10, cursor: isCurrent ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}
-              >
-                {isCurrent ? 'Current Plan' : isUpgrade ? <>Upgrade <ArrowRightIcon style={{ width: 12, height: 12 }} /></> : 'Downgrade'}
-              </button>
-            </div>
-          )
-        })}
+        {PLANS.map(p => (
+          <PlanComparisonCard
+            key={p}
+            plan={p}
+            userPlan={userPlan}
+            onUpgrade={onUpgrade}
+            onDowngrade={onDowngrade}
+          />
+        ))}
       </div>
     </Section>
+  )
+}
+
+function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
+  const [cardHover, setCardHover] = useState(false)
+  const [btnHover, setBtnHover] = useState(false)
+  const PLANS = ['free', 'starter', 'pro']
+  const isCurrent = plan === userPlan
+  const isUpgrade = PLANS.indexOf(plan) > PLANS.indexOf(userPlan)
+  const pill = PLAN_PILL[plan]
+
+  // Card hover: lift + accent border (current plan keeps its solid black border).
+  const cardBorder = isCurrent
+    ? '2px solid var(--color-text)'
+    : cardHover ? '1px solid #7C3AED' : '1px solid var(--color-border)'
+  const cardTransform = !isCurrent && cardHover ? 'translateY(-2px)' : 'translateY(0)'
+  const cardShadow = !isCurrent && cardHover ? '0 10px 28px rgba(124,58,237,0.15)' : '0 0 0 rgba(0,0,0,0)'
+
+  // Button hover: emphasise the affordance per variant.
+  const btnBase = {
+    marginTop: 'auto',
+    padding: '9px 12px',
+    borderRadius: 10,
+    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    cursor: isCurrent ? 'not-allowed' : 'pointer',
+    transition: 'background 0.15s, transform 0.15s, box-shadow 0.15s, border-color 0.15s, color 0.15s',
+  }
+  let btnStyle
+  if (isCurrent) {
+    btnStyle = { ...btnBase, background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }
+  } else if (isUpgrade) {
+    btnStyle = {
+      ...btnBase,
+      background: btnHover ? 'linear-gradient(135deg, #6D28D9, #9333EA)' : 'linear-gradient(135deg, #7C3AED, #A855F7)',
+      color: 'white', border: 'none',
+      transform: btnHover ? 'translateY(-1px)' : 'translateY(0)',
+      boxShadow: btnHover ? '0 6px 18px rgba(124,58,237,0.35)' : '0 2px 8px rgba(124,58,237,0.20)',
+    }
+  } else {
+    btnStyle = {
+      ...btnBase,
+      background: btnHover ? 'rgba(239,68,68,0.06)' : 'transparent',
+      color: btnHover ? '#EF4444' : 'var(--color-text)',
+      border: '1px solid ' + (btnHover ? '#EF4444' : 'var(--color-border)'),
+    }
+  }
+
+  return (
+    <div
+      onMouseEnter={() => setCardHover(true)}
+      onMouseLeave={() => setCardHover(false)}
+      style={{
+        background: 'var(--color-card)',
+        border: cardBorder,
+        borderRadius: 14, padding: 16,
+        display: 'flex', flexDirection: 'column', gap: 12,
+        transform: cardTransform,
+        boxShadow: cardShadow,
+        transition: 'transform 0.18s, box-shadow 0.18s, border-color 0.18s',
+      }}
+    >
+      <div>
+        <span style={pillStyle(pill)}>{pill.label}</span>
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22, color: 'var(--color-text)', letterSpacing: '-0.03em' }}>
+            {plan === 'free' ? '$0' : '$' + PLAN_PRICES[plan]}
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+            {plan === 'free' ? '' : '/mo'}
+          </span>
+        </div>
+      </div>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {PLAN_FEATURES[plan].map(f => (
+          <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--color-text)' }}>
+            <CheckIcon style={{ width: 12, height: 12, color: '#16A34A', flexShrink: 0 }} />
+            {f}
+          </li>
+        ))}
+      </ul>
+      <button
+        disabled={isCurrent}
+        onClick={() => isUpgrade ? onUpgrade(plan) : onDowngrade(plan)}
+        onMouseEnter={() => !isCurrent && setBtnHover(true)}
+        onMouseLeave={() => setBtnHover(false)}
+        style={btnStyle}
+      >
+        {isCurrent ? 'Current Plan' : isUpgrade ? <>Upgrade <ArrowRightIcon style={{ width: 12, height: 12 }} /></> : 'Downgrade'}
+      </button>
+    </div>
   )
 }
 
@@ -788,9 +865,11 @@ const REASON_OPTIONS = [
   { id: 'other',           label: 'Other' },
 ]
 
-function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, isMobile }) {
+function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, onPause, isMobile }) {
   const [step, setStep] = useState(1)
   const [reason, setReason] = useState(null)
+  const [feedback, setFeedback] = useState('')
+  const [pausing, setPausing] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -798,11 +877,19 @@ function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, isMobile
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
-  useEffect(() => { if (!open) { setStep(1); setReason(null) } }, [open])
+  useEffect(() => { if (!open) { setStep(1); setReason(null); setFeedback(''); setPausing(false) } }, [open])
 
   if (!open) return null
 
-  const hasRetention = reason === 'too_expensive' || reason === 'not_using' || reason === 'missing_feature'
+  // Step 2 ALWAYS shows now — the bug before was reasons with no
+  // retention offer skipped straight from step 1 to step 3, which made
+  // the "Step 1 of 3" pill misleading. Every reason gets a brief stop
+  // at step 2: retention offer for the three high-intent reasons, a
+  // free-text feedback box for the others ("Other" included).
+  const offerKind = reason === 'too_expensive' ? 'offer'
+    : reason === 'not_using' ? 'pause'
+    : reason === 'missing_feature' ? 'feedback'
+    : 'feedback'  // switching / just_testing / other → textarea
 
   return (
     <BottomSheetOrCenter isMobile={isMobile} onBackdrop={onClose}>
@@ -815,7 +902,11 @@ function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, isMobile
             }}>Step {step} of 3</div>
             <h2 style={{ margin: 0, fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
               {step === 1 && "We're sorry to see you go. Why are you leaving?"}
-              {step === 2 && (hasRetention ? 'Before you go…' : 'Confirm cancellation')}
+              {step === 2 && (
+                offerKind === 'offer'    ? 'Before you go…'
+                : offerKind === 'pause'  ? 'Pause instead?'
+                                         : 'Tell us more'
+              )}
               {step === 3 && 'Confirm cancellation'}
             </h2>
           </div>
@@ -841,19 +932,89 @@ function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, isMobile
                 </label>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={onClose} style={secondaryBtn(isMobile)}>Keep my subscription</button>
-              <button onClick={() => setStep(hasRetention ? 2 : 3)} disabled={!reason} style={primaryBtn(isMobile, !reason)}>
+              <button onClick={() => setStep(2)} disabled={!reason} style={primaryBtn(isMobile, !reason)}>
                 Continue
               </button>
             </div>
           </>
         )}
 
-        {step === 2 && hasRetention && (
+        {step === 2 && (
           <>
-            <RetentionOffer reason={reason} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            {offerKind === 'offer' && (
+              <div style={offerCardStyle()}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
+                  Stay for 1 month free, on us.
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                  We'll skip your next billing date. No charge, full features. Tap "Stay on plan" and we'll handle the rest.
+                </div>
+              </div>
+            )}
+
+            {offerKind === 'pause' && (
+              <div style={offerCardStyle()}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
+                  Pause your plan for 1 month?
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
+                  No charge while paused. Resume anytime — your projects, briefs, and history stay exactly where you left them.
+                </div>
+                <button
+                  onClick={async () => {
+                    setPausing(true)
+                    try { await onPause?.() } finally { setPausing(false) }
+                  }}
+                  disabled={pausing}
+                  style={{
+                    padding: '10px 16px',
+                    background: pausing ? 'var(--color-border)' : 'linear-gradient(135deg, #16A34A, #22C55E)',
+                    color: 'white', border: 'none', borderRadius: 10,
+                    cursor: pausing ? 'not-allowed' : 'pointer',
+                    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+                    width: isMobile ? '100%' : 'auto',
+                  }}
+                >
+                  {pausing ? 'Pausing…' : 'Pause plan'}
+                </button>
+              </div>
+            )}
+
+            {offerKind === 'feedback' && (
+              <div style={{
+                padding: 14,
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 11,
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
+                  {reason === 'missing_feature' ? 'What feature would keep you here?'
+                    : reason === 'switching' ? 'Which tool are you switching to?'
+                    : reason === 'just_testing' ? 'What were you hoping to find?'
+                    : 'Tell us why you\'re leaving'}
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 10 }}>
+                  Your feedback helps us prioritise what to build next. Totally optional.
+                </div>
+                <textarea
+                  value={feedback}
+                  onChange={e => setFeedback(e.target.value)}
+                  placeholder="Add your thoughts here…"
+                  rows={4}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                    borderRadius: 9, padding: '10px 12px', fontSize: 13,
+                    color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
+                    resize: 'vertical', outline: 'none',
+                  }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
               <button onClick={onClose} style={secondaryBtn(isMobile)}>Stay on plan</button>
               <button onClick={() => setStep(3)} style={{
                 background: 'transparent', border: 'none', color: 'var(--color-text-muted)',
@@ -878,9 +1039,9 @@ function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, isMobile
                 </li>
               ))}
             </ul>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={onClose} style={primaryBtn(isMobile)}>Keep my subscription</button>
-              <button onClick={() => onConfirm?.(reason)} style={{
+              <button onClick={() => onConfirm?.(reason, feedback)} style={{
                 background: 'transparent', border: 'none', color: '#EF4444',
                 fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 textDecoration: 'underline',
@@ -893,57 +1054,6 @@ function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, isMobile
       </div>
     </BottomSheetOrCenter>
   )
-}
-
-function RetentionOffer({ reason }) {
-  if (reason === 'too_expensive') {
-    return (
-      <div style={offerCardStyle()}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
-          Stay for 1 month free, on us.
-        </div>
-        <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-          We'll skip your next billing date. No charge, full features. Just hit "Stay on plan" — we'll handle the rest.
-        </div>
-      </div>
-    )
-  }
-  if (reason === 'not_using') {
-    return (
-      <div style={offerCardStyle()}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
-          Pause your plan for 1 month?
-        </div>
-        <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-          No charge while paused. Resume anytime — your projects, briefs, and history stay exactly where you left them.
-        </div>
-      </div>
-    )
-  }
-  if (reason === 'missing_feature') {
-    return (
-      <div style={offerCardStyle()}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
-          Tell us what you need.
-        </div>
-        <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 10 }}>
-          We're shipping new features every month. What's the one thing that would keep you here?
-        </div>
-        <textarea
-          placeholder="What feature would keep you here?"
-          rows={3}
-          style={{
-            width: '100%', boxSizing: 'border-box',
-            background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-            borderRadius: 9, padding: '10px 12px', fontSize: 13,
-            color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
-            resize: 'vertical', outline: 'none',
-          }}
-        />
-      </div>
-    )
-  }
-  return null
 }
 
 // ── Downgrade Modal ──────────────────────────────────────────────────
