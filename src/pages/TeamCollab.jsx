@@ -1384,7 +1384,7 @@ Return JSON:
   async function ensureProjectInDB(projectId) {
     if (!authUser || !projectId || projectId === 'default' || activeProject?.isShared) return
     const { error } = await supabase.from('projects').upsert(
-      { id: projectId, user_id: authUser.id, title: projectTitle || 'Team Project', updated_at: new Date().toISOString() },
+      { id: projectId, user_id: authUser.id, workspace_id: workspace?.id || null, title: projectTitle || 'Team Project', updated_at: new Date().toISOString() },
       { onConflict: 'id', ignoreDuplicates: true }
     )
     if (error) throw new Error('project upsert: ' + error.message)
@@ -2592,6 +2592,7 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
           const upsertRes = await supabase.from('projects').upsert({
             id: newId,
             user_id: authUser.id,
+            workspace_id: workspace?.id || null,
             title: trimmed,
             section: 'team',
             updated_at: new Date().toISOString(),

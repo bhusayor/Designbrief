@@ -736,7 +736,7 @@ STRICT OUTPUT RULES:
     const user = await requireUser(req, res)
     if (!user) return
 
-    const { project_id, updates } = req.body || {}
+    const { project_id, updates, workspace_id: bodyWorkspaceId } = req.body || {}
     if (!project_id || !updates || typeof updates !== 'object') {
       return res.status(400).json({ error: 'project_id and updates required' })
     }
@@ -797,11 +797,30 @@ STRICT OUTPUT RULES:
         patch.section = 'team'
       }
 
+      // For NEW rows pin the project to a workspace. The client sends its
+      // active workspace_id in the body; if it didn't, fall back to the
+      // user's earliest workspace so we never leave the column null going
+      // forward.
+      let ensureWorkspaceId = null
+      if (!existing) {
+        ensureWorkspaceId = bodyWorkspaceId || null
+        if (!ensureWorkspaceId) {
+          const { data: w } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('owner_id', user.id)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+          ensureWorkspaceId = w?.id || null
+        }
+      }
+
       // Preserve the original owner on UPDATEs — an Editor patching
       // brief / kanban must NOT silently overwrite user_id with their own.
       const upsertRow = existing
         ? { id: project_id, user_id: existing.user_id, ...patch }
-        : { id: project_id, user_id: user.id, ...patch }
+        : { id: project_id, user_id: user.id, workspace_id: ensureWorkspaceId, ...patch }
 
       const { data, error } = await supabase
         .from('projects')

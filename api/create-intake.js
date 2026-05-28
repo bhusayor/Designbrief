@@ -31,6 +31,7 @@ export default async function handler(req, res) {
       project_type,
       sections,
       user_id,
+      workspace_id,
       client_name,
       client_email,
     } = req.body
@@ -41,6 +42,21 @@ export default async function handler(req, res) {
       })
     }
 
+    // Tag the intake to a workspace so it only surfaces in that workspace.
+    // If the client didn't send one, default to the user's earliest
+    // workspace (matches the backfill convention for legacy rows).
+    let resolvedWorkspaceId = workspace_id || null
+    if (!resolvedWorkspaceId) {
+      const { data: w } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user_id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      resolvedWorkspaceId = w?.id || null
+    }
+
     const { data, error } = await supabase
       .from('intake_forms')
       .insert({
@@ -48,6 +64,7 @@ export default async function handler(req, res) {
         project_type: project_type || '',
         sections: sections || [],
         user_id,
+        workspace_id: resolvedWorkspaceId,
         status: 'sent',
         client_name: client_name || null,
         client_email: client_email || null,

@@ -923,7 +923,7 @@ function Screen3({ shareLink, onReset, onViewProjects }) {
 // ─── IntakeBuilder ────────────────────────────────────────────────────────────
 
 export default function IntakeBuilder() {
-  const { navigate, authUser, showToast } = useApp();
+  const { navigate, authUser, showToast, workspace } = useApp();
   const [screen, setScreen] = useState(1);
   const [projectType, setProjectType] = useState(null);
   const [projectName, setProjectName] = useState('');
@@ -959,6 +959,7 @@ export default function IntakeBuilder() {
           project_type: projectType?.id || '',
           sections: enabledSections,
           user_id: authUser.id,
+          workspace_id: workspace?.id || null,
           client_name: clientName || null,
           client_email: clientEmail || null,
         }),

@@ -355,7 +355,9 @@ export function AppProvider({ children }) {
         }));
       } catch {}
 
-      await loadProjectsFromDB(supabaseUser.id);
+      // Active workspace isn't loaded yet at this point; pass null and the
+      // workspace-scoped reload effect below picks it up once it is.
+      await loadProjectsFromDB(supabaseUser.id, null);
 
       // Skip loadWorkspace when a workspace invite is being accepted — doAccept will set the
       // workspace directly after the member insert commits, avoiding a race condition.
@@ -484,6 +486,9 @@ export function AppProvider({ children }) {
   }
 
   async function loadConnectorData(workspaceId) {
+    // Reset first so switching to a new workspace doesn't carry over the
+    // previous one's connector data.
+    setConnectorData({ figma: null, github: null, linear: null });
     try {
       const { data } = await supabase
         .from('connectors')
@@ -501,9 +506,9 @@ export function AppProvider({ children }) {
     }
   }
 
-  async function loadProjectsFromDB(userId) {
+  async function loadProjectsFromDB(userId, workspaceId) {
     try {
-      // 1. Projects this user owns
+      // 1. Projects this user owns in the active workspace.
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -530,7 +535,21 @@ export function AppProvider({ children }) {
         return 'Editor'
       }
 
-      const ownFormatted = (data || []).map(p => formatProjectRow(p, { currentUserRole: 'Admin' }));
+      // Filter projects to the active workspace. Rows with workspace_id=null
+      // were created before the schema migration — treat them as belonging to
+      // the user's primary workspace (the first one in the list) so existing
+      // data doesn't disappear on upgrade.
+      const primaryWsId = workspaces[0]?.id || null;
+      const inActiveWorkspace = (p) => {
+        if (!workspaceId) return true; // no active ws yet — show everything
+        if (p.workspace_id === workspaceId) return true;
+        if (p.workspace_id == null && workspaceId === primaryWsId) return true;
+        return false;
+      };
+
+      const ownFormatted = (data || [])
+        .filter(inActiveWorkspace)
+        .map(p => formatProjectRow(p, { currentUserRole: 'Admin' }));
       const ownIds = new Set(ownFormatted.map(p => p.id));
 
       // 2. Shared projects — where this user is a team_member but not the owner.
@@ -542,7 +561,7 @@ export function AppProvider({ children }) {
         .eq('status', 'active');
 
       const sharedFormatted = (memberData || [])
-        .filter(m => m.projects && !ownIds.has(m.project_id))
+        .filter(m => m.projects && !ownIds.has(m.project_id) && inActiveWorkspace(m.projects))
         .map(m => formatProjectRow(m.projects, {
           isShared: true,
           myRole: m.job_role,
@@ -671,7 +690,7 @@ export function AppProvider({ children }) {
         table: 'team_members',
         filter: `user_id=eq.${authUser.id}`,
       }, () => {
-        loadProjectsFromDB(authUser.id);
+        loadProjectsFromDB(authUser.id, workspace?.id);
       })
       .on('postgres_changes', {
         event: 'DELETE',
@@ -719,8 +738,12 @@ export function AppProvider({ children }) {
 
     const poll = () => {
       if (document.hidden || cancelled) return;
-      loadProjectsFromDB(authUser.id);
+      loadProjectsFromDB(authUser.id, workspace?.id);
     };
+
+    // Fire once immediately so switching workspaces shows the new contents
+    // before the next 5s tick.
+    poll();
 
     const interval = setInterval(poll, 5000);
     const onVisibility = () => { if (!document.hidden) poll(); };
@@ -733,7 +756,7 @@ export function AppProvider({ children }) {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', poll);
     };
-  }, [authUser?.id]);
+  }, [authUser?.id, workspace?.id]);
 
   // ── Intake forms ──────────────────────────────────────────────────────────
 
@@ -758,7 +781,18 @@ export function AppProvider({ children }) {
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
 
-      result = data || [];
+      // Scope to the active workspace. Legacy rows (workspace_id=null) belong
+      // to the user's earliest workspace by the backfill convention.
+      const primaryWsId = workspaces[0]?.id || null;
+      const activeWsId = workspace?.id || null;
+      const inActiveWorkspace = (f) => {
+        if (!activeWsId) return true;
+        if (f.workspace_id === activeWsId) return true;
+        if (f.workspace_id == null && activeWsId === primaryWsId) return true;
+        return false;
+      };
+
+      result = (data || []).filter(inActiveWorkspace);
       setIntakeForms(result);
     } catch (e) {
       console.error('[AppContext] loadIntakeForms error:', e);
@@ -778,7 +812,7 @@ export function AppProvider({ children }) {
         }
       });
     }
-  }, [authUser?.id]);
+  }, [authUser?.id, workspace?.id]);
 
   // Poll every 60 seconds for new completed submissions
   useEffect(() => {
@@ -956,6 +990,12 @@ export function AppProvider({ children }) {
       });
       localStorage.setItem('db-workspace', JSON.stringify(ws));
       setWorkspace(ws);
+      // Brand-new workspace = empty UI. The polling effect refetches once
+      // workspace?.id flips (it will find no rows for this workspace yet).
+      setProjects([]);
+      setHistory([]);
+      setActiveProjectState(null);
+      setIntakeForms([]);
       loadConnectorData(ws.id);
       showToast?.(`Workspace "${ws.name}" created`, 'success');
       return { ok: true, workspace: ws };
@@ -971,6 +1011,12 @@ export function AppProvider({ children }) {
     if (!ws) return false;
     localStorage.setItem('db-workspace', JSON.stringify(ws));
     setWorkspace(ws);
+    // Clear the old workspace's view immediately. The polling effect (gated
+    // on workspace?.id) refetches for the new workspace right away.
+    setProjects([]);
+    setHistory([]);
+    setActiveProjectState(null);
+    setIntakeForms([]);
     loadConnectorData(ws.id);
     return true;
   }, [workspaces]);
@@ -1251,7 +1297,7 @@ export function AppProvider({ children }) {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${accessToken}`,
             },
-            body: JSON.stringify({ project_id: id, updates }),
+            body: JSON.stringify({ project_id: id, updates, workspace_id: workspace?.id }),
           }),
           new Promise((_, rj) => setTimeout(() => rj(new Error('PATCH timed out after 10s')), 10000)),
         ]);
@@ -1323,6 +1369,7 @@ export function AppProvider({ children }) {
         const record = {
           id: entry.id,
           user_id: authUser.id,
+          workspace_id: workspace?.id || null,
           title: entry.title || 'Untitled',
           section: entry.section || 'translator',
           brief_text: entry.data?.brief || '',
@@ -1393,7 +1440,7 @@ export function AppProvider({ children }) {
           fetch('/api/create-workspace', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-            body: JSON.stringify({ project_id: id, updates: { title, section: 'translator' } }),
+            body: JSON.stringify({ project_id: id, updates: { title, section: 'translator' }, workspace_id: workspace?.id }),
           }),
           new Promise((_, rj) => setTimeout(() => rj(new Error('PATCH timed out')), 10000)),
         ]);
