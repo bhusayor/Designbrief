@@ -717,7 +717,7 @@ export default function Connectors({ embedded = false }) {
   return (
     <div style={{
       ...(embedded ? {} : { height: '100%', overflowY: 'auto' }),
-      padding: embedded ? 0 : (isMobile ? '20px 16px' : '28px 32px'),
+      padding: isMobile ? '20px 16px' : '28px 32px',
       fontFamily: "'Urbanist', sans-serif",
       boxSizing: 'border-box',
     }}>
