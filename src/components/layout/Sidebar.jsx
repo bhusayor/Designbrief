@@ -159,7 +159,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     user, signOut, authUser,
     setActiveProject, openProject,
     intakeForms,
-    workspace, workspaces, createWorkspace, switchWorkspace,
+    workspace, workspaces, createWorkspace, switchWorkspace, leaveWorkspace,
     userPlan, userCredits,
     creditsUsed, creditsLimit, creditsResetAt,
     openUpgradeModal,
@@ -1124,6 +1124,52 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
                 )}
               </button>
             )}
+
+            {/* Leave current workspace — disabled when only one workspace */}
+            {(() => {
+              const count = workspaces?.length ?? (workspace ? 1 : 0)
+              const disabled = count <= 1
+              return (
+                <button
+                  disabled={disabled}
+                  title={disabled ? 'You must keep at least one workspace' : `Leave "${workspace?.name || 'this workspace'}"`}
+                  onClick={async () => {
+                    if (disabled) return
+                    const name = workspace?.name || 'this workspace'
+                    if (!window.confirm(`Leave "${name}"? If you're the owner, the workspace and everything in it will be deleted.`)) return
+                    const r = await leaveWorkspace?.()
+                    if (r?.ok) setShowWorkspaceMenu(false)
+                  }}
+                  onMouseEnter={e => {
+                    if (disabled) return
+                    e.currentTarget.style.borderColor = '#DC2626'
+                    e.currentTarget.style.color = '#DC2626'
+                    e.currentTarget.style.background = 'rgba(220,38,38,0.06)'
+                  }}
+                  onMouseLeave={e => {
+                    if (disabled) return
+                    e.currentTarget.style.borderColor = 'var(--color-border)'
+                    e.currentTarget.style.color = 'var(--color-text-muted)'
+                    e.currentTarget.style.background = 'transparent'
+                  }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '7px 8px',
+                    marginTop: 6,
+                    background: 'transparent',
+                    border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
+                    color: disabled ? 'var(--color-text-muted)' : 'var(--color-text-soft)',
+                    opacity: disabled ? 0.5 : 1,
+                    transition: 'var(--transition-fast)',
+                  }}
+                >
+                  <ArrowRightStartOnRectangleIcon style={{ width: 13, height: 13 }} />
+                  Leave workspace
+                </button>
+              )
+            })()}
           </div>
         </div>
       </div>

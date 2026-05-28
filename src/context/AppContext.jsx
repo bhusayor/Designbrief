@@ -1006,6 +1006,53 @@ export function AppProvider({ children }) {
     }
   }, [session, userPlan, showToast]);
 
+  const leaveWorkspace = useCallback(async (id) => {
+    const targetId = id || workspace?.id;
+    if (!targetId) return { ok: false, reason: 'no_workspace' };
+    if (!session?.access_token) return { ok: false, reason: 'no_session' };
+    if ((workspaces?.length ?? 0) <= 1) {
+      showToast?.('You must keep at least one workspace.', 'warning');
+      return { ok: false, reason: 'last_workspace' };
+    }
+    try {
+      const res = await fetch('/api/create-workspace', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ kind: 'workspace', workspace_id: targetId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast?.(body.message || body.error || 'Failed to leave workspace', 'error');
+        return { ok: false, reason: body?.error || 'http_' + res.status };
+      }
+      // Drop the workspace from local state and switch to whichever is left.
+      const remaining = (workspaces || []).filter(w => w.id !== targetId);
+      try { localStorage.setItem('db-workspaces', JSON.stringify(remaining)); } catch {}
+      setWorkspaces(remaining);
+      const next = remaining[0] || null;
+      if (next) {
+        localStorage.setItem('db-workspace', JSON.stringify(next));
+      } else {
+        localStorage.removeItem('db-workspace');
+      }
+      setWorkspace(next);
+      setProjects([]);
+      setHistory([]);
+      setActiveProjectState(null);
+      setIntakeForms([]);
+      if (next?.id) loadConnectorData(next.id);
+      showToast?.(body.role === 'owner' ? 'Workspace deleted' : 'You left the workspace', 'success');
+      return { ok: true };
+    } catch (e) {
+      console.error('[leaveWorkspace]', e);
+      showToast?.('Failed to leave workspace', 'error');
+      return { ok: false, reason: 'exception' };
+    }
+  }, [session, workspace?.id, workspaces, showToast]);
+
   const switchWorkspace = useCallback((id) => {
     const ws = workspaces.find(w => w.id === id);
     if (!ws) return false;
@@ -1535,6 +1582,7 @@ export function AppProvider({ children }) {
     loadWorkspace,
     createWorkspace,
     switchWorkspace,
+    leaveWorkspace,
     workspaceLoading,
     workspaceLoadError,
 

@@ -836,6 +836,65 @@ STRICT OUTPUT RULES:
     }
   }
 
+  // ── DELETE: leave a workspace ───────────────────────────────────────────
+  // Body: { kind: 'workspace', workspace_id }
+  // Owner → cascade-deletes the workspace (and all its projects/intakes/
+  // members via FK ON DELETE CASCADE). Member → just removes their row from
+  // workspace_members. Always rejects if the caller has only one workspace.
+  if (req.method === 'DELETE' && (req.body?.kind === 'workspace' || req.query?.kind === 'workspace')) {
+    const user = await requireUser(req, res)
+    if (!user) return
+
+    const workspace_id = req.body?.workspace_id || req.query?.workspace_id
+    if (!workspace_id) return res.status(400).json({ error: 'workspace_id required' })
+
+    try {
+      // Count the caller's workspaces (owned + member). We never let them
+      // drop below 1 — they always need at least one to log into.
+      const { data: ownedList } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user.id)
+      const { data: memberList } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+      const ownedIds = new Set((ownedList || []).map(w => w.id))
+      const memberIds = new Set((memberList || []).map(m => m.workspace_id))
+      const totalIds = new Set([...ownedIds, ...memberIds])
+      if (totalIds.size <= 1) {
+        return res.status(400).json({
+          error: 'cannot_leave_last_workspace',
+          message: 'You must keep at least one workspace.',
+        })
+      }
+      if (!totalIds.has(workspace_id)) {
+        return res.status(403).json({ error: 'Not a member of this workspace' })
+      }
+
+      const isOwner = ownedIds.has(workspace_id)
+      if (isOwner) {
+        const { error } = await supabase
+          .from('workspaces')
+          .delete()
+          .eq('id', workspace_id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('workspace_members')
+          .delete()
+          .eq('workspace_id', workspace_id)
+          .eq('user_id', user.id)
+        if (error) throw error
+      }
+
+      return res.json({ ok: true, role: isOwner ? 'owner' : 'member' })
+    } catch (e) {
+      console.error('[create-workspace DELETE workspace]', e)
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
   // ── DELETE: delete a project the caller owns ────────────────────────────────
   // Body: { project_id }
   if (req.method === 'DELETE') {
