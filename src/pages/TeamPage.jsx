@@ -312,7 +312,7 @@ function StatusBadge({ status }) {
 
 // ── Invite Modal (inner) ──────────────────────────────────────────────────────
 
-function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, getHeaders }) {
+function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, getHeaders, memberCount = 0, memberCap = Infinity, planLabel = '', onUpgrade }) {
   const [emails, setEmails] = useState('')
   const [role, setRole] = useState('member')
   const [loading, setLoading] = useState(false)
@@ -334,6 +334,12 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
     if (!emailList.length) { setError('Enter at least one email'); return }
     const invalid = emailList.filter(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
     if (invalid.length) { setError('Invalid email: ' + invalid.join(', ')); return }
+    // Plan team-member cap: starter=2 per project. memberCount excludes
+    // the project Admin; we add emailList.length to project the new total.
+    if (Number.isFinite(memberCap) && memberCount + emailList.length > memberCap) {
+      onUpgrade?.()
+      return
+    }
 
     setLoading(true); setError(''); setSuccess('')
     try {
@@ -404,8 +410,22 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: 3 }}>
-              {isProjectMode ? 'Invite to project' : 'Invite members'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', color: 'var(--color-text)' }}>
+                {isProjectMode ? 'Invite to project' : 'Invite members'}
+              </div>
+              {isProjectMode && Number.isFinite(memberCap) && (
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.04em', textTransform: 'uppercase',
+                  padding: '2px 7px', borderRadius: 100,
+                  background: memberCount >= memberCap ? 'rgba(220,38,38,0.10)' : 'var(--color-surface)',
+                  border: '1px solid ' + (memberCount >= memberCap ? 'rgba(220,38,38,0.30)' : 'var(--color-border)'),
+                  color: memberCount >= memberCap ? '#DC2626' : 'var(--color-text-muted)',
+                }}>
+                  {memberCount}/{memberCap} {planLabel || 'plan'}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
               {isProjectMode
@@ -1574,16 +1594,29 @@ export default function TeamPage({ onClose, projectId, projectName }) {
         </div>
       </div>
 
-      {showInviteModal && (
-        <InviteModal
-          workspaceId={workspace?.id}
-          projectId={projectId}
-          projectName={projectName}
-          onClose={() => setShowInviteModal(false)}
-          onSent={loadData}
-          getHeaders={getAuthHeaders}
-        />
-      )}
+      {showInviteModal && (() => {
+        // Member-cap math: in project mode the Admin row (isCreator)
+        // is not counted toward the per-project cap.
+        const nonAdminCount = (apiMembers || []).filter(m => !m.isCreator).length
+        const cap = userPlan === 'starter' ? 2 : userPlan === 'pro' ? 10 : Infinity
+        return (
+          <InviteModal
+            workspaceId={workspace?.id}
+            projectId={projectId}
+            projectName={projectName}
+            onClose={() => setShowInviteModal(false)}
+            onSent={loadData}
+            getHeaders={getAuthHeaders}
+            memberCount={isProjectMode ? nonAdminCount : 0}
+            memberCap={isProjectMode ? cap : Infinity}
+            planLabel={userPlan === 'starter' ? 'Starter' : userPlan === 'pro' ? 'Pro' : 'Free'}
+            onUpgrade={() => {
+              setShowInviteModal(false)
+              openUpgradeModal?.('team_members')
+            }}
+          />
+        )
+      })()}
 
       {/* Row actions dropdown — portal to escape overflow:auto clipping.
           Two flavours, dispatched on the openMenuId prefix:

@@ -50,7 +50,7 @@ function PanelLeftOpen({ size = 15, color = 'currentColor' }) {
 
 // ─── NavItem with tooltip ──────────────────────────────────────────────────────
 
-function NavItem({ icon: Icon, label, active, onClick, collapsed, badge }) {
+function NavItem({ icon: Icon, label, active, onClick, collapsed, badge, locked }) {
   const [hovered, setHovered] = useState(false)
   const [tooltipTop, setTooltipTop] = useState(0)
   const btnRef = useRef()
@@ -100,7 +100,7 @@ function NavItem({ icon: Icon, label, active, onClick, collapsed, badge }) {
             {label}
           </span>
         )}
-        {!collapsed && badge > 0 && (
+        {!collapsed && badge > 0 && !locked && (
           <div style={{
             background: '#16a34a',
             color: 'white',
@@ -114,6 +114,9 @@ function NavItem({ icon: Icon, label, active, onClick, collapsed, badge }) {
           }}>
             {badge > 9 ? '9+' : badge}
           </div>
+        )}
+        {!collapsed && locked && (
+          <LockClosedIcon style={{ width: 12, height: 12, marginLeft: 'auto', color: '#7C3AED', flexShrink: 0 }} />
         )}
       </button>
 
@@ -158,7 +161,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     intakeForms,
     workspace,
     userPlan, userCredits,
-    creditsUsed, creditsLimit,
+    creditsUsed, creditsLimit, creditsResetAt,
     openUpgradeModal,
   } = useContext(AppContext)
 
@@ -515,9 +518,18 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           icon={ClipboardDocumentListIcon}
           label="Client Intake"
           active={activeSection === 'intake'}
-          onClick={() => { navigate('intake'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
+          onClick={() => {
+            // Pro-only — Free + Starter open the upgrade modal instead
+            // of navigating to the intake builder.
+            if (userPlan === 'free' || userPlan === 'starter') {
+              openUpgradeModal?.('client_intake')
+              return
+            }
+            navigate('intake'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false)
+          }}
           collapsed={collapsed}
           badge={readyCount}
+          locked={userPlan === 'free' || userPlan === 'starter'}
         />
         <NavItem
           icon={RectangleStackIcon}
@@ -592,18 +604,31 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         <div style={{ flex: 1 }} />
       )}
 
-      {/* ── Credits + Upgrade (Free plan only, desktop/tablet) ────────────── */}
-      {!collapsed && userPlan === 'free' && !isMobile && (() => {
+      {/* ── Credits + Upgrade (Free + Starter only, desktop/tablet) ───────── */}
+      {!collapsed && (userPlan === 'free' || userPlan === 'starter') && !isMobile && (() => {
         const remaining = Math.max(0, Math.min(creditsLimit, userCredits ?? 0))
         const usedAmount = Math.max(0, creditsLimit - remaining)
         const pct = creditsLimit > 0 ? (usedAmount / creditsLimit) * 100 : 0
+        // Thresholds scale with the plan cap. Free: <10 / <20.
+        // Starter (300 cap): <30 / <60 — i.e. 10% red, 20% yellow.
+        const dangerAt = Math.max(5, Math.round(creditsLimit * 0.10))
+        const lowAt   = Math.max(10, Math.round(creditsLimit * 0.20))
         const exhausted = remaining <= 0
-        const critical = remaining > 0 && remaining < 10
-        const low = !critical && !exhausted && remaining <= 20
+        const critical = remaining > 0 && remaining < dangerAt
+        const low = !critical && !exhausted && remaining < lowAt
         const barColor = exhausted || critical
           ? '#EF4444'
           : low ? '#FBBF24' : 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-2) 100%)'
         const countColor = exhausted || critical ? '#EF4444' : low ? '#B45309' : 'var(--color-text-muted)'
+        // Starter resets every 30 days. AppContext exposes creditsResetAt.
+        let daysToReset = null
+        if (userPlan === 'starter' && creditsResetAt) {
+          const last = new Date(creditsResetAt).getTime()
+          if (!Number.isNaN(last)) {
+            const next = last + 30 * 24 * 60 * 60 * 1000
+            daysToReset = Math.max(0, Math.ceil((next - Date.now()) / (24 * 60 * 60 * 1000)))
+          }
+        }
         return (
           <div style={{
             margin: '0 8px 8px',
@@ -640,17 +665,17 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
             }}>
               {exhausted ? `0 / ${creditsLimit} · Credits used up`
                 : `${remaining} / ${creditsLimit} credits remaining`}
+              {userPlan === 'starter' && daysToReset != null && !exhausted && (
+                <div style={{ marginTop: 4, color: 'var(--color-text-muted)' }}>
+                  Resets in {daysToReset} day{daysToReset === 1 ? '' : 's'}
+                </div>
+              )}
               {exhausted && (
                 <div style={{ marginTop: 4, color: '#EF4444', fontWeight: 600 }}>
                   Upgrade to continue using AI features
                 </div>
               )}
-              {!exhausted && critical && (
-                <div style={{ marginTop: 4, color: '#B45309', fontWeight: 600 }}>
-                  Running low — upgrade to get more
-                </div>
-              )}
-              {!exhausted && low && (
+              {!exhausted && (critical || low) && (
                 <div style={{ marginTop: 4, color: '#B45309', fontWeight: 600 }}>
                   Running low — upgrade to get more
                 </div>
@@ -680,7 +705,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <BoltIcon style={{ width: 12, height: 12 }} />
-                Upgrade
+                {userPlan === 'starter' ? 'Upgrade to Pro' : 'Upgrade'}
               </div>
               <ArrowRightIcon style={{ width: 12, height: 12, opacity: 0.8 }} />
             </button>

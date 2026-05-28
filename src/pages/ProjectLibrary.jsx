@@ -623,10 +623,14 @@ export default function ProjectLibrary() {
         {/* ── All Projects tab ──────────────────────────────────────────────── */}
         {activeTab === 'projects' && (
           <>
-            {/* Free-plan project-limit banner */}
-            {userPlan === 'free' && (() => {
+            {/* Project-limit banner (Free 2/2 or Starter 10/10) */}
+            {(() => {
+              const cap = userPlan === 'free' ? 2 : userPlan === 'starter' ? 10 : Infinity
+              if (!Number.isFinite(cap)) return null
               const owned = (history || []).filter(p => !p.isShared).length
-              if (owned < 2) return null
+              if (owned < cap) return null
+              const planLabel = userPlan === 'free' ? 'free-plan' : 'Starter plan'
+              const ctaLabel = userPlan === 'starter' ? 'Upgrade to Pro →' : 'Upgrade →'
               return (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 12,
@@ -638,8 +642,10 @@ export default function ProjectLibrary() {
                 }}>
                   <LockClosedIcon style={{ width: 16, height: 16, color: '#7C3AED', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, flex: 1, fontFamily: "'Urbanist', sans-serif", fontSize: 13, color: 'var(--color-text)' }}>
-                    You've reached the free-plan project limit ({owned}/2).
-                    <span style={{ color: 'var(--color-text-muted)' }}> Upgrade to add more projects.</span>
+                    You've reached the {planLabel} project limit ({owned}/{cap}).
+                    <span style={{ color: 'var(--color-text-muted)' }}>
+                      {' '}Upgrade {userPlan === 'starter' ? 'to Pro for unlimited projects.' : 'to add more projects.'}
+                    </span>
                   </div>
                   <button
                     onClick={() => openUpgradeModal?.('projects')}
@@ -651,7 +657,7 @@ export default function ProjectLibrary() {
                       fontFamily: "'Urbanist', sans-serif", fontSize: 12, fontWeight: 700,
                       whiteSpace: 'nowrap',
                     }}>
-                    Upgrade →
+                    {ctaLabel}
                   </button>
                 </div>
               )

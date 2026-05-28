@@ -22,19 +22,22 @@ export const PLANS = {
   },
   starter: {
     name: 'Starter',
+    price: 12,
     credits: 300,
     creditsRefresh: true,
+    creditsResetDay: 1,
     projects: 10,
     workspaces: 1,
     teamMembers: 2,
     briefHistory: Infinity,
     export: 'clean',
+    shareableLink: true,
     clientIntake: false,
     customTemplates: false,
     whiteLabel: false,
     docxExport: false,
     aiFeatures: [
-      'basic_translation',
+      'brief_translation',
       'kanban_generation',
       'ai_task_prompts',
       'moodboard_direction',
@@ -92,4 +95,35 @@ export function planBadgeLabel(planKey) {
   if (planKey === 'starter') return 'Starter'
   if (planKey === 'pro') return 'Pro ✦'
   return 'Free plan'
+}
+
+// Convenience: limit getters used in gate checks.
+export function projectLimit(planKey) {
+  const p = PLANS[planKey] || PLANS.free
+  return p.projects
+}
+export function teamMemberLimit(planKey) {
+  const p = PLANS[planKey] || PLANS.free
+  return p.teamMembers
+}
+export function workspaceLimit(planKey) {
+  const p = PLANS[planKey] || PLANS.free
+  return p.workspaces
+}
+export function creditCap(planKey) {
+  const p = PLANS[planKey] || PLANS.free
+  return p.credits
+}
+
+// Days until the credit balance refreshes. credits_reset_at is the
+// timestamp of the most recent refresh; the next refresh fires 30 days
+// later. Returns null for the Free plan (no refresh).
+export function daysUntilCreditReset(planKey, creditsResetAt) {
+  if (!creditsResetAt) return null
+  const p = PLANS[planKey]
+  if (!p?.creditsRefresh) return null
+  const last = new Date(creditsResetAt).getTime()
+  if (Number.isNaN(last)) return null
+  const next = last + 30 * 24 * 60 * 60 * 1000
+  return Math.max(0, Math.ceil((next - Date.now()) / (24 * 60 * 60 * 1000)))
 }

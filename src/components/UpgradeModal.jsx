@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
+import AppContext from '../context/AppContext'
 import {
   XMarkIcon,
   BoltIcon,
@@ -7,6 +8,9 @@ import {
   UsersIcon,
   ClockIcon,
   DocumentArrowDownIcon,
+  DocumentTextIcon,
+  ClipboardDocumentListIcon,
+  LinkIcon,
   SparklesIcon,
   ArrowRightIcon,
   CheckIcon,
@@ -47,9 +51,39 @@ const REASONS = {
     message: 'Upgrade to export clean, professional PDFs with your branding instead of the free-plan watermark.',
   },
   intake: {
+    Icon: ClipboardDocumentListIcon,
+    headline: 'Client Intake is Pro only',
+    message: 'Send professional intake forms to clients and auto-generate briefs from their responses.',
+    proOnly: true,
+  },
+  client_intake: {
+    Icon: ClipboardDocumentListIcon,
+    headline: 'Client Intake is Pro only',
+    message: 'Send professional intake forms to clients and auto-generate briefs from their responses.',
+    proOnly: true,
+  },
+  custom_templates: {
     Icon: SparklesIcon,
-    headline: 'Client intake is a paid feature',
-    message: 'Send intake forms to clients and collect briefs automatically. Available on Pro.',
+    headline: 'Custom Templates is Pro only',
+    message: 'Build your own brief structure. The AI will follow your exact format every time.',
+    proOnly: true,
+  },
+  white_label: {
+    Icon: DocumentArrowDownIcon,
+    headline: 'White-label export is Pro only',
+    message: 'Replace the DesignBrief watermark with your own logo and brand on every PDF.',
+    proOnly: true,
+  },
+  docx_export: {
+    Icon: DocumentTextIcon,
+    headline: 'DOCX export is Pro only',
+    message: 'Download your brief as a fully-formatted Word document, ready for handoff.',
+    proOnly: true,
+  },
+  shareable_link: {
+    Icon: LinkIcon,
+    headline: 'Shareable links are a paid feature',
+    message: 'Share your brief as a beautiful public page. Available on Starter and Pro.',
   },
   general: {
     Icon: SparklesIcon,
@@ -79,6 +113,9 @@ const PRO_FEATURES = [
 // Single source for both the modal trigger (from any page via
 // AppContext.openUpgradeModal) and the click handlers.
 export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
+  const ctx = useContext(AppContext)
+  const currentPlan = ctx?.userPlan || 'free'
+
   useEffect(() => {
     if (!open) return
     function onKey(e) { if (e.key === 'Escape') onClose?.() }
@@ -89,6 +126,13 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
   if (!open) return null
   const info = REASONS[reason] || REASONS.general
   const Icon = info.Icon
+
+  // Hide Starter when the user is already on it OR the reason is a Pro-
+  // only feature (intake / custom_templates / white_label / docx).
+  // A Free user hitting team_members sees both cards. A Starter user
+  // hitting any cap sees Pro only.
+  const showStarter = currentPlan === 'free' && !info.proOnly
+  const showPro = true
 
   function pickPlan(plan) {
     if (onUpgrade) return onUpgrade(plan)
@@ -163,28 +207,36 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
         <div style={{
           padding: '18px 24px 22px',
           display: 'grid',
-          gridTemplateColumns: window.innerWidth < 560 ? '1fr' : '1fr 1fr',
+          gridTemplateColumns: showStarter && showPro
+            ? (window.innerWidth < 560 ? '1fr' : '1fr 1fr')
+            : '1fr',
           gap: 12,
+          maxWidth: showStarter && showPro ? '100%' : 380,
+          margin: showStarter && showPro ? undefined : '0 auto',
         }}>
-          <PlanCard
-            name="Starter"
-            price="$12"
-            interval="/mo"
-            features={STARTER_FEATURES}
-            ctaLabel="Upgrade to Starter"
-            ctaVariant="outline"
-            onClick={() => pickPlan('starter')}
-          />
-          <PlanCard
-            name="Pro"
-            price="$29"
-            interval="/mo"
-            features={PRO_FEATURES}
-            mostPopular
-            ctaLabel="Upgrade to Pro"
-            ctaVariant="primary"
-            onClick={() => pickPlan('pro')}
-          />
+          {showStarter && (
+            <PlanCard
+              name="Starter"
+              price="$12"
+              interval="/mo"
+              features={STARTER_FEATURES}
+              ctaLabel="Upgrade to Starter"
+              ctaVariant="outline"
+              onClick={() => pickPlan('starter')}
+            />
+          )}
+          {showPro && (
+            <PlanCard
+              name="Pro"
+              price="$29"
+              interval="/mo"
+              features={PRO_FEATURES}
+              mostPopular
+              ctaLabel="Upgrade to Pro"
+              ctaVariant="primary"
+              onClick={() => pickPlan('pro')}
+            />
+          )}
         </div>
 
         {/* Maybe later */}

@@ -2493,10 +2493,13 @@ Write a focused 300-400 word prompt covering: scope, design tokens, layout, comp
   // (renameProjectInDB → PATCH /api/create-workspace) which upserts the
   // row server-side — same path that fixed cross-device rename sync.
   async function handleNewProject() {
-    // Free-plan limit: 2 projects total (counts both owned + shared).
-    if (userPlan === 'free') {
+    // Plan project limit: free=2, starter=10, pro=Infinity. Counts owned
+    // projects only (shared projects don't count against the cap).
+    const { projectLimit } = await import('../lib/plans.js')
+    const cap = projectLimit(userPlan)
+    if (Number.isFinite(cap)) {
       const ownedCount = (ctxProjects || []).filter(p => !p.isShared).length
-      if (ownedCount >= 2) {
+      if (ownedCount >= cap) {
         openUpgradeModal?.('projects')
         return
       }

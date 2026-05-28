@@ -126,6 +126,7 @@ export function AppProvider({ children }) {
   const [userCredits, setUserCredits] = useState(FREE_DAILY_LIMIT);
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsLimit, setCreditsLimit] = useState(FREE_DAILY_LIMIT);
+  const [creditsResetAt, setCreditsResetAt] = useState(null);
 
   // ── Upgrade modal global trigger ──────────────────────────────────────────
   // Any page can call openUpgradeModal('projects' | 'credits' | …) and the
@@ -259,6 +260,15 @@ export function AppProvider({ children }) {
     setAuthUser(supabaseUser);
 
     try {
+      // Best-effort monthly credits reset for paid plans. The RPC is a
+      // no-op for Free and idempotent (only resets after 30 days). It
+      // exists on Pro Supabase projects after the migration in
+      // supabase/starter-plan.sql is applied; if it isn't there yet,
+      // the call fails silently and we just read the existing row.
+      try {
+        await supabase.rpc('check_and_reset_credits', { user_id: supabaseUser.id })
+      } catch {}
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -295,6 +305,7 @@ export function AppProvider({ children }) {
       setCreditsLimit(planCap);
       setUserCredits(typeof profile?.credits === 'number' ? profile.credits : planCap);
       setCreditsUsed(profile?.credits_used ?? 0);
+      setCreditsResetAt(profile?.credits_reset_at || null);
       localStorage.setItem('db-user', JSON.stringify(updatedUser));
 
       await loadProjectsFromDB(supabaseUser.id);
@@ -1300,6 +1311,7 @@ export function AppProvider({ children }) {
     setUserCredits,
     creditsUsed,
     creditsLimit,
+    creditsResetAt,
     setCreditsUsed,
 
     // Upgrade modal
