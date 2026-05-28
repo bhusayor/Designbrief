@@ -651,6 +651,42 @@ export default function TeamCollab() {
 
   const [activeSuggestions, setActiveSuggestions] = useState([])
 
+  // ── Workspace switch: reset all local TeamCollab state ────────────────────
+  // The localStorage caches (teamcollab-projects, teamcollab-active-project,
+  // tc-cols-*, tc-project-*) survive a workspace switch and would otherwise
+  // show the previous workspace's projects and tasks. When workspace.id
+  // flips after first mount, wipe the local state so the AppContext sync
+  // effect repopulates from the new workspace's ctxProjects.
+  const prevWorkspaceIdRef = useRef(workspace?.id)
+  useEffect(() => {
+    const prev = prevWorkspaceIdRef.current
+    const curr = workspace?.id
+    prevWorkspaceIdRef.current = curr
+    if (!curr || !prev || prev === curr) return
+
+    setProjects([{ id: 'default', title: 'My Project' }])
+    setActiveProjectId('default')
+    setKanban({ tasks: [], projectTimeline: '', unassignedTasks: [], missingRoles: [] })
+    setCustomCols([
+      { id: 'To Do',       label: 'To Do',       color: '#6B7280' },
+      { id: 'In Progress', label: 'In Progress', color: '#3B82F6' },
+      { id: 'Review',      label: 'Review',      color: '#F59E0B' },
+      { id: 'Done',        label: 'Done',        color: '#16a34a' },
+    ])
+    setProjectTitle('')
+    seenCtxProjectIdsRef.current = new Set()
+    confirmedRemoteIdsRef.current = new Set()
+    localChangeAtRef.current = new Map()
+
+    try {
+      localStorage.removeItem('teamcollab-projects')
+      localStorage.removeItem('teamcollab-active-project')
+      // tc-project-* and tc-cols-* are keyed by project id; the new
+      // workspace has no projects yet, so leave them — they'll get pruned
+      // naturally as their projects are loaded/deleted.
+    } catch {}
+  }, [workspace?.id])
+
   // ── Connector status ───────────────────────────────────────────────────────
   useEffect(() => {
     if (workspace?.id && authUser?.id) loadConnectorStatus()
