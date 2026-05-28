@@ -121,15 +121,32 @@ export function AppProvider({ children }) {
   // userPlan: 'free' | 'starter' | 'pro' — single source of truth read from
   // profiles.plan on auth. userCredits is the remaining balance; the sidebar
   // bar and every gate read from these.
+  // Seeded from db-plan-state so a refresh doesn't flicker "Free + Upgrade"
+  // before the Supabase profile fetch resolves.
   const FREE_DAILY_LIMIT = 50;
-  const [userPlan, setUserPlan] = useState('free');
-  const [userCredits, setUserCredits] = useState(FREE_DAILY_LIMIT);
-  const [creditsUsed, setCreditsUsed] = useState(0);
-  const [creditsLimit, setCreditsLimit] = useState(FREE_DAILY_LIMIT);
-  const [creditsResetAt, setCreditsResetAt] = useState(null);
-  const [planStatus, setPlanStatus] = useState('active');
-  const [accessUntil, setAccessUntil] = useState(null);
-  const [planStartedAt, setPlanStartedAt] = useState(null);
+  const cachedPlanState = (() => {
+    try {
+      const raw = localStorage.getItem('db-plan-state');
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      const planKey = ['free', 'starter', 'pro'].includes(String(p?.plan || '').toLowerCase())
+        ? String(p.plan).toLowerCase() : null;
+      if (!planKey) return null;
+      return { ...p, plan: planKey };
+    } catch { return null; }
+  })();
+  const seededPlan = cachedPlanState?.plan || 'free';
+  const seededCap = seededPlan === 'pro' ? 1000 : seededPlan === 'starter' ? 300 : FREE_DAILY_LIMIT;
+  const [userPlan, setUserPlan] = useState(seededPlan);
+  const [userCredits, setUserCredits] = useState(
+    typeof cachedPlanState?.credits === 'number' ? cachedPlanState.credits : seededCap
+  );
+  const [creditsUsed, setCreditsUsed] = useState(cachedPlanState?.creditsUsed ?? 0);
+  const [creditsLimit, setCreditsLimit] = useState(cachedPlanState?.creditsLimit ?? seededCap);
+  const [creditsResetAt, setCreditsResetAt] = useState(cachedPlanState?.creditsResetAt || null);
+  const [planStatus, setPlanStatus] = useState(cachedPlanState?.planStatus || 'active');
+  const [accessUntil, setAccessUntil] = useState(cachedPlanState?.accessUntil || null);
+  const [planStartedAt, setPlanStartedAt] = useState(cachedPlanState?.planStartedAt || null);
 
   // ── Upgrade modal global trigger ──────────────────────────────────────────
   // Any page can call openUpgradeModal('projects' | 'credits' | …) and the
@@ -230,6 +247,7 @@ export function AppProvider({ children }) {
           setSession(null);
           setWorkspace(null);
           localStorage.removeItem('db-workspace');
+          localStorage.removeItem('db-plan-state');
           setWorkspaceLoading(false);
           setCreditsUsed(0);
           setUser({
@@ -305,14 +323,28 @@ export function AppProvider({ children }) {
       // PLANS.<plan>.credits is the cap; profile.credits is the live balance.
       // Fall back to the free cap when the column hasn't been added yet.
       const planCap = planKey === 'pro' ? 1000 : planKey === 'starter' ? 300 : 50;
+      const credits = typeof profile?.credits === 'number' ? profile.credits : planCap;
+      const creditsUsedVal = profile?.credits_used ?? 0;
       setCreditsLimit(planCap);
-      setUserCredits(typeof profile?.credits === 'number' ? profile.credits : planCap);
-      setCreditsUsed(profile?.credits_used ?? 0);
+      setUserCredits(credits);
+      setCreditsUsed(creditsUsedVal);
       setCreditsResetAt(profile?.credits_reset_at || null);
       setPlanStatus(profile?.plan_status || 'active');
       setAccessUntil(profile?.access_until || null);
       setPlanStartedAt(profile?.plan_started_at || null);
       localStorage.setItem('db-user', JSON.stringify(updatedUser));
+      try {
+        localStorage.setItem('db-plan-state', JSON.stringify({
+          plan: planKey,
+          credits,
+          creditsUsed: creditsUsedVal,
+          creditsLimit: planCap,
+          creditsResetAt: profile?.credits_reset_at || null,
+          planStatus: profile?.plan_status || 'active',
+          accessUntil: profile?.access_until || null,
+          planStartedAt: profile?.plan_started_at || null,
+        }));
+      } catch {}
 
       await loadProjectsFromDB(supabaseUser.id);
 
@@ -803,10 +835,12 @@ export function AppProvider({ children }) {
       const rawPlan = String(profile.plan || 'free').toLowerCase();
       const planKey = ['free', 'starter', 'pro'].includes(rawPlan) ? rawPlan : 'free';
       const planCap = planKey === 'pro' ? 1000 : planKey === 'starter' ? 300 : 50;
+      const credits = typeof profile.credits === 'number' ? profile.credits : planCap;
+      const creditsUsedVal = profile.credits_used ?? 0;
       setUserPlan(planKey);
       setCreditsLimit(planCap);
-      setUserCredits(typeof profile.credits === 'number' ? profile.credits : planCap);
-      setCreditsUsed(profile.credits_used ?? 0);
+      setUserCredits(credits);
+      setCreditsUsed(creditsUsedVal);
       setCreditsResetAt(profile.credits_reset_at || null);
       setPlanStatus(profile.plan_status || 'active');
       setAccessUntil(profile.access_until || null);
@@ -814,6 +848,18 @@ export function AppProvider({ children }) {
       // Also bump the cached user object's plan so anything reading
       // user.plan (rare but legacy) stays consistent.
       setUser(prev => prev ? { ...prev, plan: planKey } : prev);
+      try {
+        localStorage.setItem('db-plan-state', JSON.stringify({
+          plan: planKey,
+          credits,
+          creditsUsed: creditsUsedVal,
+          creditsLimit: planCap,
+          creditsResetAt: profile.credits_reset_at || null,
+          planStatus: profile.plan_status || 'active',
+          accessUntil: profile.access_until || null,
+          planStartedAt: profile.plan_started_at || null,
+        }));
+      } catch {}
       return profile;
     } catch (e) {
       console.error('[refreshUserPlan]', e);
@@ -830,7 +876,7 @@ export function AppProvider({ children }) {
 
     // Remove the exact key Supabase uses (storageKey: 'designbrief-auth-v1')
     // plus any legacy sb-* keys and app state.
-    ['designbrief-auth-v1', 'db-workspace', 'db-workspace-history'].forEach(k =>
+    ['designbrief-auth-v1', 'db-workspace', 'db-workspace-history', 'db-plan-state'].forEach(k =>
       localStorage.removeItem(k)
     );
     Object.keys(localStorage).forEach(k => {
@@ -870,7 +916,14 @@ export function AppProvider({ children }) {
       }
       const remaining = r.creditsRemaining ?? 0
       setUserCredits(remaining)
-      setCreditsUsed(prev => (r.used ?? prev))
+      setCreditsUsed(prev => {
+        const next = r.used ?? prev
+        try {
+          const cur = JSON.parse(localStorage.getItem('db-plan-state') || '{}')
+          localStorage.setItem('db-plan-state', JSON.stringify({ ...cur, credits: remaining, creditsUsed: next }))
+        } catch {}
+        return next
+      })
       // Log into credit_usage_log so the Billing page can group by action.
       // RLS lets the user insert their own rows; failures here must NOT
       // block the AI action that just succeeded.
