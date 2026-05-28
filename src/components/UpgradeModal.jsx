@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -122,6 +122,10 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
   const refreshAuthUser = ctx?.refreshAuthUser
   const refreshUserPlan = ctx?.refreshUserPlan
 
+  // Annual gets a 25% discount baked into the Flutterwave charge.
+  // 12 × $12 × 0.75 = $108/yr for Starter ; 12 × $29 × 0.75 = $261/yr for Pro.
+  const [cycle, setCycle] = useState('monthly') // 'monthly' | 'annual'
+
   useEffect(() => {
     if (!open) return
     function onKey(e) { if (e.key === 'Escape') onClose?.() }
@@ -160,8 +164,14 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
       showToast?.('Payment SDK still loading — try again in a moment.', 'info')
       return
     }
-    const amount = plan === 'pro' ? 29 : 12
-    const tx_ref = `db_${authUser.id}_${plan}_${Date.now()}`
+    // Monthly: $12 Starter / $29 Pro. Annual: 25% off the 12-month total
+    // (12 * monthly * 0.75). tx_ref embeds the cycle so the webhook +
+    // verify_payment can log the right billing_cycle in billing_history.
+    const monthly = plan === 'pro' ? 29 : 12
+    const amount = cycle === 'annual'
+      ? Math.round(monthly * 12 * 0.75 * 100) / 100
+      : monthly
+    const tx_ref = `db_${authUser.id}_${plan}_${cycle}_${Date.now()}`
 
     // Tracks whether the callback already verified + granted the plan,
     // so the onclose handler doesn't duplicate the work.
@@ -220,11 +230,11 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
         name: user?.name || authUser?.user_metadata?.full_name || authUser.email,
       },
       customizations: {
-        title: 'DesignBrief AI — ' + (plan === 'pro' ? 'Pro' : 'Starter'),
-        description: plan === 'pro' ? 'Unlimited projects + 1,000 credits' : '10 projects + 300 credits',
+        title: 'DesignBrief AI — ' + (plan === 'pro' ? 'Pro' : 'Starter') + (cycle === 'annual' ? ' (Annual)' : ''),
+        description: (plan === 'pro' ? 'Unlimited projects + 1,000 credits' : '10 projects + 300 credits') + (cycle === 'annual' ? ' · 25% off' : ''),
         logo: 'https://designbrief-vert.vercel.app/favicon.svg',
       },
-      meta: { user_id: authUser.id, plan },
+      meta: { user_id: authUser.id, plan, billing_cycle: cycle },
       // Belt-and-braces — these fire on browsers that don't take the
       // redirect path. Whichever runs first wins; activatePlan is
       // idempotent because billing_events.tx_ref is unique.
@@ -303,9 +313,14 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
           }}>{info.message}</p>
         </div>
 
+        {/* Monthly / Annual toggle */}
+        <div style={{ padding: '14px 24px 0', display: 'flex', justifyContent: 'center' }}>
+          <CycleToggle value={cycle} onChange={setCycle} />
+        </div>
+
         {/* Plan cards */}
         <div style={{
-          padding: '18px 24px 22px',
+          padding: '14px 24px 22px',
           display: 'grid',
           gridTemplateColumns: showStarter && showPro
             ? (window.innerWidth < 560 ? '1fr' : '1fr 1fr')
@@ -317,8 +332,9 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
           {showStarter && (
             <PlanCard
               name="Starter"
-              price="$12"
-              interval="/mo"
+              price={cycle === 'annual' ? '$108' : '$12'}
+              interval={cycle === 'annual' ? '/yr' : '/mo'}
+              subPrice={cycle === 'annual' ? '$9/mo billed annually' : null}
               features={STARTER_FEATURES}
               ctaLabel="Upgrade to Starter"
               ctaVariant="outline"
@@ -328,8 +344,9 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
           {showPro && (
             <PlanCard
               name="Pro"
-              price="$29"
-              interval="/mo"
+              price={cycle === 'annual' ? '$261' : '$29'}
+              interval={cycle === 'annual' ? '/yr' : '/mo'}
+              subPrice={cycle === 'annual' ? '$21.75/mo billed annually' : null}
               features={PRO_FEATURES}
               mostPopular
               ctaLabel="Upgrade to Pro"
@@ -354,7 +371,49 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
   )
 }
 
-function PlanCard({ name, price, interval, features, ctaLabel, ctaVariant, mostPopular, onClick }) {
+// Monthly ⇄ Annual toggle. Annual gets a small "Save 25%" badge so the
+// benefit is obvious at a glance.
+function CycleToggle({ value, onChange }) {
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: 3, background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)', borderRadius: 100,
+      fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+    }}>
+      <button
+        onClick={() => onChange('monthly')}
+        style={{
+          padding: '5px 12px', borderRadius: 100, border: 'none',
+          background: value === 'monthly' ? 'var(--color-bg)' : 'transparent',
+          color: value === 'monthly' ? 'var(--color-text)' : 'var(--color-text-muted)',
+          cursor: 'pointer', boxShadow: value === 'monthly' ? '0 1px 3px rgba(0,0,0,0.10)' : 'none',
+        }}
+      >Monthly</button>
+      <button
+        onClick={() => onChange('annual')}
+        style={{
+          padding: '5px 12px', borderRadius: 100, border: 'none',
+          background: value === 'annual' ? 'var(--color-bg)' : 'transparent',
+          color: value === 'annual' ? 'var(--color-text)' : 'var(--color-text-muted)',
+          cursor: 'pointer', boxShadow: value === 'annual' ? '0 1px 3px rgba(0,0,0,0.10)' : 'none',
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+        }}
+      >
+        Annual
+        <span style={{
+          fontFamily: 'var(--font-sans)', fontSize: 9, fontWeight: 800,
+          letterSpacing: '0.04em',
+          background: 'rgba(34,197,94,0.12)', color: '#16a34a',
+          border: '1px solid rgba(34,197,94,0.30)',
+          borderRadius: 100, padding: '1px 6px',
+        }}>SAVE 25%</span>
+      </button>
+    </div>
+  )
+}
+
+function PlanCard({ name, price, interval, subPrice, features, ctaLabel, ctaVariant, mostPopular, onClick }) {
   const isPro = ctaVariant === 'primary'
   return (
     <div style={{
@@ -385,6 +444,11 @@ function PlanCard({ name, price, interval, features, ctaLabel, ctaVariant, mostP
           </span>
           <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{interval}</span>
         </div>
+        {subPrice && (
+          <div style={{ marginTop: 3, fontSize: 11, color: 'var(--color-text-muted)' }}>
+            {subPrice}
+          </div>
+        )}
       </div>
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {features.map(f => (

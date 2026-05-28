@@ -1446,8 +1446,18 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
           {/* Content area */}
           <div style={{
             overflowY: 'auto',
-            padding: isMobile ? '20px 16px' : '36px 48px',
-            maxWidth: isMobile ? 'none' : (activeSection === 'connectors' ? 'none' : 760),
+            // Billing + Connectors render full-width pages of their own.
+            // Other sections stay capped at 760 for readability.
+            padding: isMobile
+              ? '20px 16px'
+              : (activeSection === 'connectors' || activeSection === 'plans')
+                ? '0'
+                : '36px 48px',
+            maxWidth: isMobile
+              ? 'none'
+              : (activeSection === 'connectors' || activeSection === 'plans')
+                ? 'none'
+                : 760,
             width: '100%', boxSizing: 'border-box',
             display: isMobile && mobileView === 'nav' ? 'none' : 'block',
           }}>

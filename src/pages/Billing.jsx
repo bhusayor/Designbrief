@@ -196,7 +196,7 @@ export default function Billing() {
   // ── Render ────────────────────────────────────────────────────────
   return (
     <div style={{
-      width: '100%', maxWidth: 860, margin: '0 auto',
+      width: '100%',
       padding: isMobile ? '20px 16px' : isTablet ? '32px 24px' : '40px 48px',
       boxSizing: 'border-box', fontFamily: 'var(--font-sans)',
     }}>
@@ -213,7 +213,7 @@ export default function Billing() {
         accessUntil={accessUntil}
         planStartedAt={planStartedAt}
         isMobile={isMobile}
-        onUpgrade={() => openUpgradeModal?.('general')}
+        onUpgrade={(_plan) => openUpgradeModal?.('general')}
         onReactivate={reactivateSubscription}
       />
 
@@ -253,7 +253,11 @@ export default function Billing() {
         isTablet={isTablet}
       />
 
-      <ComingSoonRow isMobile={isMobile} />
+      <PaymentMethodCard
+        history={history}
+        isMobile={isMobile}
+        onUpdate={() => openUpgradeModal?.('general')}
+      />
 
       {(userPlan === 'starter' || userPlan === 'pro') && planStatus !== 'cancelled' && (
         <DangerZone onCancel={() => setCancelOpen(true)} />
@@ -332,8 +336,9 @@ function CurrentPlanCard({ userPlan, planStatus, accessUntil, planStartedAt, isM
         </div>
 
         <div style={{
-          display: 'flex', flexDirection: isMobile ? 'column' : 'column',
+          display: 'flex', flexDirection: 'column',
           gap: 8, width: isMobile ? '100%' : 'auto',
+          alignItems: isMobile ? 'stretch' : 'flex-end',
         }}>
           {cancelled && (
             <button onClick={onReactivate} style={primaryBtn(isMobile)}>
@@ -342,15 +347,28 @@ function CurrentPlanCard({ userPlan, planStatus, accessUntil, planStartedAt, isM
           )}
           {!cancelled && userPlan === 'free' && (
             <>
-              <button onClick={onUpgrade} style={secondaryBtn(isMobile)}>Upgrade to Starter</button>
-              <button onClick={onUpgrade} style={primaryBtn(isMobile)}>Upgrade to Pro</button>
+              <button onClick={() => onUpgrade('starter')} style={secondaryBtn(isMobile)}>Upgrade to Starter</button>
+              <button onClick={() => onUpgrade('pro')} style={primaryBtn(isMobile)}>
+                Upgrade to Pro <ArrowRightIcon style={{ width: 12, height: 12 }} />
+              </button>
             </>
           )}
           {!cancelled && userPlan === 'starter' && (
-            <button onClick={onUpgrade} style={primaryBtn(isMobile)}>Upgrade to Pro</button>
+            <button onClick={() => onUpgrade('pro')} style={primaryBtn(isMobile)}>
+              Upgrade to Pro <ArrowRightIcon style={{ width: 12, height: 12 }} />
+            </button>
           )}
           {!cancelled && userPlan === 'pro' && (
-            <button onClick={onUpgrade} style={secondaryBtn(isMobile)}>Manage Plan</button>
+            // Pro is the highest tier — no upgrade button, just a clear
+            // status line so users know they're not missing anything.
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '8px 12px',
+              fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+              color: 'var(--color-text-muted)',
+            }}>
+              ✦ You're on our best plan
+            </span>
           )}
         </div>
       </div>
@@ -672,51 +690,60 @@ function ChangePlanCard({ userPlan, onUpgrade, onDowngrade, isMobile, isTablet }
   )
 }
 
-// ── Coming Soon row ──────────────────────────────────────────────────
-function ComingSoonRow({ isMobile }) {
+// ── Payment Method ───────────────────────────────────────────────────
+function PaymentMethodCard({ history, isMobile, onUpdate }) {
+  // We can't show full PAN (PCI), but we surface the last payment so the
+  // user knows which card / method is on file. Flutterwave returns the
+  // card type + last 4 in the verify payload — when we start saving
+  // payment instruments, this is where they'll render.
+  const last = history?.[0]
+  const hasCard = !!last
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-      gap: 12, marginBottom: 20,
-    }}>
-      <ComingSoonCard
-        icon={CreditCardIcon}
-        title="Payment Method"
-        description="Update your card details"
-      />
-      <ComingSoonCard
-        icon={CalendarDaysIcon}
-        title="Annual Billing"
-        description="Save 25% with annual billing"
-      />
-    </div>
-  )
-}
-
-function ComingSoonCard({ icon: Icon, title, description }) {
-  return (
-    <div style={{
-      background: 'var(--color-card)',
-      border: '1px dashed var(--color-border)',
-      borderRadius: 14, padding: '16px 18px',
-      display: 'flex', alignItems: 'center', gap: 12,
-      opacity: 0.78,
-    }}>
-      <Icon style={{ width: 18, height: 18, color: 'var(--color-text-muted)', flexShrink: 0 }} />
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{title}</div>
-        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{description}</div>
+    <Section title="Payment Method">
+      <div style={{
+        display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? 12 : 18, alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: 'rgba(124,58,237,0.10)',
+            border: '1px solid rgba(124,58,237,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <CreditCardIcon style={{ width: 18, height: 18, color: '#7C3AED' }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>
+              {hasCard ? 'Payment via Flutterwave' : 'No payment method on file'}
+            </div>
+            <div style={{ marginTop: 2, fontSize: 12, color: 'var(--color-text-muted)' }}>
+              {hasCard
+                ? <>Last charged {fmtDate(last.created_at)} · ${Number(last.amount).toFixed(2)} {last.currency || 'USD'}</>
+                : 'Add a card to upgrade or renew your plan automatically.'}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={onUpdate}
+          style={{
+            padding: '9px 16px',
+            background: 'transparent', color: 'var(--color-text)',
+            border: '1px solid var(--color-border)', borderRadius: 10,
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+            width: isMobile ? '100%' : 'auto',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text)' }}
+        >
+          {hasCard ? 'Update card' : 'Add card'}
+        </button>
       </div>
-      <span style={{
-        fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
-        letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: 'var(--color-text-muted)',
-        padding: '2px 8px', borderRadius: 100,
-        background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-        flexShrink: 0,
-      }}>Coming Soon</span>
-    </div>
+    </Section>
   )
 }
 
