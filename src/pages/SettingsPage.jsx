@@ -21,6 +21,7 @@ import {
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import Connectors from './Connectors'
+import Billing from './Billing'
 
 function PanelLeftClose({ size = 16 }) {
   return (
@@ -1172,7 +1173,7 @@ const NAV = [
     group: 'Workspace',
     items: [
       { id: 'general',    label: 'General',        icon: Cog6ToothIcon },
-      { id: 'plans',      label: 'Plans & credits', icon: BoltIcon },
+      { id: 'plans',      label: 'Billing',          icon: BoltIcon },
       { id: 'connectors', label: 'Connectors',      icon: LinkIcon },
       { id: 'danger',     label: 'Danger zone',     icon: ExclamationTriangleIcon },
     ],
@@ -1262,7 +1263,7 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
       case 'profile':    return <ProfileSection callSettings={callSettings} onSaved={showSaveToast} />
       case 'appearance': return <AppearanceSection onSaved={showSaveToast} />
       case 'general':    return <WorkspaceGeneralSection callSettings={callSettings} onSaved={showSaveToast} />
-      case 'plans':      return <PlansSection />
+      case 'plans':      return <Billing />
       case 'connectors': return <Connectors embedded />
       case 'danger':
         return (

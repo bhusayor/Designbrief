@@ -127,6 +127,9 @@ export function AppProvider({ children }) {
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsLimit, setCreditsLimit] = useState(FREE_DAILY_LIMIT);
   const [creditsResetAt, setCreditsResetAt] = useState(null);
+  const [planStatus, setPlanStatus] = useState('active');
+  const [accessUntil, setAccessUntil] = useState(null);
+  const [planStartedAt, setPlanStartedAt] = useState(null);
 
   // ── Upgrade modal global trigger ──────────────────────────────────────────
   // Any page can call openUpgradeModal('projects' | 'credits' | …) and the
@@ -306,6 +309,9 @@ export function AppProvider({ children }) {
       setUserCredits(typeof profile?.credits === 'number' ? profile.credits : planCap);
       setCreditsUsed(profile?.credits_used ?? 0);
       setCreditsResetAt(profile?.credits_reset_at || null);
+      setPlanStatus(profile?.plan_status || 'active');
+      setAccessUntil(profile?.access_until || null);
+      setPlanStartedAt(profile?.plan_started_at || null);
       localStorage.setItem('db-user', JSON.stringify(updatedUser));
 
       await loadProjectsFromDB(supabaseUser.id);
@@ -790,7 +796,7 @@ export function AppProvider({ children }) {
     try {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('plan, credits, credits_used, credits_reset_at')
+        .select('plan, credits, credits_used, credits_reset_at, plan_status, access_until, plan_started_at')
         .eq('id', authUser.id)
         .single();
       if (!profile) return null;
@@ -802,6 +808,9 @@ export function AppProvider({ children }) {
       setUserCredits(typeof profile.credits === 'number' ? profile.credits : planCap);
       setCreditsUsed(profile.credits_used ?? 0);
       setCreditsResetAt(profile.credits_reset_at || null);
+      setPlanStatus(profile.plan_status || 'active');
+      setAccessUntil(profile.access_until || null);
+      setPlanStartedAt(profile.plan_started_at || null);
       // Also bump the cached user object's plan so anything reading
       // user.plan (rare but legacy) stays consistent.
       setUser(prev => prev ? { ...prev, plan: planKey } : prev);
@@ -862,6 +871,17 @@ export function AppProvider({ children }) {
       const remaining = r.creditsRemaining ?? 0
       setUserCredits(remaining)
       setCreditsUsed(prev => (r.used ?? prev))
+      // Log into credit_usage_log so the Billing page can group by action.
+      // RLS lets the user insert their own rows; failures here must NOT
+      // block the AI action that just succeeded.
+      try {
+        const { CREDIT_COSTS } = mod
+        await supabase.from('credit_usage_log').insert({
+          user_id: authUser?.id,
+          action,
+          credits: CREDIT_COSTS?.[action] || 0,
+        })
+      } catch {}
       if (remaining === 0) {
         showToast?.('No credits remaining. Upgrade to continue.', 'error')
         setUpgradeReason('credits')
@@ -1344,6 +1364,9 @@ export function AppProvider({ children }) {
     creditsUsed,
     creditsLimit,
     creditsResetAt,
+    planStatus,
+    accessUntil,
+    planStartedAt,
     setCreditsUsed,
 
     // Upgrade modal

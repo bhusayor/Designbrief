@@ -46,9 +46,10 @@ async function grantPlanFromTransaction(tx) {
     return { ok: false, reason: 'profile_update_failed' }
   }
 
-  // Best-effort audit row. The table is created by the SQL migration in
-  // supabase/flutterwave-billing.sql; if it isn't there the catch keeps
-  // the webhook responding 200 anyway.
+  // Best-effort audit rows. Tables come from
+  //   supabase/flutterwave-billing.sql  (billing_events — idempotency)
+  //   supabase/billing-page.sql          (billing_history — user-facing)
+  // If either is missing the catch keeps the webhook responding 200.
   try {
     await supabase.from('billing_events').insert({
       user_id: userId,
@@ -58,6 +59,17 @@ async function grantPlanFromTransaction(tx) {
       tx_ref: tx.tx_ref,
       flw_id: tx.id ? String(tx.id) : null,
       raw: tx,
+    })
+  } catch {}
+  try {
+    await supabase.from('billing_history').insert({
+      user_id: userId,
+      plan,
+      amount: tx.amount,
+      currency: tx.currency || 'USD',
+      status: 'successful',
+      payment_ref: tx.tx_ref,
+      billing_cycle: 'monthly',
     })
   } catch {}
 
