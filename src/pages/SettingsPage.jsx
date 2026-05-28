@@ -773,7 +773,7 @@ function PlansSection() {
 
 function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAccountDeleted }) {
   const isMobile = useIsMobile()
-  const { workspace, authUser, setWorkspace, loadWorkspace } = useApp()
+  const { workspace, workspaces, authUser, setWorkspace, loadWorkspace, leaveWorkspace } = useApp()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
@@ -844,28 +844,20 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
   async function handleLeave() {
     setLeaving(true); setError('')
     try {
-      await callSettings({ action: 'leave_workspace', workspaceId: workspace.id })
-
-      // Switch to most recently visited other workspace
-      const history = (() => {
-        try { return JSON.parse(localStorage.getItem('db-workspace-history') || '[]') } catch { return [] }
-      })()
-      const nextId = history.find(id => id !== workspace.id)
-      const nextWs = nextId
-        ? userWorkspaces.find(w => w.id === nextId)
-        : userWorkspaces.find(w => w.id !== workspace.id)
-
-      if (nextWs) {
-        localStorage.setItem('db-workspace', JSON.stringify(nextWs))
-        const hist = [nextWs.id, ...history.filter(id => id !== nextWs.id)].slice(0, 20)
-        localStorage.setItem('db-workspace-history', JSON.stringify(hist))
-        setWorkspace(nextWs)
-        onWorkspaceLeft?.()
-      } else {
-        // No other workspace — clear and reload so WorkspaceSetup shows
-        localStorage.removeItem('db-workspace')
-        window.location.reload()
+      // leaveWorkspace handles both cases server-side: owners → cascade-
+      // delete the workspace; members → remove their workspace_members row.
+      // It also clears local state and switches to whichever workspace is
+      // left, so we don't have to repeat that here.
+      const r = await leaveWorkspace?.(workspace.id)
+      if (!r?.ok) {
+        if (r?.reason !== 'last_workspace') {
+          setError(r?.message || 'Failed to leave workspace')
+        }
+        setLeaving(false)
+        return
       }
+      setShowLeaveConfirm(false)
+      onWorkspaceLeft?.()
     } catch (e) {
       setError(e.message)
       setLeaving(false)
@@ -993,79 +985,91 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
           </div>
         )}
 
-        {/* Leave workspace — non-owners */}
-        {!isOwner && (
-          <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: userWorkspaces.length <= 1 ? 'var(--color-text-muted)' : RED, marginBottom: 6 }}>Leave workspace</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 360 }}>
-                  {userWorkspaces.length <= 1
-                    ? 'You must belong to more than one workspace before you can leave this one.'
-                    : 'Remove yourself from this workspace. You will lose access to all shared projects and briefs immediately.'}
+        {/* Leave workspace — everyone. Disabled only when there is just one
+            workspace, since the user must always keep at least one. Owners
+            leaving will cascade-delete the workspace; members just lose
+            access. */}
+        {(() => {
+          const ctxList = (typeof workspaces !== 'undefined' && Array.isArray(workspaces)) ? workspaces : userWorkspaces
+          const wsCount = ctxList?.length ?? 0
+          const disabled = wsCount <= 1
+          return (
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: disabled ? 'var(--color-text-muted)' : RED, marginBottom: 6 }}>Leave workspace</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 360 }}>
+                    {disabled
+                      ? 'You must belong to more than one workspace before you can leave this one.'
+                      : (isOwner
+                          ? 'You are the owner of this workspace. Leaving will permanently delete the workspace and everything in it.'
+                          : 'Remove yourself from this workspace. You will lose access to all shared projects and briefs immediately.')}
+                  </div>
                 </div>
+                <button
+                  onClick={() => { if (!disabled) { setShowLeaveConfirm(true); setError('') } }}
+                  onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  disabled={disabled}
+                  style={{
+                    padding: '8px 16px', background: 'transparent',
+                    border: `1px solid ${disabled ? 'var(--color-border)' : RED}`,
+                    borderRadius: 9,
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 13, fontWeight: 600,
+                    color: disabled ? 'var(--color-text-muted)' : RED,
+                    flexShrink: 0, transition: 'all 0.15s',
+                    width: isMobile ? '100%' : 'auto',
+                    opacity: disabled ? 0.5 : 1,
+                  }}
+                >
+                  Leave workspace
+                </button>
               </div>
-              <button
-                onClick={() => { if (userWorkspaces.length > 1) { setShowLeaveConfirm(true); setError('') } }}
-                onMouseEnter={e => { if (userWorkspaces.length > 1) e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                disabled={userWorkspaces.length <= 1}
-                style={{
-                  padding: '8px 16px', background: 'transparent',
-                  border: `1px solid ${userWorkspaces.length <= 1 ? 'var(--color-border)' : RED}`,
-                  borderRadius: 9,
-                  cursor: userWorkspaces.length <= 1 ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13, fontWeight: 600,
-                  color: userWorkspaces.length <= 1 ? 'var(--color-text-muted)' : RED,
-                  flexShrink: 0, transition: 'all 0.15s',
-                  width: isMobile ? '100%' : 'auto',
-                  opacity: userWorkspaces.length <= 1 ? 0.5 : 1,
-                }}
-              >
-                Leave workspace
-              </button>
-            </div>
 
-            {showLeaveConfirm && (
-              <div style={{
-                marginTop: 14, padding: '14px 16px',
-                background: 'rgba(220,38,38,0.08)', border: `1px solid ${RED}`,
-                borderRadius: 10, display: 'flex', flexDirection: isMobile ? 'column' : 'row',
-                alignItems: isMobile ? 'flex-start' : 'center',
-                justifyContent: 'space-between', gap: 12,
-              }}>
-                <span style={{ fontSize: 13, color: 'var(--color-text)' }}>
-                  Are you sure you want to leave <strong>{workspace?.name}</strong>?
-                </span>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
-                  <button
-                    onClick={() => setShowLeaveConfirm(false)}
-                    style={{
-                      flex: isMobile ? 1 : 'none', padding: '6px 14px', background: 'transparent',
-                      border: `1px solid ${RED}`, borderRadius: 8,
-                      cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                      fontSize: 12, fontWeight: 600, color: RED,
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleLeave}
-                    disabled={leaving}
-                    style={{
-                      flex: isMobile ? 1 : 'none', padding: '6px 14px', background: RED, color: 'white',
-                      border: 'none', borderRadius: 8, cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
-                    }}
-                  >
-                    {leaving ? 'Leaving...' : 'Yes, leave'}
-                  </button>
+              {showLeaveConfirm && (
+                <div style={{
+                  marginTop: 14, padding: '14px 16px',
+                  background: 'rgba(220,38,38,0.08)', border: `1px solid ${RED}`,
+                  borderRadius: 10, display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: isMobile ? 'flex-start' : 'center',
+                  justifyContent: 'space-between', gap: 12,
+                }}>
+                  <span style={{ fontSize: 13, color: 'var(--color-text)' }}>
+                    {isOwner
+                      ? <>Leaving will <strong>permanently delete</strong> {workspace?.name} and everything in it. Continue?</>
+                      : <>Are you sure you want to leave <strong>{workspace?.name}</strong>?</>}
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+                    <button
+                      onClick={() => setShowLeaveConfirm(false)}
+                      style={{
+                        flex: isMobile ? 1 : 'none', padding: '6px 14px', background: 'transparent',
+                        border: `1px solid ${RED}`, borderRadius: 8,
+                        cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                        fontSize: 12, fontWeight: 600, color: RED,
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleLeave}
+                      disabled={leaving}
+                      style={{
+                        flex: isMobile ? 1 : 'none', padding: '6px 14px', background: RED, color: 'white',
+                        border: 'none', borderRadius: 8, cursor: 'pointer',
+                        fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+                      }}
+                    >
+                      {leaving ? 'Leaving...' : (isOwner ? 'Yes, delete' : 'Yes, leave')}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )
+        })()}
 
       </div>
 
