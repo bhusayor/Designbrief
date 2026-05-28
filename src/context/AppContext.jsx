@@ -888,10 +888,42 @@ export function AppProvider({ children }) {
     }
   }, [authUser?.id]);
 
+  // Multi-workspace callbacks are declared below, AFTER showToast, to avoid
+  // a TDZ ReferenceError on render.
+
+  // ── Sign Out ──────────────────────────────────────────────────────────────
+
+  function signOut() {
+    // Fire-and-forget — never await a network call inside signOut.
+    // If signOut() hangs the user is stuck forever; clearing storage is enough.
+    supabase.auth.signOut().catch(() => {});
+
+    // Remove the exact key Supabase uses (storageKey: 'designbrief-auth-v1')
+    // plus any legacy sb-* keys and app state.
+    ['designbrief-auth-v1', 'db-workspace', 'db-workspaces', 'db-workspace-history', 'db-plan-state'].forEach(k =>
+      localStorage.removeItem(k)
+    );
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('sb-')) localStorage.removeItem(k);
+    });
+
+    // Force a full navigation to root — the fresh page will find no session
+    // and render <Auth />.
+    window.location.replace('/');
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+
+  const showToast = useCallback((msg, type = 'info') => {
+    setNotification({ msg, type });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setNotification(null), 3000);
+  }, []);
+
   // ── Multi-workspace: create + switch ──────────────────────────────────────
   // Paid plans can host multiple workspaces. The API enforces the per-plan
   // cap; we surface a friendly toast + open the upgrade modal on 403.
-
+  // Declared AFTER showToast so the deps array doesn't hit TDZ.
   const createWorkspace = useCallback(async (name) => {
     const trimmed = String(name || '').trim();
     if (!trimmed) return { ok: false, reason: 'empty_name' };
@@ -922,7 +954,6 @@ export function AppProvider({ children }) {
         try { localStorage.setItem('db-workspaces', JSON.stringify(next)); } catch {}
         return next;
       });
-      // Switch to the new workspace immediately.
       localStorage.setItem('db-workspace', JSON.stringify(ws));
       setWorkspace(ws);
       loadConnectorData(ws.id);
@@ -943,35 +974,6 @@ export function AppProvider({ children }) {
     loadConnectorData(ws.id);
     return true;
   }, [workspaces]);
-
-  // ── Sign Out ──────────────────────────────────────────────────────────────
-
-  function signOut() {
-    // Fire-and-forget — never await a network call inside signOut.
-    // If signOut() hangs the user is stuck forever; clearing storage is enough.
-    supabase.auth.signOut().catch(() => {});
-
-    // Remove the exact key Supabase uses (storageKey: 'designbrief-auth-v1')
-    // plus any legacy sb-* keys and app state.
-    ['designbrief-auth-v1', 'db-workspace', 'db-workspaces', 'db-workspace-history', 'db-plan-state'].forEach(k =>
-      localStorage.removeItem(k)
-    );
-    Object.keys(localStorage).forEach(k => {
-      if (k.startsWith('sb-')) localStorage.removeItem(k);
-    });
-
-    // Force a full navigation to root — the fresh page will find no session
-    // and render <Auth />.
-    window.location.replace('/');
-  }
-
-  // ── Toast ─────────────────────────────────────────────────────────────────
-
-  const showToast = useCallback((msg, type = 'info') => {
-    setNotification({ msg, type });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setNotification(null), 3000);
-  }, []);
 
   // ── consumeCredits ────────────────────────────────────────────────────────
   // Centralised credit-deduction wrapper that every AI action calls before
