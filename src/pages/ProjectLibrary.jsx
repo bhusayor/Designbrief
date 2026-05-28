@@ -18,6 +18,7 @@ import {
   BoltIcon,
   LinkIcon,
   LockClosedIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -552,22 +553,24 @@ export default function ProjectLibrary() {
           {/* Search — only on projects tab */}
           {activeTab === 'projects' && history.length > 0 && (
             <div style={{ position: 'relative', width: isMobile ? '100%' : '240px' }}>
-              <span style={{
-                position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-                color: 'var(--color-text-muted)', fontSize: '13px', pointerEvents: 'none',
-              }}>
-                ⌕
-              </span>
+              <MagnifyingGlassIcon
+                width={16}
+                height={16}
+                style={{
+                  position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
+                  color: 'var(--color-text-muted)', pointerEvents: 'none',
+                }}
+              />
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search projects..."
                 style={{
-                  width: '100%', paddingLeft: '32px', paddingRight: '12px',
+                  width: '100%', paddingLeft: '34px', paddingRight: '12px',
                   height: '40px', background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)', borderRadius: '9px',
                   color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif",
-                  fontSize: '12px', outline: 'none', boxSizing: 'border-box',
+                  fontSize: '13px', outline: 'none', boxSizing: 'border-box',
                 }}
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--color-accent)')}
                 onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
