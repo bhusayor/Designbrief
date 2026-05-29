@@ -503,9 +503,27 @@ export default function TeamCollab() {
   // Hydrate from localStorage immediately so the board shows without waiting for
   // auth to load. The DB-load effect will override with authoritative data once
   // the session is ready.
+  //
+  // CRITICAL: read the active project id from the WORKSPACE-SCOPED map
+  // (tc-active-by-ws), not the flat teamcollab-active-project key. Otherwise
+  // remounting after a workspace switch reads whichever workspace was last
+  // touched on this device and renders its kanban for a few seconds before
+  // the new workspace's data loads.
+  function _tcInitialProjectId() {
+    try {
+      const wsId = workspace?.id || null
+      if (wsId) {
+        const map = JSON.parse(localStorage.getItem('tc-active-by-ws') || '{}') || {}
+        if (map[wsId]) return map[wsId]
+        // No mapping yet for this workspace → start clean.
+        return 'default'
+      }
+      return localStorage.getItem('teamcollab-active-project') || 'default'
+    } catch { return 'default' }
+  }
   const [phase, setPhase] = useState(() => {
     try {
-      const id = localStorage.getItem('teamcollab-active-project') || 'default'
+      const id = _tcInitialProjectId()
       if (!id || id === 'default') return 'brief'
       const s = localStorage.getItem('tc-project-' + id)
       return (s && JSON.parse(s)?.phase) || 'brief'
@@ -513,7 +531,7 @@ export default function TeamCollab() {
   })
   const [kanban, setKanban] = useState(() => {
     try {
-      const id = localStorage.getItem('teamcollab-active-project') || 'default'
+      const id = _tcInitialProjectId()
       if (!id || id === 'default') return null
       const s = localStorage.getItem('tc-project-' + id)
       return (s && JSON.parse(s)?.kanban) || null
@@ -521,8 +539,25 @@ export default function TeamCollab() {
   })
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
-  const [briefText, setBriefText] = useState('')
-  const [projectTitle, setProjectTitle] = useState('')
+  const [briefText, setBriefText] = useState(() => {
+    try {
+      const id = _tcInitialProjectId()
+      if (!id || id === 'default') return ''
+      const s = localStorage.getItem('tc-project-' + id)
+      return (s && JSON.parse(s)?.briefText) || ''
+    } catch { return '' }
+  })
+  const [projectTitle, setProjectTitle] = useState(() => {
+    // Seed from the per-project cache so the title shows the instant
+    // TeamCollab remounts after a workspace switch — no blank header
+    // while the DB hydration round-trips.
+    try {
+      const id = _tcInitialProjectId()
+      if (!id || id === 'default') return ''
+      const s = localStorage.getItem('tc-project-' + id)
+      return (s && JSON.parse(s)?.projectTitle) || ''
+    } catch { return '' }
+  })
   const [teamMembers, setTeamMembers] = useState([])
   const [suggestedRoles, setSuggestedRoles] = useState([])
   const [loading, setLoading] = useState(false)
@@ -544,6 +579,13 @@ export default function TeamCollab() {
   const [pushResult, setPushResult] = useState(null)
   const [projects, setProjects] = useState(() => {
     try {
+      const wsId = workspace?.id || null
+      if (wsId) {
+        const map = JSON.parse(localStorage.getItem('tc-tabs-by-ws') || '{}') || {}
+        const list = map[wsId]
+        if (Array.isArray(list) && list.length > 0) return list
+        return [{ id: 'default', title: 'My Project' }]
+      }
       const stored = JSON.parse(localStorage.getItem('teamcollab-projects'))
       if (Array.isArray(stored) && stored.length > 0) return stored
     } catch {}
@@ -683,8 +725,28 @@ export default function TeamCollab() {
     } catch {}
   }, [activeProjectId, workspace?.id])
 
-  // When the workspace changes, re-seed activeProjectId from the map so
-  // the user lands back on the tab they last had open in that workspace.
+  // Same for the project tabs list: each workspace remembers its own tabs.
+  useEffect(() => {
+    const wsId = workspace?.id || null
+    if (!wsId) return
+    try {
+      const map = JSON.parse(localStorage.getItem('tc-tabs-by-ws') || '{}') || {}
+      // Skip writing the empty placeholder so we don't accidentally
+      // overwrite a real cached list with [default].
+      const isOnlyPlaceholder = projects.length === 1 && projects[0]?.id === 'default'
+      if (!isOnlyPlaceholder) {
+        map[wsId] = projects.map(p => ({ id: p.id, title: p.title }))
+        localStorage.setItem('tc-tabs-by-ws', JSON.stringify(map))
+      }
+    } catch {}
+  }, [projects, workspace?.id])
+
+  // When the workspace changes, re-seed activeProjectId AND the tab list
+  // from the workspace-scoped maps so the user lands back on the project
+  // (and the tab strip) they last had open in that workspace. Also
+  // pre-load the kanban / phase / columns / projectTitle from the per-
+  // project cache so the board shows instantly — no flicker while DB
+  // load catches up.
   const prevWsForActiveTabRef = useRef(workspace?.id)
   useEffect(() => {
     const prev = prevWsForActiveTabRef.current
@@ -692,9 +754,37 @@ export default function TeamCollab() {
     prevWsForActiveTabRef.current = curr
     if (!curr || prev === curr) return
     try {
-      const map = JSON.parse(localStorage.getItem('tc-active-by-ws') || '{}') || {}
-      const next = map[curr] || 'default'
-      setActiveProjectId(next)
+      const tabsMap = JSON.parse(localStorage.getItem('tc-tabs-by-ws') || '{}') || {}
+      const nextTabs = Array.isArray(tabsMap[curr]) && tabsMap[curr].length > 0
+        ? tabsMap[curr]
+        : [{ id: 'default', title: 'My Project' }]
+      setProjects(nextTabs)
+
+      const activeMap = JSON.parse(localStorage.getItem('tc-active-by-ws') || '{}') || {}
+      const nextId = activeMap[curr] || 'default'
+      setActiveProjectId(nextId)
+
+      if (nextId && nextId !== 'default') {
+        const cached = localStorage.getItem('tc-project-' + nextId)
+        if (cached) {
+          try {
+            const s = JSON.parse(cached)
+            setKanban(s?.kanban || null)
+            setPhase(s?.phase || 'brief')
+            if (s?.projectTitle) setProjectTitle(s.projectTitle)
+            if (s?.briefText)    setBriefText(s.briefText)
+          } catch {}
+        }
+        const cols = localStorage.getItem('tc-cols-' + nextId)
+        if (cols) {
+          try { setCustomCols(JSON.parse(cols)) } catch {}
+        }
+      } else {
+        setKanban(null)
+        setPhase('brief')
+        setProjectTitle('')
+        setBriefText('')
+      }
     } catch {}
   }, [workspace?.id])
 

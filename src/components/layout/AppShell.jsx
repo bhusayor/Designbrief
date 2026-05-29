@@ -35,22 +35,10 @@ export default function AppShell({ children }) {
   // ── Workspace switch transition ─────────────────────────────────────────
   // Remount the page content under a fresh key when workspace.id flips so
   // every child component starts in a clean state AND a CSS animation
-  // plays. Skip the very first mount so the page doesn't animate on initial
-  // load (we use the first render to seed `currentWsKey`).
-  const [currentWsKey, setCurrentWsKey] = useState(workspace?.id || 'none');
-  const [switching, setSwitching] = useState(false);
-  useEffect(() => {
-    const nextKey = workspace?.id || 'none';
-    if (nextKey === currentWsKey) return;
-    setSwitching(true);
-    // Hold the fade-out for one frame, then swap the key so the new
-    // content mounts and the fade-in animation plays.
-    const t = setTimeout(() => {
-      setCurrentWsKey(nextKey);
-      setSwitching(false);
-    }, 180);
-    return () => clearTimeout(t);
-  }, [workspace?.id]);
+  // plays. We flip the key IMMEDIATELY (no fade-out hold) so the user
+  // never sees the previous workspace's content lingering — the new
+  // content takes over on the next frame with a quick fadeIn.
+  const currentWsKey = workspace?.id || 'none';
 
   useEffect(() => {
     if (!isMobile) setMobileSidebarOpen(false);
@@ -136,10 +124,7 @@ export default function AppShell({ children }) {
             flexDirection: 'column',
             minWidth: 0,
             minHeight: 0,
-            opacity: switching ? 0 : 1,
-            transform: switching ? 'translateY(6px)' : 'translateY(0)',
-            transition: 'opacity 180ms ease-out, transform 180ms ease-out',
-            animation: switching ? 'none' : 'fadeUp 260ms cubic-bezier(0.16, 1, 0.3, 1)',
+            animation: 'fadeUp 220ms cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           {children}
