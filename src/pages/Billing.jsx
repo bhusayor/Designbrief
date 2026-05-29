@@ -96,6 +96,10 @@ export default function Billing() {
   const [usageRows, setUsageRows] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [showAllHistory, setShowAllHistory] = useState(false)
+  // payment_method_removed_at — when the user clicks Remove card, we set
+  // it to now(). The Payment Method card flips to "No payment method"
+  // until a newer billing_history.created_at exists.
+  const [paymentMethodRemovedAt, setPaymentMethodRemovedAt] = useState(null)
 
   const [cancelOpen, setCancelOpen] = useState(false)
   const [downgradeTo, setDowngradeTo] = useState(null)
@@ -114,9 +118,14 @@ export default function Billing() {
         .select('action, credits, created_at')
         .eq('user_id', authUser.id)
         .gte('created_at', startOfMonthIso()),
-    ]).then(([h, u]) => {
+      supabase.from('profiles')
+        .select('payment_method_removed_at')
+        .eq('id', authUser.id)
+        .single(),
+    ]).then(([h, u, p]) => {
       setHistory(h.data || [])
       setUsageRows(u.data || [])
+      setPaymentMethodRemovedAt(p.data?.payment_method_removed_at || null)
     }).catch(() => {}).finally(() => setLoadingHistory(false))
   }, [authUser?.id])
 
@@ -216,6 +225,24 @@ export default function Billing() {
     w.document.write(html)
     w.document.close()
     setTimeout(() => { try { w.focus(); w.print() } catch {} }, 250)
+  }
+
+  async function handleRemoveCard() {
+    if (!authUser?.id) return
+    if (!window.confirm('Remove the card on file? Your plan stays active, but auto-renewal will stop until you add a card again.')) return
+    try {
+      const nowIso = new Date().toISOString()
+      const { error } = await supabase
+        .from('profiles')
+        .update({ payment_method_removed_at: nowIso })
+        .eq('id', authUser.id)
+      if (error) throw error
+      setPaymentMethodRemovedAt(nowIso)
+      showToast?.('Card removed.', 'success')
+    } catch (e) {
+      console.error('[handleRemoveCard]', e)
+      showToast?.('Could not remove card — try again.', 'error')
+    }
   }
 
   // ── Card update flow ──────────────────────────────────────────────
@@ -330,7 +357,9 @@ export default function Billing() {
         history={history}
         isMobile={isMobile}
         userPlan={userPlan}
+        paymentMethodRemovedAt={paymentMethodRemovedAt}
         onUpdate={launchCardUpdate}
+        onRemove={handleRemoveCard}
       />
 
       {(userPlan === 'starter' || userPlan === 'pro') && planStatus !== 'cancelled' && (
@@ -817,13 +846,19 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
 }
 
 // ── Payment Method ───────────────────────────────────────────────────
-function PaymentMethodCard({ history, isMobile, userPlan, onUpdate }) {
+function PaymentMethodCard({ history, isMobile, userPlan, paymentMethodRemovedAt, onUpdate, onRemove }) {
   // We can't show full PAN (PCI), but we surface the last payment so the
   // user knows which card / method is on file. Flutterwave returns the
   // card type + last 4 in the verify payload — when we start saving
   // payment instruments, this is where they'll render.
   const last = history?.[0]
-  const hasCard = !!last
+  // A card is considered on file when there's a recent successful
+  // payment AND the user has NOT removed it since. The next successful
+  // payment naturally re-flips this — its created_at will be greater
+  // than payment_method_removed_at.
+  const lastTime = last ? new Date(last.created_at).getTime() : 0
+  const removedTime = paymentMethodRemovedAt ? new Date(paymentMethodRemovedAt).getTime() : 0
+  const hasCard = !!last && lastTime > removedTime
   const isFree = userPlan === 'free'
   return (
     <Section title="Payment Method">
@@ -855,28 +890,58 @@ function PaymentMethodCard({ history, isMobile, userPlan, onUpdate }) {
             </div>
           </div>
         </div>
-        <button
-          onClick={onUpdate}
-          disabled={isFree}
-          title={isFree ? 'Upgrade to a paid plan first' : (hasCard ? 'Replace the card on file' : 'Add a card to your account')}
-          style={{
-            padding: '9px 16px',
-            background: 'transparent',
-            color: isFree ? 'var(--color-text-muted)' : 'var(--color-text)',
-            border: `1px solid ${isFree ? 'var(--color-border)' : 'var(--color-border)'}`,
-            borderRadius: 10,
-            cursor: isFree ? 'not-allowed' : 'pointer',
-            opacity: isFree ? 0.55 : 1,
-            fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
-            width: isMobile ? '100%' : 'auto',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            transition: 'border-color 0.15s, color 0.15s',
-          }}
-          onMouseEnter={e => { if (!isFree) { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' } }}
-          onMouseLeave={e => { if (!isFree) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text)' } }}
-        >
-          {hasCard ? 'Update card' : 'Add card'}
-        </button>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: 8,
+          width: isMobile ? '100%' : 'auto',
+          flexShrink: 0,
+        }}>
+          {hasCard && (
+            <button
+              onClick={onRemove}
+              title="Remove the card on file"
+              style={{
+                padding: '9px 16px',
+                background: 'transparent',
+                color: '#EF4444',
+                border: '1px solid rgba(239,68,68,0.4)',
+                borderRadius: 10,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+                width: isMobile ? '100%' : 'auto',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                transition: 'background 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = '#EF4444' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)' }}
+            >
+              Remove card
+            </button>
+          )}
+          <button
+            onClick={onUpdate}
+            disabled={isFree}
+            title={isFree ? 'Upgrade to a paid plan first' : (hasCard ? 'Replace the card on file' : 'Add a card to your account')}
+            style={{
+              padding: '9px 16px',
+              background: 'transparent',
+              color: isFree ? 'var(--color-text-muted)' : 'var(--color-text)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 10,
+              cursor: isFree ? 'not-allowed' : 'pointer',
+              opacity: isFree ? 0.55 : 1,
+              fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+              width: isMobile ? '100%' : 'auto',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'border-color 0.15s, color 0.15s',
+            }}
+            onMouseEnter={e => { if (!isFree) { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' } }}
+            onMouseLeave={e => { if (!isFree) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text)' } }}
+          >
+            {hasCard ? 'Update card' : 'Add card'}
+          </button>
+        </div>
       </div>
     </Section>
   )

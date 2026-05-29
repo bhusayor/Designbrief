@@ -67,4 +67,8 @@ create index if not exists credit_usage_log_user_idx on credit_usage_log(user_id
 alter table profiles
   add column if not exists plan_status text default 'active',
   add column if not exists cancellation_reason text,
-  add column if not exists access_until timestamptz;
+  add column if not exists access_until timestamptz,
+  -- Timestamp the user removed their card. Compared against the most
+  -- recent billing_history.created_at so the UI flips back to "No
+  -- payment method on file" until the next successful charge.
+  add column if not exists payment_method_removed_at timestamptz;
