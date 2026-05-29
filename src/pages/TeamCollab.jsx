@@ -506,19 +506,25 @@ export default function TeamCollab() {
   //
   // CRITICAL: read the active project id from the WORKSPACE-SCOPED map
   // (tc-active-by-ws), not the flat teamcollab-active-project key. Otherwise
-  // remounting after a workspace switch reads whichever workspace was last
-  // touched on this device and renders its kanban for a few seconds before
-  // the new workspace's data loads.
+  // remounting after a workspace switch (or remount in a freshly created
+  // workspace) reads whichever workspace was last touched on this device
+  // and renders its kanban for a few seconds before the new workspace's
+  // data loads. We only fall back to the legacy global key when the entire
+  // workspace-scoped map is missing (true one-time migration), never when
+  // it exists but lacks an entry for THIS workspace.
   function _tcInitialProjectId() {
     try {
       const wsId = workspace?.id || null
-      if (wsId) {
-        const map = JSON.parse(localStorage.getItem('tc-active-by-ws') || '{}') || {}
-        if (map[wsId]) return map[wsId]
-        // No mapping yet for this workspace → start clean.
-        return 'default'
+      const rawMap = localStorage.getItem('tc-active-by-ws')
+      const hasMap = rawMap !== null
+      if (wsId && hasMap) {
+        const map = JSON.parse(rawMap || '{}') || {}
+        return map[wsId] || 'default'
       }
-      return localStorage.getItem('teamcollab-active-project') || 'default'
+      if (!hasMap) {
+        return localStorage.getItem('teamcollab-active-project') || 'default'
+      }
+      return 'default'
     } catch { return 'default' }
   }
   const [phase, setPhase] = useState(() => {
@@ -592,19 +598,25 @@ export default function TeamCollab() {
     return [{ id: 'default', title: 'My Project' }]
   })
   // Seed the active TC tab from the workspace-scoped map written by the
-  // tab switcher (see setActiveProjectId / persist effect below). Fall
-  // back to the legacy teamcollab-active-project for a one-time migration
-  // — we only honour it if the current workspace doesn't yet have a
-  // mapping, so cross-workspace bleed can't happen.
+  // tab switcher (see setActiveProjectId / persist effect below). The
+  // legacy teamcollab-active-project key is ONLY used when the workspace-
+  // scoped map doesn't exist yet (true one-time migration); we never fall
+  // back to it when the map exists but lacks an entry for this workspace
+  // — that path would re-seed a brand-new workspace with the previous
+  // workspace's last project id.
   const [activeProjectId, setActiveProjectId] = useState(() => {
     try {
       const wsId = workspace?.id || null
-      if (wsId) {
-        const map = JSON.parse(localStorage.getItem('tc-active-by-ws') || '{}') || {}
-        if (map[wsId]) return map[wsId]
+      const rawMap = localStorage.getItem('tc-active-by-ws')
+      const hasMap = rawMap !== null
+      if (wsId && hasMap) {
+        const map = JSON.parse(rawMap || '{}') || {}
+        return map[wsId] || 'default'
       }
-      const legacy = localStorage.getItem('teamcollab-active-project')
-      return legacy || 'default'
+      if (!hasMap) {
+        return localStorage.getItem('teamcollab-active-project') || 'default'
+      }
+      return 'default'
     } catch {}
     return 'default'
   })
