@@ -103,6 +103,8 @@ export default function Billing() {
 
   const [cancelOpen, setCancelOpen] = useState(false)
   const [downgradeTo, setDowngradeTo] = useState(null)
+  const [removeCardOpen, setRemoveCardOpen] = useState(false)
+  const [removingCard, setRemovingCard] = useState(false)
 
   // ── Data fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -227,9 +229,9 @@ export default function Billing() {
     setTimeout(() => { try { w.focus(); w.print() } catch {} }, 250)
   }
 
-  async function handleRemoveCard() {
+  async function confirmRemoveCard() {
     if (!authUser?.id) return
-    if (!window.confirm('Remove the card on file? Your plan stays active, but auto-renewal will stop until you add a card again.')) return
+    setRemovingCard(true)
     try {
       const nowIso = new Date().toISOString()
       const { error } = await supabase
@@ -238,10 +240,13 @@ export default function Billing() {
         .eq('id', authUser.id)
       if (error) throw error
       setPaymentMethodRemovedAt(nowIso)
+      setRemoveCardOpen(false)
       showToast?.('Card removed.', 'success')
     } catch (e) {
-      console.error('[handleRemoveCard]', e)
+      console.error('[confirmRemoveCard]', e)
       showToast?.('Could not remove card — try again.', 'error')
+    } finally {
+      setRemovingCard(false)
     }
   }
 
@@ -359,7 +364,7 @@ export default function Billing() {
         userPlan={userPlan}
         paymentMethodRemovedAt={paymentMethodRemovedAt}
         onUpdate={launchCardUpdate}
-        onRemove={handleRemoveCard}
+        onRemove={() => setRemoveCardOpen(true)}
       />
 
       {(userPlan === 'starter' || userPlan === 'pro') && planStatus !== 'cancelled' && (
@@ -373,6 +378,14 @@ export default function Billing() {
         renewalAt={resetDate}
         onConfirm={(reason, feedback) => handleCancellationDone(reason, feedback, resetDate?.toISOString())}
         onPause={handlePausePlan}
+        isMobile={isMobile}
+      />
+
+      <RemoveCardModal
+        open={removeCardOpen}
+        onClose={() => removingCard ? null : setRemoveCardOpen(false)}
+        onConfirm={confirmRemoveCard}
+        loading={removingCard}
         isMobile={isMobile}
       />
 
@@ -1229,6 +1242,89 @@ function DowngradeModal({ open, from, to, onClose, onConfirm, isMobile }) {
             width: isMobile ? '100%' : 'auto',
           }}>
             Confirm Downgrade
+          </button>
+        </div>
+      </div>
+    </BottomSheetOrCenter>
+  )
+}
+
+// ── Remove Card confirmation modal ──────────────────────────────────
+function RemoveCardModal({ open, onClose, onConfirm, loading, isMobile }) {
+  useEffect(() => {
+    if (!open) return
+    function onKey(e) { if (e.key === 'Escape' && !loading) onClose?.() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose, loading])
+
+  if (!open) return null
+
+  return (
+    <BottomSheetOrCenter isMobile={isMobile} onBackdrop={loading ? undefined : onClose}>
+      <div style={{ padding: isMobile ? '18px 20px 20px' : '24px 26px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: 'rgba(239,68,68,0.12)',
+              border: '1px solid rgba(239,68,68,0.30)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <ExclamationTriangleIcon style={{ width: 18, height: 18, color: '#EF4444' }} />
+            </div>
+            <h2 style={{ margin: 0, fontWeight: 800, fontSize: 17, color: 'var(--color-text)' }}>
+              Remove this card?
+            </h2>
+          </div>
+          <button onClick={onClose} disabled={loading} style={iconBtn()}>
+            <XMarkIcon style={{ width: 15, height: 15 }} />
+          </button>
+        </div>
+
+        <div style={{
+          fontSize: 13, color: 'var(--color-text-muted)',
+          lineHeight: 1.6, marginTop: 6, marginBottom: 18,
+        }}>
+          Your plan stays active until the end of the current billing period, but
+          auto-renewal will stop. You can add a new card any time to resume renewals.
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column-reverse' : 'row',
+          gap: 8,
+          justifyContent: 'flex-end',
+        }}>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            style={{
+              ...secondaryBtn(isMobile),
+              opacity: loading ? 0.6 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            style={{
+              padding: '10px 18px',
+              background: loading ? 'rgba(239,68,68,0.7)' : '#EF4444',
+              color: 'white', border: 'none', borderRadius: 10,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+              width: isMobile ? '100%' : 'auto',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#DC2626' }}
+            onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#EF4444' }}
+          >
+            {loading ? 'Removing…' : 'Remove card'}
           </button>
         </div>
       </div>
