@@ -24,8 +24,8 @@ import {
 const REASONS = {
   credits: {
     Icon: BoltIcon,
-    headline: "You're out of credits",
-    message: 'Upgrade to get 300–1,000 credits per month and keep translating briefs without interruption.',
+    headline: 'Choose your credit plan',
+    message: 'Pick the monthly allowance that fits your work — from 300 credits on Starter up to 4,000 on Pro. Change tier or cancel anytime.',
   },
   projects: {
     Icon: FolderIcon,
