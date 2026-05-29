@@ -549,8 +549,21 @@ export default function TeamCollab() {
     } catch {}
     return [{ id: 'default', title: 'My Project' }]
   })
+  // Seed the active TC tab from the workspace-scoped map written by the
+  // tab switcher (see setActiveProjectId / persist effect below). Fall
+  // back to the legacy teamcollab-active-project for a one-time migration
+  // — we only honour it if the current workspace doesn't yet have a
+  // mapping, so cross-workspace bleed can't happen.
   const [activeProjectId, setActiveProjectId] = useState(() => {
-    try { return localStorage.getItem('teamcollab-active-project') || 'default' } catch {}
+    try {
+      const wsId = workspace?.id || null
+      if (wsId) {
+        const map = JSON.parse(localStorage.getItem('tc-active-by-ws') || '{}') || {}
+        if (map[wsId]) return map[wsId]
+      }
+      const legacy = localStorage.getItem('teamcollab-active-project')
+      return legacy || 'default'
+    } catch {}
     return 'default'
   })
 
@@ -650,6 +663,40 @@ export default function TeamCollab() {
   const draggedTaskRef = useRef(null)
 
   const [activeSuggestions, setActiveSuggestions] = useState([])
+
+  // Persist the active tab into a workspace-scoped map so each workspace
+  // remembers its own tab. The legacy teamcollab-active-project still
+  // gets written by the existing tab switcher (harmless — seeding above
+  // prefers the map). This effect keeps the map in sync on every change.
+  useEffect(() => {
+    const wsId = workspace?.id || null
+    if (!wsId) return
+    try {
+      const map = JSON.parse(localStorage.getItem('tc-active-by-ws') || '{}') || {}
+      const id = activeProjectId || null
+      if (id && id !== 'default') {
+        map[wsId] = id
+      } else {
+        delete map[wsId]
+      }
+      localStorage.setItem('tc-active-by-ws', JSON.stringify(map))
+    } catch {}
+  }, [activeProjectId, workspace?.id])
+
+  // When the workspace changes, re-seed activeProjectId from the map so
+  // the user lands back on the tab they last had open in that workspace.
+  const prevWsForActiveTabRef = useRef(workspace?.id)
+  useEffect(() => {
+    const prev = prevWsForActiveTabRef.current
+    const curr = workspace?.id
+    prevWsForActiveTabRef.current = curr
+    if (!curr || prev === curr) return
+    try {
+      const map = JSON.parse(localStorage.getItem('tc-active-by-ws') || '{}') || {}
+      const next = map[curr] || 'default'
+      setActiveProjectId(next)
+    } catch {}
+  }, [workspace?.id])
 
   // ── Workspace settle / switch: reset all local TeamCollab state ─────────
   // The localStorage caches (teamcollab-projects, teamcollab-active-project,

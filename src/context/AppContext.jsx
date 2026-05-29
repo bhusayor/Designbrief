@@ -1013,21 +1013,14 @@ export function AppProvider({ children }) {
         return next;
       });
       localStorage.setItem('db-workspace', JSON.stringify(ws));
-      // Clear workspace-agnostic project caches BEFORE the workspace flips,
-      // otherwise the AppShell remount lets TeamCollab re-hydrate from the
-      // previous workspace's teamcollab-projects / db-active-project-id.
-      try {
-        localStorage.removeItem('teamcollab-projects');
-        localStorage.removeItem('teamcollab-active-project');
-        localStorage.removeItem('db-active-project-id');
-      } catch {}
       setWorkspace(ws);
       // Brand-new workspace = empty UI. The polling effect refetches once
-      // workspace?.id flips (it will find no rows for this workspace yet).
+      // workspace?.id flips (it will find no rows for this workspace yet),
+      // and the per-workspace activeProjectId map has no entry for this
+      // brand-new id so activeProject stays null until the user opens one.
       setProjects([]);
       setHistory([]);
       setActiveProjectState(null);
-      setActiveProjectId(null);
       setIntakeForms([]);
       loadConnectorData(ws.id);
       showToast?.(`Workspace "${ws.name}" created`, 'success');
@@ -1071,16 +1064,16 @@ export function AppProvider({ children }) {
       } else {
         localStorage.removeItem('db-workspace');
       }
+      // Drop the leaving workspace from the per-workspace project map so
+      // it doesn't haunt the user if they later re-join.
       try {
-        localStorage.removeItem('teamcollab-projects');
-        localStorage.removeItem('teamcollab-active-project');
-        localStorage.removeItem('db-active-project-id');
+        const m = JSON.parse(localStorage.getItem('db-workspace-projects') || '{}') || {};
+        if (m[targetId]) { delete m[targetId]; localStorage.setItem('db-workspace-projects', JSON.stringify(m)); }
       } catch {}
       setWorkspace(next);
       setProjects([]);
       setHistory([]);
       setActiveProjectState(null);
-      setActiveProjectId(null);
       setIntakeForms([]);
       if (next?.id) loadConnectorData(next.id);
       showToast?.(body.role === 'owner' ? 'Workspace deleted' : 'You left the workspace', 'success');
@@ -1096,21 +1089,15 @@ export function AppProvider({ children }) {
     const ws = workspaces.find(w => w.id === id);
     if (!ws) return false;
     localStorage.setItem('db-workspace', JSON.stringify(ws));
-    // Clear workspace-agnostic project caches BEFORE the workspace flips,
-    // otherwise the AppShell remount lets TeamCollab re-hydrate from the
-    // previous workspace's teamcollab-projects / db-active-project-id.
-    try {
-      localStorage.removeItem('teamcollab-projects');
-      localStorage.removeItem('teamcollab-active-project');
-      localStorage.removeItem('db-active-project-id');
-    } catch {}
     setWorkspace(ws);
     // Clear the old workspace's view immediately. The polling effect (gated
-    // on workspace?.id) refetches for the new workspace right away.
+    // on workspace?.id) refetches for the new workspace right away, and the
+    // workspace-scoped activeProjectId effect rehydrates the last-viewed
+    // project for the destination workspace so the user lands back on it
+    // without having to click through.
     setProjects([]);
     setHistory([]);
     setActiveProjectState(null);
-    setActiveProjectId(null);
     setIntakeForms([]);
     loadConnectorData(ws.id);
     return true;
@@ -1187,18 +1174,46 @@ export function AppProvider({ children }) {
     } catch {}
   }, [activeSection]);
 
-  // Persist the active project's id whenever it changes.
+  // Persist the active project's id whenever it changes. We write a
+  // workspace-scoped map (db-workspace-projects = { wsId: projId }) so each
+  // workspace remembers its last-viewed project, AND mirror to the legacy
+  // db-active-project-id key for code paths that haven't migrated yet.
   useEffect(() => {
     try {
+      const wsId = workspace?.id || null;
+      let map = {};
+      try { map = JSON.parse(localStorage.getItem('db-workspace-projects') || '{}') || {}; } catch {}
       if (activeProject?.id) {
         localStorage.setItem('db-active-project-id', activeProject.id);
+        if (wsId) {
+          map[wsId] = activeProject.id;
+          localStorage.setItem('db-workspace-projects', JSON.stringify(map));
+        }
         if (activeProjectId !== activeProject.id) setActiveProjectId(activeProject.id);
       } else {
         localStorage.removeItem('db-active-project-id');
+        if (wsId && map[wsId]) {
+          delete map[wsId];
+          localStorage.setItem('db-workspace-projects', JSON.stringify(map));
+        }
         if (activeProjectId !== null) setActiveProjectId(null);
       }
     } catch {}
   }, [activeProject?.id]);
+
+  // When the workspace flips, restore activeProjectId from the workspace-
+  // scoped map so the hydrate effect below can re-open the project the
+  // user was last viewing in this workspace.
+  useEffect(() => {
+    const wsId = workspace?.id;
+    if (!wsId) return;
+    try {
+      const map = JSON.parse(localStorage.getItem('db-workspace-projects') || '{}') || {};
+      const remembered = map[wsId] || null;
+      if (remembered !== activeProjectId) setActiveProjectId(remembered);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id]);
 
   // After projects load, hydrate activeProject from the persisted id so a
   // refresh on /document or /team lands back on the same project the user
