@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
+import { CREDIT_TIERS, pickTier } from '../lib/plans'
 import {
   XMarkIcon,
   BoltIcon,
@@ -126,6 +127,34 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
   // 12 × $12 × 0.75 = $108/yr for Starter ; 12 × $29 × 0.75 = $261/yr for Pro.
   const [cycle, setCycle] = useState('monthly') // 'monthly' | 'annual'
 
+  // Per-plan selected credit tier. Defaults to each plan's first
+  // (cheapest) tier. The plan card's dropdown changes this; the price
+  // and Flutterwave amount react.
+  const [starterCredits, setStarterCredits] = useState(CREDIT_TIERS.starter[0].credits)
+  const [proCredits, setProCredits] = useState(CREDIT_TIERS.pro[0].credits)
+  const selectedCreditsByPlan = { starter: starterCredits, pro: proCredits }
+
+  function priceFor(planKey) {
+    const tier = pickTier(planKey, selectedCreditsByPlan[planKey])
+    if (!tier) return { display: '$0', interval: '/mo', subPrice: null, amount: 0 }
+    if (cycle === 'annual') {
+      const yearly = Math.round(tier.monthly * 12 * 0.75 * 100) / 100
+      const perMo = Math.round(tier.monthly * 0.75 * 100) / 100
+      return {
+        display: '$' + yearly,
+        interval: '/yr',
+        subPrice: '$' + perMo + '/mo billed annually',
+        amount: yearly,
+      }
+    }
+    return {
+      display: '$' + tier.monthly,
+      interval: '/mo',
+      subPrice: null,
+      amount: tier.monthly,
+    }
+  }
+
   useEffect(() => {
     if (!open) return
     function onKey(e) { if (e.key === 'Escape') onClose?.() }
@@ -164,14 +193,18 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
       showToast?.('Payment SDK still loading — try again in a moment.', 'info')
       return
     }
-    // Monthly: $12 Starter / $29 Pro. Annual: 25% off the 12-month total
-    // (12 * monthly * 0.75). tx_ref embeds the cycle so the webhook +
-    // verify_payment can log the right billing_cycle in billing_history.
-    const monthly = plan === 'pro' ? 29 : 12
+    // Read price + credits from the per-plan tier the user picked in the
+    // dropdown. tx_ref embeds plan + cycle + credits so the server can
+    // grant the correct credit cap when it processes the webhook /
+    // verify_payment call. Credits use a 'c' prefix so the parser can
+    // distinguish them from a numeric timestamp in legacy tx_refs.
+    const tier = pickTier(plan, selectedCreditsByPlan[plan])
+    const monthly = tier?.monthly || (plan === 'pro' ? 29 : 12)
     const amount = cycle === 'annual'
       ? Math.round(monthly * 12 * 0.75 * 100) / 100
       : monthly
-    const tx_ref = `db_${authUser.id}_${plan}_${cycle}_${Date.now()}`
+    const credits = tier?.credits || (plan === 'pro' ? 1000 : 300)
+    const tx_ref = `db_${authUser.id}_${plan}_${cycle}_c${credits}_${Date.now()}`
 
     // Tracks whether the callback already verified + granted the plan,
     // so the onclose handler doesn't duplicate the work.
@@ -329,31 +362,43 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
           maxWidth: showStarter && showPro ? '100%' : 380,
           margin: showStarter && showPro ? undefined : '0 auto',
         }}>
-          {showStarter && (
-            <PlanCard
-              name="Starter"
-              price={cycle === 'annual' ? '$108' : '$12'}
-              interval={cycle === 'annual' ? '/yr' : '/mo'}
-              subPrice={cycle === 'annual' ? '$9/mo billed annually' : null}
-              features={STARTER_FEATURES}
-              ctaLabel="Upgrade to Starter"
-              ctaVariant="outline"
-              onClick={() => pickPlan('starter')}
-            />
-          )}
-          {showPro && (
-            <PlanCard
-              name="Pro"
-              price={cycle === 'annual' ? '$261' : '$29'}
-              interval={cycle === 'annual' ? '/yr' : '/mo'}
-              subPrice={cycle === 'annual' ? '$21.75/mo billed annually' : null}
-              features={PRO_FEATURES}
-              mostPopular
-              ctaLabel="Upgrade to Pro"
-              ctaVariant="primary"
-              onClick={() => pickPlan('pro')}
-            />
-          )}
+          {showStarter && (() => {
+            const p = priceFor('starter')
+            return (
+              <PlanCard
+                name="Starter"
+                price={p.display}
+                interval={p.interval}
+                subPrice={p.subPrice}
+                features={STARTER_FEATURES}
+                ctaLabel="Upgrade to Starter"
+                ctaVariant="outline"
+                onClick={() => pickPlan('starter')}
+                creditTiers={CREDIT_TIERS.starter}
+                selectedCredits={starterCredits}
+                onSelectCredits={setStarterCredits}
+              />
+            )
+          })()}
+          {showPro && (() => {
+            const p = priceFor('pro')
+            return (
+              <PlanCard
+                name="Pro"
+                price={p.display}
+                interval={p.interval}
+                subPrice={p.subPrice}
+                features={PRO_FEATURES}
+                mostPopular
+                ctaLabel="Upgrade to Pro"
+                ctaVariant="primary"
+                onClick={() => pickPlan('pro')}
+                creditTiers={CREDIT_TIERS.pro}
+                selectedCredits={proCredits}
+                onSelectCredits={setProCredits}
+              />
+            )
+          })()}
         </div>
 
         {/* Maybe later */}
@@ -413,8 +458,15 @@ function CycleToggle({ value, onChange }) {
   )
 }
 
-function PlanCard({ name, price, interval, subPrice, features, ctaLabel, ctaVariant, mostPopular, onClick }) {
+function PlanCard({ name, price, interval, subPrice, features, ctaLabel, ctaVariant, mostPopular, onClick, creditTiers, selectedCredits, onSelectCredits }) {
   const isPro = ctaVariant === 'primary'
+  // Skip the first feature line ("300 credits / month" etc) when the
+  // card already shows a credit dropdown — the dropdown is the source
+  // of truth for that number and a static "300 credits/mo" line below
+  // it would conflict with whatever the user has picked.
+  const featuresToRender = creditTiers && creditTiers.length > 1
+    ? features.slice(1)
+    : features
   return (
     <div style={{
       position: 'relative',
@@ -450,8 +502,47 @@ function PlanCard({ name, price, interval, subPrice, features, ctaLabel, ctaVari
           </div>
         )}
       </div>
+      {creditTiers && creditTiers.length > 1 && (
+        <div>
+          <label style={{
+            display: 'block',
+            fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            color: 'var(--color-text-muted)', marginBottom: 5,
+          }}>
+            Credits per month
+          </label>
+          <div style={{ position: 'relative' }}>
+            <select
+              value={selectedCredits}
+              onChange={e => onSelectCredits?.(Number(e.target.value))}
+              style={{
+                width: '100%',
+                appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+                padding: '8px 30px 8px 11px',
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)', borderRadius: 9,
+                color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            >
+              {creditTiers.map(t => (
+                <option key={t.credits} value={t.credits}>
+                  {t.credits.toLocaleString()} credits / month · ${t.monthly}/mo
+                </option>
+              ))}
+            </select>
+            <span style={{
+              position: 'absolute', right: 11, top: '50%',
+              transform: 'translateY(-50%)', pointerEvents: 'none',
+              color: 'var(--color-text-muted)', fontSize: 9,
+            }}>▼</span>
+          </div>
+        </div>
+      )}
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {features.map(f => (
+        {featuresToRender.map(f => (
           <li key={f} style={{
             display: 'flex', alignItems: 'center', gap: 7,
             fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--color-text)',

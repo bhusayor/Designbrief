@@ -12,9 +12,19 @@ const supabase = createClient(
 // Vercel limit. Flutterwave sends a verif-hash header — we check that
 // BEFORE the auth gate so the webhook can call without a Supabase JWT.
 const FLW_PLAN_CREDITS = { starter: 300, pro: 1000 }
+// Valid credit caps the client can request via tx_ref. Anything outside
+// this set falls back to the plan default so a malformed / hostile
+// tx_ref can't inflate a user's monthly cap.
+const ALLOWED_CREDIT_CAPS = {
+  starter: new Set([300, 600, 1200]),
+  pro:     new Set([1000, 2000, 4000]),
+}
 
 async function grantPlanFromTransaction(tx) {
-  // tx_ref format: db_<userId>_<plan>_<timestamp>
+  // tx_ref format (current): db_<userId>_<plan>_<cycle>_c<credits>_<timestamp>
+  // tx_ref format (legacy):  db_<userId>_<plan>_<cycle>_<timestamp>
+  //                       or db_<userId>_<plan>_<timestamp>
+  // We accept all three so in-flight payments from old clients still grant.
   const parts = String(tx.tx_ref || '').split('_')
   if (parts[0] !== 'db' || !parts[1] || !parts[2]) return { ok: false, reason: 'bad_tx_ref' }
   const userId = parts[1]
@@ -29,7 +39,16 @@ async function grantPlanFromTransaction(tx) {
     .maybeSingle()
   if (existingLog) return { ok: true, idempotent: true }
 
-  const credits = FLW_PLAN_CREDITS[plan]
+  // Look for a c<credits> segment anywhere after the plan key.
+  let requestedCredits = null
+  for (let i = 3; i < parts.length; i++) {
+    const m = /^c(\d+)$/.exec(parts[i])
+    if (m) { requestedCredits = Number(m[1]); break }
+  }
+  const allowed = ALLOWED_CREDIT_CAPS[plan]
+  const credits = (requestedCredits && allowed && allowed.has(requestedCredits))
+    ? requestedCredits
+    : FLW_PLAN_CREDITS[plan]
   const nowIso = new Date().toISOString()
   const { error: upErr } = await supabase
     .from('profiles')

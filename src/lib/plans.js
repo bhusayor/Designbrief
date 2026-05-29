@@ -60,6 +60,36 @@ export const PLANS = {
   },
 }
 
+// ────────────────────────────────────────────────────────────────────
+// Credit tiers — let users pick how many credits/month they want on
+// each paid plan. The first entry is the plan's default (matches the
+// PLANS.credits value above) so the existing flow stays a no-op for
+// users who don't open the dropdown.
+// ────────────────────────────────────────────────────────────────────
+export const CREDIT_TIERS = {
+  starter: [
+    { credits:  300, monthly: 12 },
+    { credits:  600, monthly: 24 },
+    { credits: 1200, monthly: 48 },
+  ],
+  pro: [
+    { credits: 1000, monthly: 29 },
+    { credits: 2000, monthly: 58 },
+    { credits: 4000, monthly: 116 },
+  ],
+}
+
+// Picks the tier object for a (plan, credits) pair. Falls back to the
+// first (default) tier when credits is missing or unknown so callers
+// never have to special-case the legacy single-price path.
+export function pickTier(planKey, credits) {
+  const tiers = CREDIT_TIERS[planKey]
+  if (!Array.isArray(tiers) || tiers.length === 0) return null
+  const n = Number(credits)
+  if (!Number.isFinite(n)) return tiers[0]
+  return tiers.find(t => t.credits === n) || tiers[0]
+}
+
 export function getUserPlan(user) {
   return user?.plan || 'free'
 }
