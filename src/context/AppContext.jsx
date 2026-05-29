@@ -1013,12 +1013,21 @@ export function AppProvider({ children }) {
         return next;
       });
       localStorage.setItem('db-workspace', JSON.stringify(ws));
+      // Clear workspace-agnostic project caches BEFORE the workspace flips,
+      // otherwise the AppShell remount lets TeamCollab re-hydrate from the
+      // previous workspace's teamcollab-projects / db-active-project-id.
+      try {
+        localStorage.removeItem('teamcollab-projects');
+        localStorage.removeItem('teamcollab-active-project');
+        localStorage.removeItem('db-active-project-id');
+      } catch {}
       setWorkspace(ws);
       // Brand-new workspace = empty UI. The polling effect refetches once
       // workspace?.id flips (it will find no rows for this workspace yet).
       setProjects([]);
       setHistory([]);
       setActiveProjectState(null);
+      setActiveProjectId(null);
       setIntakeForms([]);
       loadConnectorData(ws.id);
       showToast?.(`Workspace "${ws.name}" created`, 'success');
@@ -1062,10 +1071,16 @@ export function AppProvider({ children }) {
       } else {
         localStorage.removeItem('db-workspace');
       }
+      try {
+        localStorage.removeItem('teamcollab-projects');
+        localStorage.removeItem('teamcollab-active-project');
+        localStorage.removeItem('db-active-project-id');
+      } catch {}
       setWorkspace(next);
       setProjects([]);
       setHistory([]);
       setActiveProjectState(null);
+      setActiveProjectId(null);
       setIntakeForms([]);
       if (next?.id) loadConnectorData(next.id);
       showToast?.(body.role === 'owner' ? 'Workspace deleted' : 'You left the workspace', 'success');
@@ -1081,12 +1096,21 @@ export function AppProvider({ children }) {
     const ws = workspaces.find(w => w.id === id);
     if (!ws) return false;
     localStorage.setItem('db-workspace', JSON.stringify(ws));
+    // Clear workspace-agnostic project caches BEFORE the workspace flips,
+    // otherwise the AppShell remount lets TeamCollab re-hydrate from the
+    // previous workspace's teamcollab-projects / db-active-project-id.
+    try {
+      localStorage.removeItem('teamcollab-projects');
+      localStorage.removeItem('teamcollab-active-project');
+      localStorage.removeItem('db-active-project-id');
+    } catch {}
     setWorkspace(ws);
     // Clear the old workspace's view immediately. The polling effect (gated
     // on workspace?.id) refetches for the new workspace right away.
     setProjects([]);
     setHistory([]);
     setActiveProjectState(null);
+    setActiveProjectId(null);
     setIntakeForms([]);
     loadConnectorData(ws.id);
     return true;
