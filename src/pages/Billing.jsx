@@ -162,43 +162,33 @@ export default function Billing() {
   const visibleHistory = showAllHistory ? history : history.slice(0, 12)
 
   async function handleCancellationDone(reason, feedback, accessUntilIso) {
-    setCancelOpen(false)
+    if (!authUser?.id) {
+      showToast?.('Please sign in again to cancel.', 'error')
+      return
+    }
     try {
-      // Compose reason + feedback so support can see both without
-      // adding a new column.
       const reasonValue = feedback
         ? `${reason || 'unspecified'} · ${feedback.slice(0, 500)}`
         : (reason || null)
-      await supabase.from('profiles').update({
-        plan_status: 'cancelled',
-        cancellation_reason: reasonValue,
-        access_until: accessUntilIso || null,
-      }).eq('id', authUser.id)
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          plan_status: 'cancelled',
+          cancellation_reason: reasonValue,
+          access_until: accessUntilIso || null,
+        })
+        .eq('id', authUser.id)
+      if (error) {
+        console.error('[cancel] supabase update error:', error)
+        showToast?.('Could not cancel: ' + (error.message || 'try again.'), 'error')
+        return
+      }
       await refreshUserPlan?.()
+      setCancelOpen(false)
       showToast?.(`Subscription cancelled. You have ${PLAN_NAMES[userPlan]} access until ${fmtDate(accessUntilIso)}.`, 'success')
     } catch (e) {
       console.error('[cancel]', e)
       showToast?.('Could not cancel — try again.', 'error')
-    }
-  }
-
-  async function handlePausePlan() {
-    // Pause = extend access window by 30 days, mark plan_status=paused.
-    // The webhook + check_and_reset_credits already gate refreshes on
-    // plan != 'free', so a paused plan keeps existing balance until
-    // the user resumes (we'd flip plan_status back to 'active').
-    setCancelOpen(false)
-    try {
-      const nextAccess = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      await supabase.from('profiles').update({
-        plan_status: 'paused',
-        access_until: nextAccess,
-      }).eq('id', authUser.id)
-      await refreshUserPlan?.()
-      showToast?.(`Plan paused for 30 days. Resume anytime from Billing.`, 'success')
-    } catch (e) {
-      console.error('[pause]', e)
-      showToast?.('Could not pause — try again.', 'error')
     }
   }
 
@@ -377,7 +367,6 @@ export default function Billing() {
         plan={userPlan}
         renewalAt={resetDate}
         onConfirm={(reason, feedback) => handleCancellationDone(reason, feedback, resetDate?.toISOString())}
-        onPause={handlePausePlan}
         isMobile={isMobile}
       />
 
@@ -1001,52 +990,52 @@ const REASON_OPTIONS = [
   { id: 'other',           label: 'Other' },
 ]
 
-function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, onPause, isMobile }) {
+function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, isMobile }) {
   const [step, setStep] = useState(1)
   const [reason, setReason] = useState(null)
   const [feedback, setFeedback] = useState('')
-  const [pausing, setPausing] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    function onKey(e) { if (e.key === 'Escape') onClose?.() }
+    function onKey(e) { if (e.key === 'Escape' && !cancelling) onClose?.() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
-  useEffect(() => { if (!open) { setStep(1); setReason(null); setFeedback(''); setPausing(false) } }, [open])
+  }, [open, onClose, cancelling])
+  useEffect(() => { if (!open) { setStep(1); setReason(null); setFeedback(''); setCancelling(false) } }, [open])
 
   if (!open) return null
 
-  // Step 2 ALWAYS shows now — the bug before was reasons with no
-  // retention offer skipped straight from step 1 to step 3, which made
-  // the "Step 1 of 3" pill misleading. Every reason gets a brief stop
-  // at step 2: retention offer for the three high-intent reasons, a
-  // free-text feedback box for the others ("Other" included).
-  const offerKind = reason === 'too_expensive' ? 'offer'
-    : reason === 'not_using' ? 'pause'
-    : reason === 'missing_feature' ? 'feedback'
-    : 'feedback'  // switching / just_testing / other → textarea
+  // Continue is enabled once a reason is picked. For "Other" we also
+  // require at least a few characters in the textarea so the feedback
+  // isn't empty when it's the user's only chance to leave one.
+  const otherNeedsText = reason === 'other'
+  const canContinue = !!reason && (!otherNeedsText || feedback.trim().length > 0)
+
+  async function handleConfirm() {
+    if (cancelling) return
+    setCancelling(true)
+    try {
+      await onConfirm?.(reason, feedback)
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   return (
-    <BottomSheetOrCenter isMobile={isMobile} onBackdrop={onClose}>
+    <BottomSheetOrCenter isMobile={isMobile} onBackdrop={cancelling ? undefined : onClose}>
       <div style={{ padding: isMobile ? '14px 18px 18px' : '20px 24px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
               letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 4,
-            }}>Step {step} of 3</div>
+            }}>Step {step} of 2</div>
             <h2 style={{ margin: 0, fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
-              {step === 1 && "We're sorry to see you go. Why are you leaving?"}
-              {step === 2 && (
-                offerKind === 'offer'    ? 'Before you go…'
-                : offerKind === 'pause'  ? 'Pause instead?'
-                                         : 'Tell us more'
-              )}
-              {step === 3 && 'Confirm cancellation'}
+              {step === 1 ? "We're sorry to see you go. Why are you leaving?" : 'Confirm cancellation'}
             </h2>
           </div>
-          <button onClick={onClose} style={iconBtn()}>
+          <button onClick={onClose} disabled={cancelling} style={iconBtn()}>
             <XMarkIcon style={{ width: 15, height: 15 }} />
           </button>
         </div>
@@ -1061,87 +1050,28 @@ function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, onPause,
                   background: reason === o.id ? 'rgba(124,58,237,0.06)' : 'var(--color-surface)',
                   border: '1px solid ' + (reason === o.id ? '#7C3AED' : 'var(--color-border)'),
                   borderRadius: 10, cursor: 'pointer',
+                  transition: 'background 0.15s, border-color 0.15s',
                 }}>
-                  <input type="radio" name="reason" value={o.id} checked={reason === o.id}
-                    onChange={() => setReason(o.id)} style={{ accentColor: '#7C3AED' }} />
+                  <input
+                    type="radio" name="reason" value={o.id} checked={reason === o.id}
+                    onChange={() => setReason(o.id)} style={{ accentColor: '#7C3AED' }}
+                  />
                   <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{o.label}</span>
                 </label>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={onClose} style={secondaryBtn(isMobile)}>Keep my subscription</button>
-              <button onClick={() => setStep(2)} disabled={!reason} style={primaryBtn(isMobile, !reason)}>
-                Continue
-              </button>
-            </div>
-          </>
-        )}
 
-        {step === 2 && (
-          <>
-            {offerKind === 'offer' && (
-              <div style={offerCardStyle()}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
-                  Stay for 1 month free, on us.
-                </div>
-                <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-                  We'll skip your next billing date. No charge, full features. Tap "Stay on plan" and we'll handle the rest.
-                </div>
-              </div>
-            )}
-
-            {offerKind === 'pause' && (
-              <div style={offerCardStyle()}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
-                  Pause your plan for 1 month?
-                </div>
-                <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
-                  No charge while paused. Resume anytime — your projects, briefs, and history stay exactly where you left them.
-                </div>
-                <button
-                  onClick={async () => {
-                    setPausing(true)
-                    try { await onPause?.() } finally { setPausing(false) }
-                  }}
-                  disabled={pausing}
-                  style={{
-                    padding: '10px 16px',
-                    background: pausing ? 'var(--color-border)' : 'linear-gradient(135deg, #16A34A, #22C55E)',
-                    color: 'white', border: 'none', borderRadius: 10,
-                    cursor: pausing ? 'not-allowed' : 'pointer',
-                    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
-                    width: isMobile ? '100%' : 'auto',
-                  }}
-                >
-                  {pausing ? 'Pausing…' : 'Pause plan'}
-                </button>
-              </div>
-            )}
-
-            {offerKind === 'feedback' && (
-              <div style={{
-                padding: 14,
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 11,
-              }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 6 }}>
-                  {reason === 'missing_feature' ? 'What feature would keep you here?'
-                    : reason === 'switching' ? 'Which tool are you switching to?'
-                    : reason === 'just_testing' ? 'What were you hoping to find?'
-                    : 'Tell us why you\'re leaving'}
-                </div>
-                <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 10 }}>
-                  Your feedback helps us prioritise what to build next. Totally optional.
-                </div>
+            {reason === 'other' && (
+              <div style={{ marginBottom: 16 }}>
                 <textarea
+                  autoFocus
                   value={feedback}
                   onChange={e => setFeedback(e.target.value)}
-                  placeholder="Add your thoughts here…"
+                  placeholder="Please tell us why you're leaving…"
                   rows={4}
                   style={{
                     width: '100%', boxSizing: 'border-box',
-                    background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
                     borderRadius: 9, padding: '10px 12px', fontSize: 13,
                     color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
                     resize: 'vertical', outline: 'none',
@@ -1150,19 +1080,16 @@ function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, onPause,
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
-              <button onClick={onClose} style={secondaryBtn(isMobile)}>Stay on plan</button>
-              <button onClick={() => setStep(3)} style={{
-                background: 'transparent', border: 'none', color: 'var(--color-text-muted)',
-                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              }}>
-                Cancel anyway →
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={onClose} style={secondaryBtn(isMobile)}>Keep my subscription</button>
+              <button onClick={() => setStep(2)} disabled={!canContinue} style={primaryBtn(isMobile, !canContinue)}>
+                Continue
               </button>
             </div>
           </>
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <>
             <div style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.55, marginBottom: 12 }}>
               Your <strong>{PLAN_NAMES[plan]}</strong> access continues until{' '}
@@ -1175,15 +1102,36 @@ function CancellationModal({ open, onClose, plan, renewalAt, onConfirm, onPause,
                 </li>
               ))}
             </ul>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={onClose} style={primaryBtn(isMobile)}>Keep my subscription</button>
-              <button onClick={() => onConfirm?.(reason, feedback)} style={{
-                background: 'transparent', border: 'none', color: '#EF4444',
-                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                textDecoration: 'underline',
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={() => setStep(1)} disabled={cancelling} style={{
+                background: 'transparent', border: 'none', color: 'var(--color-text-muted)',
+                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+                cursor: cancelling ? 'not-allowed' : 'pointer',
               }}>
-                Yes, cancel my subscription
+                ← Back
               </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button onClick={onClose} disabled={cancelling} style={secondaryBtn(isMobile)}>
+                  Keep my subscription
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={cancelling}
+                  style={{
+                    padding: '10px 18px',
+                    background: cancelling ? 'rgba(239,68,68,0.7)' : '#EF4444',
+                    color: 'white', border: 'none', borderRadius: 10,
+                    cursor: cancelling ? 'not-allowed' : 'pointer',
+                    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+                    width: isMobile ? '100%' : 'auto',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!cancelling) e.currentTarget.style.background = '#DC2626' }}
+                  onMouseLeave={e => { if (!cancelling) e.currentTarget.style.background = '#EF4444' }}
+                >
+                  {cancelling ? 'Cancelling…' : 'Yes, cancel my subscription'}
+                </button>
+              </div>
             </div>
           </>
         )}
