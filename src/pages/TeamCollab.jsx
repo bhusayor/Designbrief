@@ -651,18 +651,23 @@ export default function TeamCollab() {
 
   const [activeSuggestions, setActiveSuggestions] = useState([])
 
-  // ── Workspace switch: reset all local TeamCollab state ────────────────────
+  // ── Workspace settle / switch: reset all local TeamCollab state ─────────
   // The localStorage caches (teamcollab-projects, teamcollab-active-project,
-  // tc-cols-*, tc-project-*) survive a workspace switch and would otherwise
-  // show the previous workspace's projects and tasks. When workspace.id
-  // flips after first mount, wipe the local state so the AppContext sync
-  // effect repopulates from the new workspace's ctxProjects.
+  // tc-cols-*, tc-project-*) survive a workspace switch AND survive being
+  // opened in a different browser with a different active workspace. We
+  // need to wipe local state in BOTH cases so the AppContext sync effect
+  // repopulates from the new workspace's ctxProjects.
+  //
+  // Cases covered:
+  //   1. Explicit switch:   workspaceA -> workspaceB           (prev set, curr set, differ)
+  //   2. Initial resolve:   undefined  -> workspaceA           (prev undef, curr set)
+  //   3. Sign-out / clear:  workspaceA -> undefined            (prev set, curr undef)
   const prevWorkspaceIdRef = useRef(workspace?.id)
   useEffect(() => {
     const prev = prevWorkspaceIdRef.current
     const curr = workspace?.id
     prevWorkspaceIdRef.current = curr
-    if (!curr || !prev || prev === curr) return
+    if (prev === curr) return
 
     setProjects([{ id: 'default', title: 'My Project' }])
     setActiveProjectId('default')
@@ -685,9 +690,8 @@ export default function TeamCollab() {
     try {
       localStorage.removeItem('teamcollab-projects')
       localStorage.removeItem('teamcollab-active-project')
-      // tc-project-* and tc-cols-* are keyed by project id; the new
-      // workspace has no projects yet, so leave them — they'll get pruned
-      // naturally as their projects are loaded/deleted.
+      // tc-project-* and tc-cols-* are keyed by project id; they get
+      // pruned naturally as their projects are loaded/deleted.
     } catch {}
   }, [workspace?.id])
 

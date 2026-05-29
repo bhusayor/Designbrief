@@ -31,6 +31,7 @@ function generateShareId() {
 function formatProjectRow(p, extra = {}) {
   return {
     id: p.id,
+    workspace_id: p.workspace_id || null,
     title: p.title,
     section: p.section,
     ts: new Date(p.updated_at).getTime(),
@@ -355,9 +356,12 @@ export function AppProvider({ children }) {
         }));
       } catch {}
 
-      // Active workspace isn't loaded yet at this point; pass null and the
-      // workspace-scoped reload effect below picks it up once it is.
-      await loadProjectsFromDB(supabaseUser.id, null);
+      // NOTE: do NOT pre-load projects here. The polling effect (which
+      // depends on workspace?.id) fires loadProjectsFromDB with the correct
+      // workspace_id once loadWorkspace below resolves it. Pre-loading with
+      // null workspaceId would briefly populate projects from EVERY
+      // workspace, and the hydrate effect could lock activeProject onto
+      // a row that doesn't belong to the active workspace.
 
       // Skip loadWorkspace when a workspace invite is being accepted — doAccept will set the
       // workspace directly after the member insert commits, avoiding a race condition.
@@ -632,6 +636,14 @@ export function AppProvider({ children }) {
   //
   // Requires the projects table to be in the supabase_realtime publication
   // (handled by supabase/cross-device-sync.sql).
+  //
+  // We use a ref for the active workspace so handlers always read the
+  // current value without resubscribing on every workspace switch. Events
+  // whose row.workspace_id doesn't match are skipped — otherwise a change
+  // in workspace A would briefly populate the local state on a client
+  // viewing workspace B and lock activeProject onto the wrong row.
+  const activeWorkspaceIdRef = useRef(workspace?.id);
+  useEffect(() => { activeWorkspaceIdRef.current = workspace?.id; }, [workspace?.id]);
   useEffect(() => {
     if (!authUser?.id) return;
 
@@ -642,6 +654,13 @@ export function AppProvider({ children }) {
         schema: 'public',
         table: 'projects',
       }, (payload) => {
+        const eventWsId = payload.new?.workspace_id ?? payload.old?.workspace_id;
+        const activeWsId = activeWorkspaceIdRef.current;
+        if (activeWsId && eventWsId && eventWsId !== activeWsId) {
+          // Cross-workspace event — ignore so this tab's state stays
+          // scoped to the workspace the user is actually viewing.
+          return;
+        }
         console.log('[projects realtime] event:', payload.eventType, payload.new?.id || payload.old?.id, payload);
         if (payload.eventType === 'INSERT') {
           // For owned projects we can immediately tag the role as Admin.
@@ -733,12 +752,17 @@ export function AppProvider({ children }) {
   // change. Cheap query (single SELECT filtered by user_id) — no perf concern.
   useEffect(() => {
     if (!authUser?.id) return;
+    // Wait until the workspace is resolved before fetching projects.
+    // Loading with a null workspaceId would pull in projects from every
+    // workspace and a stale activeProject from another browser would lock
+    // onto the wrong row.
+    if (!workspace?.id) return;
 
     let cancelled = false;
 
     const poll = () => {
       if (document.hidden || cancelled) return;
-      loadProjectsFromDB(authUser.id, workspace?.id);
+      loadProjectsFromDB(authUser.id, workspace.id);
     };
 
     // Fire once immediately so switching workspaces shows the new contents
