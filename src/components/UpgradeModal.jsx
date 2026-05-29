@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { CREDIT_TIERS, pickTier } from '../lib/plans'
@@ -503,43 +503,12 @@ function PlanCard({ name, price, interval, subPrice, features, ctaLabel, ctaVari
         )}
       </div>
       {creditTiers && creditTiers.length > 1 && (
-        <div>
-          <label style={{
-            display: 'block',
-            fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: 'var(--color-text-muted)', marginBottom: 5,
-          }}>
-            Credits per month
-          </label>
-          <div style={{ position: 'relative' }}>
-            <select
-              value={selectedCredits}
-              onChange={e => onSelectCredits?.(Number(e.target.value))}
-              style={{
-                width: '100%',
-                appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
-                padding: '8px 30px 8px 11px',
-                background: 'var(--color-bg)',
-                border: '1px solid var(--color-border)', borderRadius: 9,
-                color: 'var(--color-text)', fontFamily: 'var(--font-sans)',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            >
-              {creditTiers.map(t => (
-                <option key={t.credits} value={t.credits}>
-                  {t.credits.toLocaleString()} credits / month · ${t.monthly}/mo
-                </option>
-              ))}
-            </select>
-            <span style={{
-              position: 'absolute', right: 11, top: '50%',
-              transform: 'translateY(-50%)', pointerEvents: 'none',
-              color: 'var(--color-text-muted)', fontSize: 9,
-            }}>▼</span>
-          </div>
-        </div>
+        <CreditTierPicker
+          tiers={creditTiers}
+          selected={selectedCredits}
+          onSelect={onSelectCredits}
+          isPro={isPro}
+        />
       )}
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {featuresToRender.map(f => (
@@ -565,6 +534,188 @@ function PlanCard({ name, price, interval, subPrice, features, ctaLabel, ctaVari
         {ctaLabel} <ArrowRightIcon style={{ width: 12, height: 12 }} />
       </button>
     </div>
+  )
+}
+
+// ── Credit tier picker ─────────────────────────────────────────────────
+// Custom popover dropdown: gradient highlight on the selected tier,
+// hover state, the largest tier gets a "Best value" pill, click-outside
+// + Escape close. The accent gradient matches the modal so the picker
+// reads as part of the plan card, not a stray native control.
+function CreditTierPicker({ tiers, selected, onSelect, isPro }) {
+  const [open, setOpen] = useState(false)
+  const [hover, setHover] = useState(null)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    function onKey(e) { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const current = tiers.find(t => t.credits === selected) || tiers[0]
+  const accent = isPro ? '#8B5CF6' : '#7C3AED'
+  const accentGradient = 'linear-gradient(135deg, #7C3AED, #A855F7)'
+  // Largest credit amount = "best value" pill. Only render if there's
+  // a clear top tier.
+  const maxCredits = Math.max(...tiers.map(t => t.credits))
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <label style={{
+        display: 'block',
+        fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+        letterSpacing: '0.08em', textTransform: 'uppercase',
+        color: 'var(--color-text-muted)', marginBottom: 6,
+      }}>
+        Credits per month
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = accent }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = open ? accent : 'var(--color-border)' }}
+        style={{
+          width: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          padding: '10px 12px',
+          background: 'var(--color-bg)',
+          border: '1px solid ' + (open ? accent : 'var(--color-border)'),
+          borderRadius: 10,
+          cursor: 'pointer', outline: 'none',
+          fontFamily: 'var(--font-sans)', textAlign: 'left',
+          boxShadow: open ? '0 0 0 3px rgba(124,58,237,0.18)' : 'none',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+          <span style={{
+            width: 26, height: 26, borderRadius: 8,
+            background: accentGradient,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, boxShadow: '0 4px 10px rgba(124,58,237,0.30)',
+          }}>
+            <BoltIcon style={{ width: 14, height: 14, color: 'white' }} />
+          </span>
+          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span style={{
+              fontSize: 14, fontWeight: 800, color: 'var(--color-text)',
+              letterSpacing: '-0.01em', lineHeight: 1.15,
+            }}>
+              {current.credits.toLocaleString()} credits
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+              ${current.monthly} / month
+            </span>
+          </span>
+        </span>
+        <ChevronDown open={open} color="var(--color-text-muted)" />
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, top: 'calc(100% + 6px)',
+          background: 'var(--color-bg)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 12,
+          padding: 4,
+          zIndex: 20,
+          boxShadow: '0 18px 40px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.10)',
+          animation: 'tierFadeIn 140ms ease-out',
+        }}>
+          {tiers.map(t => {
+            const isSelected = t.credits === selected
+            const isHover = hover === t.credits
+            const isTop = t.credits === maxCredits && tiers.length > 1
+            return (
+              <div
+                key={t.credits}
+                role="button"
+                onMouseEnter={() => setHover(t.credits)}
+                onMouseLeave={() => setHover(null)}
+                onClick={() => { onSelect?.(t.credits); setOpen(false) }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                  padding: '10px 12px',
+                  borderRadius: 9, cursor: 'pointer',
+                  background: isSelected
+                    ? 'linear-gradient(135deg, rgba(124,58,237,0.10), rgba(168,85,247,0.08))'
+                    : (isHover ? 'var(--color-surface)' : 'transparent'),
+                  border: '1px solid ' + (isSelected ? 'rgba(124,58,237,0.32)' : 'transparent'),
+                  transition: 'background 0.12s, border-color 0.12s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                  <span style={{
+                    width: 22, height: 22, borderRadius: 7,
+                    background: isSelected ? accentGradient : 'var(--color-surface)',
+                    border: isSelected ? 'none' : '1px solid var(--color-border)',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <BoltIcon style={{
+                      width: 11, height: 11,
+                      color: isSelected ? 'white' : 'var(--color-text-muted)',
+                    }} />
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      fontSize: 13, fontWeight: 700, color: 'var(--color-text)',
+                      letterSpacing: '-0.01em',
+                    }}>
+                      {t.credits.toLocaleString()} credits
+                      {isTop && (
+                        <span style={{
+                          fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 800,
+                          letterSpacing: '0.06em', textTransform: 'uppercase',
+                          background: 'rgba(34,197,94,0.14)', color: '#16a34a',
+                          border: '1px solid rgba(34,197,94,0.30)',
+                          borderRadius: 100, padding: '1px 6px',
+                        }}>
+                          Best value
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 1 }}>
+                      ${t.monthly} / month
+                    </div>
+                  </div>
+                </div>
+                {isSelected && (
+                  <CheckIcon style={{ width: 14, height: 14, color: accent, flexShrink: 0 }} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ChevronDown({ open, color }) {
+  return (
+    <svg
+      width="11" height="11" viewBox="0 0 24 24" fill="none"
+      stroke={color || 'currentColor'}
+      strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+      style={{
+        transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+        transition: 'transform 0.15s',
+        flexShrink: 0,
+      }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
   )
 }
 
