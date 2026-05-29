@@ -25,7 +25,7 @@ const REASONS = {
   credits: {
     Icon: BoltIcon,
     headline: 'Choose your credit plan',
-    message: 'Pick the monthly allowance that fits your work — from 300 credits on Starter up to 4,000 on Pro. Change tier or cancel anytime.',
+    message: 'Pick the monthly allowance that fits your work. Starter starts at 300 credits, Pro goes up to 4,000. Change tier or cancel anytime.',
   },
   projects: {
     Icon: FolderIcon,
@@ -190,7 +190,7 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
       return
     }
     if (typeof window === 'undefined' || typeof window.FlutterwaveCheckout !== 'function') {
-      showToast?.('Payment SDK still loading — try again in a moment.', 'info')
+      showToast?.('Payment SDK still loading. Try again in a moment.', 'info')
       return
     }
     // Read price + credits from the per-plan tier the user picked in the
@@ -228,14 +228,14 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
         })
         const json = await res.json().catch(() => ({}))
         if (!res.ok) {
-          showToast?.('Payment received — couldn\'t verify automatically: ' + (json.error || 'try refreshing'), 'error')
+          showToast?.('Payment received. Could not verify automatically: ' + (json.error || 'try refreshing'), 'error')
           return
         }
         showToast?.('Plan activated 🎉', 'success')
         try { await Promise.all([refreshAuthUser?.(), refreshUserPlan?.()]) } catch {}
       } catch (e) {
         console.error('[activatePlan]', e)
-        showToast?.('Payment received — please refresh to see your new plan.', 'info')
+        showToast?.('Payment received. Please refresh to see your new plan.', 'info')
       }
     }
 
@@ -263,7 +263,7 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
         name: user?.name || authUser?.user_metadata?.full_name || authUser.email,
       },
       customizations: {
-        title: 'DesignBrief AI — ' + (plan === 'pro' ? 'Pro' : 'Starter') + (cycle === 'annual' ? ' (Annual)' : ''),
+        title: 'DesignBrief AI ' + (plan === 'pro' ? 'Pro' : 'Starter') + (cycle === 'annual' ? ' (Annual)' : ''),
         description: (plan === 'pro' ? 'Unlimited projects + 1,000 credits' : '10 projects + 300 credits') + (cycle === 'annual' ? ' · 25% off' : ''),
         logo: 'https://designbrief-vert.vercel.app/favicon.svg',
       },

@@ -1621,7 +1621,7 @@ export default function TaskDetailModal({
       }
     }
 
-    setShareToast(copied ? 'Link copied to clipboard' : 'Could not copy link — try again')
+    setShareToast(copied ? 'Link copied to clipboard' : 'Could not copy link. Try again.')
     setTimeout(() => setShareToast(null), 2200)
   }
 

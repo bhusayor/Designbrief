@@ -12,8 +12,8 @@ const TIPS = [
   ['Tailwind CSS', 'All styles use utility classes — no extra CSS files, works with any Tailwind project.'],
   ['Approve & iterate', 'Not happy with the output? Regenerate the current task before moving on.'],
   ['ZIP download', 'At the end you get a ZIP with every component as its own file, ready to import.'],
-  ['Use the context', 'The AI reads your task title and description — the more detail you add, the better the output.'],
-  ['Stack agnostic', 'Components use standard React patterns — easy to adapt to Next.js, Remix, or Vite.'],
+  ['Use the context', 'The AI reads your task title and description. The more detail you add, the better the output.'],
+  ['Stack agnostic', 'Components use standard React patterns, easy to adapt to Next.js, Remix, or Vite.'],
   ['Preview accuracy', 'The preview uses Babel + Tailwind CDN, so what you see is close to the real render.'],
 ]
 

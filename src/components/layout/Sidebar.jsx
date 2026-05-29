@@ -680,7 +680,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               )}
               {!exhausted && (critical || low) && userPlan !== 'pro' && (
                 <div style={{ marginTop: 4, color: '#B45309', fontWeight: 600 }}>
-                  Running low — upgrade to get more
+                  Running low. Upgrade to get more
                 </div>
               )}
             </div>

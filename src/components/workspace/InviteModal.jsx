@@ -316,11 +316,11 @@ export default function InviteModal({ onClose }) {
           <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
             <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
               <strong style={{ color: 'var(--color-text-soft)', fontWeight: 600 }}>Member</strong>
-              {' — '}view and work on projects
+              {': '}view and work on projects
             </span>
             <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
               <strong style={{ color: 'var(--color-text-soft)', fontWeight: 600 }}>Admin</strong>
-              {' — '}invite others, manage workspace
+              {': '}invite others, manage workspace
             </span>
           </div>
 

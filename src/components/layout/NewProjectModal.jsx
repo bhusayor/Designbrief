@@ -93,7 +93,7 @@ export default function NewProjectModal({ open, onClose }) {
           iconColor="var(--color-purple)"
           borderHover="rgba(184,127,255,0.5)"
           title="Translate a Brief"
-          description="I already have something from my client — an email, a message, or a document. Let AI translate it into a full design brief."
+          description="I already have something from my client, like an email, a message, or a document. Let AI translate it into a full design brief."
           tag="Most popular"
           onClick={() => go('translator')}
         />

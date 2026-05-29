@@ -63,7 +63,7 @@ function AppRouter() {
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) {
-          showToast?.('Payment received — could not verify: ' + (j.error || 'try refreshing'), 'error');
+          showToast?.('Payment received. Could not verify: ' + (j.error || 'try refreshing'), 'error');
         } else {
           showToast?.('Plan activated 🎉', 'success');
           // refreshAuthUser re-pulls auth.users; refreshUserPlan re-pulls
@@ -73,7 +73,7 @@ function AppRouter() {
         }
       } catch (e) {
         console.error('[flw redirect]', e);
-        showToast?.('Payment received — please refresh to see your new plan.', 'info');
+        showToast?.('Payment received. Please refresh to see your new plan.', 'info');
       } finally {
         try { localStorage.removeItem('db-pending-payment') } catch {}
       }

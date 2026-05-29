@@ -71,9 +71,9 @@ function startOfMonthIso() {
 }
 
 function fmtDate(input, opts = {}) {
-  if (!input) return '—'
+  if (!input) return '-'
   const d = new Date(input)
-  if (Number.isNaN(d.getTime())) return '—'
+  if (Number.isNaN(d.getTime())) return '-'
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', ...opts })
 }
 
@@ -194,7 +194,7 @@ export default function Billing() {
       showToast?.(`Subscription cancelled. You have ${PLAN_NAMES[userPlan]} access until ${fmtDate(accessUntilIso)}.`, 'success')
     } catch (e) {
       console.error('[cancel]', e)
-      showToast?.('Could not cancel — try again.', 'error')
+      showToast?.('Could not cancel. Try again.', 'error')
     }
   }
 
@@ -209,7 +209,7 @@ export default function Billing() {
       showToast?.('Subscription reactivated 🎉', 'success')
     } catch (e) {
       console.error('[reactivate]', e)
-      showToast?.('Could not reactivate — try again.', 'error')
+      showToast?.('Could not reactivate. Try again.', 'error')
     }
   }
 
@@ -259,7 +259,7 @@ export default function Billing() {
       showToast?.('Card removed.', 'success')
     } catch (e) {
       console.error('[confirmRemoveCard]', e)
-      showToast?.('Could not remove card — try again.', 'error')
+      showToast?.('Could not remove card. Try again.', 'error')
     } finally {
       setRemovingCard(false)
     }
@@ -286,7 +286,7 @@ export default function Billing() {
       return
     }
     if (typeof window === 'undefined' || typeof window.FlutterwaveCheckout !== 'function') {
-      showToast?.('Payment SDK still loading — try again in a moment.', 'info')
+      showToast?.('Payment SDK still loading. Try again in a moment.', 'info')
       return
     }
     const monthly = PLAN_PRICES[userPlan] || 12
@@ -306,7 +306,7 @@ export default function Billing() {
         name: user?.name || authUser?.user_metadata?.full_name || authUser.email,
       },
       customizations: {
-        title: 'DesignBrief AI — Update card',
+        title: 'DesignBrief AI · Update card',
         description: `Update your card on file · ${PLAN_NAMES[userPlan] || 'Plan'} renewal`,
         logo: 'https://designbrief-vert.vercel.app/favicon.svg',
       },
@@ -416,9 +416,9 @@ export default function Billing() {
               access_until: resetDate?.toISOString() || null,
             }).eq('id', authUser.id)
             await refreshUserPlan?.()
-            showToast?.(`Downgrade scheduled — you'll move to ${PLAN_NAMES[downgradeTo]} on ${fmtDate(resetDate)}.`, 'success')
+            showToast?.(`Downgrade scheduled. You'll move to ${PLAN_NAMES[downgradeTo]} on ${fmtDate(resetDate)}.`, 'success')
           } catch (e) {
-            showToast?.('Could not schedule downgrade — try again.', 'error')
+            showToast?.('Could not schedule downgrade. Try again.', 'error')
           }
           setDowngradeTo(null)
         }}
@@ -1440,7 +1440,7 @@ function receiptHtml({ user, row }) {
   const plan = PLAN_NAMES[row.plan] || row.plan
   const ref = row.payment_ref || row.id
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>Receipt — DesignBrief AI</title>
+<html><head><meta charset="utf-8"><title>Receipt · DesignBrief AI</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1a1a1a; padding: 40px; max-width: 640px; margin: 0 auto; }
   .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }

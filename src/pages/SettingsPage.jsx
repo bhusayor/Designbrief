@@ -693,9 +693,9 @@ function PlansSection() {
 
   // Per-plan description that swaps in real-time as the plan changes.
   const planDescription = plan === 'pro'
-    ? "You're on the Pro plan — unlimited projects, 1,000 credits / month, up to 10 team members, white-label exports, and client intake forms."
+    ? "You're on the Pro plan. Unlimited projects, 1,000 credits / month, up to 10 team members, white-label exports, and client intake forms."
     : plan === 'starter'
-      ? "You're on the Starter plan — 300 credits / month, 10 projects, 2 team members per project, clean PDF exports."
+      ? "You're on the Starter plan. 300 credits / month, 10 projects, 2 team members per project, clean PDF exports."
       : "You're on the Free plan. Upgrade to Starter or Pro for more credits, more projects, and team collaboration."
 
   // CTA: Free / Starter can still upgrade. Pro hides the button.
@@ -761,7 +761,7 @@ function PlansSection() {
             <div style={{ width: usedPct + '%', height: '100%', background: barColor, borderRadius: 99, transition: 'width 0.3s ease' }} />
           </div>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>
-            {plan === 'free' ? 'Free plan — does not refresh' : 'Refreshes every 30 days'}
+            {plan === 'free' ? 'Free plan, does not refresh' : 'Refreshes every 30 days'}
           </span>
         </div>
       </SettingRow>
@@ -1238,7 +1238,7 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
       ])
     }
 
-    if (!token) throw new Error('Session expired — please sign out and sign back in.')
+    if (!token) throw new Error('Session expired. Please sign out and sign back in.')
 
     // Abort the fetch after 20 s so the button never spins forever
     const controller = new AbortController()
@@ -1257,7 +1257,7 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
       return data
     } catch (e) {
       clearTimeout(timer)
-      if (e.name === 'AbortError') throw new Error('Request timed out — please try again.')
+      if (e.name === 'AbortError') throw new Error('Request timed out. Please try again.')
       throw e
     }
   }

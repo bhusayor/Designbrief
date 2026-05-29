@@ -591,7 +591,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
       console.log('[handleFetchInspirations] raw response:', data)
       const arr = Array.isArray(data) ? data : []
       setInspirations(arr)
-      if (arr.length === 0) showToast('No inspirations found — try refining your brief', 'error')
+      if (arr.length === 0) showToast('No inspirations found. Try refining your brief.', 'error')
     } catch (e) {
       console.error('[handleFetchInspirations] error:', e)
       showToast('Could not fetch inspirations', 'error')
@@ -611,7 +611,7 @@ The flow should be realistic for this product. Return only the JSON array.`,
       )
       console.log('[handleLoadCompetitors] raw response:', comps)
       if (!Array.isArray(comps) || comps.length === 0) {
-        showToast('No competitors found — try adding more context to your brief', 'error')
+        showToast('No competitors found. Try adding more context to your brief.', 'error')
       }
       setResult(prev => ({ ...prev, competitors: Array.isArray(comps) ? comps : [] }))
     } catch (e) {
