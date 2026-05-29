@@ -218,6 +218,54 @@ export default function Billing() {
     setTimeout(() => { try { w.focus(); w.print() } catch {} }, 250)
   }
 
+  // ── Card update flow ──────────────────────────────────────────────
+  // Paid users → open Flutterwave Inline directly with their current
+  // plan's monthly amount. tx_ref encodes _card so the webhook can
+  // distinguish this from an initial subscription if it cares to.
+  // The redirect_url + flw_callback handler in App.jsx already handles
+  // post-payment verification + plan refresh.
+  function launchCardUpdate() {
+    if (userPlan === 'free') {
+      showToast?.('Choose a paid plan first to add a card.', 'info')
+      return
+    }
+    const publicKey = import.meta.env.VITE_FLW_PUBLIC_KEY
+    if (!publicKey) {
+      showToast?.('Billing not configured.', 'error')
+      return
+    }
+    if (!authUser?.id || !authUser?.email) {
+      showToast?.('Please sign in to update your card.', 'error')
+      return
+    }
+    if (typeof window === 'undefined' || typeof window.FlutterwaveCheckout !== 'function') {
+      showToast?.('Payment SDK still loading — try again in a moment.', 'info')
+      return
+    }
+    const monthly = PLAN_PRICES[userPlan] || 12
+    const tx_ref = `db_${authUser.id}_${userPlan}_monthly_${Date.now()}_card`
+    try {
+      localStorage.setItem('db-pending-payment', JSON.stringify({ tx_ref, plan: userPlan, at: Date.now() }))
+    } catch {}
+    window.FlutterwaveCheckout({
+      public_key: publicKey,
+      tx_ref,
+      amount: monthly,
+      currency: 'USD',
+      payment_options: 'card',
+      redirect_url: window.location.origin + '/?flw_callback=1',
+      customer: {
+        email: authUser.email,
+        name: user?.name || authUser?.user_metadata?.full_name || authUser.email,
+      },
+      customizations: {
+        title: 'DesignBrief AI — Update card',
+        description: `Update your card on file · ${PLAN_NAMES[userPlan] || 'Plan'} renewal`,
+        logo: 'https://designbrief-vert.vercel.app/favicon.svg',
+      },
+    })
+  }
+
   // ── Render ────────────────────────────────────────────────────────
   return (
     <div style={{
@@ -281,7 +329,8 @@ export default function Billing() {
       <PaymentMethodCard
         history={history}
         isMobile={isMobile}
-        onUpdate={() => openUpgradeModal?.('general')}
+        userPlan={userPlan}
+        onUpdate={launchCardUpdate}
       />
 
       {(userPlan === 'starter' || userPlan === 'pro') && planStatus !== 'cancelled' && (
@@ -768,13 +817,14 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
 }
 
 // ── Payment Method ───────────────────────────────────────────────────
-function PaymentMethodCard({ history, isMobile, onUpdate }) {
+function PaymentMethodCard({ history, isMobile, userPlan, onUpdate }) {
   // We can't show full PAN (PCI), but we surface the last payment so the
   // user knows which card / method is on file. Flutterwave returns the
   // card type + last 4 in the verify payload — when we start saving
   // payment instruments, this is where they'll render.
   const last = history?.[0]
   const hasCard = !!last
+  const isFree = userPlan === 'free'
   return (
     <Section title="Payment Method">
       <div style={{
@@ -797,25 +847,33 @@ function PaymentMethodCard({ history, isMobile, onUpdate }) {
               {hasCard ? 'Payment via Flutterwave' : 'No payment method on file'}
             </div>
             <div style={{ marginTop: 2, fontSize: 12, color: 'var(--color-text-muted)' }}>
-              {hasCard
-                ? <>Last charged {fmtDate(last.created_at)} · ${Number(last.amount).toFixed(2)} {last.currency || 'USD'}</>
-                : 'Add a card to upgrade or renew your plan automatically.'}
+              {isFree
+                ? 'Choose a paid plan to add a card.'
+                : hasCard
+                  ? <>Last charged {fmtDate(last.created_at)} · ${Number(last.amount).toFixed(2)} {last.currency || 'USD'}</>
+                  : 'Add your card to enable plan renewal.'}
             </div>
           </div>
         </div>
         <button
           onClick={onUpdate}
+          disabled={isFree}
+          title={isFree ? 'Upgrade to a paid plan first' : (hasCard ? 'Replace the card on file' : 'Add a card to your account')}
           style={{
             padding: '9px 16px',
-            background: 'transparent', color: 'var(--color-text)',
-            border: '1px solid var(--color-border)', borderRadius: 10,
-            cursor: 'pointer',
+            background: 'transparent',
+            color: isFree ? 'var(--color-text-muted)' : 'var(--color-text)',
+            border: `1px solid ${isFree ? 'var(--color-border)' : 'var(--color-border)'}`,
+            borderRadius: 10,
+            cursor: isFree ? 'not-allowed' : 'pointer',
+            opacity: isFree ? 0.55 : 1,
             fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
             width: isMobile ? '100%' : 'auto',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            transition: 'border-color 0.15s, color 0.15s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text)' }}
+          onMouseEnter={e => { if (!isFree) { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' } }}
+          onMouseLeave={e => { if (!isFree) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text)' } }}
         >
           {hasCard ? 'Update card' : 'Add card'}
         </button>
