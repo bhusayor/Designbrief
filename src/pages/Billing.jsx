@@ -127,7 +127,13 @@ export default function Billing() {
     ]).then(([h, u, p]) => {
       setHistory(h.data || [])
       setUsageRows(u.data || [])
-      setPaymentMethodRemovedAt(p.data?.payment_method_removed_at || null)
+      // Prefer the DB column; fall back to the localStorage flag for
+      // installs that haven't run supabase/billing-page.sql yet.
+      let removedAt = p.data?.payment_method_removed_at || null
+      if (!removedAt) {
+        try { removedAt = localStorage.getItem('db-payment-method-removed-at:' + authUser.id) || null } catch {}
+      }
+      setPaymentMethodRemovedAt(removedAt)
     }).catch(() => {}).finally(() => setLoadingHistory(false))
   }, [authUser?.id])
 
@@ -222,13 +228,32 @@ export default function Billing() {
   async function confirmRemoveCard() {
     if (!authUser?.id) return
     setRemovingCard(true)
+    const nowIso = new Date().toISOString()
     try {
-      const nowIso = new Date().toISOString()
       const { error } = await supabase
         .from('profiles')
         .update({ payment_method_removed_at: nowIso })
         .eq('id', authUser.id)
-      if (error) throw error
+      if (error) {
+        // Column not added yet → fall back to a per-device localStorage
+        // flag so removal still works in the UI. The next successful
+        // charge updates billing_history.created_at, which the
+        // PaymentMethodCard compares against to re-flip the indicator.
+        const missingColumn = /payment_method_removed_at/i.test(error.message || '')
+          || /column .* does not exist/i.test(error.message || '')
+          || error.code === '42703'
+        if (missingColumn) {
+          console.warn('[confirmRemoveCard] payment_method_removed_at column missing — using localStorage fallback. Run supabase/billing-page.sql to enable cross-device removal.')
+          try { localStorage.setItem('db-payment-method-removed-at:' + authUser.id, nowIso) } catch {}
+          setPaymentMethodRemovedAt(nowIso)
+          setRemoveCardOpen(false)
+          showToast?.('Card removed.', 'success')
+          return
+        }
+        console.error('[confirmRemoveCard] supabase error:', error)
+        showToast?.('Could not remove card: ' + (error.message || 'try again.'), 'error')
+        return
+      }
       setPaymentMethodRemovedAt(nowIso)
       setRemoveCardOpen(false)
       showToast?.('Card removed.', 'success')
