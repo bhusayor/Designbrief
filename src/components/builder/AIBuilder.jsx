@@ -51,7 +51,7 @@ const DEVICE_WIDTHS = {
 }
 
 export default function AIBuilder({ build, project, onClose }) {
-  const { authUser, workspace, showToast, saveProject } = useContext(AppContext)
+  const { authUser, workspace, showToast, showAIError, saveProject } = useContext(AppContext)
   const [sections, setSections] = useState([])
   const [briefContext, setBriefContext] = useState(null)
   const [buildState, setBuildState] = useState(build)
@@ -217,12 +217,13 @@ export default function AIBuilder({ build, project, onClose }) {
       })
     } catch (e) {
       console.error('[AIBuilder] section failed:', e)
-      showToast?.('Section failed: ' + (e.message || 'try again'), 'error')
       // Drop status back so the user can retry from the row.
       await supabase
         .from('build_sections')
         .update({ status: 'queued' })
         .eq('id', next.id)
+      // Show the user-safe banner with a retry that resumes the queue.
+      showAIError?.(e, () => { runningRef.current = false; runNextSection() })
     } finally {
       runningRef.current = false
       setStreamingId(null)

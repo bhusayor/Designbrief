@@ -127,7 +127,7 @@ export default function ProjectBuilder() {
   const isComplete = currentIndex >= tasks.length
 
   async function buildCurrentTask() {
-    if (!apiKey.trim()) { setError('Enter your Anthropic API key first.'); return }
+    if (!apiKey.trim()) { setError('Add your access key on the right to start building.'); return }
     if (!currentTask) return
     setError('')
     setStreamedCode('')
@@ -410,7 +410,7 @@ export default function ProjectBuilder() {
                   ? 'Add tasks in Team Collab, then come back to build them.'
                   : hasKey
                     ? 'Click "Build task" to generate the first component.'
-                    : 'Add your API key on the right to get started.'}
+                    : 'Add your access key on the right to get started.'}
               </div>
             </div>
           ) : phase === 'building' ? (
@@ -462,12 +462,12 @@ export default function ProjectBuilder() {
           padding: '20px 16px', gap: 20, overflowY: 'auto',
         }}>
 
-          {/* API key section */}
+          {/* Access key section */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
               <KeyIcon style={{ width: 14, height: 14, color: hasKey ? '#7C3AED' : 'var(--color-text-muted)' }} />
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif", textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Anthropic API Key
+                Access Key
               </span>
             </div>
 
@@ -475,7 +475,7 @@ export default function ProjectBuilder() {
               <div>
                 {!hasKey && (
                   <div style={{ marginBottom: 8, padding: '8px 10px', background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 8, fontSize: 11, color: '#dc2626', lineHeight: 1.5 }}>
-                    Enter your Anthropic API key to start building. It's stored locally and never sent to our servers.
+                    Paste your access key to start building. It's stored locally and never sent to our servers.
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 6 }}>

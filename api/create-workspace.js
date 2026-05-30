@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { PER_TASK_PROMPT_SYSTEM } from '../src/lib/aiSystemPrompts.js'
+import { mapHttpAnthropicError, mapClaudeError } from './lib/claudeError.js'
 
 /*
  * Run in Supabase SQL Editor before deploying:
@@ -644,15 +645,16 @@ STRICT OUTPUT RULES:
         }),
       })
       if (!resp.ok) {
-        const err = await resp.text()
-        return res.status(500).json({ error: 'AI failed: ' + err.slice(0, 200) })
+        const errText = await resp.text().catch(() => '')
+        const { status, body } = mapHttpAnthropicError(resp.status, errText, '[enhance-description]')
+        return res.status(status).json(body)
       }
       const data = await resp.json()
       const enhanced = data?.content?.[0]?.text?.trim() || ''
       return res.json({ description: enhanced })
     } catch (e) {
-      console.error('[create-workspace POST enhance]', e)
-      return res.status(500).json({ error: e.message })
+      const { status, body } = mapClaudeError(e, '[enhance-description]')
+      return res.status(status).json(body)
     }
   }
 
@@ -685,15 +687,16 @@ STRICT OUTPUT RULES:
         }),
       })
       if (!resp.ok) {
-        const err = await resp.text()
-        return res.status(500).json({ error: 'AI failed: ' + err.slice(0, 200) })
+        const errText = await resp.text().catch(() => '')
+        const { status, body } = mapHttpAnthropicError(resp.status, errText, '[generate-ai-prompt]')
+        return res.status(status).json(body)
       }
       const data = await resp.json()
       const prompt = data?.content?.[0]?.text?.trim() || ''
       return res.json({ prompt })
     } catch (e) {
-      console.error('[create-workspace POST generate-ai-prompt]', e)
-      return res.status(500).json({ error: e.message })
+      const { status, body } = mapClaudeError(e, '[generate-ai-prompt]')
+      return res.status(status).json(body)
     }
   }
 

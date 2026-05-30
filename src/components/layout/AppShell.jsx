@@ -2,6 +2,7 @@ import { useContext, useState, useEffect } from 'react';
 import AppContext from '../../context/AppContext';
 import Sidebar from './Sidebar';
 import Toast from '../ui/Toast';
+import AIErrorToast from '../ui/AIErrorToast';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -26,7 +27,7 @@ function PanelLeftOpen() {
 }
 
 export default function AppShell({ children }) {
-  const { notification, workspace } = useContext(AppContext);
+  const { notification, workspace, aiError, clearAIError } = useContext(AppContext);
   const isMobile = useIsMobile();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [displayed, setDisplayed] = useState(null);
@@ -132,6 +133,7 @@ export default function AppShell({ children }) {
       </main>
 
       {displayed && <Toast message={displayed.msg} type={displayed.type} exiting={exiting} />}
+      <AIErrorToast error={aiError} onDismiss={clearAIError} />
     </div>
   );
 }

@@ -65,7 +65,7 @@ Generate a complete, polished React component for this task. The component shoul
 }
 
 export default function BuildInterface({ tasks: rawTasks, projectName, onClose }) {
-  const { setCreditsUsed } = useContext(AppContext)
+  const { setCreditsUsed, showAIError } = useContext(AppContext)
   const order = ['To Do', 'In Progress', 'Review', 'Done']
   const tasks = [...(rawTasks || [])].sort((a, b) => order.indexOf(a.column) - order.indexOf(b.column))
 
@@ -122,8 +122,9 @@ export default function BuildInterface({ tasks: rawTasks, projectName, onClose }
       setPhase('done')
       setCreditsUsed(prev => prev + 1)
     } catch (e) {
-      setError(e.message)
+      console.error('[BuildInterface] section failed:', e)
       setPhase('idle')
+      showAIError?.(e, () => startBuild())
     }
   }
 

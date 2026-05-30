@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAuth, checkRateLimit, logUsage } from './lib/authMiddleware.js'
+import { mapClaudeError } from './lib/claudeError.js'
 
 // ────────────────────────────────────────────────────────────────────
 // Unified Claude proxy. Three modes, auto-detected from the request
@@ -100,18 +101,7 @@ export default async function handler(req, res) {
       .join('\n')
     return res.json({ content, text })
   } catch (error) {
-    console.error('[claude] error:', {
-      message: error?.message,
-      status: error?.status,
-      type: error?.constructor?.name,
-      body: error?.error,
-    })
-    // Surface Anthropic's status/code so the client can actually act on it.
-    const status = error?.status && error.status >= 400 && error.status < 600 ? error.status : 500
-    return res.status(status).json({
-      error: error?.message || 'AI request failed',
-      code: error?.error?.error?.type || error?.error?.type || error?.constructor?.name,
-      details: error?.error?.error?.message || error?.error?.message || null,
-    })
+    const { status, body } = mapClaudeError(error, '[claude]')
+    return res.status(status).json(body)
   }
 }

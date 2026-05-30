@@ -80,6 +80,9 @@ export function AppProvider({ children }) {
   const [history, setHistory] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [notification, setNotification] = useState(null);
+  // AI error banner — distinct from regular toast because it carries an
+  // optional retry callback and (for rate_limited) a countdown.
+  const [aiError, setAiError] = useState(null);
   const [activeIntakeId, setActiveIntakeId] = useState(null);
   const [intakeForms, setIntakeForms] = useState([]);
   const [loadingForms, setLoadingForms] = useState(false);
@@ -978,6 +981,26 @@ export function AppProvider({ children }) {
     toastTimer.current = setTimeout(() => setNotification(null), 3000);
   }, []);
 
+  // showAIError(error, onRetry?) — surface a user-safe AI error banner.
+  // The error object must come from our client wrappers (post() in
+  // src/lib/api.js or aiBuildEngine.buildSection) so the .code and
+  // .message fields are already mapped to user-safe values by the
+  // server-side mapClaudeError helper.
+  const showAIError = useCallback((error, onRetry) => {
+    const code = (error && error.code) || 'unexpected';
+    const message = (error && error.message)
+      || 'Something interrupted the AI. Your work is safe — please try again.';
+    setAiError({
+      code,
+      message,
+      retryAfter: error?.retryAfter || null,
+      onRetry: typeof onRetry === 'function' ? onRetry : null,
+      key: Date.now(),
+    });
+  }, []);
+
+  const clearAIError = useCallback(() => setAiError(null), []);
+
   // ── Multi-workspace: create + switch ──────────────────────────────────────
   // Paid plans can host multiple workspaces. The API enforces the per-plan
   // cap; we surface a friendly toast + open the upgrade modal on 403.
@@ -1620,6 +1643,9 @@ export function AppProvider({ children }) {
 
     // Toast
     showToast,
+    aiError,
+    showAIError,
+    clearAIError,
 
     // Theme
     theme,

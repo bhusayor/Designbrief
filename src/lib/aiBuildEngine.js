@@ -57,8 +57,13 @@ export async function buildSection({
   })
 
   if (!res.ok || !res.body) {
-    const errText = await res.text().catch(() => '')
-    throw new Error('Build failed: ' + (errText.slice(0, 200) || res.status))
+    let body = {}
+    try { body = await res.json() } catch {}
+    const err = new Error(body?.message || 'Something interrupted the AI. Your work is safe — please try again.')
+    err.code = body?.error || null
+    err.status = res.status
+    if (body?.retry_after) err.retryAfter = body.retry_after
+    throw err
   }
 
   const reader = res.body.getReader()
@@ -87,16 +92,24 @@ export async function buildSection({
             acc += json.text
             try { onProgress?.(acc) } catch {}
           }
-          if (json.error) serverError = json.error
-          if (json.done) {
-            // Server has already persisted; nothing left to do here.
+          // Server-mapped error frames: { error: <code>, message: <text> }
+          if (json.error && json.message) {
+            serverError = { code: json.error, message: json.message, retryAfter: json.retry_after }
+          } else if (json.error) {
+            // Legacy / passthrough — wrap as a generic friendly message.
+            serverError = { code: 'unexpected', message: 'Something interrupted the AI. Your work is safe — please try again.' }
           }
         } catch {}
       }
     }
   }
 
-  if (serverError) throw new Error(serverError)
+  if (serverError) {
+    const err = new Error(serverError.message)
+    err.code = serverError.code
+    if (serverError.retryAfter) err.retryAfter = serverError.retryAfter
+    throw err
+  }
   return acc
 }
 

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAuth, checkRateLimit } from './lib/authMiddleware.js'
+import { mapClaudeError } from './lib/claudeError.js'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = 'claude-sonnet-4-6'
@@ -57,16 +58,17 @@ export default async function handler(req, res) {
     })
 
     stream.on('error', (err) => {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`)
+      const { body } = mapClaudeError(err, '[claude-stream]')
+      res.write(`data: ${JSON.stringify(body)}\n\n`)
       res.end()
     })
 
   } catch (error) {
-    console.error('Stream error:', error)
+    const { status, body } = mapClaudeError(error, '[claude-stream]')
     if (!res.headersSent) {
-      res.status(500).json({ error: error.message })
+      res.status(status).json(body)
     } else {
-      res.write(`data: ${JSON.stringify({ done: true, error: error.message })}\n\n`)
+      res.write(`data: ${JSON.stringify({ done: true, ...body })}\n\n`)
       res.end()
     }
   }

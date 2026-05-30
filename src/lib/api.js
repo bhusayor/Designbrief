@@ -1,9 +1,9 @@
 /**
- * api.js — Higher-level Claude API helpers for DesignBrief AI
+ * api.js — higher-level AI helpers.
  *
- * Uses the same backend proxy pattern as src/services/aiService.js.
- * All Claude calls go through the Express / Vercel API routes to keep
- * the Anthropic API key server-side.
+ * All AI calls route through our backend proxy. Errors that come back
+ * from the server are already mapped to user-safe codes/messages by
+ * api/lib/claudeError.js — we just surface them verbatim.
  */
 
 import { supabase } from './supabase.js'
@@ -32,25 +32,22 @@ async function post(path, body, timeoutMs = 25000) {
     })
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}))
-      const raw = String(errData.details || errData.error || errData.message || '')
-      // Anthropic returns this when the platform Anthropic account is out
-      // of credits — turn it into something the user can act on instead
-      // of a generic "API error: 400".
-      const lowBalance = /credit balance is too low/i.test(raw)
-      const message = lowBalance
-        ? 'AI is temporarily unavailable. The Anthropic account is out of credits — top up at console.anthropic.com/settings/plans and try again.'
-        : (errData.details || errData.message || errData.error || `API error: ${res.status}`)
+      // The server-side error mapper (api/lib/claudeError.js) gives us:
+      //   { error: <code>, message: <user-safe text>, retry_after?: number }
+      // We just surface that. No provider-specific language reaches here.
+      const message = errData.message || 'Something interrupted the AI. Your work is safe — please try again.'
       const error = new Error(message)
       error.status = res.status
       error.data = errData
-      error.code = lowBalance ? 'AI_PROVIDER_LOW_BALANCE' : errData.code
+      error.code = errData.error || null
+      if (errData.retry_after) error.retryAfter = errData.retry_after
       throw error
     }
     return res.json()
   } catch (err) {
     if (err.name === 'AbortError') {
-      const timeoutErr = new Error('Request timed out — please try again')
-      timeoutErr.code = 'TIMEOUT'
+      const timeoutErr = new Error('This brief is taking longer than expected. Try breaking it into smaller sections.')
+      timeoutErr.code = 'timeout'
       throw timeoutErr
     }
     throw err

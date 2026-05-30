@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { WEBSITE_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
+import { mapClaudeError } from './lib/claudeError.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -64,13 +65,34 @@ Generate a complete, polished React component for this task. The component shoul
     })
 
     stream.on('error', (err) => {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`)
+      const body = byokError(err) || mapClaudeError(err, '[build-component]').body
+      res.write(`data: ${JSON.stringify(body)}\n\n`)
       res.end()
     })
   } catch (e) {
-    console.error('[build-component]', e)
-    if (!res.headersSent) return res.status(500).json({ error: e.message })
-    res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`)
+    const byok = byokError(e)
+    if (byok) {
+      if (!res.headersSent) return res.status(401).json(byok)
+      res.write(`data: ${JSON.stringify(byok)}\n\n`)
+      return res.end()
+    }
+    const { status, body } = mapClaudeError(e, '[build-component]')
+    if (!res.headersSent) return res.status(status).json(body)
+    res.write(`data: ${JSON.stringify(body)}\n\n`)
     res.end()
   }
+}
+
+// build-component is bring-your-own-key — the user pasted their own key in
+// Project Builder. A 401 means THEIR key is bad, so we tell them that
+// instead of falling through to mapClaudeError's "temporarily unavailable"
+// (which is for platform-key failures).
+function byokError(err) {
+  if (err?.status === 401) {
+    return {
+      error: 'invalid_user_key',
+      message: 'That key was rejected. Double-check the value you pasted on Project Builder and try again.',
+    }
+  }
+  return null
 }

@@ -25,6 +25,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { SECTION_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
+import { mapHttpAnthropicError, mapClaudeError } from './lib/claudeError.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
@@ -139,7 +140,8 @@ export default async function handler(req, res) {
 
     if (!upstream.ok) {
       const errBody = await upstream.text().catch(() => '')
-      res.write(`data: ${JSON.stringify({ error: 'Anthropic ' + upstream.status + ': ' + errBody.slice(0, 200) })}\n\n`)
+      const { body } = mapHttpAnthropicError(upstream.status, errBody, '[build-section]')
+      res.write(`data: ${JSON.stringify(body)}\n\n`)
       res.end()
       await supabase
         .from('build_sections')
@@ -176,7 +178,11 @@ export default async function handler(req, res) {
               // Drain to end naturally.
             } else if (json.type === 'error') {
               errored = true
-              res.write(`data: ${JSON.stringify({ error: json.error?.message || 'AI error' })}\n\n`)
+              const { body } = mapClaudeError(
+                { status: json.error?.status || 500, message: json.error?.message || 'AI error', error: json.error },
+                '[build-section]'
+              )
+              res.write(`data: ${JSON.stringify(body)}\n\n`)
             }
           } catch (e) {
             // Non-JSON SSE comment line, ignore.
@@ -186,8 +192,8 @@ export default async function handler(req, res) {
     }
   } catch (e) {
     errored = true
-    console.error('[build-section] stream error:', e)
-    res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`)
+    const { body } = mapClaudeError(e, '[build-section]')
+    res.write(`data: ${JSON.stringify(body)}\n\n`)
   }
 
   // Persist what we got. Even on partial output the user can decide
