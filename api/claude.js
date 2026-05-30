@@ -16,7 +16,11 @@ import { requireAuth, checkRateLimit, logUsage } from './lib/authMiddleware.js'
 // ────────────────────────────────────────────────────────────────────
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const MODEL = 'claude-sonnet-4-6'
+// Use Sonnet 4.5 — the same model id all the other working endpoints
+// (settings.js, create-workspace.js) use. Sonnet 4.6 access can be
+// account-tier dependent and the old claude.js shipped with 4-6 even
+// though it may have been silently rejected on some Hobby accounts.
+const MODEL = 'claude-sonnet-4-5'
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -87,13 +91,27 @@ export default async function handler(req, res) {
       return res.json({ content: response.content, stop_reason: response.stop_reason })
     }
 
-    const text = response.content
-      .filter(b => b.type === 'text')
+    // Defensive parse — Anthropic always returns content as an array but
+    // a malformed response shouldn't take down the whole request.
+    const content = Array.isArray(response.content) ? response.content : []
+    const text = content
+      .filter(b => b && b.type === 'text')
       .map(b => b.text)
       .join('\n')
-    return res.json({ content: response.content, text })
+    return res.json({ content, text })
   } catch (error) {
-    console.error('[claude] error:', error)
-    return res.status(500).json({ error: error.message })
+    console.error('[claude] error:', {
+      message: error?.message,
+      status: error?.status,
+      type: error?.constructor?.name,
+      body: error?.error,
+    })
+    // Surface Anthropic's status/code so the client can actually act on it.
+    const status = error?.status && error.status >= 400 && error.status < 600 ? error.status : 500
+    return res.status(status).json({
+      error: error?.message || 'AI request failed',
+      code: error?.error?.error?.type || error?.error?.type || error?.constructor?.name,
+      details: error?.error?.error?.message || error?.error?.message || null,
+    })
   }
 }
