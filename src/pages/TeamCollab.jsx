@@ -26,9 +26,10 @@ import { PER_TASK_PROMPT_SYSTEM, SENIOR_CREATIVE_DIRECTOR } from '../lib/aiSyste
 import { getProjectInvites } from '../lib/teamService'
 import {
   saveTasksToDB, loadTasksFromDB, updateTaskInDB, deleteTaskFromDB, mapDBTask,
-  loadProjectSettings,
+  loadProjectSettings, saveKanbanColumns,
   calculateDueDates, calculateProgress, logActivity,
 } from '../lib/taskService'
+import { projectLimit } from '../lib/plans'
 import TeamPage from './TeamPage'
 import ConnectPanel from '../components/connectors/ConnectPanel'
 import { GanttSection } from '../components/brief/renderers/shared'
@@ -1653,9 +1654,7 @@ Return JSON:
     // column layout. Skip the placeholder 'default' project id.
     const pid = activeProjectId
     if (pid && pid !== 'default' && authUser) {
-      import('../lib/taskService').then(({ saveKanbanColumns }) => {
-        saveKanbanColumns(pid, cols)
-      }).catch(() => {})
+      try { saveKanbanColumns(pid, cols) } catch (e) { /* fire and forget */ }
       // Fast path: broadcast the new column layout on a per-project
       // realtime channel. Subscribers on other devices apply it without
       // waiting for postgres_changes to roundtrip (~50-200ms vs ~1s+).
@@ -2760,7 +2759,6 @@ Produce the prompt using the exact 7 section labels from the system instructions
   async function handleNewProject() {
     // Plan project limit: free=2, starter=10, pro=Infinity. Counts owned
     // projects only (shared projects don't count against the cap).
-    const { projectLimit } = await import('../lib/plans.js')
     const cap = projectLimit(userPlan)
     if (Number.isFinite(cap)) {
       const ownedCount = (ctxProjects || []).filter(p => !p.isShared).length

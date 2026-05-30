@@ -17,6 +17,7 @@ import Auth from './pages/Auth';
 import WorkspaceSetup from './pages/WorkspaceSetup';
 import AcceptInvite from './pages/AcceptInvite';
 import UpgradeModal from './components/UpgradeModal';
+import { supabase } from './lib/supabase';
 
 function AppRouter() {
   const {
@@ -52,7 +53,6 @@ function AppRouter() {
 
     (async () => {
       try {
-        const { supabase } = await import('./lib/supabase');
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         if (!token) throw new Error('Not signed in');

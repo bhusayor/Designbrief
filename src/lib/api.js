@@ -135,7 +135,9 @@ function extractJSON(text) {
  * Returns { content, stop_reason } where content is an array of blocks.
  */
 export async function callClaudeTools({ messages, system = '', maxTokens = 2000, tools } = {}) {
-  return post('/api/claude-tools', { messages, system, maxTokens, tools })
+  // Routes to /api/claude (unified proxy). The presence of messages[]
+  // tells the server we're in tools mode.
+  return post('/api/claude', { messages, system, maxTokens, tools })
 }
 
 /**
@@ -163,10 +165,13 @@ export async function callJSON(systemPrompt, userMessage, maxTokens = 4000) {
  * Returns concatenated text from all text content blocks.
  */
 export async function callClaudeWithSearch(systemPrompt, userMessage, maxTokens = 2000) {
-  const data = await post('/api/claude-search', {
+  // Routes to /api/claude (unified proxy). mode='search' tells the server
+  // to attach the web_search tool.
+  const data = await post('/api/claude', {
     system: systemPrompt,
     message: userMessage,
     maxTokens,
+    mode: 'search',
   });
   return data.text ?? '';
 }
