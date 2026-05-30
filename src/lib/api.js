@@ -32,9 +32,18 @@ async function post(path, body, timeoutMs = 25000) {
     })
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}))
-      const error = new Error(errData.message || `API error: ${res.status}`)
+      const raw = String(errData.details || errData.error || errData.message || '')
+      // Anthropic returns this when the platform Anthropic account is out
+      // of credits — turn it into something the user can act on instead
+      // of a generic "API error: 400".
+      const lowBalance = /credit balance is too low/i.test(raw)
+      const message = lowBalance
+        ? 'AI is temporarily unavailable. The Anthropic account is out of credits — top up at console.anthropic.com/settings/plans and try again.'
+        : (errData.details || errData.message || errData.error || `API error: ${res.status}`)
+      const error = new Error(message)
       error.status = res.status
       error.data = errData
+      error.code = lowBalance ? 'AI_PROVIDER_LOW_BALANCE' : errData.code
       throw error
     }
     return res.json()

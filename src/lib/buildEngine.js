@@ -20,7 +20,16 @@ export async function buildWithProxy(prompt, onToken, authHeader) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err?.message || `Build API error ${res.status}`)
+    const detail = err?.details || err?.error || ''
+    // Anthropic returns a 400 with this message when the account is out of
+    // credits — surface that exactly so the user knows it's a billing
+    // issue on the AI provider side, not a bug in the app.
+    const lowBalance = /credit balance is too low/i.test(detail)
+      || /credit balance is too low/i.test(err?.error || '')
+    if (lowBalance) {
+      throw new Error('AI is temporarily unavailable. The Anthropic account is out of credits — top up at console.anthropic.com/settings/plans and try again.')
+    }
+    throw new Error(detail || err?.error || `Build API error ${res.status}`)
   }
 
   const data = await res.json()
