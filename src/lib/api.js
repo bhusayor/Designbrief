@@ -8,6 +8,7 @@
 
 import { supabase } from './supabase.js'
 import { KANBAN_TASK_SYSTEM, buildBriefChatSystem } from './aiSystemPrompts.js'
+import { callClaude as centralCallClaude } from './claudeApi.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -138,48 +139,79 @@ function extractJSON(text) {
 
 /**
  * callClaudeTools — sends a full conversation with optional tools.
- * Returns { content, stop_reason } where content is an array of blocks.
+ * Returns { content, stop_reason }.
+ *
+ * Accepts optional taskType so the server picks the right model
+ * (defaults to chat_refinement → Haiku — the in-board chat is the
+ * primary user of this entry point).
  */
-export async function callClaudeTools({ messages, system = '', maxTokens = 2000, tools } = {}) {
-  // Routes to /api/claude (unified proxy). The presence of messages[]
-  // tells the server we're in tools mode.
-  return post('/api/claude', { messages, system, maxTokens, tools })
-}
-
-/**
- * callClaude — returns raw text string from Claude.
- */
-export async function callClaude(systemPrompt, userMessage, maxTokens = 2000) {
-  const data = await post('/api/claude', {
-    system: systemPrompt,
-    message: userMessage,
+export async function callClaudeTools({ messages, system = '', maxTokens = 2000, tools, taskType = 'chat_refinement' } = {}) {
+  const data = await centralCallClaude({
+    taskType,
+    system,
+    messages,
+    tools,
     maxTokens,
-  });
-  return data.text ?? '';
+  })
+  return { content: data.content, stop_reason: data.stop_reason }
 }
 
 /**
- * callJSON — returns parsed JSON object, or null on failure.
+ * callClaude — returns the raw text string. Positional signature kept
+ * for backward compat; pass taskType as the 4th arg to opt into a
+ * non-default model. Without taskType the server falls back to Sonnet.
  */
-export async function callJSON(systemPrompt, userMessage, maxTokens = 4000) {
-  const text = await callClaude(systemPrompt, userMessage, maxTokens);
-  return extractJSON(text);
-}
-
-/**
- * callClaudeWithSearch — calls Claude with web_search tool enabled.
- * Returns concatenated text from all text content blocks.
- */
-export async function callClaudeWithSearch(systemPrompt, userMessage, maxTokens = 2000) {
-  // Routes to /api/claude (unified proxy). mode='search' tells the server
-  // to attach the web_search tool.
-  const data = await post('/api/claude', {
+export async function callClaude(systemPrompt, userMessage, maxTokens = 2000, taskType) {
+  const data = await centralCallClaude({
+    taskType,
     system: systemPrompt,
-    message: userMessage,
+    userMessage,
     maxTokens,
-    mode: 'search',
-  });
-  return data.text ?? '';
+  })
+  return data.text ?? ''
+}
+
+/**
+ * callJSON — same as callClaude but parses the response as JSON.
+ */
+export async function callJSON(systemPrompt, userMessage, maxTokens = 4000, taskType) {
+  const text = await callClaude(systemPrompt, userMessage, maxTokens, taskType)
+  return extractJSON(text)
+}
+
+/**
+ * callClaudeWithSearch — Claude with web_search injected. Default
+ * model = competitors_search (still Sonnet) — the inspirations/
+ * competitors lookups are the primary user.
+ */
+export async function callClaudeWithSearch(systemPrompt, userMessage, maxTokens = 2000, taskType = 'competitors_search') {
+  // The new helper handles search mode via the userMessage path; we
+  // surface it by sending mode='search' on a hand-built request.
+  const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: {} }))
+  const authHeaderObj = session?.access_token
+    ? { Authorization: 'Bearer ' + session.access_token }
+    : {}
+  const res = await fetch(`${API_BASE_URL}/api/claude`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaderObj },
+    body: JSON.stringify({
+      task_type: taskType,
+      system: systemPrompt,
+      message: userMessage,
+      maxTokens,
+      mode: 'search',
+    }),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    const error = new Error(errData.message || 'Something interrupted the AI. Your work is safe — please try again.')
+    error.status = res.status
+    error.code = errData.error || null
+    if (errData.retry_after) error.retryAfter = errData.retry_after
+    throw error
+  }
+  const data = await res.json()
+  return data.text ?? ''
 }
 
 // ─── Brief analysis ───────────────────────────────────────────────────────────
@@ -206,7 +238,7 @@ export async function scoreBrief(briefText) {
 Brief:
 ${briefText}`;
 
-  return callJSON(system, user, 800);
+  return callJSON(system, user, 800, 'brief_translation');
 }
 
 /**
@@ -749,7 +781,7 @@ CRITICAL deliverables rules:
 Brief:
 ${briefText}`;
 
-  return callJSON(system, user, 8000);
+  return callJSON(system, user, 8000, 'brief_translation');
 }
 
 /**
@@ -819,7 +851,7 @@ CRITICAL userFlow rules:
 Brief:
 ${briefText}`;
 
-  return callJSON(system, user, 4000);
+  return callJSON(system, user, 4000, 'brief_translation');
 }
 
 /**
@@ -850,7 +882,8 @@ Return this exact JSON structure:
 
 Make subtasks specific to: ${taskName}
 Return ONLY the JSON, nothing else.`,
-      600
+      600,
+      'ai_task_prompt'
     )
     if (result?.subtasks?.length > 0) return result.subtasks
     return [
@@ -886,7 +919,7 @@ Return a JSON array of objects:
 
 Return 6-8 high-quality, real references.`;
 
-  const text = await callClaudeWithSearch(system, user, 1500);
+  const text = await callClaudeWithSearch(system, user, 1500, 'inspirations_search');
   return extractJSON(text) ?? [];
 }
 
@@ -987,7 +1020,8 @@ export async function generateKanban(briefText, projectTitle, teamMembers = [], 
   const raw = await callClaude(
     KANBAN_TASK_SYSTEM,
     prompt,
-    3500
+    3500,
+    'kanban_generation'
   );
 
   let data = null;
@@ -1041,7 +1075,8 @@ export async function generateTeamRoles(briefText) {
   return callJSON(
     'You are a design team strategist. Respond ONLY with valid JSON. No markdown.',
     prompt,
-    1000
+    1000,
+    'kanban_generation'
   );
 }
 
@@ -1079,20 +1114,14 @@ export async function handleFollowUp(message, kanban, teamMembers, projectTitle,
   let boardUpdate = null;
 
   try {
-    const res = await fetch(
-      (import.meta.env.VITE_API_BASE_URL || '') + '/api/claude',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system,
-          message: historyToSend[historyToSend.length - 1].content,
-          maxTokens: 1200,
-        }),
-      }
-    );
-    const data = await res.json();
-    const rawReply = data.text || 'I could not process that.';
+    // brief_chat → Haiku for snappy turn-around. Routes through the
+    // central client helper so retry + error mapping kick in.
+    const rawReply = await callClaude(
+      system,
+      historyToSend[historyToSend.length - 1].content,
+      1200,
+      'brief_chat'
+    ) || 'I could not process that.'
 
     const updateMatch = rawReply.match(/BOARD_UPDATE:(\{[\s\S]*?\})\s*$/m);
     displayReply = rawReply.replace(/BOARD_UPDATE:\{[\s\S]*?\}\s*$/m, '').trim();
@@ -1102,7 +1131,7 @@ export async function handleFollowUp(message, kanban, teamMembers, projectTitle,
       catch (e) { boardUpdate = null; }
     }
   } catch (e) {
-    displayReply = 'Something went wrong. Please try again.';
+    displayReply = e?.message || 'Something interrupted the AI. Your work is safe — please try again.'
   }
 
   return { displayReply, boardUpdate };
@@ -1138,7 +1167,7 @@ Return a JSON array of 4-5 real, well-known competitors in this exact shape:
   "rating": <1-5 integer based on overall market reputation>,
   "userBase": "<e.g. '10M+ users', 'Enterprise-focused', 'SMBs'>"}]`
 
-  const result = await callJSON(system, user, 2500)
+  const result = await callJSON(system, user, 2500, 'competitors_search')
   return Array.isArray(result) ? result : []
 }
 

@@ -5,6 +5,7 @@
   "functions": {
     "api/connectors/status.js":  { "maxDuration": 10 },
     "api/connectors/index.js":   { "maxDuration": 20 },
+    "api/claude.js":             { "maxDuration": 60 },
     "api/build-component.js":    { "maxDuration": 30 },
     "api/build-section.js":      { "maxDuration": 60 },
     "api/publish-build.js":      { "maxDuration": 30 },

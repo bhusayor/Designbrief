@@ -1860,7 +1860,8 @@ STRUCTURE SIGNALS (use to shape Design Approach + Technical Approach):
   Icon vocabulary (Heroicons): ${icons}
 
 Produce the prompt using the exact 7 section labels from the system instructions. Make every section concrete, opinionated, and award-worthy.`,
-        2000
+        2000,
+        'ai_task_prompt'
       )
 
       if (promptText && promptText.length >= 100) {

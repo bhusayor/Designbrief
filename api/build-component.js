@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { WEBSITE_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
 import { mapClaudeError } from './lib/claudeError.js'
+import { MODEL_FOR } from '../src/lib/models.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -49,7 +50,7 @@ Generate a complete, polished React component for this task. The component shoul
     res.flushHeaders()
 
     const stream = client.messages.stream({
-      model: 'claude-sonnet-4-6',
+      model: MODEL_FOR.component_builder,
       max_tokens: 3000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],

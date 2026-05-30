@@ -7,8 +7,10 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
+import { MODEL_FOR } from '../src/lib/models.js'
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const MODEL = 'claude-sonnet-4-6'
+const MODEL = MODEL_FOR.intake_processing
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

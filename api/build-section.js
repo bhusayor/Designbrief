@@ -26,6 +26,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { SECTION_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
 import { mapHttpAnthropicError, mapClaudeError } from './lib/claudeError.js'
+import { MODEL_FOR } from '../src/lib/models.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
@@ -130,7 +131,7 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: MODEL_FOR.website_builder,
         max_tokens: 4000,
         stream: true,
         system: SECTION_BUILDER_SYSTEM,

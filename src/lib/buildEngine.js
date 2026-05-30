@@ -1,4 +1,6 @@
-// Build engine — routes component generation through DesignBrief's /api/claude proxy.
+// Build engine — routes Phase 1 React-component generation through the
+// central /api/claude proxy. Tags task_type so the server picks Opus
+// for the highest-quality code output.
 
 import { WEBSITE_BUILDER_SYSTEM } from './aiSystemPrompts.js'
 
@@ -12,6 +14,7 @@ export async function buildWithProxy(prompt, onToken, authHeader) {
       ...(authHeader ? { Authorization: authHeader } : {}),
     },
     body: JSON.stringify({
+      task_type: 'component_builder',
       system: BUILD_SYSTEM,
       message: prompt,
       maxTokens: 3000,

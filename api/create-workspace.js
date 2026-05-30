@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { PER_TASK_PROMPT_SYSTEM } from '../src/lib/aiSystemPrompts.js'
 import { mapHttpAnthropicError, mapClaudeError } from './lib/claudeError.js'
+import { MODEL_FOR } from '../src/lib/models.js'
 
 /*
  * Run in Supabase SQL Editor before deploying:
@@ -638,7 +639,7 @@ STRICT OUTPUT RULES:
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: MODEL_FOR.enhance_description,
           max_tokens: 800,
           system,
           messages: [{ role: 'user', content: userMsg }],
@@ -680,7 +681,7 @@ STRICT OUTPUT RULES:
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: MODEL_FOR.ai_task_prompt,
           max_tokens: 1800,
           system,
           messages: [{ role: 'user', content: userMsg }],
