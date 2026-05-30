@@ -33,8 +33,11 @@ import TeamPage from './TeamPage'
 import ConnectPanel from '../components/connectors/ConnectPanel'
 import { GanttSection } from '../components/brief/renderers/shared'
 import BuildInterface from '../components/build/BuildInterface'
+import BuildModeModal from '../components/builder/BuildModeModal'
+import AIBuilder from '../components/builder/AIBuilder'
 import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
+import { createBuild } from '../lib/aiBuildEngine'
 import TaskDetailModal from '../components/TaskDetailModal'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 const uid = () => Math.random().toString(36).slice(2, 9)
@@ -676,6 +679,11 @@ export default function TeamCollab() {
   const [installedConnectors, setInstalledConnectors] = useState({ figma: false, github: false, linear: false })
 
   const [showBuildInterface, setShowBuildInterface] = useState(false)
+  // Phase 2 AI Builder (website section builder)
+  const [aiBuilderOpen, setAiBuilderOpen] = useState(false)
+  const [aiBuildModeOpen, setAiBuildModeOpen] = useState(false)
+  const [activeAiBuild, setActiveAiBuild] = useState(null)
+  const [aiBuildLoading, setAiBuildLoading] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [showMoreViews, setShowMoreViews] = useState(false)
   const [showProjectMenu, setShowProjectMenu] = useState(false)
@@ -910,6 +918,27 @@ export default function TeamCollab() {
         .catch(console.error)
     }
   }, [activeProject?.id])
+
+  // Look up an in-progress AI Builder build for this project so the
+  // "Start AI Build" button can flip to "Continue Build" automatically.
+  useEffect(() => {
+    let cancelled = false
+    const pid = activeProject?.id
+    if (!pid || pid === 'default' || !authUser?.id) { setActiveAiBuild(null); return }
+    ;(async () => {
+      const { data } = await supabase
+        .from('ai_builds')
+        .select('*')
+        .eq('project_id', pid)
+        .eq('user_id', authUser.id)
+        .in('status', ['running', 'paused'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+      if (cancelled) return
+      setActiveAiBuild(Array.isArray(data) && data[0] ? data[0] : null)
+    })()
+    return () => { cancelled = true }
+  }, [activeProject?.id, authUser?.id])
 
   useEffect(() => {
     if (addingToCol) addInputRef.current?.focus()
@@ -1726,6 +1755,41 @@ Return JSON:
     else if (/creative|agency|portfolio|art|design.studio/i.test(text)) category = 'creative'
 
     return { category, palette: PALETTES[category], fonts: FONT_PAIRS[category] }
+  }
+
+  // ── Phase 2 AI Builder: confirm mode → create build → open overlay ──
+  async function handleAiBuildModeConfirm(mode) {
+    if (aiBuildLoading) return
+    const pid = activeProject?.id
+    if (!pid || !authUser?.id) return
+    const todoTasks = (kanban?.tasks || [])
+      .filter(t => {
+        const c = String(t.column || '').toLowerCase()
+        return c === 'to do' || c === 'todo'
+      })
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    if (todoTasks.length === 0) {
+      showToast?.('No TODO tasks to build.', 'info')
+      return
+    }
+    setAiBuildLoading(true)
+    try {
+      const build = await createBuild({
+        projectId: pid,
+        workspaceId: workspace?.id || null,
+        userId: authUser.id,
+        mode,
+        todoTasks,
+      })
+      setActiveAiBuild(build)
+      setAiBuildModeOpen(false)
+      setAiBuilderOpen(true)
+    } catch (e) {
+      console.error('[ai-build start]', e)
+      showToast?.('Could not start build: ' + (e.message || 'try again'), 'error')
+    } finally {
+      setAiBuildLoading(false)
+    }
   }
 
   async function handleGeneratePrompt(task) {
@@ -4469,6 +4533,62 @@ STYLE:
                     {!isMobile && 'Build with AI'}
                   </button>
                 )}
+                {/* ── Phase 2: Start AI Build (website section builder) ── */}
+                {canEdit && (() => {
+                  const todoCount = (kanban?.tasks || []).filter(t => {
+                    const c = String(t.column || '').toLowerCase()
+                    return c === 'to do' || c === 'todo'
+                  }).length
+                  const hasBrief = !!(activeProject?.data?.result || activeProject?.result)
+                  const inProgress = !!activeAiBuild
+                  const disabled = !inProgress && (!hasBrief || todoCount === 0)
+                  const tooltip = !hasBrief
+                    ? 'Translate a brief first to use AI Builder'
+                    : todoCount === 0
+                      ? 'Add tasks to your TODO column to start building'
+                      : inProgress
+                        ? 'Continue your build where you left off'
+                        : 'Start building your website with AI'
+                  const handleClick = async () => {
+                    if (disabled || aiBuildLoading) return
+                    if (inProgress) {
+                      setAiBuilderOpen(true)
+                      return
+                    }
+                    setAiBuildModeOpen(true)
+                  }
+                  return (
+                    <button
+                      onClick={handleClick}
+                      disabled={disabled || aiBuildLoading}
+                      title={tooltip}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: isMobile ? '5px 10px' : '6px 16px',
+                        background: disabled
+                          ? 'var(--color-surface)'
+                          : 'linear-gradient(135deg, #8B5CF6, #6366F1)',
+                        color: disabled ? 'var(--color-text-muted)' : '#fff',
+                        border: disabled ? '1px solid var(--color-border)' : 'none',
+                        borderRadius: 10,
+                        cursor: (disabled || aiBuildLoading) ? 'not-allowed' : 'pointer',
+                        fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
+                        boxShadow: disabled ? 'none' : '0 4px 14px rgba(124,58,237,0.30)',
+                        minHeight: 'unset',
+                        opacity: disabled ? 0.7 : 1,
+                        transition: 'background 0.15s, box-shadow 0.15s, opacity 0.15s',
+                      }}
+                    >
+                      <SparklesIcon
+                        style={{
+                          width: 13, height: 13,
+                          animation: disabled ? 'none' : 'pulse 1.6s ease-in-out infinite',
+                        }}
+                      />
+                      {!isMobile && (inProgress ? 'Continue Build' : 'Start AI Build')}
+                    </button>
+                  )
+                })()}
                 {!isMobile && canEdit && (
                   <button onClick={() => createAndOpenTask(customCols[0]?.id || KANBAN_COLS[0])}
                     style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, minHeight: 'unset' }}>
@@ -5327,6 +5447,24 @@ STYLE:
           tasks={kanban?.tasks || []}
           projectName={projects.find(p => p.id === activeProjectId)?.name || activeProject?.name}
           onClose={() => setShowBuildInterface(false)}
+        />
+      )}
+
+      {/* Phase 2 AI Builder — mode picker, then full-screen overlay */}
+      <BuildModeModal
+        open={aiBuildModeOpen}
+        taskCount={(kanban?.tasks || []).filter(t => {
+          const c = String(t.column || '').toLowerCase()
+          return c === 'to do' || c === 'todo'
+        }).length}
+        onClose={() => setAiBuildModeOpen(false)}
+        onConfirm={handleAiBuildModeConfirm}
+      />
+      {aiBuilderOpen && activeAiBuild && (
+        <AIBuilder
+          build={activeAiBuild}
+          project={activeProject}
+          onClose={() => setAiBuilderOpen(false)}
         />
       )}
     </div>

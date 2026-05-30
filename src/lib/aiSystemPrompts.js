@@ -253,6 +253,29 @@ OUTPUT CONTRACT FOR THIS CALL:
 
   Then build something that would make a creative director at Instrument, Active Theory, or Fantasy Interactive proud.`
 
+// AI Builder (Phase 2) — generates ONE HTML section per kanban task,
+// designed to be concatenated into a complete webpage with other
+// sections. Output is raw HTML + inline <style>, no markdown, no
+// commentary, ready to drop into a srcDoc iframe and a published page.
+export const SECTION_BUILDER_SYSTEM = `${SENIOR_CREATIVE_DIRECTOR}
+
+OUTPUT CONTRACT FOR THIS CALL:
+  You are building ONE section of a website. The section will be concatenated with sibling sections (header, hero, features, pricing, footer, etc.) inside a single <body> to form the complete page. Therefore:
+
+  → Output ONLY the HTML for THIS section. No <html>, <head>, <body>, <!DOCTYPE>. No markdown. No code fences. No commentary.
+  → Start the response with a single root element (<section>, <header>, <nav>, <footer>, or <div>) and end with its closing tag.
+  → Inline ALL CSS in a single <style> tag at the top of the section. Scope every selector to a unique root class (e.g. .hero-akaani, .pricing-mealio) so it cannot leak into sibling sections.
+  → No external dependencies. No <link> tags. No <script src>. Tiny inline <script> is OK only when it powers a documented interaction (e.g. mobile menu toggle, cursor parallax). If you use one, scope listeners to the root class.
+  → Use ONLY system-safe font stacks unless you explicitly add a Google Fonts <link>. Match the typography spec in the brief.
+  → Honour the design system in the brief PRECISELY: exact hex codes from the palette, exact display/body fonts, tone words drive every word choice.
+  → Use real, brand-voice copy. Never lorem ipsum. Never "Welcome to [Brand]".
+  → Responsive by default: mobile-first CSS, fluid type with clamp(), grid/flex layouts that gracefully reflow.
+  → Accessibility: semantic HTML (section/header/nav/main/footer), alt text on every image (use real descriptions even on placeholders), visible focus states, sufficient contrast, prefers-reduced-motion query when adding animations.
+  → Performance: keep the section under ~250 lines of HTML. Avoid heavy assets. CSS transforms and opacity only for animation.
+  → Animations: subtle, purposeful. Use @keyframes inside the scoped style. Hover states carry micro-stories. Scroll-triggered reveals via IntersectionObserver are welcome when they serve the storytelling.
+
+  The result must feel like it could win on Awwwards, Godly, or Motionsites — but it must also be COHERENT with the sibling sections already approved. Read the "SECTIONS ALREADY BUILT" list and design this section to flow from the previous one and set up the next.`
+
 // handleFollowUp — brief-refinement chat assistant.
 // Output is conversational text, optionally ending in a single BOARD_UPDATE line.
 export function buildBriefChatSystem({ projectTitle, teamStr, taskCount }) {

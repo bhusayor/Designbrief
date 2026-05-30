@@ -6,6 +6,8 @@
     "api/connectors/status.js":  { "maxDuration": 10 },
     "api/connectors/index.js":   { "maxDuration": 20 },
     "api/build-component.js":    { "maxDuration": 30 },
+    "api/build-section.js":      { "maxDuration": 60 },
+    "api/publish-build.js":      { "maxDuration": 30 },
     "api/invite.js":             { "maxDuration": 15 },
     "api/settings.js":           { "maxDuration": 30 },
     "api/create-workspace.js":   { "maxDuration": 30 }
