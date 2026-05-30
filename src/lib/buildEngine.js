@@ -1,15 +1,8 @@
 // Build engine — routes component generation through DesignBrief's /api/claude proxy.
 
-const BUILD_SYSTEM = `You are an expert React developer. Generate clean, polished React components using Tailwind CSS.
+import { WEBSITE_BUILDER_SYSTEM } from './aiSystemPrompts.js'
 
-Rules (STRICTLY follow):
-- Export a default function named exactly "Component"
-- Use only Tailwind CSS classes for ALL styling (no inline styles, no CSS modules)
-- React and ReactDOM are available globally — do NOT import them
-- Do NOT import anything at all
-- Make it visually complete with realistic placeholder content
-- Use modern design: clean spacing, good typography, subtle shadows
-- Return ONLY the JavaScript/JSX code — no markdown, no code fences, no explanation`
+const BUILD_SYSTEM = WEBSITE_BUILDER_SYSTEM
 
 export async function buildWithProxy(prompt, onToken, authHeader) {
   const res = await fetch('/api/claude', {

@@ -21,7 +21,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
-import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaudeTools } from '../lib/api'
+import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaude, callClaudeTools } from '../lib/api'
+import { PER_TASK_PROMPT_SYSTEM, SENIOR_CREATIVE_DIRECTOR } from '../lib/aiSystemPrompts'
 import { getProjectInvites } from '../lib/teamService'
 import {
   saveTasksToDB, loadTasksFromDB, updateTaskInDB, deleteTaskFromDB, mapDBTask,
@@ -1774,34 +1775,36 @@ Return JSON:
       const sections = (pattern.sections || pattern.screens || []).slice(0, 6).join(', ')
       const icons = taskIcons.slice(0, 5).map(i => i.icon).join(', ')
 
-      const result = await callJSON(
-        'You are a senior product designer. Write concise implementation prompts. Return ONLY valid JSON: { "prompt": "..." }',
-        `Write an implementation prompt for this task.
+      const promptText = await callClaude(
+        PER_TASK_PROMPT_SYSTEM,
+        `Generate the structured prompt for this kanban task.
 
-Task: ${task.title}
-${task.description ? 'Description: ' + task.description : ''}
-Project: ${projectName}
-Platform: ${platform}
-Priority: ${task.priority || 'MEDIUM'}
+TASK CONTEXT:
+  Title: ${task.title}
+  ${task.description ? 'Description: ' + task.description : ''}
+  Project: ${projectName}
+  Platform: ${platform}
+  Priority: ${task.priority || 'MEDIUM'}
+  Column: ${col?.label || 'To Do'}
 
-Design:
-${designCtx || 'Modern, clean — use Inter, dark neutrals, indigo accent'}
-${overrides ? '\nOverrides:\n' + overrides : ''}
+BRIEF-DERIVED DESIGN CONTEXT (use this to ground the Creative Direction and Design Approach sections):
+${designCtx || 'No explicit palette/type set — pick a deliberate one that fits the brief.'}
+${overrides ? '\nUSER OVERRIDES (treat as non-negotiable):\n' + overrides : ''}
 
-Structure (use these sections): ${sections}
-Motion: ${pattern.motion}
-Icons (Heroicons): ${icons}
+STRUCTURE SIGNALS (use to shape Design Approach + Technical Approach):
+  Suggested sections: ${sections}
+  Motion personality: ${pattern.motion}
+  Icon vocabulary (Heroicons): ${icons}
 
-Write a focused 300-400 word prompt covering: scope, design tokens, layout, components, interactions, icons, tech stack. Be specific and opinionated. No generic advice.`,
-        1500
+Produce the prompt using the exact 7 section labels from the system instructions. Make every section concrete, opinionated, and award-worthy.`,
+        2000
       )
 
-      let promptText = result?.prompt
       if (promptText && promptText.length >= 100) {
         setGeneratedPrompt(promptText)
       } else {
         setGeneratedPrompt(buildSeniorPrompt(task, projectName, briefData, autoDefaults, promptPrefs, col?.label))
-        setPromptError('AI returned an incomplete response — showing structured template instead.')
+        setPromptError('AI returned an incomplete response. Showing structured template instead.')
       }
     } catch (e) {
       console.error('[generate prompt]', e)
@@ -3119,7 +3122,10 @@ ${(kanban?.tasks || []).map(t => {
     const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
 
     const systemPrompt =
-`You are a senior project manager AI assistant embedded inside a kanban board called DesignBrief AI. You help designers and developers manage their projects.
+`${SENIOR_CREATIVE_DIRECTOR}
+
+OUTPUT CONTRACT FOR THIS CALL:
+You are the in-board creative-director partner for DesignBrief AI. You help designers and developers manage and SHARPEN their work, not just shuffle tasks.
 
 PROJECT: ${projectName}
 COLUMNS: ${customCols.map(c => c.id + ' (' + c.label + ')').join(', ')}
@@ -3143,25 +3149,31 @@ WHEN TO USE TOOLS:
 - User wants to break a task into subtasks → bulk_action
 - User asks a question (no action needed) → just respond
 
-WHEN USING bulk_action FOR PROJECT PLANS:
-Generate realistic, specific tasks a designer or developer would actually do. Not generic "Research phase" — instead: "Audit competitor onboarding flows", "Define typography scale", "Build product card component".
+WHEN USING bulk_action FOR PROJECT PLANS OR SUBTASKS:
+Generate the bold, specific tasks an award-winning team would actually do. Every task title is a creative call. Every description carries:
+  → the creative angle (the unexpected take)
+  → the interaction/animation goal
+  → the copy direction
+  → the success metric ("this task succeeds when...")
+
+NEVER generic ("Research phase"). ALWAYS specific and opinionated ("Audit Linear, Notion, and Stripe onboarding flows", "Define a 6-step type scale using clamp()", "Build the hero card with cursor-tracking parallax").
 
 AFTER USING A TOOL:
 Give a brief, confident confirmation. 1-2 sentences max. No lists.
-Example: "Done — added 8 tasks across your board. The critical path starts with the discovery tasks in To Do."
+Example: "Done. Added 8 tasks across your board. The critical path starts with the discovery tasks in To Do."
 
 WHEN ANSWERING QUESTIONS:
-Be direct and insightful. You can see the full board state so use it. Examples:
-- "How are we doing?" → give real stats
+Be direct, insightful, and push back when the user is heading toward a safe/generic answer. You can see the full board state so use it.
+- "How are we doing?" → real stats + your read on the creative risk
 - "What's blocking us?" → look at high-priority tasks in To Do or In Progress
-- "What should I work on next?" → analyse priorities and give a specific answer
+- "What should I work on next?" → analyse priorities and pick the one with the highest creative leverage
 
 STYLE:
 - Direct, confident, concise
 - No bullet-point answers to action requests
 - Never repeat the user's message back to them
 - Never say "I'll help you with that"
-- Act like a smart colleague, not an assistant`
+- Act like a smart creative director sitting next to them, not an assistant`
 
     const newHistory = [
       ...chatHistory,

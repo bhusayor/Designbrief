@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import { WEBSITE_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -32,16 +33,7 @@ export default async function handler(req, res) {
 
   const client = new Anthropic({ apiKey: userApiKey })
 
-  const systemPrompt = `You are an expert React developer. Generate clean, polished React components using Tailwind CSS.
-
-Rules (STRICTLY follow):
-- Export a default function named exactly "Component"
-- Use only Tailwind CSS classes for ALL styling (no inline styles, no CSS modules)
-- React and ReactDOM are available globally — do NOT import them
-- Do NOT import anything at all
-- Make it visually complete with realistic placeholder content
-- Use modern design: clean spacing, good typography, subtle shadows
-- Return ONLY the JavaScript/JSX code — no markdown, no code fences, no explanation`
+  const systemPrompt = WEBSITE_BUILDER_SYSTEM
 
   const userPrompt = `Project: ${projectName || 'My Project'}
 Task ${taskIndex + 1} of ${totalTasks}: ${taskTitle}

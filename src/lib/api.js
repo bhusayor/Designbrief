@@ -7,6 +7,7 @@
  */
 
 import { supabase } from './supabase.js'
+import { KANBAN_TASK_SYSTEM, buildBriefChatSystem } from './aiSystemPrompts.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -973,7 +974,7 @@ export async function generateKanban(briefText, projectTitle, teamMembers = [], 
   ].join('\n');
 
   const raw = await callClaude(
-    'You are a project manager. Respond ONLY with valid JSON. No markdown, no code fences. Start with { and end with }. Generate tasks appropriate for the specified creative discipline. For copywriting/content briefs: tasks should be about writing, editing, research — not design or development. For photography briefs: tasks should be about shot planning, location scouting, editing — not code. For campaign briefs: tasks should be about strategy, copy, creative direction, channel setup — not web development. Match tasks to what that creative actually does.',
+    KANBAN_TASK_SYSTEM,
     prompt,
     3500
   );
@@ -1049,20 +1050,11 @@ export async function handleFollowUp(message, kanban, teamMembers, projectTitle,
     .map(m => (m.name || m.role) + ' (' + m.role + ')')
     .join(', ');
 
-  const system = [
-    'You are a project management assistant for: ' + projectTitle + '.',
-    'Team: ' + teamStr + '.',
-    'The board has ' + (kanban?.tasks?.length || 0) + ' tasks.',
-    'Help the user update the board or answer questions about the project.',
-    'If the user wants a board change, end your reply with ONE BOARD_UPDATE line.',
-    'add task:    BOARD_UPDATE:{"action":"add_task","task":{"id":"t-new","title":"...","description":"...","assignedRole":"...","assignedName":"","priority":"MEDIUM","estimatedDays":2,"column":"To Do"}}',
-    'add tasks:   BOARD_UPDATE:{"action":"add_tasks","tasks":[{task1},{task2}]}',
-    'move:        BOARD_UPDATE:{"action":"move","taskId":"...","column":"In Progress"}',
-    'priority:    BOARD_UPDATE:{"action":"priority","taskId":"...","priority":"HIGH"}',
-    'reassign:    BOARD_UPDATE:{"action":"reassign","taskId":"...","assignedRole":"...","assignedName":""}',
-    'Only include BOARD_UPDATE when user explicitly requests a change.',
-    'Otherwise reply conversationally.',
-  ].join(' ');
+  const system = buildBriefChatSystem({
+    projectTitle,
+    teamStr,
+    taskCount: kanban?.tasks?.length || 0,
+  });
 
   const historyToSend = [
     ...(history || []).slice(-6),

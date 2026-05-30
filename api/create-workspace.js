@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { PER_TASK_PROMPT_SYSTEM } from '../src/lib/aiSystemPrompts.js'
 
 /*
  * Run in Supabase SQL Editor before deploying:
@@ -665,16 +666,9 @@ STRICT OUTPUT RULES:
       const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
 
-      const system = `You write design / implementation prompts that another AI (or a designer) can use to execute a task. Given a task title and description, produce a single, self-contained prompt.
+      const system = PER_TASK_PROMPT_SYSTEM
 
-STRICT OUTPUT RULES:
-- Output ONLY the prompt text — no preamble, no "Here's a prompt:", no surrounding explanation.
-- The prompt should be specific, actionable, and reference the task's domain (UI design, copywriting, coding, etc. — infer from the title/description).
-- Include constraints / goals if implied by the description.
-- Length: 2–6 short paragraphs.
-- Plain text. No markdown headings.`
-
-      const userMsg = `Task title: "${title || 'Untitled'}"\n\nTask description:\n"""\n${description || '(empty)'}\n"""\n\nGenerate the prompt now.`
+      const userMsg = `Task title: "${title || 'Untitled'}"\n\nTask description:\n"""\n${description || '(empty)'}\n"""\n\nGenerate the structured prompt now, using the exact section labels in the system instructions.`
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -685,7 +679,7 @@ STRICT OUTPUT RULES:
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-5',
-          max_tokens: 1000,
+          max_tokens: 1800,
           system,
           messages: [{ role: 'user', content: userMsg }],
         }),
