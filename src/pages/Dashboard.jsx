@@ -385,12 +385,16 @@ export default function Dashboard() {
     setStreamedText('')
     setStreamDone(false)
 
-    // Stream display text in background
+    // Stream display text in background. Routes through the unified
+    // /api/claude with stream:true so we don't need a dedicated
+    // claude-stream function (Hobby plan caps at 12 functions).
     const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-    fetch(API_BASE + '/api/claude-stream', {
+    fetch(API_BASE + '/api/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        task_type: 'brief_chat',
+        stream: true,
         system: 'You are a senior brand strategist reading a design brief for the first time. Think out loud about what you notice. Write in short punchy sentences. Use plain punctuation only - no dashes, no em dashes, no hyphens between thoughts. Use periods and line breaks instead. Keep it conversational and direct.',
         message: 'Read this brief and share your first impressions. What is this project really about? Who needs it? What design direction feels right? Write 3 to 4 short paragraphs. Use simple punctuation only.\n\n' + fullContext.slice(0, 800),
         maxTokens: 600,

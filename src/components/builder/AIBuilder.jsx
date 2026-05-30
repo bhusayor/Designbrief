@@ -27,6 +27,7 @@ import {
   RocketLaunchIcon,
 } from '@heroicons/react/24/outline'
 import PublishModal from './PublishModal'
+import BuilderChat from './BuilderChat'
 
 // ────────────────────────────────────────────────────────────────────
 // AIBuilder — full-screen overlay that drives the AI Builder loop:
@@ -62,6 +63,8 @@ export default function AIBuilder({ build, project, onClose }) {
   const [changeRequestText, setChangeRequestText] = useState('')
   const [showPublish, setShowPublish] = useState(false)
   const [skipConfirm, setSkipConfirm] = useState(null)
+  // BuilderChat — collapsible AI assistant under the approval panel.
+  const [chatOpen, setChatOpen] = useState(true)
   const abortRef = useRef(null)
   const runningRef = useRef(false)
   const seenTaskIdsRef = useRef(new Set())
@@ -298,6 +301,35 @@ export default function AIBuilder({ build, project, onClose }) {
     }
   }
 
+  // BuilderChat → save the edited HTML back to the section so the
+  // iframe + DB reflect it. We persist into generated_code AND, when
+  // the section was already approved, into approved_code too so the
+  // published bundle picks up the new version.
+  async function handleSectionEdit(sectionId, newHtml) {
+    if (!sectionId || !newHtml) return
+    setSections(prev => prev.map(s => {
+      if (s.id !== sectionId) return s
+      const wasApproved = s.status === 'approved'
+      return {
+        ...s,
+        generated_code: newHtml,
+        approved_code: wasApproved ? newHtml : s.approved_code,
+      }
+    }))
+    try {
+      const { data: row } = await supabase
+        .from('build_sections')
+        .select('status')
+        .eq('id', sectionId)
+        .single()
+      const updates = { generated_code: newHtml }
+      if (row?.status === 'approved') updates.approved_code = newHtml
+      await supabase.from('build_sections').update(updates).eq('id', sectionId)
+    } catch (e) {
+      console.warn('[AIBuilder] section edit persist failed:', e?.message)
+    }
+  }
+
   async function handlePauseResume() {
     if (!buildState) return
     if (buildState.status === 'paused') {
@@ -484,6 +516,45 @@ export default function AIBuilder({ build, project, onClose }) {
               onSkip={() => setSkipConfirm(sectionInReview)}
             />
           )}
+
+          {/* AI assistant chat — collapsible, sits under the approval
+              panel. Speaks for whichever section the preview is showing
+              (the in-review one, or the last approved if nothing else is
+              up for review). */}
+          {(() => {
+            const chatSection = sectionInReview
+              || orderedSections.find(s => s.status === 'approved' && s.generated_code)
+              || null
+            if (!chatSection) return null
+            if (!chatOpen) {
+              return (
+                <div style={{
+                  flexShrink: 0, padding: '10px 16px',
+                  borderTop: '1px solid var(--color-border)',
+                  background: 'var(--color-card)',
+                  display: 'flex', justifyContent: 'flex-start',
+                }}>
+                  <BuilderChat collapsed onToggle={() => setChatOpen(true)} />
+                </div>
+              )
+            }
+            return (
+              <div style={{
+                flexShrink: 0,
+                maxHeight: 360,
+                minHeight: 240,
+                display: 'flex', flexDirection: 'column',
+              }}>
+                <BuilderChat
+                  section={chatSection}
+                  briefContext={briefContext}
+                  projectName={project?.title || ''}
+                  onSectionUpdate={(html) => handleSectionEdit(chatSection.id, html)}
+                  onToggle={() => setChatOpen(false)}
+                />
+              </div>
+            )
+          })()}
         </main>
       </div>
 

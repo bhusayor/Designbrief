@@ -64,6 +64,8 @@ export default async function handler(req, res) {
     previous_titles,
     total_tasks,
     change_request,
+    media_html,
+    gsap_html,
   } = req.body || {}
 
   if (!build_id || !section_id || !task_title) {
@@ -105,6 +107,12 @@ export default async function handler(req, res) {
     `Task: ${task_title}`,
     task_description ? `Description: ${task_description}` : '',
     task_ai_prompt ? `Creative direction (treat as load-bearing):\n${task_ai_prompt}` : '',
+    media_html
+      ? `\nMEDIA ALREADY PREPARED — embed this HTML verbatim in the correct position (do NOT generate your own background; use this as the layered background of the section):\n"""\n${media_html}\n"""\nPlace your hero content with z-index: 2 or higher so it sits above the prepared media.`
+      : '',
+    gsap_html
+      ? `\nGSAP REVEAL SCRIPT — include this at the END of your section so scroll-triggered animations work. Add these data-* attributes to elements you want animated:\n  data-hero-headline → on-load dramatic reveal\n  data-hero-sub → on-load fade up (delayed)\n  data-hero-cta → on-load scale-in (delayed)\n  data-reveal → scroll fade-up\n  data-stagger → stagger immediate children on scroll\n  data-text-reveal → scroll dramatic reveal\n  data-scale-in → scroll scale-in\nUse the attributes liberally on headlines, CTAs, feature grids, etc.\n\nScript to inject at the bottom of the section:\n"""\n${gsap_html}\n"""`
+      : '',
     change_request
       ? `\nCHANGE REQUEST FROM DESIGNER (override the previous attempt):\n"""\n${change_request}\n"""\nRebuild this section incorporating these changes. Keep everything else true to the brief.`
       : '',

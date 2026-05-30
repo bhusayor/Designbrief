@@ -16,6 +16,17 @@
 
 import { supabase } from './supabase.js'
 import { compactBriefForPrompt } from './briefContext.js'
+import {
+  decideHeroMediaType,
+  buildMediaQuery,
+  searchPexelsVideo,
+  searchPexelsImage,
+} from './pexels.js'
+import {
+  pickCssTemplate,
+  renderMediaHTML,
+  GSAP_REVEALS,
+} from './animations.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -36,6 +47,53 @@ export async function buildSection({
 
   const previousTitles = (previousSections || []).map(s => s.task_title || s.title || '')
 
+  // Decide if this section is the hero (or hero-like) — only hero
+  // sections get a video/image/CSS background prepared up front.
+  const lowerTitle = (section.task_title || task?.title || '').toLowerCase()
+  const isHero = section.position === 0
+    || /\b(hero|header|landing|cover|intro|above[- ]the[- ]fold)\b/.test(lowerTitle)
+
+  let mediaContext = null
+  if (isHero) {
+    const decided = decideHeroMediaType(briefContext || {})
+    const query = buildMediaQuery(briefContext || {}, 'hero', null)
+
+    if (decided === 'video') {
+      const v = await searchPexelsVideo(query).catch(() => null)
+      if (v) {
+        mediaContext = {
+          type: 'video',
+          url: v.url,
+          thumbnail: v.thumbnail,
+          photographer: v.photographer,
+          pexels_url: v.pexels_url,
+        }
+      }
+    } else if (decided === 'image') {
+      const img = await searchPexelsImage(query).catch(() => null)
+      if (img) {
+        mediaContext = {
+          type: 'image',
+          url: img.large || img.url,
+          thumbnail: img.thumbnail,
+          photographer: img.photographer,
+          pexels_url: img.pexels_url,
+        }
+      }
+    }
+
+    // CSS fallback covers: decided === 'css' OR Pexels failed/missing
+    if (!mediaContext) {
+      mediaContext = {
+        type: 'css',
+        template: pickCssTemplate(briefContext || {}),
+      }
+    }
+  }
+
+  const mediaHtml = mediaContext ? renderMediaHTML(mediaContext, briefContext || {}) : ''
+  const gsapHtml = isHero ? GSAP_REVEALS : ''
+
   const res = await fetch(`${API_BASE}/api/build-section`, {
     method: 'POST',
     headers: {
@@ -52,6 +110,8 @@ export async function buildSection({
       previous_titles: previousTitles,
       total_tasks: totalTasks,
       change_request: changeRequest || null,
+      media_html: mediaHtml,
+      gsap_html: gsapHtml,
     }),
     signal,
   })
