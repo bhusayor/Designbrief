@@ -1,4 +1,5 @@
 import { useState, useContext, useEffect, useRef } from 'react'
+import useProximity from '../../hooks/useProximity'
 import AppContext from '../../context/AppContext'
 import HistoryItem from './HistoryItem'
 import TeamPage from '../../pages/TeamPage'
@@ -67,6 +68,7 @@ function NavItem({ icon: Icon, label, active, onClick, collapsed, badge, locked 
     <div style={{ position: 'relative' }}>
       <button
         ref={btnRef}
+        className="sidebar-nav-item"
         onClick={onClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setHovered(false)}
@@ -168,6 +170,16 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
   // Profile-picture URL — from auth.user_metadata so any change in Settings
   // shows up here immediately after the session refresh fires.
   const sidebarAvatarUrl = authUser?.user_metadata?.avatar_url || null
+
+  // macOS-dock proximity for the sidebar nav items.
+  useProximity('.sidebar-nav-item', {
+    distance: 100,
+    maxScale: 1.06,
+    maxLift: -3,
+    speed: 0.22,
+    glow: false,
+    tilt: false,
+  }, [])
 
   // Desktop: auto-collapse on tablet width
   const [collapsedDesktop, setCollapsedDesktop] = useState(() => !isMobile && window.innerWidth < 1024)

@@ -386,6 +386,38 @@ button, a, [role="button"] {
   0%, 100% { opacity: 1;   transform: scale(1); }
   50%      { opacity: 0.6; transform: scale(1.25); }
 }
+
+/* ── Proximity (macOS Dock magnetic effect) ─────────────────────────
+   The JS engine in src/lib/proximity.js writes element.style.transform
+   on pointermove; these rules just give it a stable starting point and
+   a sensible mobile fallback. */
+.project-card,
+.template-card,
+.plan-card,
+.kanban-task-card,
+.sidebar-nav-item,
+.member-avatar,
+.build-queue-item,
+.proximity-btn {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+@media (hover: none) {
+  /* Touch devices don't get the proximity effect — use a quick tap
+     state instead so the surface still feels responsive. */
+  .project-card:active,
+  .template-card:active,
+  .plan-card:active,
+  .kanban-task-card:active,
+  .sidebar-nav-item:active,
+  .member-avatar:active,
+  .build-queue-item:active,
+  .proximity-btn:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext, useMemo } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
+import useProximity from '../hooks/useProximity'
 import {
   ArrowRightIcon,
   ArrowDownTrayIcon,
@@ -105,6 +106,16 @@ export default function Billing() {
   const [downgradeTo, setDowngradeTo] = useState(null)
   const [removeCardOpen, setRemoveCardOpen] = useState(false)
   const [removingCard, setRemovingCard] = useState(false)
+
+  // macOS-dock proximity for plan comparison cards (Change Plan grid).
+  useProximity('.plan-card', {
+    distance: 150,
+    maxScale: 1.04,
+    maxLift: -8,
+    speed: 0.32,
+    glow: true,
+    tilt: true,
+  }, [])
 
   // ── Data fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -828,6 +839,7 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
 
   return (
     <div
+      className={isCurrent ? undefined : 'plan-card'}
       onMouseEnter={() => setCardHover(true)}
       onMouseLeave={() => setCardHover(false)}
       style={{
@@ -835,9 +847,8 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
         border: cardBorder,
         borderRadius: 14, padding: 16,
         display: 'flex', flexDirection: 'column', gap: 12,
-        transform: cardTransform,
         boxShadow: cardShadow,
-        transition: 'transform 0.18s, box-shadow 0.18s, border-color 0.18s',
+        transition: 'box-shadow 0.18s, border-color 0.18s',
       }}
     >
       <div>

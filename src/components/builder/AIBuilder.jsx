@@ -12,6 +12,7 @@ import {
   completeBuild,
 } from '../../lib/aiBuildEngine'
 import { fetchBriefContext } from '../../lib/briefContext'
+import useProximity from '../../hooks/useProximity'
 import {
   SparklesIcon,
   XMarkIcon,
@@ -65,6 +66,16 @@ export default function AIBuilder({ build, project, onClose }) {
   const [skipConfirm, setSkipConfirm] = useState(null)
   // BuilderChat — collapsible AI assistant under the approval panel.
   const [chatOpen, setChatOpen] = useState(true)
+
+  // macOS-dock proximity for the queue rows on the left rail.
+  useProximity('.build-queue-item', {
+    distance: 90,
+    maxScale: 1.03,
+    maxLift: -2,
+    speed: 0.2,
+    glow: false,
+    tilt: false,
+  }, [build?.id])
   const abortRef = useRef(null)
   const runningRef = useRef(false)
   const seenTaskIdsRef = useRef(new Set())
@@ -592,7 +603,7 @@ function QueueRow({ index, section, isStreaming }) {
   const status = isStreaming ? 'building' : section.status
   const meta = STATUS_META[status] || STATUS_META.queued
   return (
-    <div style={{
+    <div className="build-queue-item" style={{
       display: 'flex', alignItems: 'flex-start', gap: 10,
       padding: '10px 12px',
       background: status === 'building' ? 'rgba(139,92,246,0.06)' : 'var(--color-surface)',

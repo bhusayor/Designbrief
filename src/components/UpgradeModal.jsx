@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
+import useProximity from '../hooks/useProximity'
 import { CREDIT_TIERS, pickTier } from '../lib/plans'
 import {
   XMarkIcon,
@@ -126,6 +127,16 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
   // Annual gets a 25% discount baked into the Flutterwave charge.
   // 12 × $12 × 0.75 = $108/yr for Starter ; 12 × $29 × 0.75 = $261/yr for Pro.
   const [cycle, setCycle] = useState('monthly') // 'monthly' | 'annual'
+
+  // macOS-dock proximity for plan cards inside the modal.
+  useProximity('.plan-card', {
+    distance: 150,
+    maxScale: 1.04,
+    maxLift: -8,
+    speed: 0.32,
+    glow: true,
+    tilt: true,
+  }, [open])
 
   // Per-plan selected credit tier. Defaults to each plan's first
   // (cheapest) tier. The plan card's dropdown changes this; the price
@@ -468,7 +479,7 @@ function PlanCard({ name, price, interval, subPrice, features, ctaLabel, ctaVari
     ? features.slice(1)
     : features
   return (
-    <div style={{
+    <div className="plan-card" style={{
       position: 'relative',
       background: mostPopular ? 'linear-gradient(180deg, rgba(124,58,237,0.04), transparent 60%)' : 'var(--color-surface)',
       border: '1.5px solid ' + (mostPopular ? '#8B5CF6' : 'var(--color-border)'),

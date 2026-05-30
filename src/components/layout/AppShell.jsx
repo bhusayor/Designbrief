@@ -3,6 +3,7 @@ import AppContext from '../../context/AppContext';
 import Sidebar from './Sidebar';
 import Toast from '../ui/Toast';
 import AIErrorToast from '../ui/AIErrorToast';
+import useProximity from '../../hooks/useProximity';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -28,6 +29,19 @@ function PanelLeftOpen() {
 
 export default function AppShell({ children }) {
   const { notification, workspace, aiError, clearAIError } = useContext(AppContext);
+
+  // Global proximity for any .proximity-btn anywhere in the app.
+  // Mounted once here so every action button inherits the dock effect
+  // without each page wiring its own hook. The MutationObserver inside
+  // initProximityEffect picks up buttons as they mount.
+  useProximity('.proximity-btn', {
+    distance: 80,
+    maxScale: 1.06,
+    maxLift: -3,
+    speed: 0.22,
+    glow: true,
+    tilt: false, // rectangular CTAs look weird tilting
+  }, []);
   const isMobile = useIsMobile();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [displayed, setDisplayed] = useState(null);

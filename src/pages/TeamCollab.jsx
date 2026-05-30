@@ -39,6 +39,7 @@ import AIBuilder from '../components/builder/AIBuilder'
 import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
 import { createBuild } from '../lib/aiBuildEngine'
+import useProximity from '../hooks/useProximity'
 import TaskDetailModal from '../components/TaskDetailModal'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 const uid = () => Math.random().toString(36).slice(2, 9)
@@ -680,6 +681,17 @@ export default function TeamCollab() {
   const [installedConnectors, setInstalledConnectors] = useState({ figma: false, github: false, linear: false })
 
   const [showBuildInterface, setShowBuildInterface] = useState(false)
+  // macOS-dock proximity for kanban task cards. Subtle scale only —
+  // no tilt or glow, so drag-and-drop still feels precise.
+  useProximity('.kanban-task-card', {
+    distance: 100,
+    maxScale: 1.03,
+    maxLift: -3,
+    speed: 0.2,
+    glow: false,
+    tilt: false,
+  }, [kanban?.tasks?.length, viewMode])
+
   // Phase 2 AI Builder (website section builder)
   const [aiBuilderOpen, setAiBuilderOpen] = useState(false)
   const [aiBuildModeOpen, setAiBuildModeOpen] = useState(false)
@@ -3532,6 +3544,7 @@ STYLE:
 
     return (
       <div
+        className="kanban-task-card"
         draggable={canEdit}
         onDragStart={e => {
           if (!canEdit) { e.preventDefault(); return }
@@ -4561,6 +4574,7 @@ STYLE:
                       onClick={handleClick}
                       disabled={disabled || aiBuildLoading}
                       title={tooltip}
+                      className={disabled ? undefined : 'proximity-btn'}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         padding: isMobile ? '5px 10px' : '6px 16px',

@@ -1,5 +1,6 @@
 import { useState, useContext, useEffect } from 'react';
 import AppContext from '../context/AppContext';
+import useProximity from '../hooks/useProximity';
 
 function useWindowWidth() {
   const [width, setWidth] = useState(() => window.innerWidth)
@@ -71,18 +72,19 @@ function ProjectCard({ item, onClick }) {
   const members  = project.teamMembers?.slice(0, 4) ?? [];
   const origin   = projectOrigin(item);
 
+  // Proximity handles scale/lift now — only the border-color hover
+  // is wired here so we don't fight the dock effect.
   function handleEnter(e) {
     e.currentTarget.style.borderColor = 'var(--color-border-hover)';
-    e.currentTarget.style.transform = 'translateY(-2px)';
   }
   function handleLeave(e) {
     e.currentTarget.style.borderColor = 'var(--color-border)';
-    e.currentTarget.style.transform = 'translateY(0)';
   }
 
   return (
     <div
       onClick={onClick}
+      className="project-card"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       style={{
@@ -91,7 +93,7 @@ function ProjectCard({ item, onClick }) {
         borderRadius: '14px',
         padding: '18px 20px',
         cursor: 'pointer',
-        transition: 'border-color 0.2s, transform 0.2s',
+        transition: 'border-color 0.2s',
         display: 'flex', flexDirection: 'column', gap: '10px',
       }}
     >
@@ -464,6 +466,17 @@ export default function ProjectLibrary() {
   const [activeTab, setActiveTab] = useState('projects');
 
   const pendingCount = intakeForms.filter(f => f.status !== 'complete').length;
+
+  // macOS-dock proximity for project cards. Re-runs whenever the
+  // visible history changes so newly-loaded cards pick up the effect.
+  useProximity('.project-card', {
+    distance: 140,
+    maxScale: 1.04,
+    maxLift: -8,
+    speed: 0.3,
+    glow: true,
+    tilt: true,
+  }, [history?.length, activeTab])
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
