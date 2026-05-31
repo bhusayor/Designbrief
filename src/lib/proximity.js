@@ -161,15 +161,25 @@ export function initProximityEffect(selector, options = {}) {
 
       const scale = 1 + p * (opts.maxScale - 1)
       const liftY = p * opts.maxLift
-      const tiltX = opts.tilt ? p * (dy / distance) * -4 : 0
-      const tiltY = opts.tilt ? p * (dx / distance) * 4 : 0
 
-      el.style.transform =
-        `perspective(${opts.perspective}px) ` +
-        `scale(${scale.toFixed(3)}) ` +
-        `translateY(${liftY.toFixed(2)}px) ` +
-        `rotateX(${tiltX.toFixed(2)}deg) ` +
-        `rotateY(${tiltY.toFixed(2)}deg)`
+      if (opts.tilt) {
+        const tiltX = p * (dy / distance) * -4
+        const tiltY = p * (dx / distance) * 4
+        el.style.transform =
+          `perspective(${opts.perspective}px) ` +
+          `scale(${scale.toFixed(3)}) ` +
+          `translateY(${liftY.toFixed(2)}px) ` +
+          `rotateX(${tiltX.toFixed(2)}deg) ` +
+          `rotateY(${tiltY.toFixed(2)}deg)`
+      } else {
+        // No tilt → skip perspective() entirely. perspective() + scale
+        // forces subpixel rasterisation which makes text on sidebar
+        // nav items look blurry. A flat 2D transform composites
+        // cleanly on every browser.
+        el.style.transform =
+          `translateY(${liftY.toFixed(2)}px) ` +
+          `scale(${scale.toFixed(3)})`
+      }
 
       if (opts.glow) {
         if (p > 0.2) {

@@ -152,7 +152,7 @@ export const MODAL = {
 
 // Proximity tunings keyed by surface kind.
 export const PROXIMITY = {
-  sidebar: { distance: 100, maxScale: 1.06, maxLift: -3, speed: 0.22, glow: false, tilt: false },
+  sidebar: { distance: 100, maxScale: 1.05, maxLift: -3, speed: 0.25, glow: false, tilt: false },
   cards:   { distance: 140, maxScale: 1.04, maxLift: -8, speed: 0.3,  glow: true,  tilt: true  },
   kanban:  { distance: 90,  maxScale: 1.03, maxLift: -3, speed: 0.2,  glow: false, tilt: false },
   buttons: { distance: 80,  maxScale: 1.06, maxLift: -3, speed: 0.22, glow: true,  tilt: false },

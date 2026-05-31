@@ -172,11 +172,13 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
   const sidebarAvatarUrl = authUser?.user_metadata?.avatar_url || null
 
   // macOS-dock proximity for the sidebar nav items.
+  // Lower scale + no perspective (handled in proximity.js when
+  // tilt: false) keeps text crisp through the scale.
   useProximity('.sidebar-nav-item', {
     distance: 100,
-    maxScale: 1.06,
+    maxScale: 1.05,
     maxLift: -3,
-    speed: 0.22,
+    speed: 0.25,
     glow: false,
     tilt: false,
   }, [])

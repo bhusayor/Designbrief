@@ -402,6 +402,18 @@ button, a, [role="button"] {
   transform-style: preserve-3d;
   backface-visibility: hidden;
 }
+
+/* Sidebar nav items get a flat 2D proximity transform (no perspective,
+   no tilt). The extra text-rendering hints below keep the label crisp
+   through the scale — without them the composited layer renders at
+   sub-pixel offsets and the type goes fuzzy. */
+.sidebar-nav-item {
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
 @media (hover: none) {
   /* Touch devices don't get the proximity effect — use a quick tap
      state instead so the surface still feels responsive. */
