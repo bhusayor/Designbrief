@@ -1,7 +1,6 @@
 import { useState, useContext, useEffect } from 'react';
 import AppContext from '../context/AppContext';
 import useProximity from '../hooks/useProximity';
-import useSpotlight from '../hooks/useSpotlight';
 import StaggerGrid, { StaggerItem } from '../components/StaggerGrid';
 
 function useWindowWidth() {
@@ -469,22 +468,17 @@ export default function ProjectLibrary() {
 
   const pendingCount = intakeForms.filter(f => f.status !== 'complete').length;
 
-  // macOS-dock proximity for project cards. Re-runs whenever the
-  // visible history changes so newly-loaded cards pick up the effect.
+  // macOS-dock proximity for project cards — scale + tilt only. The
+  // box-shadow glow + cursor spotlight were polarising, so cards just
+  // magnetise quietly on hover now.
   useProximity('.project-card', {
     distance: 140,
     maxScale: 1.04,
     maxLift: -8,
     speed: 0.3,
-    glow: true,
+    glow: false,
     tilt: true,
   }, [history?.length, activeTab])
-
-  // Cursor-following spotlight on top of the proximity scale. Writes
-  // CSS vars only (no transform conflict), and the WeakSet in the
-  // hook prevents the MutationObserver from re-binding existing
-  // cards as the grid re-renders.
-  useSpotlight('.project-card', { color: '139, 92, 246', size: 200, opacity: 0.07 })
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 

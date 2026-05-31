@@ -1,7 +1,6 @@
 import { useState, useEffect, useContext, useMemo } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
-import useProximity from '../hooks/useProximity'
 import StaggerGrid, { StaggerItem } from '../components/StaggerGrid'
 import {
   ArrowRightIcon,
@@ -108,15 +107,8 @@ export default function Billing() {
   const [removeCardOpen, setRemoveCardOpen] = useState(false)
   const [removingCard, setRemovingCard] = useState(false)
 
-  // macOS-dock proximity for plan comparison cards (Change Plan grid).
-  useProximity('.plan-card', {
-    distance: 150,
-    maxScale: 1.04,
-    maxLift: -8,
-    speed: 0.32,
-    glow: true,
-    tilt: true,
-  }, [])
+  // Plan comparison cards stay static — no proximity, no hover lift,
+  // no glow. The Change Plan grid reads as a normal pricing layout.
 
   // ── Data fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -795,21 +787,19 @@ function ChangePlanCard({ userPlan, onUpgrade, onDowngrade, isMobile, isTablet }
 }
 
 function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
-  const [cardHover, setCardHover] = useState(false)
-  const [btnHover, setBtnHover] = useState(false)
   const PLANS = ['free', 'starter', 'pro']
   const isCurrent = plan === userPlan
   const isUpgrade = PLANS.indexOf(plan) > PLANS.indexOf(userPlan)
   const pill = PLAN_PILL[plan]
 
-  // Card hover: lift + accent border (current plan keeps its solid black border).
+  // Static border — current plan reads with the solid black outline,
+  // everything else uses the standard divider.
   const cardBorder = isCurrent
     ? '2px solid var(--color-text)'
-    : cardHover ? '1px solid #7C3AED' : '1px solid var(--color-border)'
-  const cardTransform = !isCurrent && cardHover ? 'translateY(-2px)' : 'translateY(0)'
-  const cardShadow = !isCurrent && cardHover ? '0 10px 28px rgba(124,58,237,0.15)' : '0 0 0 rgba(0,0,0,0)'
+    : '1px solid var(--color-border)'
 
-  // Button hover: emphasise the affordance per variant.
+  // Static button styling — no transition, no hover transform, no
+  // shadow shift. Reads as a normal pricing button.
   const btnBase = {
     marginTop: 'auto',
     padding: '9px 12px',
@@ -817,7 +807,6 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
     fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
     cursor: isCurrent ? 'not-allowed' : 'pointer',
-    transition: 'background 0.15s, transform 0.15s, box-shadow 0.15s, border-color 0.15s, color 0.15s',
   }
   let btnStyle
   if (isCurrent) {
@@ -825,32 +814,25 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
   } else if (isUpgrade) {
     btnStyle = {
       ...btnBase,
-      background: btnHover ? 'linear-gradient(135deg, #6D28D9, #9333EA)' : 'linear-gradient(135deg, #7C3AED, #A855F7)',
+      background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
       color: 'white', border: 'none',
-      transform: btnHover ? 'translateY(-1px)' : 'translateY(0)',
-      boxShadow: btnHover ? '0 6px 18px rgba(124,58,237,0.35)' : '0 2px 8px rgba(124,58,237,0.20)',
     }
   } else {
     btnStyle = {
       ...btnBase,
-      background: btnHover ? 'rgba(239,68,68,0.06)' : 'transparent',
-      color: btnHover ? '#EF4444' : 'var(--color-text)',
-      border: '1px solid ' + (btnHover ? '#EF4444' : 'var(--color-border)'),
+      background: 'transparent',
+      color: 'var(--color-text)',
+      border: '1px solid var(--color-border)',
     }
   }
 
   return (
     <div
-      className={`${isCurrent ? '' : 'plan-card'}${plan === 'pro' ? ' glow-purple' : ''}`.trim() || undefined}
-      onMouseEnter={() => setCardHover(true)}
-      onMouseLeave={() => setCardHover(false)}
       style={{
         background: 'var(--color-card)',
         border: cardBorder,
         borderRadius: 14, padding: 16,
         display: 'flex', flexDirection: 'column', gap: 12,
-        boxShadow: cardShadow,
-        transition: 'box-shadow 0.18s, border-color 0.18s',
       }}
     >
       <div>
@@ -875,8 +857,6 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
       <button
         disabled={isCurrent}
         onClick={() => isUpgrade ? onUpgrade(plan) : onDowngrade(plan)}
-        onMouseEnter={() => !isCurrent && setBtnHover(true)}
-        onMouseLeave={() => setBtnHover(false)}
         style={btnStyle}
       >
         {isCurrent ? 'Current Plan' : isUpgrade ? <>Upgrade <ArrowRightIcon style={{ width: 12, height: 12 }} /></> : 'Downgrade'}
