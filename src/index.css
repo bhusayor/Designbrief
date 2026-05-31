@@ -395,7 +395,6 @@ button, a, [role="button"] {
 .template-card,
 .plan-card,
 .kanban-task-card,
-.sidebar-nav-item,
 .member-avatar,
 .build-queue-item,
 .proximity-btn {
@@ -403,17 +402,12 @@ button, a, [role="button"] {
   backface-visibility: hidden;
 }
 
-/* Sidebar nav items get a flat 2D proximity transform (no perspective,
-   no tilt). The extra text-rendering hints below keep the label crisp
-   through the scale — without them the composited layer renders at
-   sub-pixel offsets and the type goes fuzzy. */
-.sidebar-nav-item {
-  will-change: transform;
-  transform: translateZ(0);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: geometricPrecision;
-}
+/* Sidebar nav items intentionally OPT OUT of layer promotion. No
+   will-change, no transform, no perspective — any of those would
+   composite the label to a separate GPU layer and sub-pixel render
+   the text, which reads as a permanent soft "blur". A plain
+   background-color hover (handled in NavItem's React state) keeps
+   type pixel-perfect. */
 @media (hover: none) {
   /* Touch devices don't get the proximity effect — use a quick tap
      state instead so the surface still feels responsive. */

@@ -1,5 +1,4 @@
 import { useState, useContext, useEffect, useRef } from 'react'
-import useProximity from '../../hooks/useProximity'
 import AppContext from '../../context/AppContext'
 import HistoryItem from './HistoryItem'
 import TeamPage from '../../pages/TeamPage'
@@ -171,17 +170,12 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
   // shows up here immediately after the session refresh fires.
   const sidebarAvatarUrl = authUser?.user_metadata?.avatar_url || null
 
-  // macOS-dock proximity for the sidebar nav items.
-  // Lower scale + no perspective (handled in proximity.js when
-  // tilt: false) keeps text crisp through the scale.
-  useProximity('.sidebar-nav-item', {
-    distance: 100,
-    maxScale: 1.05,
-    maxLift: -3,
-    speed: 0.25,
-    glow: false,
-    tilt: false,
-  }, [])
+  // Sidebar nav items use a plain background-color hover (handled in
+  // NavItem's React `hovered` state) — proximity is intentionally
+  // OFF here. Any transform-driven scale on text composites the
+  // label to a separate layer, and the resulting sub-pixel
+  // rasterisation makes type look soft no matter how small the
+  // scale is. Plain hover on the parent stays pixel-perfect.
 
   // Desktop: auto-collapse on tablet width
   const [collapsedDesktop, setCollapsedDesktop] = useState(() => !isMobile && window.innerWidth < 1024)
