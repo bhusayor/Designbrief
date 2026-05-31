@@ -418,20 +418,29 @@ button, a, [role="button"] {
   }
 }
 
-/* MagneticCursor — when mounted, the component adds this class to
-   <html> and we hide the system cursor everywhere. Removed on
-   unmount and never applied on touch / coarse pointer devices. */
-html.custom-cursor-active,
-html.custom-cursor-active * {
-  cursor: none !important;
+/* Default browser cursor everywhere — pointer on interactive
+   surfaces, text on typeable surfaces. The custom MagneticCursor
+   was removed; this keeps explicit affordances so nothing reads
+   ambiguous. */
+* { cursor: default; }
+
+a,
+button,
+[role="button"],
+.project-card,
+.template-card,
+.plan-card,
+.kanban-task-card,
+.sidebar-nav-item,
+.build-queue-item,
+.proximity-btn {
+  cursor: pointer;
 }
-html.custom-cursor-active input,
-html.custom-cursor-active textarea,
-html.custom-cursor-active [contenteditable="true"] {
-  /* Keep the system caret for typeable surfaces so people can still
-     see where their cursor is in a paragraph. The custom dot is
-     hidden via the `text` state anyway. */
-  cursor: text !important;
+
+input,
+textarea,
+[contenteditable="true"] {
+  cursor: text;
 }
 
 @keyframes pulse {
