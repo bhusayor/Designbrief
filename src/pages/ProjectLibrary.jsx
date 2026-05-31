@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect } from 'react';
 import AppContext from '../context/AppContext';
 import useProximity from '../hooks/useProximity';
+import StaggerGrid, { StaggerItem } from '../components/StaggerGrid';
 
 function useWindowWidth() {
   const [width, setWidth] = useState(() => window.innerWidth)
@@ -710,15 +711,16 @@ export default function ProjectLibrary() {
               }
               return (
                 <>
-                  <div style={gridStyle}>
+                  <StaggerGrid speed="normal" style={gridStyle}>
                     {visible.map(item => (
-                      <ProjectCard
-                        key={item.id}
-                        item={item}
-                        onClick={() => openProject(item)}
-                      />
+                      <StaggerItem key={item.id} variant="itemUp">
+                        <ProjectCard
+                          item={item}
+                          onClick={() => openProject(item)}
+                        />
+                      </StaggerItem>
                     ))}
-                  </div>
+                  </StaggerGrid>
 
                   {hidden.length > 0 && (
                     <div style={{ marginTop: 22, position: 'relative' }}>

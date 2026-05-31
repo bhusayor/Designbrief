@@ -13,6 +13,8 @@ import {
 } from '../../lib/aiBuildEngine'
 import { fetchBriefContext } from '../../lib/briefContext'
 import useProximity from '../../hooks/useProximity'
+import StaggerGrid, { StaggerItem } from '../StaggerGrid'
+import useScramble from '../../hooks/useScramble'
 import {
   SparklesIcon,
   XMarkIcon,
@@ -451,21 +453,22 @@ export default function AIBuilder({ build, project, onClose }) {
               </button>
             )}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <StaggerGrid speed="fast" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {orderedSections.map((s, i) => (
-              <QueueRow
-                key={s.id}
-                index={i}
-                section={s}
-                isStreaming={s.id === streamingId}
-              />
+              <StaggerItem key={s.id} variant="itemUp">
+                <QueueRow
+                  index={i}
+                  section={s}
+                  isStreaming={s.id === streamingId}
+                />
+              </StaggerItem>
             ))}
             {orderedSections.length === 0 && (
               <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', padding: 12 }}>
                 Add tasks to the TODO column and they'll show up here.
               </div>
             )}
-          </div>
+          </StaggerGrid>
         </aside>
 
         {/* RIGHT — preview + approval */}
@@ -681,15 +684,21 @@ function StatusPill({ status }) {
 }
 
 function ApprovalPanel({ section, streaming, changeOpen, changeText, onChangeText, onApprove, onOpenChange, onCloseChange, onSubmitChange, onSkip }) {
+  // useScramble lives at the top of ApprovalPanel so the hook order is
+  // stable. The hook returns the target text immediately when not
+  // streaming, so we can safely render it conditionally.
+  const liveLabel = `Building ${section.task_title}…`
+  const { displayText } = useScramble(liveLabel, { duration: 480, trigger: streaming })
+
   if (streaming) {
     return (
       <div style={approvalPanelStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-muted)', fontSize: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-muted)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
           <span style={{
             width: 8, height: 8, borderRadius: 100, background: '#8B5CF6',
             animation: 'buildPulse 1.2s ease-in-out infinite',
           }} />
-          Streaming "{section.task_title}" live…
+          {displayText}
         </div>
       </div>
     )

@@ -1,5 +1,6 @@
 import { useState, useContext, useRef, useEffect } from 'react'
 import AppContext from '../context/AppContext'
+import LiquidBackground from '../components/LiquidBackground'
 import {
   PlusIcon, PaperClipIcon, ArrowUpIcon, XMarkIcon, DocumentIcon,
   ArrowLeftIcon, ArrowDownTrayIcon, ShareIcon, UserGroupIcon,
@@ -805,6 +806,10 @@ The flow should be realistic for this product. Return only the JSON array.`,
           Upgrade
         </button>
       )}
+
+      {/* Liquid blob background — sits behind the grid texture for
+          a subtle living-canvas feel under the hero copy. */}
+      <LiquidBackground opacity={0.08} />
 
       {/* Grid texture overlay */}
       <div style={{

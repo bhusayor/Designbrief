@@ -1,6 +1,12 @@
 // ────────────────────────────────────────────────────────────────────
 // proximity.js — macOS Dock-style magnetic interaction.
 //
+// Coexistence guard: any element marked via markTransitioning(el) (or
+// carrying data-animating / data-transitioning, or nested inside a
+// [data-transitioning] ancestor) is skipped by the pointer loop. This
+// is how proximity coexists with Framer Motion's spring/layout
+// animations without two systems writing transform on the same node.
+//
 // Elements within `distance` px of the pointer scale and lift in
 // proportion to how close the cursor is. Optional 3D tilt + glow.
 //
@@ -33,6 +39,26 @@ const DEFAULTS = {
   glowColor: '139, 92, 246',
   tilt: true,
   perspective: 600,
+}
+
+// Shared registry — Framer Motion call sites use markTransitioning to
+// stop proximity from fighting an in-flight layout / spring animation
+// on the same element.
+const transitioningElements = new WeakSet()
+
+export function markTransitioning(el) {
+  if (el) transitioningElements.add(el)
+}
+export function unmarkTransitioning(el) {
+  if (el) transitioningElements.delete(el)
+}
+export function isTransitioning(el) {
+  if (!el) return false
+  if (transitioningElements.has(el)) return true
+  if (el.dataset?.animating) return true
+  if (el.dataset?.transitioning) return true
+  if (el.closest && el.closest('[data-transitioning]')) return true
+  return false
 }
 
 function supportsHoverPointer() {
@@ -106,6 +132,17 @@ export function initProximityEffect(selector, options = {}) {
 
     for (let i = 0; i < rects.length; i++) {
       const { el, cx, cy } = rects[i]
+
+      // Conflict guard — Framer Motion is currently driving this
+      // element; don't write transform on top of its keyframes.
+      if (isTransitioning(el)) {
+        if (inRange.has(el)) {
+          inRange.delete(el)
+          resetElement(el)
+        }
+        continue
+      }
+
       const dx = px - cx
       const dy = py - cy
       const d2 = dx * dx + dy * dy

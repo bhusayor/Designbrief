@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, useMemo } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import useProximity from '../hooks/useProximity'
+import StaggerGrid, { StaggerItem } from '../components/StaggerGrid'
 import {
   ArrowRightIcon,
   ArrowDownTrayIcon,
@@ -773,21 +774,22 @@ function ChangePlanCard({ userPlan, onUpgrade, onDowngrade, isMobile, isTablet }
   const PLANS = ['free', 'starter', 'pro']
   return (
     <Section title="Change Plan">
-      <div style={{
+      <StaggerGrid speed="slow" style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr 1fr' : '1fr 1fr 1fr',
         gap: 12,
       }}>
         {PLANS.map(p => (
+          <StaggerItem key={p} variant="itemUp">
           <PlanComparisonCard
-            key={p}
             plan={p}
             userPlan={userPlan}
             onUpgrade={onUpgrade}
             onDowngrade={onDowngrade}
           />
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGrid>
     </Section>
   )
 }

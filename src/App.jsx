@@ -18,6 +18,8 @@ import WorkspaceSetup from './pages/WorkspaceSetup';
 import AcceptInvite from './pages/AcceptInvite';
 import UpgradeModal from './components/UpgradeModal';
 import { supabase } from './lib/supabase';
+import MagneticCursor from './components/MagneticCursor';
+import PageTransition from './components/PageTransition';
 
 function AppRouter() {
   const {
@@ -247,9 +249,12 @@ function AppRouter() {
   return (
     <>
       <AppShell>
-        {pages[activeSection] || <Dashboard />}
+        <PageTransition pageKey={activeSection}>
+          {pages[activeSection] || <Dashboard />}
+        </PageTransition>
       </AppShell>
       <GlobalUpgradeModal />
+      <MagneticCursor />
     </>
   );
 }
