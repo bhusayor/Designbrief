@@ -897,3 +897,26 @@ img {
 .glow-pulse         { animation: glowPulse        2.5s ease infinite; }
 .glow-pulse-success { animation: glowPulseSuccess 2s   ease infinite; }
 
+/* Cursor spotlight — paints a radial gradient on the card's ::before
+   pseudo using CSS variables set by the useSpotlight hook. Sits
+   beneath the noise ::after (same z-index, earlier in paint order),
+   beneath the card content (z-index: 1). The hook clamps
+   --spotlight-opacity to 0 when the cursor leaves, so the gradient
+   simply fades out without us needing a transition class. */
+.project-card::before,
+.template-card::before,
+.plan-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle var(--spotlight-size, 200px)
+      at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+    rgba(var(--spotlight-color, 139, 92, 246), var(--spotlight-opacity, 0)),
+    transparent 60%
+  );
+  z-index: 0;
+}
+

@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect } from 'react';
 import AppContext from '../context/AppContext';
 import useProximity from '../hooks/useProximity';
+import useSpotlight from '../hooks/useSpotlight';
 import StaggerGrid, { StaggerItem } from '../components/StaggerGrid';
 
 function useWindowWidth() {
@@ -478,6 +479,12 @@ export default function ProjectLibrary() {
     glow: true,
     tilt: true,
   }, [history?.length, activeTab])
+
+  // Cursor-following spotlight on top of the proximity scale. Writes
+  // CSS vars only (no transform conflict), and the WeakSet in the
+  // hook prevents the MutationObserver from re-binding existing
+  // cards as the grid re-renders.
+  useSpotlight('.project-card', { color: '139, 92, 246', size: 200, opacity: 0.07 })
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 

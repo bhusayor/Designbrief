@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Vercel__list_deployments",
+      "mcp__claude_ai_Vercel__get_deployment_build_logs",
+      "mcp__claude_ai_Vercel__get_deployment",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_tables",
+      "Bash(grep -o \".\\\\{0,60\\\\}Claude Sonnet.\\\\{0,60\\\\}\")",
+      "Bash(npm list *)",
+      "Bash(perl -i -pe ' *)",
+      "mcp__claude_ai_Vercel__get_runtime_logs",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('version:', p.get\\('version'\\)\\); print\\('deps:', json.dumps\\(p.get\\('dependencies',{}\\), indent=2\\)\\); print\\('exports keys:', list\\(p.get\\('exports',{}\\).keys\\(\\)\\)[:5]\\)\")",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); deps=p.get\\('dependencies',{}\\); print\\('resend in committed package.json:', deps.get\\('resend','NOT FOUND'\\)\\)\")"
+    ]
+  }
+}

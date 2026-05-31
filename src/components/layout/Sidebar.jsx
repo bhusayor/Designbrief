@@ -1,5 +1,6 @@
 import { useState, useContext, useEffect, useRef } from 'react'
 import AppContext from '../../context/AppContext'
+import AnimatedNumber from '../AnimatedNumber'
 import HistoryItem from './HistoryItem'
 import TeamPage from '../../pages/TeamPage'
 import SettingsPage from '../../pages/SettingsPage'
@@ -674,8 +675,14 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               color: exhausted ? '#EF4444' : critical ? '#EF4444' : low ? '#B45309' : 'var(--color-text-muted)',
               marginBottom: userPlan === 'pro' ? 0 : 10, lineHeight: 1.45,
             }}>
-              {exhausted ? `0 / ${creditsLimit} · Credits used up`
-                : `${remaining} / ${creditsLimit} credits remaining`}
+              {exhausted ? (
+                <>0 / {creditsLimit} · Credits used up</>
+              ) : (
+                <>
+                  <AnimatedNumber value={remaining} duration={800} />
+                  {' / '}{creditsLimit} credits remaining
+                </>
+              )}
               {(userPlan === 'starter' || userPlan === 'pro') && daysToReset != null && !exhausted && (
                 <div style={{ marginTop: 4, color: 'var(--color-text-muted)' }}>
                   Resets in {daysToReset} day{daysToReset === 1 ? '' : 's'}
