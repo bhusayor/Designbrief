@@ -569,3 +569,163 @@ textarea,
   button:hover { opacity: 1 !important; }
 }
 
+/* ─── PREMIUM UPGRADE — PHASE 1 ─────────────────────────────────────────────
+   Additive design tokens + utility classes. Existing tokens
+   (--radius-sm/md/lg/xl, .text-display, .text-heading, ::selection,
+   ::-webkit-scrollbar, :focus-visible, html font-smoothing) are
+   intentionally NOT redefined here — the originals above are already
+   the right values and changing them would resize every card / button
+   across the app. The classes below coexist; pages adopt them as
+   they're refactored. */
+
+/* 4px-based spacing scale. Use as var(--space-N) in inline styles or
+   new components. */
+:root,
+[data-theme="dark"] {
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* Additive — extends existing radius scale, doesn't replace it.
+     Use --radius-2xl for the largest modal corners. */
+  --radius-2xl: 24px;
+}
+
+/* Typography scale — premium hierarchy. Pairs with existing
+   .text-display / .text-heading utilities; these are explicitly named
+   for the role they play in a page (title, section, card title, etc.)
+   so JSX reads cleanly. */
+.page-title {
+  font-family: var(--font-sans);
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.section-header {
+  font-family: var(--font-sans);
+  font-size: clamp(20px, 2.5vw, 28px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+.card-title {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.label-text {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.body-text {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--color-text-muted);
+}
+
+.display-number {
+  font-family: var(--font-sans);
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--color-text);
+}
+
+/* Base building blocks — use on new components. The existing
+   componentry already has its own button / card styling, so we don't
+   apply these classes globally. */
+.card-base {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-base:hover {
+  border-color: var(--color-border-strong);
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-5);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-accent-2);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-5);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+}
+
+/* Misc global polish — smooth-scroll anchor jumps and crisper bitmaps. */
+html {
+  scroll-behavior: smooth;
+}
+
+img {
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Hide focus ring when interaction was mouse-driven; keep it for keyboard
+   users (the existing :focus-visible rule covers them). */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
