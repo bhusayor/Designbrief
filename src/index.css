@@ -729,3 +729,171 @@ img {
   outline: none;
 }
 
+/* ─── PREMIUM UPGRADE — PHASE 2 ─────────────────────────────────────────────
+   Surface treatments: glassmorphism, noise grain, ambient glow. All
+   classes are opt-in. They coexist with the proximity system because
+   none of them animate `transform` (the noise pseudo uses `transform`
+   on ::after only, which is its own compositing layer separate from
+   the parent's proximity scale). */
+
+/* Theme-aware glass tint — light theme uses white-translucent, dark
+   uses near-black-translucent. */
+:root         { --glass-bg: 255, 255, 255; --glass-border: 0, 0, 0; }
+[data-theme="dark"] { --glass-bg: 15, 15, 20; --glass-border: 255, 255, 255; }
+
+.glass {
+  background: rgba(var(--glass-bg), 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(var(--glass-border), 0.07);
+}
+
+.glass-subtle {
+  background: rgba(var(--glass-bg), 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--glass-border), 0.05);
+}
+
+.glass-strong {
+  background: rgba(var(--glass-bg), 0.85);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(var(--glass-border), 0.1);
+}
+
+/* Noise grain — a tiled SVG fractalNoise rendered behind content via
+   ::after. The data URI is URL-encoded inline so it loads with the
+   stylesheet (no extra request). Animated variant (.noise::after) drifts
+   the texture so static blocks feel alive. */
+@keyframes noiseShift {
+  0%   { transform: translate(0,0); }
+  10%  { transform: translate(-2%,-2%); }
+  20%  { transform: translate(2%,2%); }
+  30%  { transform: translate(-1%,2%); }
+  40%  { transform: translate(2%,-1%); }
+  50%  { transform: translate(-2%,1%); }
+  60%  { transform: translate(1%,-2%); }
+  70%  { transform: translate(-1%,1%); }
+  80%  { transform: translate(2%,-2%); }
+  90%  { transform: translate(-2%,2%); }
+  100% { transform: translate(0,0); }
+}
+
+.noise {
+  position: relative;
+}
+
+.noise::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  pointer-events: none;
+  border-radius: inherit;
+  animation: noiseShift 8s steps(1) infinite;
+  z-index: 0;
+}
+
+.noise > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Static card grain — same texture but no animation, slightly weaker
+   opacity. Applied to all the proximity-target card surfaces so they
+   feel tactile under the magnetic scale. The position:relative +
+   overflow:hidden are required for the ::after to clip to rounded
+   corners. */
+.project-card,
+.template-card,
+.plan-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.project-card::after,
+.template-card::after,
+.plan-card::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.project-card > *,
+.template-card > *,
+.plan-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ambient glow — purple-themed elevation. Subtle by default, pulse
+   variant for attention. Use --color-accent so the glow tracks the
+   theme palette. */
+.glow-purple {
+  box-shadow:
+    0 0 0 1px rgba(139,92,246,0.15),
+    0 8px 24px rgba(139,92,246,0.10),
+    0 24px 48px rgba(139,92,246,0.06);
+}
+
+.glow-purple-strong {
+  box-shadow:
+    0 0 0 1px rgba(139,92,246,0.30),
+    0 8px 32px rgba(139,92,246,0.20),
+    0 32px 64px rgba(139,92,246,0.10);
+}
+
+.glow-success {
+  box-shadow:
+    0 0 0 1px rgba(34,197,94,0.20),
+    0 8px 24px rgba(34,197,94,0.10);
+}
+
+.glow-warning {
+  box-shadow:
+    0 0 0 1px rgba(251,191,36,0.20),
+    0 8px 24px rgba(251,191,36,0.10);
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(139,92,246,0.20),
+      0 8px 24px rgba(139,92,246,0.12),
+      0 0 40px rgba(139,92,246,0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(139,92,246,0.40),
+      0 8px 32px rgba(139,92,246,0.25),
+      0 0 60px rgba(139,92,246,0.15);
+  }
+}
+
+@keyframes glowPulseSuccess {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(34,197,94,0.20),
+      0 0 20px rgba(34,197,94,0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(34,197,94,0.40),
+      0 0 40px rgba(34,197,94,0.20);
+  }
+}
+
+.glow-pulse         { animation: glowPulse        2.5s ease infinite; }
+.glow-pulse-success { animation: glowPulseSuccess 2s   ease infinite; }
+

@@ -68,6 +68,7 @@ export default function MotionModal({
             role="dialog"
             aria-modal="true"
             aria-label={ariaLabel}
+            className="glass-strong"
             variants={mobile ? MODAL.bottomSheet : MODAL.content}
             initial="initial"
             animate="animate"
@@ -80,8 +81,6 @@ export default function MotionModal({
                   maxHeight: '92vh',
                   overflowY: 'auto',
                   zIndex: 1001,
-                  background: 'var(--color-card)',
-                  border: '1px solid var(--color-border)',
                   borderRadius: '20px 20px 0 0',
                   boxShadow: '0 -24px 80px rgba(0,0,0,0.4)',
                 }
@@ -94,8 +93,6 @@ export default function MotionModal({
                   maxHeight: '90vh',
                   overflowY: 'auto',
                   zIndex: 1001,
-                  background: 'var(--color-card)',
-                  border: '1px solid var(--color-border)',
                   borderRadius: 20,
                   boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
                 }

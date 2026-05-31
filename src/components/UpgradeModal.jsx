@@ -306,11 +306,10 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
     >
       <div
         onClick={e => e.stopPropagation()}
+        className="glass-strong"
         style={{
           width: '100%', maxWidth: 560,
           maxHeight: '90vh', overflowY: 'auto',
-          background: 'var(--color-bg)',
-          border: '1px solid var(--color-border)',
           borderRadius: 20,
           fontFamily: 'var(--font-sans)',
           boxShadow: '0 24px 64px rgba(0,0,0,0.35)',

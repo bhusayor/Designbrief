@@ -841,7 +841,7 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
 
   return (
     <div
-      className={isCurrent ? undefined : 'plan-card'}
+      className={`${isCurrent ? '' : 'plan-card'}${plan === 'pro' ? ' glow-purple' : ''}`.trim() || undefined}
       onMouseEnter={() => setCardHover(true)}
       onMouseLeave={() => setCardHover(false)}
       style={{
