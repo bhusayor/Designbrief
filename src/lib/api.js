@@ -959,26 +959,33 @@ Return 6-8 high-quality, real references.`;
  * translateAndAnalyse — runs score → translate + analyse in parallel.
  * Returns: { scoreData, finalResult }
  */
-export async function translateAndAnalyse(briefText, templateId = null) {
+export async function translateAndAnalyse(briefText, templateId = null, opts = {}) {
   // Score first (fast, 800 tokens — gives early verdict)
   const scoreData = await scoreBrief(briefText);
 
-  // Translate + deep analyse in parallel. The template id flows into
-  // translateBrief so the system prompt can pick up the template's
-  // aiModifier — without this the templateContext appended by the
-  // Dashboard was being buried in the user message and the model
-  // largely ignored it.
-  const [translation, analysis] = await Promise.all([
-    translateBrief(briefText, templateId),
-    analyseDeep(briefText, scoreData?.projectTitle ?? 'Project'),
-  ]);
+  // Default: only run scoreBrief + translateBrief. The heavy deep
+  // analysis (techStack + features + userFlow) was hitting the 60s
+  // Vercel function ceiling when bundled with translateBrief, so it's
+  // now an explicit on-demand call — see runDeepAnalysis below, fired
+  // by the "Generate Deep Analysis" button on the result page.
+  //
+  // Callers that genuinely need the deep block inline can pass
+  // `{ deep: true }` to restore the old parallel behaviour.
+  const translation = await translateBrief(briefText, templateId);
 
-  const finalResult = {
-    ...translation,
-    techStack: analysis?.techStack ?? null,
-    features: analysis?.features ?? [],
-    userFlow: analysis?.userFlow ?? [],
-  };
+  const finalResult = { ...translation };
+
+  if (opts.deep) {
+    try {
+      const analysis = await analyseDeep(briefText, scoreData?.projectTitle ?? 'Project');
+      finalResult.techStack = analysis?.techStack ?? null;
+      finalResult.features = analysis?.features ?? [];
+      finalResult.userFlow = analysis?.userFlow ?? [];
+    } catch (e) {
+      // A deep failure must not nuke the rest of the translation.
+      console.warn('[translateAndAnalyse] deep analysis failed:', e?.message)
+    }
+  }
 
   if (finalResult && !finalResult.disciplineData) {
     finalResult.disciplineData = {}
@@ -994,6 +1001,21 @@ export async function translateAndAnalyse(briefText, templateId = null) {
   }
 
   return { scoreData, finalResult };
+}
+
+/**
+ * runDeepAnalysis — on-demand deep technical breakdown. Returns the
+ * techStack / features / userFlow trio that used to be bundled into
+ * translateAndAnalyse. Caller is responsible for credit deduction +
+ * merging the result back into the brief.
+ */
+export async function runDeepAnalysis(briefText, projectTitle) {
+  const analysis = await analyseDeep(briefText, projectTitle ?? 'Project');
+  return {
+    techStack: analysis?.techStack ?? null,
+    features: analysis?.features ?? [],
+    userFlow: analysis?.userFlow ?? [],
+  };
 }
 
 /**

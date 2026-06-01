@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline'
 import {
   translateAndAnalyse,
+  runDeepAnalysis,
   fetchInspirations as apiFetchInspirations,
   analyseCompetitors,
   callJSON,
@@ -293,6 +294,7 @@ export default function Dashboard() {
   const [streamedText, setStreamedText] = useState('')
   const [streamDone, setStreamDone] = useState(false)
   const [loadingCompetitors, setLoadingCompetitors] = useState(false)
+  const [runningDeep, setRunningDeep] = useState(false)
   const [storedBriefText, setStoredBriefText] = useState('')
   const [inspiSearched, setInspiSearched] = useState(false)
   const [showStylePicker, setShowStylePicker] = useState(false)
@@ -508,68 +510,10 @@ export default function Dashboard() {
       if (!finalResult) throw new Error('Translation returned empty. Please try again.')
       setCreditsUsed(prev => prev + 1)
 
-      // Ensure techStack always has data
-      if (!finalResult.techStack ||
-          Object.values(finalResult.techStack || {}).every(v => !Array.isArray(v) || v.length === 0)
-      ) {
-        console.warn('techStack missing, generating fallback')
-        finalResult.techStack = await callJSON(
-          'You are a technical architect. Respond ONLY with valid JSON.',
-          `Suggest a tech stack for this project.
-
-Project: ${finalResult.projectTitle}
-Industry: ${finalResult.industry || ''}
-Platform: ${finalResult.platform || 'web and mobile'}
-
-Return JSON object:
-{
-  "frontend": ["Tool 1", "Tool 2", "Tool 3"],
-  "backend": ["Tool 1", "Tool 2"],
-  "database": ["Tool 1"],
-  "thirdParty": ["Tool 1", "Tool 2"]
-}
-
-Use real, appropriate technologies for this specific type of project. Return only the JSON.`,
-          800
-        ).catch(() => ({
-          frontend: ['React', 'TypeScript', 'Tailwind CSS'],
-          backend: ['Node.js', 'Express'],
-          database: ['PostgreSQL'],
-          thirdParty: ['Stripe', 'SendGrid'],
-        }))
-      }
-
-      // Ensure userFlow always has data
-      if (!Array.isArray(finalResult.userFlow) || finalResult.userFlow.length === 0) {
-        console.warn('userFlow missing, generating fallback')
-        const ufResult = await callJSON(
-          'You are a UX designer. Respond ONLY with valid JSON.',
-          `Create a user flow for this product.
-
-Project: ${finalResult.projectTitle}
-Description: ${finalResult.projectUnderstanding || ''}
-
-Return a JSON array of 5-7 steps:
-[
-  {
-    "step": 1,
-    "title": "Step name",
-    "action": "What the user does on this screen",
-    "outcome": "What happens as a result",
-    "branch": ""
-  }
-]
-
-The flow should be realistic for this product. Return only the JSON array.`,
-          1000
-        ).catch(() => null)
-
-        if (Array.isArray(ufResult) && ufResult.length > 0) {
-          finalResult.userFlow = ufResult
-        } else if (ufResult?.steps) {
-          finalResult.userFlow = ufResult.steps
-        }
-      }
+      // Deep technical breakdown (techStack + features + userFlow) is
+      // now button-triggered via handleRunDeepAnalysis — the inline
+      // fallbacks that used to chain 2 extra AI calls here were
+      // tripping the 60s function ceiling on heavy briefs.
 
       // Fetch competitors + inspirations in parallel
       setLoadingInspi(true)
@@ -631,6 +575,40 @@ The flow should be realistic for this product. Return only the JSON array.`,
       showToast('Could not fetch inspirations', 'error')
     }
     setLoadingInspi(false)
+  }
+
+  async function handleRunDeepAnalysis() {
+    if (runningDeep) return
+    if (!result || !storedBriefText) {
+      showToast?.('No brief loaded.', 'error')
+      return
+    }
+    // Charge credits up-front. consumeCredits handles its own
+    // toast/upgrade-modal on insufficient credits.
+    if (consumeCredits) {
+      const r = await consumeCredits('deep_analysis')
+      if (!r.ok) return
+    }
+    setRunningDeep(true)
+    try {
+      const deep = await runDeepAnalysis(storedBriefText, result?.projectTitle)
+      const merged = (prev) => ({
+        ...prev,
+        techStack: deep.techStack ?? prev.techStack ?? null,
+        features: deep.features?.length ? deep.features : (prev.features || []),
+        userFlow: deep.userFlow?.length ? deep.userFlow : (prev.userFlow || []),
+      })
+      setResult(merged)
+      // Mirror into the active project context so a navigation away
+      // and back keeps the deep block visible.
+      setActiveProjectBriefResult?.(merged(result || {}))
+      showToast?.('Deep analysis ready', 'success')
+    } catch (e) {
+      console.error('[deep] failed', e)
+      showToast?.(e.message || 'Deep analysis failed. Try again.', 'error')
+    } finally {
+      setRunningDeep(false)
+    }
   }
 
   async function handleLoadCompetitors() {
@@ -779,6 +757,8 @@ The flow should be realistic for this product. Return only the JSON array.`,
             showToast={showToast}
             loadingCompetitors={loadingCompetitors}
             onLoadCompetitors={handleLoadCompetitors}
+            runningDeep={runningDeep}
+            onRunDeep={handleRunDeepAnalysis}
           />
         ) : (
           <div style={{ padding: isMobile ? '16px 14px' : '24px 32px' }}>
@@ -1102,7 +1082,7 @@ function StreamingLoadingView({ streamedText, streamDone }) {
 
 // ─── Result View ──────────────────────────────────────────────────────────────
 
-function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSearched, onFetchInspirations, onReset, onDownload, onShare, onNavigate, showToast, loadingCompetitors, onLoadCompetitors }) {
+function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSearched, onFetchInspirations, onReset, onDownload, onShare, onNavigate, showToast, loadingCompetitors, onLoadCompetitors, runningDeep, onRunDeep }) {
   const phases = buildPhasesLocal(r.timeframe?.taskDays)
   const badge = s ? verdictBadge(s.verdict) : null
 
@@ -1154,15 +1134,25 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
       {r.budgetRange && <BudgetSection budgetRange={r.budgetRange} />}
       {r.rolesNeeded?.length > 0 && <RolesSection rolesNeeded={r.rolesNeeded} />}
       {r.deliverables?.length > 0 && <DeliverablesSection deliverables={r.deliverables} />}
-      {r.features?.length > 0 && <FeaturesSection features={r.features} discipline={r.discipline} />}
-      {r.techStack && <TechStackSection techStack={r.techStack} discipline={r.discipline} />}
       {(() => {
-        const uf = r.userFlow
-        let steps = Array.isArray(uf) ? uf
-          : uf?.steps ? uf.steps
-          : uf && typeof uf === 'object' ? Object.values(uf) : []
-        steps = steps.filter(s => s && typeof s === 'object')
-        return <UserFlowSection userFlow={steps} discipline={r.discipline} />
+        const hasDeep = !!(r.features?.length || r.techStack || (Array.isArray(r.userFlow) && r.userFlow.length))
+        if (!hasDeep) {
+          return <DeepAnalysisCTA loading={runningDeep} onClick={onRunDeep} />
+        }
+        return (
+          <>
+            {r.features?.length > 0 && <FeaturesSection features={r.features} discipline={r.discipline} />}
+            {r.techStack && <TechStackSection techStack={r.techStack} discipline={r.discipline} />}
+            {(() => {
+              const uf = r.userFlow
+              let steps = Array.isArray(uf) ? uf
+                : uf?.steps ? uf.steps
+                : uf && typeof uf === 'object' ? Object.values(uf) : []
+              steps = steps.filter(s => s && typeof s === 'object')
+              return <UserFlowSection userFlow={steps} discipline={r.discipline} />
+            })()}
+          </>
+        )
       })()}
       <CompetitorsSection result={r} loadingCompetitors={loadingCompetitors} onLoad={onLoadCompetitors} />
       <ClarityFlagsSection r={r} />
@@ -1240,6 +1230,94 @@ function BrandVoiceSection({ copyVoice }) {
           ))}
         </div>
 
+      </div>
+    </section>
+  )
+}
+
+// ─── Deep Analysis CTA ────────────────────────────────────────────────────────
+//   Replaces the inline techStack / features / userFlow rendering
+//   when those fields are absent. Clicking the button fires
+//   onRunDeep — which calls runDeepAnalysis (a single analyseDeep
+//   roundtrip behind /api/claude). Charges deep_analysis credits.
+//   Splitting this out of the initial translateAndAnalyse was the
+//   real fix for the 504s — Sonnet emitting two 4000-token JSON
+//   blobs in parallel was hitting the 60s Vercel function ceiling
+//   on heavy briefs.
+
+function DeepAnalysisCTA({ loading, onClick }) {
+  return (
+    <section style={{ padding: '0 48px 32px' }}>
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(139,92,246,0.06), rgba(99,102,241,0.04))',
+        border: '1px solid rgba(139,92,246,0.18)',
+        borderRadius: 16,
+        padding: '28px 32px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 24,
+        flexWrap: 'wrap',
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: 12,
+          background: 'rgba(139,92,246,0.12)',
+          border: '1px solid rgba(139,92,246,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <BoltIcon style={{ width: 22, height: 22, color: '#7C3AED' }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{
+            fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: 18,
+            color: 'var(--color-text)', letterSpacing: '-0.02em', marginBottom: 4,
+          }}>
+            Generate deep analysis
+          </div>
+          <div style={{
+            fontFamily: "'Urbanist', sans-serif", fontSize: 13, lineHeight: 1.55,
+            color: 'var(--color-text-soft)', maxWidth: 540,
+          }}>
+            Adds a technical breakdown to your brief — recommended tech stack, prioritised feature list, and a complete user flow. Costs 4 credits.
+          </div>
+        </div>
+        <button
+          onClick={onClick}
+          disabled={loading}
+          style={{
+            padding: '10px 20px',
+            background: loading ? 'var(--color-surface)' : 'linear-gradient(135deg, #7C3AED, #A855F7)',
+            color: loading ? 'var(--color-text-muted)' : '#fff',
+            border: 'none',
+            borderRadius: 10,
+            cursor: loading ? 'wait' : 'pointer',
+            fontFamily: "'Urbanist', sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexShrink: 0,
+            boxShadow: loading ? 'none' : '0 4px 14px rgba(124,58,237,0.30)',
+            transition: 'background 0.15s, box-shadow 0.15s',
+          }}
+        >
+          {loading ? (
+            <>
+              <span style={{
+                width: 12, height: 12, borderRadius: '50%',
+                border: '1.5px solid currentColor', borderTopColor: 'transparent',
+                animation: 'spin 0.6s linear infinite',
+              }} />
+              Running analysis…
+            </>
+          ) : (
+            <>
+              <SparklesIcon style={{ width: 14, height: 14 }} />
+              Run deep analysis
+            </>
+          )}
+        </button>
       </div>
     </section>
   )

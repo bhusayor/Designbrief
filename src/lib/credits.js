@@ -8,7 +8,12 @@
 // ────────────────────────────────────────────────────────────────────
 
 export const CREDIT_COSTS = {
-  brief_translation: 10,
+  // Was 10 when translateAndAnalyse bundled the deep-analysis call.
+  // Now translate-only — half the AI work, half the credits.
+  brief_translation: 6,
+  // On-demand techStack + features + userFlow block. Fired by the
+  // "Generate Deep Analysis" button on the brief result page.
+  deep_analysis: 4,
   kanban_generation: 8,
   ai_task_prompt: 3,
   moodboard_refresh: 3,
