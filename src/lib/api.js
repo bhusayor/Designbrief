@@ -558,25 +558,7 @@ Return JSON with these exact keys:
     "displayUse": "<Short description of where display font is used — e.g. Hero headings, brand name, section titles>",
     "bodyUse": "<Short description of where body font is used — e.g. Body copy, UI labels, navigation, captions>",
     "rationale": "<One sentence why these two fonts suit this specific brand>",
-    "platform": "<web|mobile|both>",
-    "scale": {
-      "web": [
-        { "label": "H1", "size": "64px", "weight": "800", "lineHeight": "72px", "letterSpacing": "-0.02em" },
-        { "label": "H2", "size": "48px", "weight": "700", "lineHeight": "56px", "letterSpacing": "-0.01em" },
-        { "label": "H3", "size": "32px", "weight": "600", "lineHeight": "40px", "letterSpacing": "0" },
-        { "label": "Body", "size": "18px", "weight": "400", "lineHeight": "30px", "letterSpacing": "0" },
-        { "label": "Small", "size": "14px", "weight": "400", "lineHeight": "22px", "letterSpacing": "0.01em" },
-        { "label": "Label", "size": "12px", "weight": "600", "lineHeight": "16px", "letterSpacing": "0.06em" }
-      ],
-      "mobile": [
-        { "label": "H1", "size": "36px", "weight": "800", "lineHeight": "42px", "letterSpacing": "-0.02em" },
-        { "label": "H2", "size": "28px", "weight": "700", "lineHeight": "34px", "letterSpacing": "-0.01em" },
-        { "label": "H3", "size": "22px", "weight": "600", "lineHeight": "28px", "letterSpacing": "0" },
-        { "label": "Body", "size": "16px", "weight": "400", "lineHeight": "26px", "letterSpacing": "0" },
-        { "label": "Small", "size": "13px", "weight": "400", "lineHeight": "20px", "letterSpacing": "0.01em" },
-        { "label": "Label", "size": "11px", "weight": "600", "lineHeight": "15px", "letterSpacing": "0.06em" }
-      ]
-    }
+    "platform": "<web|mobile|both>"
   },
   "brandAxes": [
     { "label": "<axis name>", "left": "<left pole>", "right": "<right pole>", "value": <0-100> }
@@ -783,12 +765,12 @@ CRITICAL deliverables rules:
 Brief:
 ${briefText}`;
 
-  // 6000 max tokens — the prior 3000 was truncating the full
-  // 17-field schema. Sonnet emits structured JSON at ~150-200 tok/s
-  // so 6000 lands in 30-50s, with margin under the 60s Vercel cap.
-  // If timeouts come back we can reduce schema size rather than
-  // truncate output.
-  return callJSON(system, user, 6000, 'brief_translation');
+  // 6000 was pushing past the 60s Vercel cap on busy windows.
+  // Schema trimmed to drop typography.scale (~700 tokens — the
+  // renderer falls back to default scales when absent) and
+  // maxTokens dropped to 4500. Sonnet now lands the complete
+  // remaining schema in 22-38s with comfortable margin under 60s.
+  return callJSON(system, user, 4500, 'brief_translation');
 }
 
 /**
