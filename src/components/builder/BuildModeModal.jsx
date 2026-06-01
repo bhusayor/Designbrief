@@ -59,7 +59,7 @@ export default function BuildModeModal({ open, onClose, taskCount, onConfirm }) 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <SparklesIcon style={{ width: 17, height: 17, color: '#8B5CF6' }} />
             <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>
-              Start AI Build
+              Build with AI
             </span>
           </div>
           <button onClick={onClose} style={iconBtn}>

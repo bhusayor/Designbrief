@@ -68,8 +68,8 @@ const DEFAULTS = {
   },
   builder: {
     title: 'Ready to build',
-    message: 'Start the AI Build to generate your website section by section from your kanban tasks.',
-    action: 'Start AI Build',
+    message: 'Build with AI to generate your website section by section from your kanban tasks.',
+    action: 'Build with AI',
   },
   search: {
     title: 'Nothing found',

@@ -33,7 +33,6 @@ import { projectLimit } from '../lib/plans'
 import TeamPage from './TeamPage'
 import ConnectPanel from '../components/connectors/ConnectPanel'
 import { GanttSection } from '../components/brief/renderers/shared'
-import BuildInterface from '../components/build/BuildInterface'
 import BuildModeModal from '../components/builder/BuildModeModal'
 import AIBuilder from '../components/builder/AIBuilder'
 import { authedFetch } from '../lib/getAuthHeader'
@@ -680,7 +679,6 @@ export default function TeamCollab() {
   const [showConnectPanel, setShowConnectPanel] = useState(false)
   const [installedConnectors, setInstalledConnectors] = useState({ figma: false, github: false, linear: false })
 
-  const [showBuildInterface, setShowBuildInterface] = useState(false)
   // macOS-dock proximity for kanban task cards. Subtle scale only —
   // no tilt or glow, so drag-and-drop still feels precise.
   useProximity('.kanban-task-card', {
@@ -4534,33 +4532,21 @@ STYLE:
                     )}
                   </div>
                 )}
-                {kanban?.tasks?.length > 0 && canEdit && (
-                  <button
-                    onClick={() => setShowBuildInterface(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: isMobile ? '5px 8px' : '5px 14px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, boxShadow: '0 1px 6px rgba(124,58,237,0.3)', minHeight: 'unset' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#6D28D9'}
-                    onMouseLeave={e => e.currentTarget.style.background = '#7C3AED'}
-                  >
-                    <BoltIcon style={{ width: 13, height: 13 }} />
-                    {!isMobile && 'Build with AI'}
-                  </button>
-                )}
-                {/* ── Phase 2: Start AI Build (website section builder) ── */}
+                {/* Build with AI — single unified button. Active any time
+                    the kanban has tasks (manually added or from a translated
+                    brief). The previous "Build with AI" → BuildInterface
+                    component-builder button is gone; this one opens the
+                    AIBuilder website-section flow (the former "Start AI
+                    Build"). */}
                 {canEdit && (() => {
-                  const todoCount = (kanban?.tasks || []).filter(t => {
-                    const c = String(t.column || '').toLowerCase()
-                    return c === 'to do' || c === 'todo'
-                  }).length
-                  const hasBrief = !!(activeProject?.data?.result || activeProject?.result)
+                  const taskCount = (kanban?.tasks || []).length
                   const inProgress = !!activeAiBuild
-                  const disabled = !inProgress && (!hasBrief || todoCount === 0)
-                  const tooltip = !hasBrief
-                    ? 'Translate a brief first to use AI Builder'
-                    : todoCount === 0
-                      ? 'Add tasks to your TODO column to start building'
-                      : inProgress
-                        ? 'Continue your build where you left off'
-                        : 'Start building your website with AI'
+                  const disabled = !inProgress && taskCount === 0
+                  const tooltip = inProgress
+                    ? 'Continue your build where you left off'
+                    : taskCount === 0
+                      ? 'Add a task or translate a brief to start building'
+                      : 'Build your website with AI'
                   const handleClick = async () => {
                     if (disabled || aiBuildLoading) return
                     if (inProgress) {
@@ -4598,7 +4584,7 @@ STYLE:
                           animation: disabled ? 'none' : 'pulse 1.6s ease-in-out infinite',
                         }}
                       />
-                      {!isMobile && (inProgress ? 'Continue Build' : 'Start AI Build')}
+                      {!isMobile && (inProgress ? 'Continue Build' : 'Build with AI')}
                     </button>
                   )
                 })()}
@@ -5454,16 +5440,7 @@ STYLE:
         />
       )}
 
-      {/* Build Interface overlay */}
-      {showBuildInterface && (
-        <BuildInterface
-          tasks={kanban?.tasks || []}
-          projectName={projects.find(p => p.id === activeProjectId)?.name || activeProject?.name}
-          onClose={() => setShowBuildInterface(false)}
-        />
-      )}
-
-      {/* Phase 2 AI Builder — mode picker, then full-screen overlay */}
+      {/* AI Builder — mode picker, then full-screen overlay */}
       <BuildModeModal
         open={aiBuildModeOpen}
         taskCount={(kanban?.tasks || []).filter(t => {
