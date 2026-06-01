@@ -8,7 +8,7 @@
 
 import { supabase } from './supabase.js'
 import { KANBAN_TASK_SYSTEM, buildBriefChatSystem } from './aiSystemPrompts.js'
-import { callClaude as centralCallClaude, callClaudeStream } from './claudeApi.js'
+import { callClaude as centralCallClaude } from './claudeApi.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -805,21 +805,12 @@ CRITICAL deliverables rules:
 Brief:
 ${briefText}`;
 
-  // 8000 → 5500 → 4000 → 3000 + STREAMING. Streaming keeps the
-  // Vercel connection active (no idle-bytes timeout) and lets the
-  // client see incremental progress instead of waiting on a single
-  // blocking response. Combined with the lower output budget,
-  // translation now consistently lands well under the 60s function
-  // ceiling on Hobby. Stream chunks accumulate then extractJSON
-  // parses the final string (Sonnet emits well-formed JSON at the
-  // end whether streamed char-by-char or all at once).
-  const text = await callClaudeStream({
-    taskType: 'brief_translation',
-    system,
-    userMessage: user,
-    maxTokens: 3000,
-  })
-  return extractJSON(text)
+  // 8000 → 5500 → 4000 → 3000. Non-streaming call (the streaming
+  // refactor was choking the request — investigate separately).
+  // 3000 max tokens with the trimmed template injection fits the
+  // 17-field schema and consistently returns inside ~25-40s, well
+  // under the 60s Vercel function ceiling.
+  return callJSON(system, user, 3000, 'brief_translation');
 }
 
 /**
@@ -889,17 +880,10 @@ CRITICAL userFlow rules:
 Brief:
 ${briefText}`;
 
-  // Stream + 3000 max tokens (same reasoning as translateBrief
-  // above). analyseDeep is now button-triggered so the user gets a
-  // visible spinner while it runs, but the underlying call still
-  // benefits from streaming's looser connection-timeout behaviour.
-  const text = await callClaudeStream({
-    taskType: 'brief_translation',
-    system,
-    userMessage: user,
-    maxTokens: 3000,
-  })
-  return extractJSON(text)
+  // Non-streaming (same reasoning as translateBrief — the streaming
+  // version was hanging in production). Button-triggered so the user
+  // gets a visible spinner.
+  return callJSON(system, user, 3000, 'brief_translation');
 }
 
 /**
