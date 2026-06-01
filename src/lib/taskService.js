@@ -255,17 +255,23 @@ export async function logActivity(taskId, projectId, userId, actorName, action, 
 }
 
 // ── AI description enhancement ───────────────────────────────────────────────
-export async function enhanceDescription(text, title) {
+// briefContext is optional — when present, the server feeds it to the
+// senior-designer prompt so the rewrite can reference the actual brand
+// instead of generic filler.
+export async function enhanceDescription(text, title, briefContext = null) {
   const res = await apiCall('POST', {
-    kind: 'enhance-description', text, title,
+    kind: 'enhance-description', text, title, briefContext,
   })
   return res.description
 }
 
 // ── AI prompt generation (writes a design/implementation prompt for the task) ─
-export async function generateAIPrompt(title, description) {
+// briefContext is optional — when present, the senior-director system
+// prompt anchors every section to the actual brand colors, fonts,
+// tone, and personality.
+export async function generateAIPrompt(title, description, briefContext = null) {
   const res = await apiCall('POST', {
-    kind: 'generate-ai-prompt', title, description,
+    kind: 'generate-ai-prompt', title, description, briefContext,
   })
   return res.prompt
 }

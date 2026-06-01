@@ -940,6 +940,7 @@ export default function TaskDetailModal({
   task: initialTask,
   projectId,
   projectName = 'Project',
+  briefContext = null, // translated-brief snapshot — sharpens AI prompts
   authUser,
   user,
   teamMembers = [],
@@ -1003,6 +1004,11 @@ export default function TaskDetailModal({
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [enhancing, setEnhancing] = useState(false)
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
+  // After a successful enhance, hold onto the user's original text so
+  // they can hit "Restore original" if they preferred their wording.
+  // Auto-clears after 30s so it doesn't linger forever.
+  const [originalDescription, setOriginalDescription] = useState(null)
+  const restoreTimerRef = useRef(null)
   const [shareToast, setShareToast] = useState(null)
   // Mobile-only: switch between left (Task) and right (Details) panels
   const [mobileTab, setMobileTab] = useState('task') // 'task' | 'details'
@@ -1637,26 +1643,47 @@ export default function TaskDetailModal({
   // ── AI enhance description ─────────────────────────────────────────────
   async function handleEnhanceDescription() {
     if (enhancing) return
+    const before = descDraft || task.description || ''
+    if (!before.trim()) return
     setEnhancing(true)
     try {
-      const enhanced = await enhanceDescription(descDraft || task.description || '', task.title)
+      const enhanced = await enhanceDescription(before, task.title, briefContext)
       if (enhanced) {
+        setOriginalDescription(before)
+        if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current)
+        restoreTimerRef.current = setTimeout(() => setOriginalDescription(null), 30000)
         setDescDraft(enhanced)
         await patchTask({ description: enhanced }, 'enhanced description with AI')
       }
     } catch (e) {
       console.error('[enhance]', e)
+      setOriginalDescription(null)
     } finally {
       setEnhancing(false)
     }
   }
+
+  function handleRestoreOriginal() {
+    if (!originalDescription) return
+    const restored = originalDescription
+    setDescDraft(restored)
+    patchTask({ description: restored }, 'restored original description')
+    if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current)
+    setOriginalDescription(null)
+  }
+
+  // Clear pending restore timer on unmount so it can't fire on a
+  // remounted modal for a different task.
+  useEffect(() => () => {
+    if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current)
+  }, [])
 
   // ── AI generate task prompt ────────────────────────────────────────────
   async function handleGenerateAIPrompt() {
     if (generatingPrompt) return
     setGeneratingPrompt(true)
     try {
-      const prompt = await generateAIPrompt(task.title, task.description)
+      const prompt = await generateAIPrompt(task.title, task.description, briefContext)
       if (prompt) {
         await patchTask({ aiPrompt: prompt }, task.aiPrompt ? 'regenerated AI prompt' : 'generated AI prompt')
         setAiPromptOpen(true)
@@ -2013,6 +2040,32 @@ export default function TaskDetailModal({
                       cursor: 'text', whiteSpace: 'pre-wrap',
                     }}>
                     {task.description || 'Add a description...'}
+                  </div>
+                )}
+                {/* Restore-original link — shown for 30s after a
+                    successful enhance so the user can revert if the
+                    rewrite missed the mark. */}
+                {originalDescription && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginTop: 6,
+                  }}>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 11,
+                      color: 'var(--color-text-muted)',
+                    }}>
+                      Description enhanced
+                    </span>
+                    <button
+                      onClick={handleRestoreOriginal}
+                      style={{
+                        background: 'none', border: 'none',
+                        color: 'var(--color-accent)',
+                        fontFamily: 'var(--font-mono)', fontSize: 11,
+                        cursor: 'pointer', textDecoration: 'underline', padding: 0,
+                      }}
+                    >
+                      ← Restore original
+                    </button>
                   </div>
                 )}
               </div>

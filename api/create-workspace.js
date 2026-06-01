@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { PER_TASK_PROMPT_SYSTEM } from '../src/lib/aiSystemPrompts.js'
+import { PER_TASK_PROMPT_SYSTEM, ENHANCE_DESCRIPTION_SYSTEM } from '../src/lib/aiSystemPrompts.js'
 import { mapHttpAnthropicError, mapClaudeError } from './lib/claudeError.js'
 import { MODEL_FOR } from '../src/lib/models.js'
 
@@ -609,27 +609,36 @@ export default async function handler(req, res) {
   }
 
   // ── POST: AI-enhance a description ─────────────────────────────────────
-  // Body: { kind:'enhance-description', text, title }
+  // Body: { kind:'enhance-description', text, title, briefContext? }
+  // briefContext (optional) carries the translated-brief snapshot
+  // (projectName, projectUnderstanding, toneAndMood, brandPersonality,
+  // colorDirection, typographyDirection) so the rewrite can reference
+  // the actual brand instead of generic project-management filler.
   if (req.method === 'POST' && req.body?.kind === 'enhance-description') {
     const user = await requireUser(req, res)
     if (!user) return
-    const { text, title } = req.body
+    const { text, title, briefContext } = req.body
     try {
       const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
 
-      const system = `You are an editor that improves task descriptions for a project-management tool. Your only job is to rewrite the user's task description so it is clearer, more concrete, and easier to act on.
+      const briefBlock = briefContext
+        ? `\n\nPROJECT CONTEXT (use to sharpen the description — reference brand or audience where it helps):
+Project: ${briefContext.projectName || ''}
+Understanding: ${briefContext.projectUnderstanding || ''}
+Tone & mood: ${briefContext.toneAndMood || briefContext.tone || ''}
+Brand personality: ${JSON.stringify(briefContext.brandPersonality || [])}
+Audience: ${briefContext.targetAudience || briefContext.projectUnderstanding || ''}`
+        : ''
 
-STRICT OUTPUT RULES:
-- Output ONLY the improved description text.
-- Do NOT add headings like "Description:", "Enhanced:", "AI Prompt:", "Notes:", or any preamble.
-- Do NOT propose a design prompt, AI prompt, or implementation prompt.
-- Do NOT add code blocks, JSON, or markdown headers.
-- Keep the same intent as the original.
-- Plain prose with short paragraphs; bullet points only if the original already has a list.
-- Maximum a few short paragraphs.`
+      const userMsg = `Task title: "${title || 'Untitled'}"
 
-      const userMsg = `Task title: "${title || 'Untitled'}"\n\nCurrent description:\n"""\n${text || '(empty)'}\n"""\n\nRewrite the description per the rules above.`
+User's rough description:
+"""
+${text || '(empty)'}
+"""${briefBlock}
+
+Rewrite this as a clear, precise, actionable description. 2-4 sentences max. Start with an action verb. Return only the description prose — no quotes, no labels, no preamble.`
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -640,8 +649,8 @@ STRICT OUTPUT RULES:
         },
         body: JSON.stringify({
           model: MODEL_FOR.enhance_description,
-          max_tokens: 800,
-          system,
+          max_tokens: 400,
+          system: ENHANCE_DESCRIPTION_SYSTEM,
           messages: [{ role: 'user', content: userMsg }],
         }),
       })
@@ -660,18 +669,42 @@ STRICT OUTPUT RULES:
   }
 
   // ── POST: AI-generate an AI prompt for the task ────────────────────────
-  // Body: { kind:'generate-ai-prompt', title, description }
+  // Body: { kind:'generate-ai-prompt', title, description, briefContext? }
+  // briefContext (optional) lets the senior-director prompt reference
+  // exact brand colors, fonts, tone, and personality from the
+  // translated brief instead of guessing.
   if (req.method === 'POST' && req.body?.kind === 'generate-ai-prompt') {
     const user = await requireUser(req, res)
     if (!user) return
-    const { title, description } = req.body
+    const { title, description, briefContext } = req.body
     try {
       const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
 
-      const system = PER_TASK_PROMPT_SYSTEM
+      const briefBlock = briefContext
+        ? `
 
-      const userMsg = `Task title: "${title || 'Untitled'}"\n\nTask description:\n"""\n${description || '(empty)'}\n"""\n\nGenerate the structured prompt now, using the exact section labels in the system instructions.`
+PROJECT BRIEF CONTEXT — anchor every section to these values:
+Project name: ${briefContext.projectName || 'Not specified'}
+Project type / understanding: ${briefContext.projectUnderstanding || 'Not specified'}
+Tone & mood: ${briefContext.toneAndMood || briefContext.tone || 'Not specified'}
+Brand personality: ${JSON.stringify(briefContext.brandPersonality || [])}
+Color direction: ${JSON.stringify(briefContext.colorDirection || briefContext.colors || [])}
+Typography direction: ${briefContext.typographyDirection || briefContext.typography?.displayFont || 'Not specified'}
+Target audience: ${briefContext.targetAudience || briefContext.projectUnderstanding || 'Not specified'}
+Moodboard direction: ${briefContext.moodboardDirection || 'Not specified'}`
+        : ''
+
+      const userMsg = `Generate the world-class structured AI prompt for this design task.
+
+TASK:
+Title: "${title || 'Untitled'}"
+Description:
+"""
+${description || '(empty)'}
+"""${briefBlock}
+
+Use the EXACT section structure from the system instructions — the ━ dividers around TASK, the 7 section labels (CREATIVE DIRECTION, DESIGN APPROACH, INTERACTIONS & MOTION, COPY DIRECTION, TECHNICAL APPROACH, SUCCESS METRIC, INSPIRATION) in that order. Every section must be specific to THIS task and THIS brief. No generic advice.`
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -683,7 +716,7 @@ STRICT OUTPUT RULES:
         body: JSON.stringify({
           model: MODEL_FOR.ai_task_prompt,
           max_tokens: 1800,
-          system,
+          system: PER_TASK_PROMPT_SYSTEM,
           messages: [{ role: 'user', content: userMsg }],
         }),
       })

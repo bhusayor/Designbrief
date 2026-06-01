@@ -28,6 +28,7 @@ import {
   saveTasksToDB, loadTasksFromDB, updateTaskInDB, deleteTaskFromDB, mapDBTask,
   loadProjectSettings, saveKanbanColumns,
   calculateDueDates, calculateProgress, logActivity,
+  enhanceDescription,
 } from '../lib/taskService'
 import { projectLimit } from '../lib/plans'
 import TeamPage from './TeamPage'
@@ -382,7 +383,7 @@ function useWindowWidth() {
 // identity across TeamCollab re-renders. When it was declared *inside*
 // TeamCollab, every parent render created a new function reference and
 // React unmounted/remounted the modal — wiping the user's typed input.
-function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData }) {
+function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData, briefContext, showToast }) {
   const [form, setForm] = useState({
     title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM',
     column: initialColumn || KANBAN_COLS[0],
@@ -390,6 +391,46 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
   })
   const [assigneeQuery, setAssigneeQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [enhancing, setEnhancing] = useState(false)
+  const [originalDescription, setOriginalDescription] = useState(null)
+  const restoreTimerRef = useRef(null)
+
+  useEffect(() => () => {
+    if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current)
+  }, [])
+
+  async function handleEnhance() {
+    if (enhancing) return
+    const before = form.description || ''
+    if (!before.trim() || !form.title.trim()) {
+      showToast?.('Add a title and rough description first', 'info')
+      return
+    }
+    setEnhancing(true)
+    try {
+      const enhanced = await enhanceDescription(before, form.title, briefContext)
+      if (enhanced?.trim()) {
+        setOriginalDescription(before)
+        if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current)
+        restoreTimerRef.current = setTimeout(() => setOriginalDescription(null), 30000)
+        setForm(f => ({ ...f, description: enhanced.trim() }))
+        showToast?.('Description enhanced', 'success')
+      }
+    } catch (e) {
+      console.error('[AddTaskModal enhance]', e)
+      showToast?.('Enhancement failed. Try again.', 'error')
+      setOriginalDescription(null)
+    } finally {
+      setEnhancing(false)
+    }
+  }
+
+  function handleRestoreOriginal() {
+    if (!originalDescription) return
+    setForm(f => ({ ...f, description: originalDescription }))
+    if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current)
+    setOriginalDescription(null)
+  }
 
   if (!open) return null
 
@@ -427,7 +468,80 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Description</label>
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Add more details..." rows={3} style={{ width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--color-text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
+          <div style={{ position: 'relative' }}>
+            <textarea
+              value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Add more details..."
+              rows={3}
+              disabled={enhancing}
+              style={{
+                width: '100%',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 10,
+                padding: '10px 14px 40px',
+                fontFamily: 'var(--font-sans)', fontSize: 13,
+                color: 'var(--color-text)', outline: 'none', resize: 'vertical',
+                boxSizing: 'border-box', lineHeight: 1.6,
+                opacity: enhancing ? 0.7 : 1,
+              }}
+            />
+            {/* Enhance button — bottom-right of textarea. Disabled when
+                empty or no title. Title is needed to give the AI context. */}
+            <button
+              type="button"
+              onClick={handleEnhance}
+              disabled={!form.description.trim() || !form.title.trim() || enhancing}
+              title={!form.title.trim()
+                ? 'Add a title first'
+                : !form.description.trim()
+                  ? 'Write a rough description to enhance'
+                  : 'Rewrite this description with AI'}
+              style={{
+                position: 'absolute', bottom: 10, right: 10,
+                padding: '4px 10px', borderRadius: 6,
+                border: '1px solid rgba(139,92,246,0.3)',
+                background: enhancing ? 'rgba(139,92,246,0.05)' : 'rgba(139,92,246,0.1)',
+                color: '#8B5CF6',
+                fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.05em',
+                cursor: (form.description.trim() && form.title.trim() && !enhancing) ? 'pointer' : 'not-allowed',
+                opacity: (form.description.trim() && form.title.trim()) ? 1 : 0.4,
+                display: 'flex', alignItems: 'center', gap: 4,
+                transition: 'all 0.2s',
+              }}
+            >
+              {enhancing ? (
+                <>
+                  <span style={{
+                    display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                    border: '1.5px solid #8B5CF6', borderTopColor: 'transparent',
+                    animation: 'spin 0.6s linear infinite',
+                  }} />
+                  Enhancing…
+                </>
+              ) : (
+                <>✦ Enhance</>
+              )}
+            </button>
+          </div>
+          {originalDescription && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>Description enhanced</span>
+              <button
+                type="button"
+                onClick={handleRestoreOriginal}
+                style={{
+                  background: 'none', border: 'none', color: '#8B5CF6',
+                  fontFamily: 'var(--font-mono)', fontSize: 11,
+                  cursor: 'pointer', textDecoration: 'underline', padding: 0,
+                }}
+              >
+                ← Restore original
+              </button>
+            </div>
+          )}
         </div>
         <div style={{ marginBottom: 16, position: 'relative' }}>
           <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Assignees</label>
@@ -4024,6 +4138,7 @@ STYLE:
           task={editingTask}
           projectId={activeProjectId || activeProject?.id}
           projectName={projectTitle || 'Project'}
+          briefContext={activeProject?.data?.result || activeProject?.result || null}
           authUser={authUser}
           user={user}
           teamMembers={teamMembers}
@@ -4046,6 +4161,8 @@ STYLE:
       )}
       <AddTaskModal
         open={showAddTaskModal}
+        briefContext={activeProject?.data?.result || activeProject?.result || null}
+        showToast={showToast}
         onClose={() => { setShowAddTaskModal(false); setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: KANBAN_COLS[0] }) }}
         onSave={(formData) => {
           // Resolve the picked assignee name → real auth user_id when
