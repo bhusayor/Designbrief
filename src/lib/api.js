@@ -268,11 +268,7 @@ export async function translateBrief(briefText, templateId = null) {
 
   const system = `You are an expert product design strategist. Your job is to translate a client brief into actionable design direction.${templateModifier ? `
 
-OUTPUT TEMPLATE — ${templateName.toUpperCase()}
-The user has chosen the "${templateName}" template. Every section you write must reflect this template's voice and emphasis. Do not write a neutral, default-style brief — write THIS template.
-
-Template directive: ${templateModifier}
-This directive outweighs general formatting preferences. If "${templateName}" calls for bullets, write bullets. If it calls for sprint weeks, organise by sprint. If it calls for technical precision, use developer terminology. The template flavour must be obvious to anyone comparing outputs.` : ''}
+TEMPLATE: ${templateName} — ${templateModifier} Apply this voice but stay concise; the schema is fixed.` : ''}
 
 ACCURACY RULES — follow these strictly:
 1. Only state facts that are directly supported by the brief. Do not invent project details.
@@ -566,10 +562,7 @@ IMPORTANT RULES FOR disciplineData:
 Respond ONLY with valid JSON.`;
   const user = `Translate this design brief into a structured strategy document.${templateModifier ? `
 
-CHOSEN TEMPLATE: "${templateName}"
-${templateModifier}
-
-Apply this template voice / emphasis to EVERY field you generate — projectUnderstanding, toneWords, colorPalette rationale, typography rationale, questionsToAsk, budgetRange, timeframe, rolesNeeded, disciplineData — all of it. A reader should be able to tell which template was used at a glance.` : ''}
+Template voice: ${templateName}. ${templateModifier}` : ''}
 Return JSON with these exact keys:
 {
   "projectTitle": "<title>",
@@ -812,11 +805,13 @@ CRITICAL deliverables rules:
 Brief:
 ${briefText}`;
 
-  // 8000 max-tokens was hitting the Vercel function ceiling (60s on
-  // Hobby) on heavy briefs — Sonnet routinely needs 45-65s to emit
-  // 8000 tokens of structured JSON. 5500 fits the full schema with
-  // headroom and consistently returns inside 30-50s.
-  return callJSON(system, user, 5500, 'brief_translation');
+  // 8000 → 5500 → 4000. 5500 was still timing out the 60s Vercel
+  // function on heavy briefs (Sonnet emitting structured JSON at
+  // ~150-200 tok/s = 35-45s for 5500, but cold-start + slow Anthropic
+  // windows pushed past 60s regularly). 4000 fits the full 17-field
+  // schema for typical briefs (output usually 3000-3800 actual tokens)
+  // and consistently returns in 20-35s with margin.
+  return callJSON(system, user, 4000, 'brief_translation');
 }
 
 /**
