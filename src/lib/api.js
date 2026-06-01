@@ -244,9 +244,35 @@ ${briefText}`;
 /**
  * translateBrief — full strategic translation (3500 tokens).
  * Returns all 17 fields.
+ *
+ * `templateId` selects one of the five brief-template aiModifiers
+ * (agency-deck / technical-spec / creative-direction / sprint-plan /
+ * lean-canvas). The modifier is injected into BOTH the system prompt
+ * and the user message so the rewrite tone + emphasis actually shifts
+ * per template instead of getting buried.
  */
-export async function translateBrief(briefText) {
-  const system = `You are an expert product design strategist. Your job is to translate a client brief into actionable design direction.
+export async function translateBrief(briefText, templateId = null) {
+  // Lazy-load to avoid circular import risk (templates.js is plain).
+  let templateModifier = ''
+  let templateName = ''
+  if (templateId) {
+    try {
+      const { getBriefTemplate } = await import('./templates.js')
+      const tmpl = getBriefTemplate(templateId)
+      if (tmpl) {
+        templateModifier = tmpl.aiModifier || ''
+        templateName = tmpl.name || ''
+      }
+    } catch {}
+  }
+
+  const system = `You are an expert product design strategist. Your job is to translate a client brief into actionable design direction.${templateModifier ? `
+
+OUTPUT TEMPLATE — ${templateName.toUpperCase()}
+The user has chosen the "${templateName}" template. Every section you write must reflect this template's voice and emphasis. Do not write a neutral, default-style brief — write THIS template.
+
+Template directive: ${templateModifier}
+This directive outweighs general formatting preferences. If "${templateName}" calls for bullets, write bullets. If it calls for sprint weeks, organise by sprint. If it calls for technical precision, use developer terminology. The template flavour must be obvious to anyone comparing outputs.` : ''}
 
 ACCURACY RULES — follow these strictly:
 1. Only state facts that are directly supported by the brief. Do not invent project details.
@@ -538,7 +564,12 @@ IMPORTANT RULES FOR disciplineData:
 - If a field has no relevant data from the brief, use null not empty string
 
 Respond ONLY with valid JSON.`;
-  const user = `Translate this design brief into a structured strategy document.
+  const user = `Translate this design brief into a structured strategy document.${templateModifier ? `
+
+CHOSEN TEMPLATE: "${templateName}"
+${templateModifier}
+
+Apply this template voice / emphasis to EVERY field you generate — projectUnderstanding, toneWords, colorPalette rationale, typography rationale, questionsToAsk, budgetRange, timeframe, rolesNeeded, disciplineData — all of it. A reader should be able to tell which template was used at a glance.` : ''}
 Return JSON with these exact keys:
 {
   "projectTitle": "<title>",
@@ -929,13 +960,17 @@ Return 6-8 high-quality, real references.`;
  * translateAndAnalyse — runs score → translate + analyse in parallel.
  * Returns: { scoreData, finalResult }
  */
-export async function translateAndAnalyse(briefText) {
+export async function translateAndAnalyse(briefText, templateId = null) {
   // Score first (fast, 800 tokens — gives early verdict)
   const scoreData = await scoreBrief(briefText);
 
-  // Translate + deep analyse in parallel
+  // Translate + deep analyse in parallel. The template id flows into
+  // translateBrief so the system prompt can pick up the template's
+  // aiModifier — without this the templateContext appended by the
+  // Dashboard was being buried in the user message and the model
+  // largely ignored it.
   const [translation, analysis] = await Promise.all([
-    translateBrief(briefText),
+    translateBrief(briefText, templateId),
     analyseDeep(briefText, scoreData?.projectTitle ?? 'Project'),
   ]);
 

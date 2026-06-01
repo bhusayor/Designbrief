@@ -367,15 +367,23 @@ export default function Dashboard() {
   // ── Translation ───────────────────────────────────────────────────────────
 
   async function handleTranslate() {
+    // Already mid-flight — don't fire twice.
+    if (phase === 'loading') return
+
     let fullContext = input.trim()
     attachedFiles.forEach(f => {
       if (f.content && typeof f.content === 'string' && !f.content.startsWith('data:'))
         fullContext += '\n\n--- Attached: ' + f.name + ' ---\n' + f.content
     })
-    if (!fullContext.trim()) return
+    if (!fullContext.trim()) {
+      // Silent return hid the reason from the user — surface it.
+      showToast?.('Paste a brief or attach a file first', 'warning')
+      return
+    }
 
     // Free-plan credit gate (10 credits per translation). On insufficient
-    // credits the upgrade modal is opened automatically by consumeCredits.
+    // credits consumeCredits already shows a toast + sets upgradeReason
+    // which opens the global UpgradeModal, so we just bail out here.
     if (consumeCredits) {
       const r = await consumeCredits('brief_translation')
       if (!r.ok) return
@@ -474,7 +482,7 @@ export default function Dashboard() {
           '\nIMPORTANT: The tech stack section must use this existing stack. Do not suggest replacing it.'
       }
 
-      const { scoreData, finalResult } = await translateAndAnalyse(fullContext + templateContext + connectorContext)
+      const { scoreData, finalResult } = await translateAndAnalyse(fullContext + templateContext + connectorContext, selectedBriefTemplate)
       clearInterval(msgTimerRef.current)
       if (!finalResult) throw new Error('Translation returned empty. Please try again.')
       setCreditsUsed(prev => prev + 1)
@@ -1259,23 +1267,56 @@ function HeroSection({ r, s }) {
         <h1 style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '42px', letterSpacing: '-0.03em', color: 'var(--color-text)', marginBottom: '16px', lineHeight: 1.1 }}>
           {r.projectTitle ?? 'Untitled Project'}
         </h1>
-        {r.discipline && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div style={{ background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              {r.discipline.type?.replace(/-/g, ' ')}
+        {(() => {
+          // Resolve the brief template (if any) so the user can see at
+          // a glance which template the rewrite used — confirms the
+          // template actually applied.
+          const tmpl = r._briefTemplateId
+            ? getBriefTemplate(r._briefTemplateId)
+            : null
+          if (!r.discipline && !tmpl) return null
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              {r.discipline?.type && (
+                <div style={{ background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  {r.discipline.type.replace(/-/g, ' ')}
+                </div>
+              )}
+              {r.discipline?.platform && (
+                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
+                  {r.discipline.platform}
+                </div>
+              )}
+              {r.discipline?.primaryCreative && (
+                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 500, color: 'var(--color-text-soft)' }}>
+                  {r.discipline.primaryCreative}
+                </div>
+              )}
+              {tmpl && (
+                <div
+                  title={tmpl.tagline || tmpl.description}
+                  style={{
+                    background: (tmpl.accent || '#7C3AED') + '14',
+                    border: '1px solid ' + (tmpl.accent || '#7C3AED') + '40',
+                    color: tmpl.accent || '#7C3AED',
+                    borderRadius: 100,
+                    padding: '4px 14px',
+                    fontFamily: "'Urbanist', sans-serif",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <SparklesIcon style={{ width: 11, height: 11 }} />
+                  {tmpl.name}
+                </div>
+              )}
             </div>
-            {r.discipline.platform && (
-              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
-                {r.discipline.platform}
-              </div>
-            )}
-            {r.discipline.primaryCreative && (
-              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 500, color: 'var(--color-text-soft)' }}>
-                {r.discipline.primaryCreative}
-              </div>
-            )}
-          </div>
-        )}
+          )
+        })()}
         {r.projectUnderstanding && (
           <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '17px', lineHeight: 1.8, color: 'var(--color-text-soft)', maxWidth: '600px', margin: 0 }}>
             {r.projectUnderstanding}
