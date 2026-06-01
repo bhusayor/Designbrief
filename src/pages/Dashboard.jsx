@@ -20,6 +20,7 @@ import {
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
 import { getBriefTemplate, getWebsiteTemplate, BRIEF_TEMPLATES } from '../lib/templates'
 import BriefRenderer from '../components/brief/BriefRenderer'
+import { supabase } from '../lib/supabase'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -383,10 +384,18 @@ export default function Dashboard() {
 
     // Free-plan credit gate (10 credits per translation). On insufficient
     // credits consumeCredits already shows a toast + sets upgradeReason
-    // which opens the global UpgradeModal, so we just bail out here.
+    // which opens the global UpgradeModal. For any OTHER failure
+    // reason it just console.errors and returns — that's why clicks
+    // were feeling "dead" when the credits server was hiccupping. We
+    // surface a generic retry toast so the button always responds.
     if (consumeCredits) {
       const r = await consumeCredits('brief_translation')
-      if (!r.ok) return
+      if (!r.ok) {
+        if (r.reason && r.reason !== 'insufficient_credits') {
+          showToast?.('Could not start translation. Try again in a moment.', 'error')
+        }
+        return
+      }
     }
 
     setPhase('loading')
@@ -397,10 +406,17 @@ export default function Dashboard() {
     // Stream display text in background. Routes through the unified
     // /api/claude with stream:true so we don't need a dedicated
     // claude-stream function (Hobby plan caps at 12 functions).
+    // Auth: /api/claude is gated by requireAuth, so we pass the
+    // Supabase session JWT — without this the streaming fetch was
+    // 401-ing and dumping a console error on every translation.
     const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+    const { data: streamSession } = await supabase.auth.getSession().catch(() => ({ data: {} }))
+    const streamAuth = streamSession?.session?.access_token
+      ? { Authorization: 'Bearer ' + streamSession.session.access_token }
+      : {}
     fetch(API_BASE + '/api/claude', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...streamAuth },
       body: JSON.stringify({
         task_type: 'brief_chat',
         stream: true,
@@ -984,28 +1000,41 @@ The flow should be realistic for this product. Return only the JSON array.`,
                 )}
               </div>
 
-            {/* Send button — square with border-radius, active when content exists */}
+            {/* Send button — square. Disabled when no content OR
+                while a translation is already in flight (prevents
+                the "looks dead → click again → fires twice" pattern
+                that was eating extra credits). */}
             <button
               onClick={handleTranslate}
-              disabled={!hasContent}
+              disabled={!hasContent || phase === 'loading'}
               style={{
                 width: 32, height: 32, minHeight: 'unset',
                 borderRadius: 8,
-                background: hasContent
+                background: (hasContent && phase !== 'loading')
                   ? 'var(--color-primary)'
                   : 'var(--color-surface-2)',
-                color: hasContent ? 'var(--color-primary-text)' : 'var(--color-text-muted)',
+                color: (hasContent && phase !== 'loading') ? 'var(--color-primary-text)' : 'var(--color-text-muted)',
                 border: 'none',
-                cursor: hasContent ? 'pointer' : 'default',
+                cursor: (hasContent && phase !== 'loading') ? 'pointer' : 'default',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
                 transition: 'all var(--transition-fast)',
-                boxShadow: hasContent ? 'var(--shadow-sm)' : 'none',
+                boxShadow: (hasContent && phase !== 'loading') ? 'var(--shadow-sm)' : 'none',
+                opacity: phase === 'loading' ? 0.7 : 1,
               }}
               onMouseEnter={e => { if (hasContent) { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.boxShadow = 'var(--shadow-md)' } }}
               onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.boxShadow = hasContent ? 'var(--shadow-sm)' : 'none' }}
             >
-              <ArrowUpIcon style={{ width: 15, height: 15, strokeWidth: 2.5 }} />
+              {phase === 'loading' ? (
+                <span style={{
+                  width: 12, height: 12, borderRadius: '50%',
+                  border: '1.5px solid currentColor',
+                  borderTopColor: 'transparent',
+                  animation: 'spin 0.6s linear infinite',
+                }} />
+              ) : (
+                <ArrowUpIcon style={{ width: 15, height: 15, strokeWidth: 2.5 }} />
+              )}
             </button>
             </div>{/* end right group */}
           </div>
