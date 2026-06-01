@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import useProximity from '../hooks/useProximity'
@@ -349,15 +350,31 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
               </div>
             )
             : (
-              <div style={{
-                width: 52, height: 52, borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(124,58,237,0.14), rgba(168,85,247,0.14))',
-                border: '1px solid rgba(124,58,237,0.30)',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                marginBottom: 12,
-              }}>
-                <Icon style={{ width: 22, height: 22, color: '#7C3AED' }} />
-              </div>
+              // Gate-specific reasons (intake, projects, workspaces,
+              // team_members, etc.) keep their focused Heroicon, but
+              // the tile now floats + pulses so it reads as
+              // animated like the rest of the empty states. The
+              // inner Icon scales subtly on a slower offset cycle.
+              <motion.div
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                style={{
+                  width: 56, height: 56, borderRadius: 14,
+                  background: 'linear-gradient(135deg, rgba(124,58,237,0.14), rgba(168,85,247,0.14))',
+                  border: '1px solid rgba(124,58,237,0.30)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 12,
+                  boxShadow: '0 8px 24px rgba(124,58,237,0.18)',
+                }}
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.12, 1] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ display: 'inline-flex' }}
+                >
+                  <Icon style={{ width: 24, height: 24, color: '#7C3AED' }} />
+                </motion.div>
+              </motion.div>
             )
           }
           <h2 style={{
@@ -611,7 +628,10 @@ function CreditTierPicker({ tiers, selected, onSelect, isPro }) {
           width: '100%',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
           padding: '10px 12px',
-          background: 'var(--color-bg)',
+          // Solid surface so the trigger stands out against the
+          // translucent glass modal background; var(--color-bg) was
+          // too close to the modal tint and read as transparent.
+          background: 'var(--color-card)',
           border: '1px solid ' + (open ? accent : 'var(--color-border)'),
           borderRadius: 10,
           cursor: 'pointer', outline: 'none',
@@ -647,12 +667,15 @@ function CreditTierPicker({ tiers, selected, onSelect, isPro }) {
       {open && (
         <div style={{
           position: 'absolute', left: 0, right: 0, top: 'calc(100% + 6px)',
-          background: 'var(--color-bg)',
+          // Same reasoning as the trigger above — solid card surface
+          // so the popover reads as a distinct floating element
+          // against the glass modal behind it.
+          background: 'var(--color-card)',
           border: '1px solid var(--color-border)',
           borderRadius: 12,
           padding: 4,
           zIndex: 20,
-          boxShadow: '0 18px 40px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.10)',
+          boxShadow: '0 24px 56px rgba(0,0,0,0.45), 0 6px 18px rgba(0,0,0,0.25)',
           animation: 'tierFadeIn 140ms ease-out',
         }}>
           {tiers.map(t => {

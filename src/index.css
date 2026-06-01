@@ -804,20 +804,18 @@ img {
 }
 
 /* Static card grain — same texture but no animation, slightly weaker
-   opacity. Applied to all the proximity-target card surfaces so they
-   feel tactile under the magnetic scale. The position:relative +
-   overflow:hidden are required for the ::after to clip to rounded
-   corners. */
+   opacity. Applied to project + template cards only; plan-card was
+   removed because the "Most popular" badge on the upgrade modal is
+   positioned at top: -10 (overflows the card on purpose) and
+   overflow: hidden was clipping it. */
 .project-card,
-.template-card,
-.plan-card {
+.template-card {
   position: relative;
   overflow: hidden;
 }
 
 .project-card::after,
-.template-card::after,
-.plan-card::after {
+.template-card::after {
   content: '';
   position: absolute;
   inset: -50%;
@@ -831,8 +829,7 @@ img {
 }
 
 .project-card > *,
-.template-card > *,
-.plan-card > * {
+.template-card > * {
   position: relative;
   z-index: 1;
 }
@@ -904,8 +901,7 @@ img {
    --spotlight-opacity to 0 when the cursor leaves, so the gradient
    simply fades out without us needing a transition class. */
 .project-card::before,
-.template-card::before,
-.plan-card::before {
+.template-card::before {
   content: '';
   position: absolute;
   inset: 0;
