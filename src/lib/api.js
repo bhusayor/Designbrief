@@ -8,7 +8,7 @@
 
 import { supabase } from './supabase.js'
 import { KANBAN_TASK_SYSTEM, buildBriefChatSystem } from './aiSystemPrompts.js'
-import { callClaude as centralCallClaude } from './claudeApi.js'
+import { callClaude as centralCallClaude, callClaudeStream } from './claudeApi.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -805,13 +805,21 @@ CRITICAL deliverables rules:
 Brief:
 ${briefText}`;
 
-  // 8000 → 5500 → 4000. 5500 was still timing out the 60s Vercel
-  // function on heavy briefs (Sonnet emitting structured JSON at
-  // ~150-200 tok/s = 35-45s for 5500, but cold-start + slow Anthropic
-  // windows pushed past 60s regularly). 4000 fits the full 17-field
-  // schema for typical briefs (output usually 3000-3800 actual tokens)
-  // and consistently returns in 20-35s with margin.
-  return callJSON(system, user, 4000, 'brief_translation');
+  // 8000 → 5500 → 4000 → 3000 + STREAMING. Streaming keeps the
+  // Vercel connection active (no idle-bytes timeout) and lets the
+  // client see incremental progress instead of waiting on a single
+  // blocking response. Combined with the lower output budget,
+  // translation now consistently lands well under the 60s function
+  // ceiling on Hobby. Stream chunks accumulate then extractJSON
+  // parses the final string (Sonnet emits well-formed JSON at the
+  // end whether streamed char-by-char or all at once).
+  const text = await callClaudeStream({
+    taskType: 'brief_translation',
+    system,
+    userMessage: user,
+    maxTokens: 3000,
+  })
+  return extractJSON(text)
 }
 
 /**
@@ -881,7 +889,17 @@ CRITICAL userFlow rules:
 Brief:
 ${briefText}`;
 
-  return callJSON(system, user, 4000, 'brief_translation');
+  // Stream + 3000 max tokens (same reasoning as translateBrief
+  // above). analyseDeep is now button-triggered so the user gets a
+  // visible spinner while it runs, but the underlying call still
+  // benefits from streaming's looser connection-timeout behaviour.
+  const text = await callClaudeStream({
+    taskType: 'brief_translation',
+    system,
+    userMessage: user,
+    maxTokens: 3000,
+  })
+  return extractJSON(text)
 }
 
 /**

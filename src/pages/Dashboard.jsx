@@ -555,7 +555,18 @@ export default function Dashboard() {
       })
     } catch (err) {
       clearInterval(msgTimerRef.current)
-      showToast(err.message || 'Translation failed. Please try again.', 'error')
+      // Recognise timeout-class errors so we can give a more
+      // actionable message than the raw "interrupted" line.
+      const isTimeout =
+        err?.code === 'timeout' ||
+        err?.status === 504 ||
+        /504|timeout|taking longer/i.test(err?.message || '')
+      showToast(
+        isTimeout
+          ? 'Your brief is quite detailed. Try trimming it a bit and translating again.'
+          : (err.message || 'Translation failed. Please try again.'),
+        'error'
+      )
       setPhase('input')
     }
   }
