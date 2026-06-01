@@ -382,26 +382,31 @@ export default function Dashboard() {
       return
     }
 
+    // Optimistically flip to loading IMMEDIATELY so the button shows
+    // the spinner the instant the click registers. consumeCredits
+    // below is a Supabase round-trip that can take ~1-2s; previously
+    // we waited for that before any visual change, which made the
+    // button look dead. If credits fail, we roll the phase back.
+    setPhase('loading')
+    setStoredBriefText(fullContext)
+    setStreamedText('')
+    setStreamDone(false)
+
     // Free-plan credit gate (10 credits per translation). On insufficient
-    // credits consumeCredits already shows a toast + sets upgradeReason
-    // which opens the global UpgradeModal. For any OTHER failure
-    // reason it just console.errors and returns — that's why clicks
-    // were feeling "dead" when the credits server was hiccupping. We
-    // surface a generic retry toast so the button always responds.
+    // credits consumeCredits shows its own toast + opens the upgrade
+    // modal. For any OTHER failure reason it just console.errors —
+    // we surface a generic retry toast so the click is always
+    // acknowledged.
     if (consumeCredits) {
       const r = await consumeCredits('brief_translation')
       if (!r.ok) {
         if (r.reason && r.reason !== 'insufficient_credits') {
           showToast?.('Could not start translation. Try again in a moment.', 'error')
         }
+        setPhase('input')
         return
       }
     }
-
-    setPhase('loading')
-    setStoredBriefText(fullContext)
-    setStreamedText('')
-    setStreamDone(false)
 
     // Stream display text in background. Routes through the unified
     // /api/claude with stream:true so we don't need a dedicated
