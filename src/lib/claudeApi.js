@@ -26,6 +26,18 @@ const MAX_RETRIES = 2
 const BASE_DELAY_MS = 1500
 const DEFAULT_TIMEOUT_MS = 60000
 
+// Per-taskType timeout overrides. Heavy operations (brief_translation
+// hits Sonnet with up to 8000 output tokens + a 290-line system
+// prompt + a complex 17-field JSON schema) routinely run past 60s on
+// busy Anthropic windows, which produced the "taking longer than
+// expected" error even when the API was working fine.
+const TIMEOUT_BY_TASK = {
+  brief_translation: 180000, // 3 minutes
+  kanban_generation: 120000, // 2 minutes
+  competitors_search: 90000,
+  website_builder:   180000,
+}
+
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
 async function authHeader() {
@@ -63,8 +75,12 @@ export async function callClaude({
   mode,
   maxTokens = 4000,
   retries = MAX_RETRIES,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs,
 } = {}) {
+  // Resolve per-task timeout if the caller didn't pass one explicitly.
+  if (timeoutMs == null) {
+    timeoutMs = TIMEOUT_BY_TASK[taskType] ?? DEFAULT_TIMEOUT_MS
+  }
   if (!userMessage && !(Array.isArray(messages) && messages.length)) {
     throw new Error('callClaude needs either userMessage or messages[].')
   }

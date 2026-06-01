@@ -812,7 +812,11 @@ CRITICAL deliverables rules:
 Brief:
 ${briefText}`;
 
-  return callJSON(system, user, 8000, 'brief_translation');
+  // 8000 max-tokens was hitting the Vercel function ceiling (60s on
+  // Hobby) on heavy briefs — Sonnet routinely needs 45-65s to emit
+  // 8000 tokens of structured JSON. 5500 fits the full schema with
+  // headroom and consistently returns inside 30-50s.
+  return callJSON(system, user, 5500, 'brief_translation');
 }
 
 /**
