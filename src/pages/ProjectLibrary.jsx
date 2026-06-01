@@ -2,6 +2,7 @@ import { useState, useContext, useEffect } from 'react';
 import AppContext from '../context/AppContext';
 import useProximity from '../hooks/useProximity';
 import StaggerGrid, { StaggerItem } from '../components/StaggerGrid';
+import { SearchIllustration } from '../components/illustrations';
 
 function useWindowWidth() {
   const [width, setWidth] = useState(() => window.innerWidth)
@@ -207,6 +208,37 @@ function EmptyState({ navigate }) {
       <div style={{ display: 'flex', gap: '10px' }}>
         <Button variant="primary" onClick={() => navigate('translator')}>Translate a Brief →</Button>
         <Button variant="secondary" onClick={() => navigate('intake')}>Send Intake Form</Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── SearchEmpty ──────────────────────────────────────────────────────────────
+//   Rendered when the user has projects but the search query returns
+//   nothing. Replaces the previous one-line "No projects match …"
+//   message with the animated SearchIllustration.
+
+function SearchEmpty({ query }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', padding: '60px 24px', textAlign: 'center',
+      gap: 12,
+    }}>
+      <div style={{ width: 120, height: 120 }}>
+        <SearchIllustration />
+      </div>
+      <div style={{
+        fontFamily: "'Urbanist', sans-serif", fontWeight: 700,
+        fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.02em',
+      }}>
+        Nothing found
+      </div>
+      <div style={{
+        fontFamily: "'Urbanist', sans-serif", fontSize: 13,
+        color: 'var(--color-text-muted)', maxWidth: 320, lineHeight: 1.6,
+      }}>
+        No projects match "{query}". Try different keywords or check your spelling.
       </div>
     </div>
   );
@@ -684,13 +716,7 @@ export default function ProjectLibrary() {
             {history.length === 0 && <EmptyState navigate={navigate} />}
 
             {history.length > 0 && filtered.length === 0 && (
-              <div style={{
-                padding: '60px 0', textAlign: 'center',
-                fontFamily: "'Urbanist', sans-serif", fontSize: '13px',
-                color: 'var(--color-text-muted)',
-              }}>
-                No projects match "{query}"
-              </div>
+              <SearchEmpty query={query} />
             )}
 
             {filtered.length > 0 && (() => {

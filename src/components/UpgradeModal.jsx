@@ -19,6 +19,7 @@ import {
   CheckIcon,
   LockClosedIcon,
 } from '@heroicons/react/24/outline'
+import { UpgradeIllustration } from './illustrations'
 
 // Dynamic copy + Heroicon per limit reason. Add new entries here when
 // a new gate is wired.
@@ -337,15 +338,28 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
 
         {/* Reason headline */}
         <div style={{ padding: '20px 24px 8px', textAlign: 'center' }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: 14,
-            background: 'linear-gradient(135deg, rgba(124,58,237,0.14), rgba(168,85,247,0.14))',
-            border: '1px solid rgba(124,58,237,0.30)',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 12,
-          }}>
-            <Icon style={{ width: 22, height: 22, color: '#7C3AED' }} />
-          </div>
+          {/* Animated crown illustration replaces the static gradient
+              tile + icon on the credits / general flows. Other
+              specific gate flows keep the focused Heroicon since the
+              icon literally tells you what's gated. */}
+          {(reason === 'credits' || reason === 'general')
+            ? (
+              <div style={{ width: 100, height: 100, margin: '0 auto 4px' }}>
+                <UpgradeIllustration />
+              </div>
+            )
+            : (
+              <div style={{
+                width: 52, height: 52, borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(124,58,237,0.14), rgba(168,85,247,0.14))',
+                border: '1px solid rgba(124,58,237,0.30)',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 12,
+              }}>
+                <Icon style={{ width: 22, height: 22, color: '#7C3AED' }} />
+              </div>
+            )
+          }
           <h2 style={{
             margin: 0, fontWeight: 800, fontSize: 20,
             letterSpacing: '-0.02em', color: 'var(--color-text)',

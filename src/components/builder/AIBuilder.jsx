@@ -30,6 +30,7 @@ import {
   RocketLaunchIcon,
 } from '@heroicons/react/24/outline'
 import PublishModal from './PublishModal'
+import { BuilderIllustration } from '../illustrations'
 import BuilderChat from './BuilderChat'
 
 // ────────────────────────────────────────────────────────────────────
@@ -464,8 +465,19 @@ export default function AIBuilder({ build, project, onClose }) {
               </StaggerItem>
             ))}
             {orderedSections.length === 0 && (
-              <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', padding: 12 }}>
-                Add tasks to the TODO column and they'll show up here.
+              <div style={{ padding: '20px 12px', textAlign: 'center' }}>
+                <div style={{ width: 100, height: 100, margin: '0 auto 8px' }}>
+                  <BuilderIllustration />
+                </div>
+                <div style={{
+                  fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14,
+                  color: 'var(--color-text)', letterSpacing: '-0.01em', marginBottom: 4,
+                }}>
+                  Ready to build
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                  Add tasks to the TODO column and they'll show up here.
+                </div>
               </div>
             )}
           </StaggerGrid>

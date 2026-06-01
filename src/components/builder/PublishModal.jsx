@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import AppContext from '../../context/AppContext'
 import { supabase } from '../../lib/supabase'
 import { assembleWebsite } from '../../lib/aiBuildEngine'
+import { SuccessIllustration } from '../illustrations'
 import {
   XMarkIcon,
   RocketLaunchIcon,
@@ -307,13 +308,8 @@ function SlugStatus({ slug, checking, available }) {
 function SuccessScreen({ url, kind, copied, onCopy, onShare, onClose }) {
   return (
     <div style={{ padding: '24px 26px 24px', textAlign: 'center' }}>
-      <div style={{
-        width: 56, height: 56, borderRadius: 14,
-        background: 'linear-gradient(135deg, #16A34A, #22C55E)',
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: 14, boxShadow: '0 12px 32px rgba(22,163,74,0.30)',
-      }}>
-        <CheckCircleIcon style={{ width: 28, height: 28, color: 'white' }} />
+      <div style={{ width: 100, height: 100, margin: '0 auto 8px' }}>
+        <SuccessIllustration />
       </div>
       <h3 style={{ margin: 0, fontWeight: 800, fontSize: 18, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>
         Your website is live!

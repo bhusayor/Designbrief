@@ -6,6 +6,10 @@ import {
   HistoryIllustration,
   TeamIllustration,
   NotificationsIllustration,
+  BuilderIllustration,
+  SearchIllustration,
+  UpgradeIllustration,
+  SuccessIllustration,
 } from './illustrations'
 
 // ────────────────────────────────────────────────────────────────────
@@ -25,6 +29,10 @@ const ILLUSTRATIONS = {
   team:          <TeamIllustration />,
   brief:         <BriefIllustration />,
   notifications: <NotificationsIllustration />,
+  builder:       <BuilderIllustration />,
+  search:        <SearchIllustration />,
+  upgrade:       <UpgradeIllustration />,
+  success:       <SuccessIllustration />,
 }
 
 const DEFAULTS = {
@@ -56,6 +64,26 @@ const DEFAULTS = {
   notifications: {
     title: 'All caught up',
     message: 'No new notifications. Check back when your team is active.',
+    action: null,
+  },
+  builder: {
+    title: 'Ready to build',
+    message: 'Start the AI Build to generate your website section by section from your kanban tasks.',
+    action: 'Start AI Build',
+  },
+  search: {
+    title: 'Nothing found',
+    message: 'Try different keywords or check your spelling.',
+    action: null,
+  },
+  upgrade: {
+    title: 'Unlock Pro',
+    message: 'More credits, more projects, unlimited workspaces — designed for serious creative work.',
+    action: 'Upgrade',
+  },
+  success: {
+    title: 'All done',
+    message: 'Everything is in place. Nice work.',
     action: null,
   },
 }
