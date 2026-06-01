@@ -19,8 +19,7 @@ import {
   generateSubtasks,
 } from '../lib/api'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
-import { getBriefTemplate, getWebsiteTemplate, BRIEF_TEMPLATES } from '../lib/templates'
-import BriefRenderer from '../components/brief/BriefRenderer'
+import { getWebsiteTemplate } from '../lib/templates'
 import { supabase } from '../lib/supabase'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -269,7 +268,6 @@ function useWindowWidth() {
 export default function Dashboard() {
   const {
     user, navigate, saveHistory, showToast, setCreditsUsed,
-    selectedBriefTemplate, setSelectedBriefTemplate,
     selectedWebsiteTemplate, setSelectedWebsiteTemplate,
     setActiveProjectBriefResult,
     connectorData,
@@ -297,13 +295,11 @@ export default function Dashboard() {
   const [runningDeep, setRunningDeep] = useState(false)
   const [storedBriefText, setStoredBriefText] = useState('')
   const [inspiSearched, setInspiSearched] = useState(false)
-  const [showStylePicker, setShowStylePicker] = useState(false)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
   const plusMenuRef = useRef(null)
   const msgTimerRef = useRef(null)
-  const stylePickerRef = useRef(null)
 
   // Quick brief from session storage
   useEffect(() => {
@@ -320,18 +316,6 @@ export default function Dashboard() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [showPlusMenu])
-
-  // Close style picker on outside click
-  useEffect(() => {
-    if (!showStylePicker) return
-    function handler(e) {
-      if (stylePickerRef.current && !stylePickerRef.current.contains(e.target)) setShowStylePicker(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showStylePicker])
-
-  const currentTemplate = BRIEF_TEMPLATES.find(t => t.id === selectedBriefTemplate) || BRIEF_TEMPLATES[0]
 
   // Auto-resize textarea
   useEffect(() => {
@@ -467,11 +451,11 @@ export default function Dashboard() {
     }, 2200)
 
     try {
-      const briefTmpl = getBriefTemplate(selectedBriefTemplate)
+      // Brief-template-style instructions were removed. The website
+      // template still drives the kanban/build step downstream, so
+      // we keep its structural hints in the user message.
       const websiteTmpl = getWebsiteTemplate(selectedWebsiteTemplate)
       const templateContext =
-        '\n\n---TEMPLATE STYLE---\n' +
-        briefTmpl.aiModifier +
         '\n\n---WEBSITE STRUCTURE---\n' +
         'Build for a ' + websiteTmpl.name +
         ' structure.\nKey sections: ' +
@@ -505,7 +489,7 @@ export default function Dashboard() {
           '\nIMPORTANT: The tech stack section must use this existing stack. Do not suggest replacing it.'
       }
 
-      const { scoreData, finalResult } = await translateAndAnalyse(fullContext + templateContext + connectorContext, selectedBriefTemplate)
+      const { scoreData, finalResult } = await translateAndAnalyse(fullContext + templateContext + connectorContext)
       clearInterval(msgTimerRef.current)
       if (!finalResult) throw new Error('Translation returned empty. Please try again.')
       setCreditsUsed(prev => prev + 1)
@@ -535,7 +519,6 @@ export default function Dashboard() {
       setScoring(scoreData)
       const resultWithMeta = {
         ...fullResult,
-        _briefTemplateId: selectedBriefTemplate,
         _websiteTemplateId: selectedWebsiteTemplate,
       }
       setResult(resultWithMeta)
@@ -683,103 +666,32 @@ export default function Dashboard() {
   // ── Result phase ───────────────────────────────────────────────────────────
 
   if (phase === 'result' && result) {
+    // Brief templates were removed at user's request — every brief
+    // renders through the canonical ResultView. The five renderers
+    // (AgencyDeckRenderer / TechnicalSpecRenderer / etc.) still live
+    // under src/components/brief/renderers/ but are no longer
+    // mounted from the Dashboard.
     return (
-      <div style={{ width: '100%' }}>
-        {/* Template switcher tabs */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: isMobile ? '12px 14px 0' : '12px 24px 0',
-          flexWrap: 'wrap',
-        }}>
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            color: 'var(--color-text-muted)',
-            textTransform: 'uppercase',
-            marginRight: 2,
-          }}>
-            View as
-          </span>
-          {BRIEF_TEMPLATES.map(tmpl => (
-            <button
-              key={tmpl.id}
-              onClick={() => setSelectedBriefTemplate(tmpl.id)}
-              style={{
-                padding: '4px 12px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid ' + (
-                  selectedBriefTemplate === tmpl.id ? tmpl.accent : 'var(--color-border)'
-                ),
-                background: selectedBriefTemplate === tmpl.id ? tmpl.accent + '12' : 'transparent',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 11,
-                fontWeight: selectedBriefTemplate === tmpl.id ? 700 : 500,
-                color: selectedBriefTemplate === tmpl.id ? tmpl.accent : 'var(--color-text-muted)',
-                transition: 'var(--transition-fast)',
-              }}
-            >
-              {tmpl.name}
-            </button>
-          ))}
-          {/* Pro-only: custom templates */}
-          {userPlan !== 'pro' && (
-            <button
-              onClick={() => openUpgradeModal?.('custom_templates')}
-              title="Custom brief templates are a Pro feature"
-              style={{
-                padding: '4px 12px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px dashed rgba(124,58,237,0.4)',
-                background: 'rgba(124,58,237,0.06)',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 11, fontWeight: 600,
-                color: '#7C3AED',
-                transition: 'var(--transition-fast)',
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-              }}
-            >
-              🔒 My Custom Templates
-            </button>
-          )}
-        </div>
-
-        {/* agency-deck uses the existing full ResultView; all others use BriefRenderer */}
-        {selectedBriefTemplate === 'agency-deck' ? (
-          <ResultView
-            result={result}
-            scoring={scoring}
-            inspirations={inspirations}
-            loadingInspi={loadingInspi}
-            inspiSearched={inspiSearched}
-            onFetchInspirations={handleFetchInspirations}
-            onReset={handleReset}
-            onDownload={handleDownload}
-            onShare={() => {
-              navigator.clipboard.writeText(window.location.origin + '/share/' + uid())
-                .then(() => showToast('Share link copied!', 'success'))
-            }}
-            onNavigate={navigate}
-            showToast={showToast}
-            loadingCompetitors={loadingCompetitors}
-            onLoadCompetitors={handleLoadCompetitors}
-            runningDeep={runningDeep}
-            onRunDeep={handleRunDeepAnalysis}
-          />
-        ) : (
-          <div style={{ padding: isMobile ? '16px 14px' : '24px 32px' }}>
-            <BriefRenderer
-              result={result}
-              templateId={selectedBriefTemplate}
-            />
-          </div>
-        )}
-      </div>
+      <ResultView
+        result={result}
+        scoring={scoring}
+        inspirations={inspirations}
+        loadingInspi={loadingInspi}
+        inspiSearched={inspiSearched}
+        onFetchInspirations={handleFetchInspirations}
+        onReset={handleReset}
+        onDownload={handleDownload}
+        onShare={() => {
+          navigator.clipboard.writeText(window.location.origin + '/share/' + uid())
+            .then(() => showToast('Share link copied!', 'success'))
+        }}
+        onNavigate={navigate}
+        showToast={showToast}
+        loadingCompetitors={loadingCompetitors}
+        onLoadCompetitors={handleLoadCompetitors}
+        runningDeep={runningDeep}
+        onRunDeep={handleRunDeepAnalysis}
+      />
     )
   }
 
@@ -928,74 +840,10 @@ export default function Dashboard() {
               {/* end left group — template + send are on the right */}
             </div>
 
-            {/* Right: template selector + send button */}
+            {/* Right: send button (brief-template picker was removed
+                — every translation now produces the same default
+                strategic brief). */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {/* Brief Template dropdown */}
-              <div ref={stylePickerRef} style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setShowStylePicker(v => !v)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    height: 32, minHeight: 'unset',
-                    padding: '0 8px',
-                    background: showStylePicker ? 'var(--color-surface)' : 'transparent',
-                    border: 'none', borderRadius: 'var(--radius-md)',
-                    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12,
-                    transition: 'var(--transition-fast)',
-                  }}
-                  onMouseEnter={e => { if (!showStylePicker) e.currentTarget.style.background = 'var(--color-surface)' }}
-                  onMouseLeave={e => { if (!showStylePicker) e.currentTarget.style.background = 'transparent' }}
-                >
-                  <span style={{ fontWeight: 600, color: 'var(--color-text-soft)', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-                    {currentTemplate.name}
-                  </span>
-                  <ChevronDownIcon style={{ width: 11, height: 11, color: 'var(--color-text-muted)', transform: showStylePicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
-                </button>
-
-                {showStylePicker && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 6px)',
-                    right: 0,
-                    zIndex: 200,
-                    width: 240,
-                    background: 'var(--color-card)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-lg)',
-                    boxShadow: 'var(--shadow-lg)',
-                    padding: '4px',
-                    animation: 'dropIn 0.15s ease',
-                  }}>
-                    {BRIEF_TEMPLATES.map(tmpl => {
-                      const isSel = selectedBriefTemplate === tmpl.id
-                      return (
-                        <button
-                          key={tmpl.id}
-                          onClick={() => { setSelectedBriefTemplate(tmpl.id); setShowStylePicker(false) }}
-                          style={{
-                            display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                            width: '100%', gap: 2, padding: '8px 10px', minHeight: 'unset',
-                            background: isSel ? 'var(--color-accent-soft)' : 'transparent',
-                            border: 'none', borderRadius: 'var(--radius-md)',
-                            cursor: 'pointer', textAlign: 'left',
-                            transition: 'var(--transition-fast)',
-                          }}
-                          onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--color-surface)' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = isSel ? 'var(--color-accent-soft)' : 'transparent' }}
-                        >
-                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: isSel ? 700 : 500, color: isSel ? 'var(--color-accent)' : 'var(--color-text)' }}>
-                            {tmpl.name}
-                          </span>
-                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.3 }}>
-                            {tmpl.tagline}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
             {/* Send button — square. Disabled when no content OR
                 while a translation is already in flight (prevents
                 the "looks dead → click again → fires twice" pattern
@@ -1390,56 +1238,25 @@ function HeroSection({ r, s }) {
         <h1 style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '42px', letterSpacing: '-0.03em', color: 'var(--color-text)', marginBottom: '16px', lineHeight: 1.1 }}>
           {r.projectTitle ?? 'Untitled Project'}
         </h1>
-        {(() => {
-          // Resolve the brief template (if any) so the user can see at
-          // a glance which template the rewrite used — confirms the
-          // template actually applied.
-          const tmpl = r._briefTemplateId
-            ? getBriefTemplate(r._briefTemplateId)
-            : null
-          if (!r.discipline && !tmpl) return null
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              {r.discipline?.type && (
-                <div style={{ background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  {r.discipline.type.replace(/-/g, ' ')}
-                </div>
-              )}
-              {r.discipline?.platform && (
-                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
-                  {r.discipline.platform}
-                </div>
-              )}
-              {r.discipline?.primaryCreative && (
-                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 500, color: 'var(--color-text-soft)' }}>
-                  {r.discipline.primaryCreative}
-                </div>
-              )}
-              {tmpl && (
-                <div
-                  title={tmpl.tagline || tmpl.description}
-                  style={{
-                    background: (tmpl.accent || '#7C3AED') + '14',
-                    border: '1px solid ' + (tmpl.accent || '#7C3AED') + '40',
-                    color: tmpl.accent || '#7C3AED',
-                    borderRadius: 100,
-                    padding: '4px 14px',
-                    fontFamily: "'Urbanist', sans-serif",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '0.02em',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 5,
-                  }}
-                >
-                  <SparklesIcon style={{ width: 11, height: 11 }} />
-                  {tmpl.name}
-                </div>
-              )}
-            </div>
-          )
-        })()}
+        {r.discipline && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            {r.discipline.type && (
+              <div style={{ background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                {r.discipline.type.replace(/-/g, ' ')}
+              </div>
+            )}
+            {r.discipline.platform && (
+              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
+                {r.discipline.platform}
+              </div>
+            )}
+            {r.discipline.primaryCreative && (
+              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 500, color: 'var(--color-text-soft)' }}>
+                {r.discipline.primaryCreative}
+              </div>
+            )}
+          </div>
+        )}
         {r.projectUnderstanding && (
           <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '17px', lineHeight: 1.8, color: 'var(--color-text-soft)', maxWidth: '600px', margin: 0 }}>
             {r.projectUnderstanding}

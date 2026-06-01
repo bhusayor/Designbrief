@@ -242,33 +242,13 @@ ${briefText}`;
 }
 
 /**
- * translateBrief — full strategic translation (3500 tokens).
- * Returns all 17 fields.
- *
- * `templateId` selects one of the five brief-template aiModifiers
- * (agency-deck / technical-spec / creative-direction / sprint-plan /
- * lean-canvas). The modifier is injected into BOTH the system prompt
- * and the user message so the rewrite tone + emphasis actually shifts
- * per template instead of getting buried.
+ * translateBrief — full strategic translation. Returns the
+ * complete 17-field schema. Brief templates were removed at user's
+ * request — every translation now produces the same default voice
+ * and renders through ResultView.
  */
-export async function translateBrief(briefText, templateId = null) {
-  // Lazy-load to avoid circular import risk (templates.js is plain).
-  let templateModifier = ''
-  let templateName = ''
-  if (templateId) {
-    try {
-      const { getBriefTemplate } = await import('./templates.js')
-      const tmpl = getBriefTemplate(templateId)
-      if (tmpl) {
-        templateModifier = tmpl.aiModifier || ''
-        templateName = tmpl.name || ''
-      }
-    } catch {}
-  }
-
-  const system = `You are an expert product design strategist. Your job is to translate a client brief into actionable design direction.${templateModifier ? `
-
-TEMPLATE: ${templateName} — ${templateModifier} Apply this voice but stay concise; the schema is fixed.` : ''}
+export async function translateBrief(briefText) {
+  const system = `You are an expert product design strategist. Your job is to translate a client brief into actionable design direction.
 
 ACCURACY RULES — follow these strictly:
 1. Only state facts that are directly supported by the brief. Do not invent project details.
@@ -560,9 +540,7 @@ IMPORTANT RULES FOR disciplineData:
 - If a field has no relevant data from the brief, use null not empty string
 
 Respond ONLY with valid JSON.`;
-  const user = `Translate this design brief into a structured strategy document.${templateModifier ? `
-
-Template voice: ${templateName}. ${templateModifier}` : ''}
+  const user = `Translate this design brief into a structured strategy document.
 Return JSON with these exact keys:
 {
   "projectTitle": "<title>",
@@ -805,12 +783,12 @@ CRITICAL deliverables rules:
 Brief:
 ${briefText}`;
 
-  // 8000 → 5500 → 4000 → 3000. Non-streaming call (the streaming
-  // refactor was choking the request — investigate separately).
-  // 3000 max tokens with the trimmed template injection fits the
-  // 17-field schema and consistently returns inside ~25-40s, well
-  // under the 60s Vercel function ceiling.
-  return callJSON(system, user, 3000, 'brief_translation');
+  // 6000 max tokens — the prior 3000 was truncating the full
+  // 17-field schema. Sonnet emits structured JSON at ~150-200 tok/s
+  // so 6000 lands in 30-50s, with margin under the 60s Vercel cap.
+  // If timeouts come back we can reduce schema size rather than
+  // truncate output.
+  return callJSON(system, user, 6000, 'brief_translation');
 }
 
 /**
@@ -961,7 +939,7 @@ Return 6-8 high-quality, real references.`;
  * translateAndAnalyse — runs score → translate + analyse in parallel.
  * Returns: { scoreData, finalResult }
  */
-export async function translateAndAnalyse(briefText, templateId = null, opts = {}) {
+export async function translateAndAnalyse(briefText, opts = {}) {
   // Score first (fast, 800 tokens — gives early verdict)
   const scoreData = await scoreBrief(briefText);
 
@@ -973,7 +951,7 @@ export async function translateAndAnalyse(briefText, templateId = null, opts = {
   //
   // Callers that genuinely need the deep block inline can pass
   // `{ deep: true }` to restore the old parallel behaviour.
-  const translation = await translateBrief(briefText, templateId);
+  const translation = await translateBrief(briefText);
 
   const finalResult = { ...translation };
 
