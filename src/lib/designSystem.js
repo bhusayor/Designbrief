@@ -33,12 +33,23 @@ export const DEFAULT_DESIGN_SYSTEM = {
   letterSpacingBody: '0em',
   letterSpacingLabels: '0.08em',
 
-  // Buttons
+  // Buttons — primary
   buttonRadius: 'rounded',      // square | rounded | pill | custom
   buttonRadiusValue: 8,
   buttonSize: 'medium',         // small | medium | large
   buttonStyle: 'filled',        // filled | outlined | soft | ghost
   buttonWeight: '600',          // 400 | 500 | 600 | 700
+
+  // Buttons — secondary (free-standing overrides; jsonb in DB so
+  // adding a sub-field later doesn't need another migration)
+  buttonSecondary: {
+    enabled: false,
+    radius: 'rounded',
+    radiusValue: 8,
+    size: 'medium',
+    style: 'outlined',
+    weight: '600',
+  },
 
   // Icons (Phase 2)
   iconLibrary: 'lucide',
@@ -104,7 +115,16 @@ export function designSystemToContext(ds) {
       ? 'square corners'
       : `${ds.buttonRadiusValue}px radius`
   const buttonDesc =
-    `${ds.buttonStyle} style, ${buttonShape}, ${ds.buttonSize} size, font-weight ${ds.buttonWeight}`
+    `Primary: ${ds.buttonStyle} style, ${buttonShape}, ${ds.buttonSize} size, font-weight ${ds.buttonWeight}`
+
+  const sec = ds.buttonSecondary
+  const secondaryDesc = sec?.enabled
+    ? `Secondary: ${sec.style} style, ${
+        sec.radius === 'pill' ? 'pill' :
+        sec.radius === 'square' ? 'square corners' :
+        `${sec.radiusValue}px radius`
+      }, ${sec.size} size, font-weight ${sec.weight}`
+    : 'Secondary: derived from primary (looser fill or outline)'
 
   return [
     'PROJECT DESIGN SYSTEM',
@@ -120,6 +140,7 @@ export function designSystemToContext(ds) {
     '',
     'BUTTONS:',
     buttonDesc,
+    secondaryDesc,
     '',
     'ICONS:',
     `${ds.iconLibrary} icons, ${ds.iconStyle} style`,
@@ -174,6 +195,7 @@ export function dbRowToDesignSystem(row) {
     buttonSize: row.button_size || 'medium',
     buttonStyle: row.button_style || 'filled',
     buttonWeight: row.button_weight || '600',
+    buttonSecondary: row.button_secondary || DEFAULT_DESIGN_SYSTEM.buttonSecondary,
     iconLibrary: row.icon_library || 'lucide',
     iconStyle: row.icon_style || 'outline',
     iconSizeSm: row.icon_size_sm ?? 16,
@@ -250,6 +272,7 @@ export function designSystemToDbRow(ds, projectId, workspaceId, userId) {
     button_size: ds.buttonSize,
     button_style: ds.buttonStyle,
     button_weight: ds.buttonWeight,
+    button_secondary: ds.buttonSecondary || {},
     icon_library: ds.iconLibrary,
     icon_style: ds.iconStyle,
     icon_size_sm: ds.iconSizeSm,

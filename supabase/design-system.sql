@@ -29,12 +29,15 @@ create table if not exists design_systems (
   letter_spacing_body     text    default '0em',
   letter_spacing_labels   text    default '0.08em',
 
-  -- Buttons
+  -- Buttons (primary)
   button_radius           text    default 'rounded',
   button_radius_value     integer default 8,
   button_size             text    default 'medium',
   button_style            text    default 'filled',
   button_weight           text    default '600',
+  -- Buttons (secondary — full overrides, jsonb so adding a sub-field
+  -- later doesn't need another migration)
+  button_secondary        jsonb   default '{}'::jsonb,
 
   -- Icons (Phase 2)
   icon_library            text    default 'lucide',
@@ -77,6 +80,12 @@ create table if not exists design_systems (
 );
 
 -- One design system per project. Upsert in the panel relies on this.
+-- For projects that already have a design_systems row from the first
+-- migration, add the secondary-button column in-place. ALTER … IF NOT
+-- EXISTS makes this safe to re-run on fresh + upgraded databases.
+alter table design_systems
+  add column if not exists button_secondary jsonb default '{}'::jsonb;
+
 create unique index if not exists design_systems_project_id_unique
   on design_systems(project_id);
 
