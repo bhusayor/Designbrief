@@ -5,9 +5,14 @@ import {
   SwatchIcon,
   ArrowRightIcon,
   PlusIcon,
-  TrashIcon,
   Squares2X2Icon,
   CursorArrowRaysIcon,
+  SparklesIcon,
+  Square3Stack3DIcon,
+  ChatBubbleLeftRightIcon,
+  PhotoIcon,
+  BoltIcon,
+  CubeIcon,
 } from '@heroicons/react/24/outline'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
@@ -32,9 +37,15 @@ import {
 // ────────────────────────────────────────────────────────────────────
 
 const SECTIONS = [
-  { id: 'colors',     label: 'Colors',     Icon: SwatchIcon },
-  { id: 'typography', label: 'Typography', Icon: Squares2X2Icon },
-  { id: 'buttons',    label: 'Buttons',    Icon: CursorArrowRaysIcon },
+  { id: 'colors',     label: 'Colors',      Icon: SwatchIcon },
+  { id: 'typography', label: 'Typography',  Icon: Squares2X2Icon },
+  { id: 'buttons',    label: 'Buttons',     Icon: CursorArrowRaysIcon },
+  { id: 'icons',      label: 'Icons',       Icon: SparklesIcon },
+  { id: 'spacing',    label: 'Spacing',     Icon: Square3Stack3DIcon },
+  { id: 'voice',      label: 'Brand voice', Icon: ChatBubbleLeftRightIcon },
+  { id: 'imagery',    label: 'Imagery',     Icon: PhotoIcon },
+  { id: 'animation',  label: 'Animation',   Icon: BoltIcon },
+  { id: 'shadows',    label: 'Shadows',     Icon: CubeIcon },
 ]
 
 export default function DesignSystemPanel({
@@ -183,34 +194,24 @@ export default function DesignSystemPanel({
                 </button>
               )
             })}
-            <div style={{ height: 1, background: 'var(--color-border)', margin: '12px 4px' }} />
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: 'var(--color-text-muted)', padding: '4px 12px', marginBottom: 4,
-            }}>
-              Coming soon
-            </div>
-            {['Icons', 'Spacing', 'Brand Voice', 'Imagery', 'Animation', 'Shadows'].map(l => (
-              <div key={l} style={{
-                padding: '8px 12px', fontFamily: 'var(--font-sans)',
-                fontSize: 12, color: 'var(--color-text-muted)', opacity: 0.6,
-              }}>
-                {l}
-              </div>
-            ))}
           </aside>
 
           {/* Content — active section */}
           <main style={contentStyle}>
-            {isLoading
-              ? <SectionLoading />
-              : activeSection === 'colors'
-                ? <ColorsSection ds={ds} update={update} />
-                : activeSection === 'typography'
-                  ? <TypographySection ds={ds} update={update} />
-                  : <ButtonsSection ds={ds} update={update} />
-            }
+            {isLoading ? <SectionLoading /> : (() => {
+              switch (activeSection) {
+                case 'colors':     return <ColorsSection ds={ds} update={update} />
+                case 'typography': return <TypographySection ds={ds} update={update} />
+                case 'buttons':    return <ButtonsSection ds={ds} update={update} />
+                case 'icons':      return <IconsSection ds={ds} update={update} />
+                case 'spacing':    return <SpacingSection ds={ds} update={update} />
+                case 'voice':      return <VoiceSection ds={ds} update={update} />
+                case 'imagery':    return <ImagerySection ds={ds} update={update} />
+                case 'animation':  return <AnimationSection ds={ds} update={update} />
+                case 'shadows':    return <ShadowsSection ds={ds} update={update} />
+                default:           return null
+              }
+            })()}
           </main>
         </div>
 
@@ -636,6 +637,531 @@ function ButtonsSection({ ds, update }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Section: Icons
+// ────────────────────────────────────────────────────────────────────
+
+const ICON_LIBRARIES = [
+  { value: 'lucide',    label: 'Lucide',    url: 'https://lucide.dev' },
+  { value: 'phosphor',  label: 'Phosphor',  url: 'https://phosphoricons.com' },
+  { value: 'heroicons', label: 'Heroicons', url: 'https://heroicons.com' },
+  { value: 'tabler',    label: 'Tabler',    url: 'https://tabler.io/icons' },
+  { value: 'feather',   label: 'Feather',   url: 'https://feathericons.com' },
+  { value: 'custom',    label: 'Custom' },
+]
+
+function IconsSection({ ds, update }) {
+  const selected = ICON_LIBRARIES.find(l => l.value === ds.iconLibrary)
+
+  return (
+    <>
+      <SectionHeader
+        title="Icons"
+        subtitle="Choose your icon library. The AI references this in every generated component."
+      />
+
+      <div style={{ marginBottom: 20 }}>
+        <FieldLabel>Icon library</FieldLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          {ICON_LIBRARIES.map(lib => {
+            const isOn = ds.iconLibrary === lib.value
+            return (
+              <button
+                key={lib.value}
+                onClick={() => update('iconLibrary', lib.value)}
+                style={{
+                  padding: '10px 12px', borderRadius: 10,
+                  border: `1.5px solid ${isOn ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                  background: isOn ? 'rgba(139,92,246,0.10)' : 'var(--color-surface)',
+                  color: isOn ? 'var(--color-accent)' : 'var(--color-text)',
+                  fontFamily: 'var(--font-sans)', fontSize: 13,
+                  fontWeight: isOn ? 600 : 400,
+                  cursor: 'pointer', textAlign: 'center',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {lib.label}
+              </button>
+            )
+          })}
+        </div>
+        {selected?.url && ds.iconLibrary !== 'custom' && (
+          <a href={selected.url} target="_blank" rel="noopener noreferrer" style={fontLink}>
+            Browse {selected.label} →
+          </a>
+        )}
+        {ds.iconLibrary === 'custom' && (
+          <div style={{ marginTop: 12 }}>
+            <FieldLabel>Icon library URL</FieldLabel>
+            <TextInput
+              value={ds.customIconUrl}
+              onChange={v => update('customIconUrl', v)}
+              placeholder="https://your-icon-library.com"
+            />
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <FieldLabel>Icon style</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'outline', label: 'Outline' },
+            { value: 'filled',  label: 'Filled' },
+            { value: 'duotone', label: 'Duotone' },
+            { value: 'bold',    label: 'Bold' },
+          ]}
+          value={ds.iconStyle}
+          onChange={v => update('iconStyle', v)}
+        />
+      </div>
+
+      <div>
+        <FieldLabel>Size scale</FieldLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {[
+            { key: 'iconSizeSm', label: 'Small' },
+            { key: 'iconSizeMd', label: 'Medium' },
+            { key: 'iconSizeLg', label: 'Large' },
+          ].map(({ key, label }) => (
+            <div key={key}>
+              <FieldLabel>{label}</FieldLabel>
+              <NumberWithUnit
+                value={ds[key]}
+                onChange={v => update(key, v)}
+                unit="px"
+                min={8}
+                max={64}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Section: Spacing
+// ────────────────────────────────────────────────────────────────────
+
+function SpacingSection({ ds, update }) {
+  return (
+    <>
+      <SectionHeader
+        title="Spacing"
+        subtitle="Base unit, radii, and the layout grid. The AI uses these for every measurement."
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        <div>
+          <FieldLabel>Base unit</FieldLabel>
+          <PillSelector
+            options={[
+              { value: 4, label: '4px' },
+              { value: 6, label: '6px' },
+              { value: 8, label: '8px' },
+            ]}
+            value={ds.baseUnit}
+            onChange={v => update('baseUnit', v)}
+          />
+        </div>
+        <div>
+          <FieldLabel>Grid columns</FieldLabel>
+          <PillSelector
+            options={[
+              { value: 8,  label: '8' },
+              { value: 12, label: '12' },
+              { value: 16, label: '16' },
+            ]}
+            value={ds.gridColumns}
+            onChange={v => update('gridColumns', v)}
+          />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <FieldLabel>Border radius scale</FieldLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {[
+            { key: 'borderRadiusSm', label: 'Small' },
+            { key: 'borderRadiusMd', label: 'Medium' },
+            { key: 'borderRadiusLg', label: 'Large' },
+          ].map(({ key, label }) => (
+            <div key={key}>
+              <FieldLabel>{label}</FieldLabel>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <NumberWithUnit
+                  value={ds[key]}
+                  onChange={v => update(key, v)}
+                  unit="px"
+                  min={0}
+                  max={64}
+                />
+                <div style={{
+                  width: 32, height: 32, flexShrink: 0,
+                  background: 'var(--color-accent)',
+                  borderRadius: ds[key],
+                  border: '1px solid var(--color-border)',
+                }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div>
+          <FieldLabel>Max content width</FieldLabel>
+          <NumberWithUnit
+            value={ds.maxContentWidth}
+            onChange={v => update('maxContentWidth', v)}
+            unit="px"
+            min={640}
+            max={1920}
+            step={20}
+          />
+        </div>
+        <div>
+          <FieldLabel>Gutter</FieldLabel>
+          <NumberWithUnit
+            value={ds.gutter}
+            onChange={v => update('gutter', v)}
+            unit="px"
+            min={4}
+            max={64}
+          />
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Section: Brand voice
+// ────────────────────────────────────────────────────────────────────
+
+function VoiceSection({ ds, update }) {
+  const [draft, setDraft] = useState('')
+
+  function addTag() {
+    const t = draft.trim()
+    if (!t) return
+    if ((ds.toneKeywords || []).includes(t)) {
+      setDraft('')
+      return
+    }
+    update('toneKeywords', [...(ds.toneKeywords || []), t])
+    setDraft('')
+  }
+
+  function removeTag(t) {
+    update('toneKeywords', (ds.toneKeywords || []).filter(k => k !== t))
+  }
+
+  return (
+    <>
+      <SectionHeader
+        title="Brand voice"
+        subtitle="Tone words and copy style. The AI writes in this voice for every headline and CTA."
+      />
+
+      <div style={{ marginBottom: 20 }}>
+        <FieldLabel>Tone keywords</FieldLabel>
+        {(ds.toneKeywords || []).length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {ds.toneKeywords.map(t => (
+              <span key={t} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px', borderRadius: 9999,
+                background: 'rgba(139,92,246,0.10)',
+                border: '1px solid rgba(139,92,246,0.30)',
+                color: 'var(--color-accent)',
+                fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+              }}>
+                {t}
+                <button
+                  onClick={() => removeTag(t)}
+                  aria-label={`Remove ${t}`}
+                  style={{
+                    background: 'transparent', border: 'none', padding: 0,
+                    cursor: 'pointer', color: 'var(--color-accent)', lineHeight: 0,
+                  }}
+                >
+                  <XMarkIcon style={{ width: 11, height: 11 }} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <TextInput
+            value={draft}
+            onChange={setDraft}
+            placeholder="e.g. confident, witty, grounded"
+          />
+          <button
+            onClick={addTag}
+            disabled={!draft.trim()}
+            style={{
+              flexShrink: 0,
+              padding: '0 16px', borderRadius: 10,
+              border: '1px solid rgba(139,92,246,0.4)',
+              background: 'rgba(139,92,246,0.1)',
+              color: 'var(--color-accent)',
+              fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13,
+              cursor: draft.trim() ? 'pointer' : 'not-allowed',
+              opacity: draft.trim() ? 1 : 0.5,
+            }}
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <FieldLabel>Copy style</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'conversational', label: 'Conversational' },
+            { value: 'professional',   label: 'Professional' },
+            { value: 'playful',        label: 'Playful' },
+            { value: 'authoritative',  label: 'Authoritative' },
+            { value: 'minimal',        label: 'Minimal' },
+          ]}
+          value={ds.copyStyle}
+          onChange={v => update('copyStyle', v)}
+        />
+      </div>
+
+      <div>
+        <FieldLabel>Things to avoid</FieldLabel>
+        <textarea
+          value={ds.thingsToAvoid || ''}
+          onChange={e => update('thingsToAvoid', e.target.value)}
+          placeholder="e.g. no buzzwords, no exclamation marks, never use 'leverage'"
+          rows={3}
+          style={{
+            width: '100%', padding: '10px 14px',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 10,
+            color: 'var(--color-text)',
+            fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5,
+            outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+          }}
+          onFocus={e => (e.target.style.borderColor = 'var(--color-accent)')}
+          onBlur={e => (e.target.style.borderColor = 'var(--color-border)')}
+        />
+      </div>
+    </>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Section: Imagery
+// ────────────────────────────────────────────────────────────────────
+
+function ImagerySection({ ds, update }) {
+  return (
+    <>
+      <SectionHeader
+        title="Imagery"
+        subtitle="Photography style + treatment + illustration. The AI picks imagery in this language."
+      />
+
+      <div style={{ marginBottom: 18 }}>
+        <FieldLabel>Photography style</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'lifestyle', label: 'Lifestyle' },
+            { value: 'studio',    label: 'Studio' },
+            { value: 'editorial', label: 'Editorial' },
+            { value: 'candid',    label: 'Candid' },
+            { value: 'minimal',   label: 'Minimal' },
+            { value: 'none',      label: 'No photography' },
+          ]}
+          value={ds.photographyStyle}
+          onChange={v => update('photographyStyle', v)}
+        />
+      </div>
+
+      <div style={{ marginBottom: 18 }}>
+        <FieldLabel>Image treatment</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'full_color',     label: 'Full color' },
+            { value: 'black_white',    label: 'Black & white' },
+            { value: 'duotone',        label: 'Duotone' },
+            { value: 'desaturated',    label: 'Desaturated' },
+            { value: 'high_contrast',  label: 'High contrast' },
+          ]}
+          value={ds.imageTreatment}
+          onChange={v => update('imageTreatment', v)}
+        />
+      </div>
+
+      <div>
+        <FieldLabel>Illustration style</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'none',       label: 'No illustration' },
+            { value: 'line',       label: 'Line art' },
+            { value: 'flat',       label: 'Flat geometric' },
+            { value: '3d',         label: '3D / isometric' },
+            { value: 'hand_drawn', label: 'Hand drawn' },
+            { value: 'mixed',      label: 'Mixed media' },
+          ]}
+          value={ds.illustrationStyle}
+          onChange={v => update('illustrationStyle', v)}
+        />
+      </div>
+    </>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Section: Animation
+// ────────────────────────────────────────────────────────────────────
+
+function AnimationSection({ ds, update }) {
+  return (
+    <>
+      <SectionHeader
+        title="Animation"
+        subtitle="Motion personality and easing curve. The AI applies this to every transition + reveal."
+      />
+
+      <div style={{ marginBottom: 20 }}>
+        <FieldLabel>Motion style</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'subtle',    label: 'Subtle' },
+            { value: 'playful',   label: 'Playful' },
+            { value: 'cinematic', label: 'Cinematic' },
+            { value: 'minimal',   label: 'Minimal' },
+            { value: 'bold',      label: 'Bold' },
+          ]}
+          value={ds.motionStyle}
+          onChange={v => update('motionStyle', v)}
+        />
+      </div>
+
+      <div>
+        <FieldLabel>Easing preference</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'smooth', label: 'Smooth (ease-out)' },
+            { value: 'spring', label: 'Spring' },
+            { value: 'linear', label: 'Linear' },
+            { value: 'sharp',  label: 'Sharp' },
+          ]}
+          value={ds.easingPreference}
+          onChange={v => update('easingPreference', v)}
+        />
+      </div>
+    </>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Section: Shadows
+// ────────────────────────────────────────────────────────────────────
+
+const SHADOW_RECIPES = {
+  none:    'none',
+  soft:    '0 2px 8px rgba(0,0,0,0.06)',
+  medium:  '0 8px 24px rgba(0,0,0,0.10)',
+  hard:    '0 4px 0px rgba(0,0,0,0.20)',
+  floating: '0 20px 48px rgba(0,0,0,0.18)',
+  layered: '0 1px 2px rgba(0,0,0,0.08), 0 6px 16px rgba(0,0,0,0.12), 0 24px 60px rgba(0,0,0,0.14)',
+}
+
+function tintShadow(recipe, tint, accent) {
+  if (recipe === 'none') return recipe
+  const colors = {
+    black: 'rgba(0,0,0,',
+    brand: accent
+      ? hexToRgba(accent, '')
+      : 'rgba(139,92,246,',
+    warm:  'rgba(180,90,40,',
+    cool:  'rgba(40,90,140,',
+  }
+  const repl = colors[tint] || colors.black
+  return recipe.replace(/rgba\(0,0,0,/g, repl)
+}
+
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},`
+}
+
+function ShadowsSection({ ds, update }) {
+  const accent = ds.colors?.[0]?.hex
+  const recipe = SHADOW_RECIPES[ds.shadowStyle] || SHADOW_RECIPES.medium
+  const previewShadow = tintShadow(recipe, ds.shadowColorTint, accent)
+
+  return (
+    <>
+      <SectionHeader
+        title="Shadows"
+        subtitle="Elevation language. The AI uses this for every card, dropdown, and floating element."
+      />
+
+      <div style={{ marginBottom: 20 }}>
+        <FieldLabel>Style</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'none',     label: 'None' },
+            { value: 'soft',     label: 'Soft' },
+            { value: 'medium',   label: 'Medium' },
+            { value: 'hard',     label: 'Hard' },
+            { value: 'floating', label: 'Floating' },
+            { value: 'layered',  label: 'Layered' },
+          ]}
+          value={ds.shadowStyle}
+          onChange={v => update('shadowStyle', v)}
+        />
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <FieldLabel>Color tint</FieldLabel>
+        <PillSelector
+          options={[
+            { value: 'black', label: 'Black' },
+            { value: 'brand', label: accent ? `Brand (${accent})` : 'Brand' },
+            { value: 'warm',  label: 'Warm' },
+            { value: 'cool',  label: 'Cool' },
+          ]}
+          value={ds.shadowColorTint}
+          onChange={v => update('shadowColorTint', v)}
+        />
+      </div>
+
+      <div style={{
+        background: 'var(--color-surface)', borderRadius: 12, padding: 32,
+        display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24,
+        flexWrap: 'wrap',
+      }}>
+        <FieldLabel>Live preview</FieldLabel>
+        <div style={{
+          width: 220, height: 100, borderRadius: 14,
+          background: 'var(--color-bg)',
+          border: '1px solid var(--color-border)',
+          boxShadow: previewShadow,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)',
+        }}>
+          Elevated surface
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Shared bits
 // ────────────────────────────────────────────────────────────────────
 
@@ -719,6 +1245,46 @@ function PillSelector({ options, value, onChange }) {
           </button>
         )
       })}
+    </div>
+  )
+}
+
+// Number input with a static unit suffix — used by Spacing + Icons.
+function NumberWithUnit({ value, onChange, unit = 'px', min, max, step = 1 }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'stretch',
+      border: '1px solid var(--color-border)', borderRadius: 10,
+      background: 'var(--color-surface)',
+      overflow: 'hidden',
+    }}>
+      <input
+        type="number"
+        value={value ?? ''}
+        min={min}
+        max={max}
+        step={step}
+        onChange={e => {
+          const v = parseInt(e.target.value, 10)
+          if (!isNaN(v)) onChange(v)
+        }}
+        style={{
+          flex: 1, padding: '10px 12px',
+          background: 'transparent', border: 'none', outline: 'none',
+          fontFamily: 'var(--font-sans)', fontSize: 14,
+          color: 'var(--color-text)', minWidth: 0,
+        }}
+      />
+      <span style={{
+        display: 'inline-flex', alignItems: 'center',
+        padding: '0 10px',
+        background: 'var(--color-bg)',
+        borderLeft: '1px solid var(--color-border)',
+        fontFamily: 'var(--font-mono)', fontSize: 11,
+        color: 'var(--color-text-muted)',
+      }}>
+        {unit}
+      </span>
     </div>
   )
 }
