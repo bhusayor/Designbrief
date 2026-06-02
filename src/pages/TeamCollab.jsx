@@ -5585,9 +5585,17 @@ STYLE:
       {/* AI Builder — mode picker, then full-screen overlay */}
       <BuildModeModal
         open={aiBuildModeOpen}
+        // Count every buildable task — anything not already Done.
+        // BuildModeModal's "Start Building" button disables when
+        // taskCount is 0, so this filter MUST match the one in
+        // handleAiBuildModeConfirm. Previously this used a strict
+        // 'to do' / 'todo' filter while the handler used the broader
+        // "not done" rule — leading to disabled-button silently-
+        // does-nothing clicks whenever tasks lived in any other
+        // column.
         taskCount={(kanban?.tasks || []).filter(t => {
           const c = String(t.column || '').toLowerCase()
-          return c === 'to do' || c === 'todo'
+          return c !== 'done' && c !== 'approved' && c !== 'complete' && c !== 'completed'
         }).length}
         onClose={() => setAiBuildModeOpen(false)}
         onConfirm={handleAiBuildModeConfirm}
