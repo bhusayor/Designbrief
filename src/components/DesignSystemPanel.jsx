@@ -13,9 +13,11 @@ import {
   PhotoIcon,
   BoltIcon,
   CubeIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
+import { searchPexelsImage } from '../lib/pexels'
 import {
   DEFAULT_DESIGN_SYSTEM,
   dbRowToDesignSystem,
@@ -36,25 +38,66 @@ import {
 // block (same gotcha that made AIBuilder leak the sidebar through).
 // ────────────────────────────────────────────────────────────────────
 
-// Curated Google Fonts list — the ones designers actually reach for.
-// Used by Typography's combobox; type-to-filter narrows the list.
+// Comprehensive Google Fonts list — the ~200 most-used faces grouped
+// by category, alphabetised within each group so type-to-filter feels
+// predictable. Covers everything a designer reaches for without
+// pulling the full 1500+ catalog into the bundle.
 const FONT_CATALOG = {
-  serif: [
-    'Fraunces', 'Playfair Display', 'Cormorant Garamond', 'Lora',
-    'EB Garamond', 'Libre Baskerville', 'Merriweather', 'Bodoni Moda',
-    'PT Serif', 'Source Serif Pro', 'Crimson Pro', 'Spectral',
-  ],
   sans: [
-    'Inter', 'DM Sans', 'Space Grotesk', 'Plus Jakarta Sans', 'Manrope',
-    'Outfit', 'Satoshi', 'Geist', 'Work Sans', 'Lato', 'Mulish',
-    'Open Sans', 'Nunito', 'Poppins', 'Rubik', 'Sora', 'Public Sans',
+    'Albert Sans', 'Archivo', 'Assistant', 'Asap', 'Barlow', 'Be Vietnam Pro',
+    'Cabin', 'Catamaran', 'Chivo', 'DM Sans', 'Darker Grotesque', 'Epilogue',
+    'Exo 2', 'Figtree', 'Fira Sans', 'Geist', 'Heebo', 'Hind', 'IBM Plex Sans',
+    'Inter', 'Karla', 'Kanit', 'Kumbh Sans', 'Lato', 'Lexend', 'Libre Franklin',
+    'Manrope', 'Maven Pro', 'Montserrat', 'Mulish', 'Noto Sans', 'Nunito',
+    'Nunito Sans', 'Onest', 'Open Sans', 'Outfit', 'Oxanium', 'PT Sans',
+    'Plus Jakarta Sans', 'Poppins', 'Public Sans', 'Quicksand', 'Raleway',
+    'Red Hat Display', 'Roboto', 'Roboto Flex', 'Rubik', 'Sarabun', 'Sora',
+    'Source Sans 3', 'Space Grotesk', 'Spline Sans', 'Syne', 'Titillium Web',
+    'Ubuntu', 'Urbanist', 'Varela Round', 'Work Sans',
+  ],
+  serif: [
+    'Aleo', 'Alegreya', 'Arvo', 'Bitter', 'Bodoni Moda', 'Cardo',
+    'Cormorant', 'Cormorant Garamond', 'Crimson Pro', 'Crimson Text',
+    'DM Serif Display', 'DM Serif Text', 'EB Garamond', 'Eczar', 'Faustina',
+    'Fraunces', 'Frank Ruhl Libre', 'Gentium Book Plus', 'IBM Plex Serif',
+    'Inknut Antiqua', 'Instrument Serif', 'Lora', 'Libre Baskerville',
+    'Libre Caslon Text', 'Lustria', 'Marcellus', 'Markazi Text',
+    'Merriweather', 'Newsreader', 'Noticia Text', 'Noto Serif',
+    'Old Standard TT', 'PT Serif', 'Petrona', 'Playfair', 'Playfair Display',
+    'Prata', 'Reem Kufi', 'Roboto Serif', 'Roboto Slab', 'Rozha One',
+    'Source Serif 4', 'Spectral', 'Tinos', 'Vollkorn', 'Yeseva One',
+    'Yrsa', 'Zilla Slab',
   ],
   display: [
-    'Clash Display', 'Anybody', 'Big Shoulders Display', 'Bricolage Grotesque',
-    'Rajdhani', 'Bebas Neue', 'Archivo Black', 'Anton',
+    'Abril Fatface', 'Alfa Slab One', 'Anton', 'Archivo Black',
+    'Bebas Neue', 'Big Shoulders Display', 'Black Ops One',
+    'Bricolage Grotesque', 'Bungee', 'Cabin Sketch', 'Carter One',
+    'Chakra Petch', 'Changa One', 'Climate Crisis', 'Concert One',
+    'Comfortaa', 'Domine', 'Familjen Grotesk', 'Fjalla One',
+    'Fredoka', 'Funnel Display', 'Gloock', 'Gloria Hallelujah',
+    'Inter Tight', 'Josefin Sans', 'Khand', 'Krona One', 'Lobster',
+    'Major Mono Display', 'Monoton', 'Montagu Slab', 'Mr Dafoe',
+    'Norwester', 'Oranienbaum', 'Orbitron', 'Oswald', 'Paytone One',
+    'Permanent Marker', 'Philosopher', 'Poltawski Nowy',
+    'Press Start 2P', 'Prosto One', 'Rajdhani', 'Rampart One',
+    'Righteous', 'Rye', 'Sacramento', 'Sail', 'Saira', 'Seaweed Script',
+    'Shadows Into Light', 'Special Elite', 'Stalemate', 'Staatliches',
+    'Stalinist One', 'Style Script', 'Syncopate', 'Teko',
+    'Tilt Neon', 'Tomorrow', 'Ultra', 'Unica One', 'Yatra One',
+    'Yeon Sung', 'Zen Dots',
   ],
   mono: [
-    'JetBrains Mono', 'Space Mono', 'IBM Plex Mono', 'DM Mono', 'Fira Code',
+    'Anonymous Pro', 'Azeret Mono', 'Cousine', 'DM Mono', 'Fira Code',
+    'Fira Mono', 'IBM Plex Mono', 'Inconsolata', 'JetBrains Mono',
+    'Major Mono Display', 'Martian Mono', 'Noto Sans Mono', 'Overpass Mono',
+    'PT Mono', 'Red Hat Mono', 'Roboto Mono', 'Source Code Pro',
+    'Space Mono', 'Spline Sans Mono', 'Ubuntu Mono', 'VT323', 'Workbench',
+  ],
+  handwriting: [
+    'Allison', 'Architects Daughter', 'Bad Script', 'Caveat',
+    'Comforter Brush', 'Dancing Script', 'Indie Flower',
+    'Just Another Hand', 'Kalam', 'Liu Jian Mao Cao', 'Mansalva',
+    'Pacifico', 'Patrick Hand', 'Reenie Beanie', 'Satisfy', 'Yellowtail',
   ],
 }
 const FONT_LIST = [
@@ -62,6 +105,7 @@ const FONT_LIST = [
   ...FONT_CATALOG.serif,
   ...FONT_CATALOG.display,
   ...FONT_CATALOG.mono,
+  ...FONT_CATALOG.handwriting,
 ]
 
 // Inject a <link> tag for the chosen Google Font so the live preview
@@ -179,11 +223,6 @@ export default function DesignSystemPanel({
     }
   }
 
-  function handleSkip() {
-    onSkip?.()
-    onClose?.()
-  }
-
   if (!isOpen) return null
 
   return createPortal((
@@ -269,9 +308,7 @@ export default function DesignSystemPanel({
 
         {/* Footer */}
         <div style={footerStyle}>
-          <button onClick={handleSkip} style={skipBtn}>
-            I'll do this later
-          </button>
+          <span />
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} style={cancelBtn}>Cancel</button>
             <button
@@ -504,15 +541,6 @@ function TypographySection({ ds, update }) {
             onChange={v => update('headingFont', v)}
             placeholder="Search Fraunces, Inter, Playfair…"
           />
-          {ds.headingFont && (
-            <a
-              href={`https://fonts.google.com/specimen/${ds.headingFont.replace(/ /g, '+')}`}
-              target="_blank" rel="noopener noreferrer"
-              style={fontLink}
-            >
-              View on Google Fonts →
-            </a>
-          )}
           <div style={{ marginTop: 12 }}>
             <FieldLabel>Weights used</FieldLabel>
             <WeightPicker
@@ -529,15 +557,6 @@ function TypographySection({ ds, update }) {
             onChange={v => update('bodyFont', v)}
             placeholder="Search DM Sans, Inter, Outfit…"
           />
-          {ds.bodyFont && (
-            <a
-              href={`https://fonts.google.com/specimen/${ds.bodyFont.replace(/ /g, '+')}`}
-              target="_blank" rel="noopener noreferrer"
-              style={fontLink}
-            >
-              View on Google Fonts →
-            </a>
-          )}
           <div style={{ marginTop: 12 }}>
             <FieldLabel>Weights used</FieldLabel>
             <WeightPicker
@@ -633,24 +652,42 @@ function FontCombobox({ value, onChange, placeholder }) {
 
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
-      <input
-        type="text"
-        value={draft}
-        onChange={e => { setDraft(e.target.value); setOpen(true); onChange(e.target.value) }}
-        onFocus={() => setOpen(true)}
-        placeholder={placeholder}
+      <div
+        onClick={() => setOpen(true)}
         style={{
-          width: '100%', padding: '10px 14px',
+          display: 'flex', alignItems: 'center',
           background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
+          border: `1px solid ${open ? 'var(--color-accent)' : 'var(--color-border)'}`,
           borderRadius: 10,
-          color: 'var(--color-text)',
-          fontFamily: 'var(--font-sans)', fontSize: 14,
-          outline: 'none', boxSizing: 'border-box',
           transition: 'border-color 0.15s',
         }}
-        onBlur={e => (e.target.style.borderColor = 'var(--color-border)')}
-      />
+      >
+        <input
+          type="text"
+          value={draft}
+          onChange={e => { setDraft(e.target.value); setOpen(true); onChange(e.target.value) }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          style={{
+            flex: 1, padding: '10px 14px',
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--color-text)',
+            fontFamily: draft && FONT_LIST.includes(draft) ? `"${draft}", sans-serif` : 'var(--font-sans)',
+            fontSize: 14,
+            outline: 'none', boxSizing: 'border-box',
+            minWidth: 0,
+          }}
+        />
+        <ChevronDownIcon
+          style={{
+            width: 16, height: 16, marginRight: 10, flexShrink: 0,
+            color: 'var(--color-text-muted)',
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s',
+          }}
+        />
+      </div>
       {open && filtered.length > 0 && (
         <div style={{
           position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
@@ -1436,6 +1473,60 @@ function VoicePreview({ style }) {
 // Section: Imagery
 // ────────────────────────────────────────────────────────────────────
 
+// Per-option Pexels search queries — chosen to land on a
+// representative image for each style. Image URLs come back from
+// our /api/pexels proxy.
+const PHOTO_QUERIES = {
+  lifestyle: 'lifestyle people morning coffee',
+  studio:    'studio product still life',
+  editorial: 'editorial fashion magazine',
+  candid:    'candid moment portrait',
+  minimal:   'minimal still life white',
+}
+const ILLUSTRATION_QUERIES = {
+  line:       'line art illustration minimal',
+  flat:       'flat geometric illustration',
+  '3d':       '3d isometric illustration',
+  hand_drawn: 'hand drawn sketch illustration',
+  mixed:      'mixed media collage illustration',
+}
+// Shared image for the Treatment tiles — same base shot under
+// different CSS filters so the user sees the actual treatment effect.
+const TREATMENT_BASE_QUERY = 'portrait warm soft light'
+
+// Module-level cache so navigating off the section and back doesn't
+// re-fetch the same image. Keyed by query string → image URL.
+const imageCache = new Map()
+const inflight = new Map()
+
+function useTileImage(query) {
+  const [url, setUrl] = useState(() => imageCache.get(query) || null)
+  useEffect(() => {
+    if (!query) return
+    const cached = imageCache.get(query)
+    if (cached) { setUrl(cached); return }
+    // Dedupe concurrent fetches for the same query — when the panel
+    // opens for the first time, every visible tile would otherwise
+    // fire its own request even though they want the same answer.
+    let cancelled = false
+    const promise = inflight.get(query) || (() => {
+      const p = searchPexelsImage(query, { perPage: 1, orientation: 'landscape' })
+        .then(r => {
+          const u = r?.small || r?.thumbnail || r?.medium || r?.url || null
+          if (u) imageCache.set(query, u)
+          inflight.delete(query)
+          return u
+        })
+        .catch(() => { inflight.delete(query); return null })
+      inflight.set(query, p)
+      return p
+    })()
+    promise.then(u => { if (!cancelled && u) setUrl(u) })
+    return () => { cancelled = true }
+  }, [query])
+  return url
+}
+
 const PHOTO_STYLES = [
   { value: 'lifestyle', label: 'Lifestyle' },
   { value: 'studio',    label: 'Studio' },
@@ -1553,80 +1644,75 @@ function TileGrid({ options, value, onChange, renderArt }) {
   )
 }
 
-// ── Photography style art — abstract scenes evoking each style.
-function PhotoArt({ kind, accent }) {
-  if (kind === 'none') {
-    return (
-      <div style={{
-        width: '100%', height: '100%',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--color-text-muted)', fontSize: 10,
-        fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
-      }}>
-        NO PHOTO
-      </div>
-    )
-  }
-  const presets = {
-    lifestyle: {
-      bg: `radial-gradient(circle at 30% 40%, ${accent}55, transparent 60%),
-           linear-gradient(135deg, #c9b89e, #8b6e54 70%, #4b3a2c)`,
-      shapes: [{ left: '15%', top: '55%', w: 26, h: 26, rad: '50%', color: '#fffbf3' }],
-    },
-    studio: {
-      bg: `radial-gradient(ellipse at center, #efeae3 0%, #c7c0b3 70%, #8d8579 100%)`,
-      shapes: [{ left: '40%', top: '30%', w: 22, h: 38, rad: 4, color: '#1a1814' }],
-    },
-    editorial: {
-      bg: `linear-gradient(180deg, #f8f3eb 50%, #1a1612 50%)`,
-      shapes: [
-        { left: '20%', top: '20%', w: 18, h: 26, rad: 2, color: '#1a1612' },
-        { left: '55%', top: '60%', w: 28, h: 16, rad: 2, color: '#fffbf3' },
-      ],
-    },
-    candid: {
-      bg: `linear-gradient(45deg, #5a4d3f 0%, #b09679 60%, #f4e8d8 100%)`,
-      shapes: [
-        { left: '20%', top: '40%', w: 14, h: 14, rad: '50%', color: '#1a1612' },
-        { left: '50%', top: '35%', w: 18, h: 18, rad: '50%', color: '#3a2d22' },
-      ],
-    },
-    minimal: {
-      bg: '#f4f0e8',
-      shapes: [{ left: '38%', top: '25%', w: 24, h: 50, rad: 1, color: '#1a1612' }],
-    },
-  }
-  const cfg = presets[kind] || presets.minimal
+// ── Photography style — real Pexels image per style. Loading state
+// keeps the tile sized stable so layout never jumps when the image
+// arrives.
+function PhotoArt({ kind }) {
+  const url = useTileImage(kind === 'none' ? null : PHOTO_QUERIES[kind])
+  if (kind === 'none') return <PlaceholderTile label="NO PHOTO" />
+  if (!url) return <LoadingTile />
   return (
-    <div style={{ position: 'absolute', inset: 0, background: cfg.bg }}>
-      {(cfg.shapes || []).map((s, i) => (
-        <div key={i} style={{
-          position: 'absolute',
-          left: s.left, top: s.top,
-          width: s.w + '%', height: s.h + '%',
-          borderRadius: s.rad,
-          background: s.color,
-          opacity: 0.92,
-        }} />
-      ))}
+    <img
+      src={url}
+      alt=""
+      loading="lazy"
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+    />
+  )
+}
+
+// ── Treatment — same base portrait under each CSS filter. The user
+// sees the actual look of the treatment on a real face.
+function TreatmentArt({ kind, accent }) {
+  const url = useTileImage(TREATMENT_BASE_QUERY)
+  const filterMap = {
+    full_color:    'none',
+    black_white:   'grayscale(1) contrast(1.05)',
+    duotone:       `grayscale(1) sepia(1) hue-rotate(${hexToHue(accent) - 30}deg) saturate(2.2) contrast(1.05)`,
+    desaturated:   'saturate(0.35) brightness(0.95)',
+    high_contrast: 'contrast(1.5) saturate(1.4)',
+  }
+  if (!url) return <LoadingTile />
+  return (
+    <img
+      src={url}
+      alt=""
+      loading="lazy"
+      style={{
+        width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+        filter: filterMap[kind] || 'none',
+      }}
+    />
+  )
+}
+
+function PlaceholderTile({ label }) {
+  return (
+    <div style={{
+      width: '100%', height: '100%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: 'var(--color-text-muted)', fontSize: 10,
+      fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+    }}>
+      {label}
     </div>
   )
 }
 
-// ── Treatment art — same base hue, different post-processing.
-function TreatmentArt({ kind, accent }) {
-  const baseBg = `linear-gradient(135deg, #c97b50 0%, #d4a574 40%, #6e5237 100%)`
-  const filterMap = {
-    full_color:    'none',
-    black_white:   'grayscale(1) contrast(1.05)',
-    duotone:       `grayscale(1) sepia(1) hue-rotate(${hexToHue(accent) - 30}deg) saturate(2) contrast(1.05)`,
-    desaturated:   'saturate(0.4) brightness(0.95)',
-    high_contrast: 'contrast(1.6) saturate(1.4)',
-  }
+function LoadingTile() {
   return (
-    <div style={{ position: 'absolute', inset: 0, background: baseBg, filter: filterMap[kind] || 'none' }}>
-      <div style={{ position: 'absolute', left: '25%', top: '40%', width: '28%', height: '28%', borderRadius: '50%', background: '#fff5e0', opacity: 0.7 }} />
-      <div style={{ position: 'absolute', left: '60%', top: '20%', width: '22%', height: '52%', borderRadius: 4, background: '#1f1a14' }} />
+    <div style={{
+      width: '100%', height: '100%',
+      background: 'linear-gradient(90deg, var(--color-surface) 0%, var(--color-card) 50%, var(--color-surface) 100%)',
+      backgroundSize: '200% 100%',
+      animation: 'tilePulse 1.2s ease-in-out infinite',
+    }}>
+      <style>{`
+        @keyframes tilePulse {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
     </div>
   )
 }
@@ -1647,58 +1733,21 @@ function hexToHue(hex) {
   return (hue + 360) % 360
 }
 
-// ── Illustration art — minimal SVG glyphs evoking each style.
-function IllustrationArt({ kind, accent }) {
-  if (kind === 'none') {
-    return (
-      <div style={{
-        width: '100%', height: '100%',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--color-text-muted)', fontSize: 10,
-        fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
-      }}>
-        NONE
-      </div>
-    )
-  }
-  const stroke = accent
-  const fill = accent + '33'
+// ── Illustration — real Pexels result per style. Pexels indexes a
+// lot of illustration work, so a search query lands on a
+// representative example of each style. Falls back to the placeholder
+// if Pexels returns nothing for an obscure category.
+function IllustrationArt({ kind }) {
+  const url = useTileImage(kind === 'none' ? null : ILLUSTRATION_QUERIES[kind])
+  if (kind === 'none') return <PlaceholderTile label="NONE" />
+  if (!url) return <LoadingTile />
   return (
-    <svg viewBox="0 0 60 45" style={{ width: '100%', height: '100%', display: 'block' }}>
-      {kind === 'line' && (
-        <g fill="none" stroke={stroke} strokeWidth="1.4" strokeLinecap="round">
-          <circle cx="20" cy="22" r="9" />
-          <path d="M14 36 L28 36 M32 22 L48 22 M32 28 L46 28" />
-        </g>
-      )}
-      {kind === 'flat' && (
-        <g>
-          <rect x="6" y="10" width="20" height="20" rx="2" fill={accent} />
-          <circle cx="40" cy="18" r="9" fill={accent + '88'} />
-          <polygon points="32,38 46,38 39,28" fill={accent + 'cc'} />
-        </g>
-      )}
-      {kind === '3d' && (
-        <g>
-          <polygon points="12,25 30,17 30,33 12,41" fill={accent + 'aa'} />
-          <polygon points="30,17 48,25 48,41 30,33" fill={accent + '66'} />
-          <polygon points="12,25 30,17 48,25 30,33" fill={accent} />
-        </g>
-      )}
-      {kind === 'hand_drawn' && (
-        <g fill="none" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8 30 Q14 14 22 22 T36 26 T50 18" />
-          <path d="M10 36 Q24 32 38 38 T54 34" opacity="0.5" />
-        </g>
-      )}
-      {kind === 'mixed' && (
-        <g>
-          <rect x="6" y="8" width="22" height="14" rx="2" fill={fill} stroke={stroke} strokeWidth="1.2" />
-          <circle cx="42" cy="16" r="8" fill={accent} />
-          <path d="M10 30 Q24 22 38 32 T54 28" fill="none" stroke={stroke} strokeWidth="1.4" />
-        </g>
-      )}
-    </svg>
+    <img
+      src={url}
+      alt=""
+      loading="lazy"
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+    />
   )
 }
 
@@ -1955,18 +2004,29 @@ function FieldLabel({ children }) {
 }
 
 // Hex + colour picker fused into one control. Picker swatch on top,
-// editable hex input below — typing a valid 6-char hex updates the
-// picker, picking a colour updates the text. Validates lightly so
-// the swatch never goes blank.
+// editable hex input below — typing/pasting a valid 6-char hex
+// updates the swatch, dragging the picker updates the text in real
+// time (onInput, not just the older onChange, so the value tracks
+// the drag rather than waiting for the dialog to close).
 function HexPicker({ value, onChange }) {
   const [draft, setDraft] = useState(value || '#000000')
   useEffect(() => { setDraft(value || '#000000') }, [value])
 
-  function commit(raw) {
+  function commitText(raw) {
     let v = (raw || '').trim()
     if (!v.startsWith('#')) v = '#' + v
     setDraft(v)
     if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v.toUpperCase())
+  }
+
+  // onInput fires on every drag pixel; onChange only fires once the
+  // picker dialog closes (Chrome) or on commit (Safari). Wiring both
+  // gives us a live hex that tracks the drag AND a reliable commit
+  // when the user closes the picker.
+  function pickerLive(e) {
+    const v = (e.target.value || '').toUpperCase()
+    setDraft(v)
+    onChange(v)
   }
 
   return (
@@ -1974,7 +2034,8 @@ function HexPicker({ value, onChange }) {
       <input
         type="color"
         value={/^#[0-9a-fA-F]{6}$/.test(draft) ? draft : '#000000'}
-        onChange={e => { setDraft(e.target.value.toUpperCase()); onChange(e.target.value.toUpperCase()) }}
+        onInput={pickerLive}
+        onChange={pickerLive}
         style={{
           width: 52, height: 52, borderRadius: 12,
           border: '2px solid var(--color-border)',
@@ -1984,10 +2045,10 @@ function HexPicker({ value, onChange }) {
       <input
         type="text"
         value={draft}
-        onChange={e => commit(e.target.value)}
+        onChange={e => commitText(e.target.value)}
         onBlur={() => {
-          // Restore the canonical value if the user left garbage in the
-          // input — otherwise it'd look misleading.
+          // Restore the canonical value if the user left garbage in
+          // the input — otherwise it'd look misleading.
           if (!/^#[0-9a-fA-F]{6}$/.test(draft)) setDraft(value || '#000000')
         }}
         spellCheck={false}
@@ -2118,7 +2179,11 @@ const overlayStyle = {
 }
 
 const modalStyle = {
-  width: '100%', maxWidth: 960, maxHeight: 'min(92vh, 780px)',
+  width: '100%', maxWidth: 960,
+  // Fixed height so the modal doesn't jump as users hop between
+  // short sections (Animation, Voice) and tall ones (Colors,
+  // Typography). Caps at 92vh on small viewports so it always fits.
+  height: 'min(92vh, 760px)',
   background: 'var(--color-bg)',
   border: '1px solid var(--color-border)',
   borderRadius: 20,
@@ -2167,18 +2232,6 @@ const iconBtn = {
   color: 'var(--color-text-muted)',
   cursor: 'pointer',
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-}
-
-const skipBtn = {
-  padding: '9px 14px',
-  background: 'transparent',
-  border: 'none',
-  color: 'var(--color-text-muted)',
-  fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
-  cursor: 'pointer',
-  textDecoration: 'underline',
-  textDecorationStyle: 'dashed',
-  textUnderlineOffset: 4,
 }
 
 const cancelBtn = {
