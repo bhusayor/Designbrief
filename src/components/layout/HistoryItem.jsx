@@ -1,4 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import {
+  MapPinIcon,
+  PencilSquareIcon,
+  LinkIcon,
+  TrashIcon,
+  EllipsisHorizontalIcon,
+} from '@heroicons/react/24/outline';
 
 // Lightweight pill that shows where a sidebar project came from:
 // • intake source → green "Client"
@@ -52,10 +59,10 @@ function formatDate(ts) {
 }
 
 const MENU_ITEMS = [
-  { key: 'pin',    label: '📌 Pin to top',       pinnedLabel: '📌 Unpin' },
-  { key: 'rename', label: '✏️ Rename' },
-  { key: 'share',  label: '🔗 Copy share link' },
-  { key: 'delete', label: '🗑 Delete', danger: true },
+  { key: 'pin',    Icon: MapPinIcon,        label: 'Pin to top',     pinnedLabel: 'Unpin' },
+  { key: 'rename', Icon: PencilSquareIcon,  label: 'Rename' },
+  { key: 'share',  Icon: LinkIcon,          label: 'Copy share link' },
+  { key: 'delete', Icon: TrashIcon,         label: 'Delete', danger: true },
 ];
 
 export default function HistoryItem({
@@ -132,7 +139,7 @@ export default function HistoryItem({
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
       >
         {item.pinned && (
-          <span style={{ fontSize: '8px', color: 'var(--color-accent)', flexShrink: 0 }}>📌</span>
+          <MapPinIcon style={{ width: 11, height: 11, color: 'var(--color-accent)', flexShrink: 0 }} />
         )}
 
         <span style={{ fontSize: '11px', color: active ? 'var(--color-accent)' : 'var(--color-text-muted)', flexShrink: 0 }}>
@@ -191,21 +198,24 @@ export default function HistoryItem({
         {!renaming && hovered && (
           <button
             onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
+            aria-label="More actions"
             style={{
               background: 'none',
               border: 'none',
               color: 'var(--color-text-muted)',
               cursor: 'pointer',
               padding: '2px 4px',
-              fontSize: '14px',
-              lineHeight: 1,
+              lineHeight: 0,
               flexShrink: 0,
               borderRadius: '4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
             onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text)')}
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
           >
-            ⋯
+            <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
           </button>
         )}
       </div>
@@ -227,36 +237,43 @@ export default function HistoryItem({
             zIndex: 500,
           }}
         >
-          {MENU_ITEMS.map(mi => (
-            <button
-              key={mi.key}
-              onClick={() => handleMenu(mi.key)}
-              style={{
-                display: 'block',
-                width: '100%',
-                background: 'none',
-                border: 'none',
-                textAlign: 'left',
-                padding: '7px 10px',
-                fontSize: '12px',
-                fontFamily: "'Urbanist', sans-serif",
-                color: mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)',
-                cursor: 'pointer',
-                borderRadius: '6px',
-                transition: 'background 0.12s, color 0.12s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = mi.danger ? 'rgba(255,77,106,0.12)' : 'var(--color-surface)';
-                if (!mi.danger) e.currentTarget.style.color = 'var(--color-text)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'none';
-                e.currentTarget.style.color = mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)';
-              }}
-            >
-              {mi.key === 'pin' && item.pinned ? mi.pinnedLabel : mi.label}
-            </button>
-          ))}
+          {MENU_ITEMS.map(mi => {
+            const Icon = mi.Icon
+            const label = mi.key === 'pin' && item.pinned ? mi.pinnedLabel : mi.label
+            return (
+              <button
+                key={mi.key}
+                onClick={() => handleMenu(mi.key)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  background: 'none',
+                  border: 'none',
+                  textAlign: 'left',
+                  padding: '7px 10px',
+                  fontSize: '12px',
+                  fontFamily: "'Urbanist', sans-serif",
+                  color: mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)',
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  transition: 'background 0.12s, color 0.12s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = mi.danger ? 'rgba(255,77,106,0.12)' : 'var(--color-surface)';
+                  if (!mi.danger) e.currentTarget.style.color = 'var(--color-text)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'none';
+                  e.currentTarget.style.color = mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)';
+                }}
+              >
+                <Icon style={{ width: 14, height: 14, flexShrink: 0 }} />
+                {label}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
