@@ -78,7 +78,12 @@ export default function BriefTranslator() {
       r.colorDirection ?? '',
       '',
       '─── TYPOGRAPHY ───',
-      r.typography ?? '',
+      typeof r.typography === 'string'
+        ? r.typography
+        : (r.typography
+            ? [r.typography.displayFont, r.typography.bodyFont].filter(Boolean).join(' + ') +
+              (r.typography.rationale ? ' — ' + r.typography.rationale : '')
+            : ''),
       '',
       '─── MOODBOARD KEYWORDS ───',
       (r.moodboardKeywords ?? []).join(', '),
@@ -327,19 +332,47 @@ export default function BriefTranslator() {
             )}
           </Card>
 
-          <Card title="Typography Direction">
-            <p
-              style={{
-                fontFamily: "'Urbanist', sans-serif",
-                fontSize: '12px',
-                color: 'var(--color-text-soft)',
-                lineHeight: 1.7,
-                margin: 0,
-              }}
-            >
-              {r.typography}
-            </p>
-          </Card>
+          {/* Typography — newer briefs save typography as an object
+              {displayFont, bodyFont, displayUse, bodyUse, rationale,
+              platform}; older saved briefs may have it as a string.
+              Render the object structurally; fall back to the string
+              for legacy data. Rendering the raw object as a React
+              child throws and black-screens the page. */}
+          {r.typography && (
+            <Card title="Typography Direction">
+              {typeof r.typography === 'string' ? (
+                <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-soft)', lineHeight: 1.7, margin: 0 }}>
+                  {r.typography}
+                </p>
+              ) : (
+                <>
+                  {(r.typography.displayFont || r.typography.bodyFont) && (
+                    <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 10 }}>
+                      {r.typography.displayFont && (
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>Display</div>
+                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 700, color: 'var(--color-text)' }}>{r.typography.displayFont}</div>
+                          {r.typography.displayUse && <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>{r.typography.displayUse}</div>}
+                        </div>
+                      )}
+                      {r.typography.bodyFont && (
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>Body</div>
+                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 700, color: 'var(--color-text)' }}>{r.typography.bodyFont}</div>
+                          {r.typography.bodyUse && <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>{r.typography.bodyUse}</div>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {r.typography.rationale && (
+                    <p style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '12px', color: 'var(--color-text-soft)', lineHeight: 1.7, margin: 0 }}>
+                      {r.typography.rationale}
+                    </p>
+                  )}
+                </>
+              )}
+            </Card>
+          )}
 
           {r.brandAxes?.length > 0 && (
             <Card title="Brand Personality">
