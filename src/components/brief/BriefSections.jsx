@@ -250,12 +250,39 @@ export function ChaosBanner({ r, s }) {
 
 // ─── BudgetCard ───────────────────────────────────────────────────────────────
 
+// Normalises every shape of breakdown we've ever produced into a
+// flat list of { label, cost, costNum }:
+//   - new schema: [{ item, low, high, notes }]
+//   - older schema: { role: cost }  (Object.entries gives [role, cost])
+//   - fallback: a string  ("$5000 design, $3000 dev") — skip
+function normaliseBudgetBreakdown(breakdown) {
+  if (!breakdown) return []
+  if (Array.isArray(breakdown)) {
+    return breakdown
+      .map(row => {
+        if (!row || typeof row !== 'object') return null
+        const label = row.item || row.role || row.name || row.label || ''
+        const low = row.low
+        const high = row.high
+        const cost = (low != null && high != null) ? `${low} – ${high}` : (low ?? high ?? row.cost ?? row.amount ?? '')
+        const costNum = parseFloat(String(high ?? low ?? cost).replace(/[^0-9.]/g, ''))
+        return label ? { label, cost: String(cost), costNum: isNaN(costNum) ? 0 : costNum } : null
+      })
+      .filter(Boolean)
+  }
+  if (typeof breakdown === 'object') {
+    return Object.entries(breakdown).map(([label, cost]) => {
+      const costNum = parseFloat(String(cost).replace(/[^0-9.]/g, ''))
+      return { label, cost: String(cost), costNum: isNaN(costNum) ? 0 : costNum }
+    })
+  }
+  return []
+}
+
 export function BudgetCard({ budgetRange: br }) {
-  const breakdown = br.breakdown ? Object.entries(br.breakdown) : [];
-  const totalNum = breakdown.reduce((sum, [, v]) => {
-    const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));
-    return sum + (isNaN(n) ? 0 : n);
-  }, 0);
+  if (!br) return null
+  const breakdown = normaliseBudgetBreakdown(br.breakdown);
+  const totalNum = breakdown.reduce((sum, row) => sum + (row.costNum || 0), 0);
 
   return (
     <Card title="Budget Estimate" style={{ marginBottom: '14px' }}>
@@ -267,17 +294,16 @@ export function BudgetCard({ budgetRange: br }) {
           fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-accent)',
           background: 'var(--color-accent-bg)', border: '1px solid var(--color-accent-border)',
           borderRadius: '4px', padding: '2px 7px',
-        }}>USD</span>
+        }}>{br.currency || 'USD'}</span>
       </div>
 
       {breakdown.length > 0 && (
         <>
-          <div style={{ ...labelStyle, marginTop: '16px' }}>ROLE BREAKDOWN</div>
+          <div style={{ ...labelStyle, marginTop: '16px' }}>BREAKDOWN</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {breakdown.map(([role, cost], i) => {
-              const roleNum = parseFloat(String(cost).replace(/[^0-9.]/g, ''));
-              const pct = totalNum > 0 && !isNaN(roleNum) ? (roleNum / totalNum) * 100 : 0;
-              const roleColor = ROLE_META[role]?.color ?? 'var(--color-text-muted)';
+            {breakdown.map((row, i) => {
+              const pct = totalNum > 0 ? (row.costNum / totalNum) * 100 : 0;
+              const roleColor = ROLE_META[row.label]?.color ?? 'var(--color-accent)';
               return (
                 <div key={i} style={{
                   background: 'var(--color-surface)', border: '1px solid var(--color-border)',
@@ -285,10 +311,10 @@ export function BudgetCard({ budgetRange: br }) {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '13px', color: 'var(--color-text)' }}>
-                      {role}
+                      {row.label}
                     </span>
                     <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '14px', color: 'var(--color-accent)' }}>
-                      {cost}
+                      {row.cost}
                     </span>
                   </div>
                   <div style={{ height: '3px', background: 'var(--color-border)', borderRadius: '2px', overflow: 'hidden' }}>
