@@ -70,9 +70,29 @@ function projectOrigin(item) {
 function ProjectCard({ item, onClick }) {
   const project  = normalise(item);
   const verdict  = project.scoring?.verdict;
-  const toneWords = project.result?.toneWords?.slice(0, 3) ?? [];
   const members  = project.teamMembers?.slice(0, 4) ?? [];
   const origin   = projectOrigin(item);
+
+  // One meaningful tag instead of three generic tone-words. The
+  // discipline + platform tells you what kind of work this brief is
+  // (e.g. "Digital Product · Web", "Brand · Print", "Photography"),
+  // and that's a more useful filter than e.g. ["modern","clean","bold"]
+  // which show up on most briefs. Falls back to source label so the
+  // tag is never empty.
+  const discipline = project.result?.discipline;
+  let discLabel = '';
+  if (discipline?.type) {
+    discLabel = String(discipline.type).replace(/-/g, ' ');
+    if (discipline.platform && discipline.platform !== 'both') {
+      discLabel += ' · ' + discipline.platform;
+    }
+  } else if (item.section === 'team') {
+    discLabel = 'Kanban project';
+  } else if (item.section === 'intake') {
+    discLabel = 'Client intake';
+  } else {
+    discLabel = 'Brief';
+  }
 
   // Proximity handles scale/lift now — only the border-color hover
   // is wired here so we don't fight the dock effect.
@@ -96,6 +116,10 @@ function ProjectCard({ item, onClick }) {
         padding: '18px 20px',
         cursor: 'pointer',
         transition: 'border-color 0.2s',
+        // height: 100% so every card in a row stretches to the row's
+        // tallest sibling — equal-height grid cards.
+        height: '100%',
+        boxSizing: 'border-box',
         display: 'flex', flexDirection: 'column', gap: '10px',
       }}
     >
@@ -128,26 +152,27 @@ function ProjectCard({ item, onClick }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-        {toneWords.length > 0
-          ? toneWords.map(w => (
-              <span key={w} style={{
-                background: 'var(--color-surface)', borderRadius: '5px', padding: '2px 9px',
-                fontSize: '11px', fontFamily: "'Urbanist', sans-serif", color: 'var(--color-text-soft)',
-              }}>
-                {w}
-              </span>
-            ))
-          : (
-            <span style={{
-              background: 'var(--color-surface)', borderRadius: '5px', padding: '2px 9px',
-              fontSize: '11px', fontFamily: "'Urbanist', sans-serif", color: 'var(--color-text-muted)',
-            }}>
-              {item.section ?? 'brief'}
-            </span>
-          )
-        }
+      {/* Single discipline tag — what kind of work this brief is. */}
+      <div>
+        <span style={{
+          display: 'inline-block',
+          background: 'var(--color-surface)',
+          borderRadius: '5px', padding: '3px 10px',
+          fontSize: '11px', fontFamily: "'Urbanist', sans-serif",
+          color: 'var(--color-text-soft)',
+          textTransform: 'capitalize',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '100%',
+        }}>
+          {discLabel}
+        </span>
       </div>
+
+      {/* Spacer pushes the footer (members + date) to the card bottom
+          so cards line up neatly when content above them differs. */}
+      <div style={{ flex: 1 }} />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
         <div style={{ display: 'flex', gap: '4px' }}>
@@ -729,24 +754,29 @@ export default function ProjectLibrary() {
               const hidden = isFree ? filtered.slice(HISTORY_CAP) : []
               const gridStyle = {
                 display: 'grid',
-                // minmax(0, 1fr) instead of 1fr — plain 1fr is
+                // Mobile = 1 col, tablet = 3 cols, desktop = 4 cols.
+                // minmax(0, 1fr) instead of plain 1fr — plain is
                 // minmax(auto, 1fr), and the auto minimum lets a
-                // column stretch wider than its share when the
-                // content is long (e.g., a long project title).
-                // minmax(0, 1fr) holds every column to its equal
-                // share and forces the title's ellipsis to kick in.
+                // column stretch wider than its share when content
+                // is long (e.g. a long project title). minmax(0, 1fr)
+                // holds every column to its equal share and lets the
+                // title span's ellipsis actually kick in.
                 gridTemplateColumns: isMobile
                   ? '1fr'
                   : isTablet
-                    ? 'repeat(2, minmax(0, 1fr))'
+                    ? 'repeat(3, minmax(0, 1fr))'
                     : 'repeat(4, minmax(0, 1fr))',
                 gap: '16px',
+                // alignItems: stretch is the grid default; combined
+                // with height:100% on each card it produces equal-
+                // height rows.
+                alignItems: 'stretch',
               }
               return (
                 <>
                   <StaggerGrid speed="normal" style={gridStyle}>
                     {visible.map(item => (
-                      <StaggerItem key={item.id} variant="itemUp">
+                      <StaggerItem key={item.id} variant="itemUp" style={{ height: '100%' }}>
                         <ProjectCard
                           item={item}
                           onClick={() => openProject(item)}
