@@ -270,6 +270,9 @@ export default function Dashboard() {
     user, navigate, saveHistory, showToast, setCreditsUsed,
     selectedWebsiteTemplate, setSelectedWebsiteTemplate,
     setActiveProjectBriefResult,
+    activeProjectBriefResult,
+    activeProjectScoring,
+    setActiveProjectScoring,
     connectorData,
     workspace,
     consumeCredits,
@@ -306,6 +309,22 @@ export default function Dashboard() {
     const quick = sessionStorage.getItem('db-quick-brief')
     if (quick) { setInput(quick); sessionStorage.removeItem('db-quick-brief') }
   }, [])
+
+  // When something else (Sidebar history click, Project Library card
+  // click) loads a brief into context, lift it into Dashboard's
+  // local state and switch straight into result phase — the same
+  // ResultView that renders a fresh translation. Cleared once
+  // consumed so navigating away and back doesn't re-trap into
+  // result view.
+  useEffect(() => {
+    if (!activeProjectBriefResult) return
+    setResult(activeProjectBriefResult)
+    setScoring(activeProjectScoring || null)
+    setPhase('result')
+    setActiveProjectBriefResult?.(null)
+    setActiveProjectScoring?.(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectBriefResult])
 
   // Close plus menu on outside click
   useEffect(() => {

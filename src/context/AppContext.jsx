@@ -176,6 +176,11 @@ export function AppProvider({ children }) {
   const [selectedBriefTemplate, setSelectedBriefTemplate] = useState('agency-deck');
   const [selectedWebsiteTemplate, setSelectedWebsiteTemplate] = useState('saas-landing');
   const [activeProjectBriefResult, setActiveProjectBriefResult] = useState(null);
+  // Paired scoring for the brief loaded into Dashboard from
+  // Sidebar history / Project Library — Dashboard's ResultView
+  // expects a scoring object alongside the result, so this carries
+  // it through the navigation hop.
+  const [activeProjectScoring, setActiveProjectScoring] = useState(null);
 
   // ── Connector data ────────────────────────────────────────────────────────
   const [connectorData, setConnectorData] = useState({ figma: null, github: null, linear: null });
@@ -1262,12 +1267,20 @@ export function AppProvider({ children }) {
       title:   project.title   ?? project.data?.projectName ?? 'Untitled',
     };
     setActiveProjectState(normalized);
-    // Manually-created TeamCollab projects (section='team') and projects
-    // without a translated brief land on the unified ProjectOverview page.
-    // Translated briefs continue to open ProjectDocument as before.
-    const hasBrief = !!(normalized.data?.brief || normalized.brief_text);
-    const isManual = normalized.section === 'team' || !hasBrief;
-    setActiveSectionState(isManual ? 'project-overview' : 'document');
+    // Routing rules:
+    //  - team kanban projects (section='team') land on ProjectOverview
+    //  - projects with no translated brief land on ProjectOverview too
+    //  - translated briefs are loaded into the Dashboard's ResultView
+    //    (same view that renders after a fresh translation)
+    const hasResult = !!normalized.result;
+    const isManual = normalized.section === 'team' || !hasResult;
+    if (isManual) {
+      setActiveSectionState('project-overview');
+    } else {
+      setActiveProjectBriefResult(normalized.result);
+      setActiveProjectScoring(normalized.scoring || null);
+      setActiveSectionState('dashboard');
+    }
   }, []);
 
   // ── Projects ──────────────────────────────────────────────────────────────
@@ -1701,6 +1714,8 @@ export function AppProvider({ children }) {
     setSelectedWebsiteTemplate,
     activeProjectBriefResult,
     setActiveProjectBriefResult,
+    activeProjectScoring,
+    setActiveProjectScoring,
 
     // Connector data
     connectorData,

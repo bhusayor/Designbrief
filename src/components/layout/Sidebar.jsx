@@ -160,6 +160,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     theme, showToast,
     user, signOut, authUser,
     setActiveProject, openProject,
+    setActiveProjectBriefResult, setActiveProjectScoring,
     intakeForms,
     workspace, workspaces, createWorkspace, switchWorkspace, leaveWorkspace,
     userPlan, userCredits,
@@ -587,10 +588,21 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
                   active={activeChat === item.id}
                   onClick={h => {
                     setActiveChat(h.id)
-                    // Team Collab projects open in the Project Overview page;
-                    // translator / intake briefs navigate to their authoring view.
-                    if (h.section === 'team') openProject?.(h)
-                    else navigate(h.section)
+                    // Routing rules:
+                    //  - team kanban projects open the Project Overview page
+                    //  - translator briefs are restored into the Dashboard
+                    //    ResultView (the same view that renders after a
+                    //    fresh translation), via context
+                    //  - anything else navigates to its raw section
+                    if (h.section === 'team') {
+                      openProject?.(h)
+                    } else if (h.section === 'translator' && h.data?.result) {
+                      setActiveProjectBriefResult?.(h.data.result)
+                      setActiveProjectScoring?.(h.data.scoring || null)
+                      navigate('dashboard')
+                    } else {
+                      navigate(h.section)
+                    }
                     setShowSettings(false)
                     if (isMobile) setMobileSidebarOpen(false)
                   }}

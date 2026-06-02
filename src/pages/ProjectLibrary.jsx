@@ -729,11 +729,17 @@ export default function ProjectLibrary() {
               const hidden = isFree ? filtered.slice(HISTORY_CAP) : []
               const gridStyle = {
                 display: 'grid',
+                // minmax(0, 1fr) instead of 1fr — plain 1fr is
+                // minmax(auto, 1fr), and the auto minimum lets a
+                // column stretch wider than its share when the
+                // content is long (e.g., a long project title).
+                // minmax(0, 1fr) holds every column to its equal
+                // share and forces the title's ellipsis to kick in.
                 gridTemplateColumns: isMobile
                   ? '1fr'
                   : isTablet
-                    ? 'repeat(2, 1fr)'
-                    : 'repeat(4, 1fr)',
+                    ? 'repeat(2, minmax(0, 1fr))'
+                    : 'repeat(4, minmax(0, 1fr))',
                 gap: '16px',
               }
               return (
