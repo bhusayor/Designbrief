@@ -1045,13 +1045,18 @@ export default function TeamCollab() {
   }, [activeProject?.id])
 
   // Look up an in-progress AI Builder build for this project so the
-  // "Start AI Build" button can flip to "Continue Build" automatically.
+  // "Build with AI" button can flip to "Continue Build" automatically.
+  // Same pid resolution as handleAiBuildModeConfirm — prefer the local
+  // activeProjectId because context activeProject can be null when the
+  // user lands on TeamCollab from Project Library or via tab switch.
   useEffect(() => {
     let cancelled = false
-    const pid = activeProject?.id
+    const pid = (activeProjectId && activeProjectId !== 'default')
+      ? activeProjectId
+      : activeProject?.id
     if (!pid || pid === 'default' || !authUser?.id) { setActiveAiBuild(null); return }
     ;(async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('ai_builds')
         .select('*')
         .eq('project_id', pid)
@@ -1059,11 +1064,18 @@ export default function TeamCollab() {
         .in('status', ['running', 'paused'])
         .order('created_at', { ascending: false })
         .limit(1)
+      // Missing-table errors here are silent — the button just shows
+      // "Build with AI" instead of "Continue Build" — the user only
+      // sees the actionable migration message when they actually try
+      // to start a build.
+      if (error?.code === '42P01') {
+        console.warn('[ai-build] ai_builds table missing — run supabase/ai-builder.sql in Supabase.')
+      }
       if (cancelled) return
       setActiveAiBuild(Array.isArray(data) && data[0] ? data[0] : null)
     })()
     return () => { cancelled = true }
-  }, [activeProject?.id, authUser?.id])
+  }, [activeProjectId, activeProject?.id, authUser?.id])
 
   useEffect(() => {
     if (addingToCol) addInputRef.current?.focus()
@@ -1883,9 +1895,20 @@ Return JSON:
   // ── Phase 2 AI Builder: confirm mode → create build → open overlay ──
   async function handleAiBuildModeConfirm(mode) {
     if (aiBuildLoading) return
-    const pid = activeProject?.id
-    if (!pid) {
-      showToast?.('Open a project first.', 'error')
+
+    // Source of truth for "which project is the kanban showing" is the
+    // local activeProjectId, NOT context.activeProject — TeamCollab
+    // can have a real project tab open even when context hasn't been
+    // synced (e.g. arriving here straight from Project Library). We
+    // pull activeProjectId first and fall back to context. 'default'
+    // is the placeholder tab id and not a real project, so we reject
+    // it explicitly.
+    const pid = (activeProjectId && activeProjectId !== 'default')
+      ? activeProjectId
+      : activeProject?.id
+
+    if (!pid || pid === 'default') {
+      showToast?.('Open a project first — pick or create one from the project list.', 'error')
       return
     }
     if (!authUser?.id) {
@@ -1925,15 +1948,29 @@ Return JSON:
       setAiBuilderOpen(true)
     } catch (e) {
       console.error('[ai-build start]', e)
-      // Surface the real reason instead of a generic toast — the
-      // most common failure here is a Supabase RLS / table issue
-      // and the user needs the actual error to act on it.
-      const reason =
-        e?.message?.includes('ai_builds')
-          ? 'AI builder tables aren\'t set up — run supabase/ai-builder.sql in your Supabase project.'
-          : e?.message?.includes('permission') || e?.code === '42501'
-            ? 'Permission denied. Check workspace membership for this project.'
-            : (e?.message || 'Could not start build. Try again.')
+      // Surface the real reason. The most common failure here is the
+      // ai_builds / build_sections migration not having been run on
+      // the live Supabase project — log the exact SQL file path AND
+      // the SQL itself so the user (and console viewers) have a path
+      // forward without context-switching.
+      const isMissingTable =
+        e?.code === '42P01' ||
+        /relation "(ai_builds|build_sections)" does not exist/i.test(e?.message || '') ||
+        /ai_builds.*not found/i.test(e?.message || '')
+
+      if (isMissingTable) {
+        console.error(
+          '[ai-build] Database not set up. Run supabase/ai-builder.sql ' +
+          'in your Supabase SQL Editor. See: ' +
+          window.location.origin + ' (repo path: supabase/ai-builder.sql)'
+        )
+      }
+
+      const reason = isMissingTable
+        ? 'AI builder isn\'t set up on this Supabase project yet. Run the supabase/ai-builder.sql migration once and try again.'
+        : (e?.message?.includes('permission') || e?.code === '42501')
+          ? 'Permission denied. Check workspace membership for this project.'
+          : (e?.message || 'Could not start build. Try again.')
       showToast?.(reason, 'error')
     } finally {
       setAiBuildLoading(false)
