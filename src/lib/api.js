@@ -241,13 +241,189 @@ ${briefText}`;
   return callJSON(system, user, 800, 'brief_translation');
 }
 
+// ─── Brief translation — parallel-split architecture ─────────────────────────
+//
+// PROBLEM:  Single Sonnet call generating the full 17-field schema +
+//           a 290-line system prompt was hitting Vercel's 60s function
+//           ceiling on slow Anthropic windows. Token tweaking
+//           (8000 → 5500 → 4000 → 3000 → 6000 → 4500) couldn't both
+//           fit the schema AND beat the timeout.
+//
+// FIX:      Two parallel calls — translateBriefCore (visual/strategic)
+//           and translateBriefPlanning (budget/team/voice) — each with
+//           a tight focused system prompt and a 2200-token output cap.
+//           Sonnet emits each in 12-20s; running them in parallel via
+//           Promise.all means total wall time is bounded by the slower
+//           half (~20s), with enormous margin under the 60s cap on
+//           BOTH function invocations.
+//
+//           competitors / inspiration / projectWorkflow / ganttData
+//           were dropped from the schema — competitors is overwritten
+//           by analyseCompetitors() right after this call, inspiration
+//           is fetched by apiFetchInspirations() separately, and the
+//           workflow/gantt blocks only fed unmounted LeanCanvasRenderer
+//           bits. Cutting them saves ~1500 output tokens.
+
+async function translateBriefCore(briefText) {
+  const system = `You are an expert product design strategist. Translate client briefs into actionable design direction.
+
+ACCURACY:
+- Only state facts supported by the brief; never invent.
+- Hex codes: valid 6-digit (#RRGGBB).
+- Fonts: real Google Fonts or system fonts only. Don't use Urbanist.
+- If brief is vague: set isChaos true and still generate every field with best-interpretation reasoning.
+
+DISCIPLINE — detect exactly one type from the brief:
+  digital-product | brand | campaign | photography | video | motion | social-media | illustration | print | game | hybrid
+Detect platform: web | mobile | both | print | video | social | physical
+
+COLOR PALETTE — exactly 4 colors covering Primary, Secondary, Background, Text/Neutral. Industry-matched:
+  Tech/SaaS → blues, purples, neutrals
+  Finance → navy, slate, gold
+  Healthcare → teal, deep blue, clean
+  Luxury/fashion → black, gold, cream, grey
+  Food → earthy warm neutrals (not lime green)
+  Creative → bold high-contrast primaries
+
+TYPOGRAPHY — exactly 2 real Google/system fonts matched to brand:
+  Luxury → Cormorant Garamond + DM Sans
+  Tech/SaaS → Inter + JetBrains Mono / Space Grotesk + Inter
+  Health → DM Serif Display + Lato
+  Finance → Libre Baskerville + Source Sans Pro
+  Creative → Fraunces + Work Sans / Clash Display + Satoshi
+  Food → Playfair Display + Lato
+  Education → Merriweather + Open Sans
+  Startup/modern → Plus Jakarta Sans
+
+Respond ONLY with valid JSON. No markdown, no preamble.`;
+
+  const user = `Translate this design brief's brand + visual direction.
+
+Return JSON with these exact keys:
+{
+  "projectTitle": "<title>",
+  "projectUnderstanding": "<2-3 sentence strategic summary>",
+  "isChaos": <true|false>,
+  "chaosSolutions": ["<solution 1>", "<solution 2>"],
+  "toneWords": ["<w1>", "<w2>", "<w3>", "<w4>", "<w5>"],
+  "colorPalette": [
+    { "hex": "#RRGGBB", "name": "<brand-anchored color name>", "usage": "<Primary|Secondary|Background|Text>" }
+  ],
+  "colorDirection": "<one-sentence palette narrative>",
+  "typography": {
+    "displayFont": "<font name>",
+    "bodyFont": "<font name>",
+    "displayUse": "<where the display font lives>",
+    "bodyUse": "<where the body font lives>",
+    "rationale": "<one sentence why these two fit this brand>",
+    "platform": "<web|mobile|both>"
+  },
+  "brandAxes": [
+    { "label": "<axis name>", "left": "<pole>", "right": "<pole>", "value": <0-100> }
+  ],
+  "moodboardKeywords": ["<k1>", "<k2>", "<k3>"],
+  "redFlags": ["<flag>", "<flag>"],
+  "questionsToAsk": ["<q>", "<q>", "<q>"],
+  "clarityImprovements": ["<improvement>", "<improvement>"],
+  "creativeConceptStatement": "<single sharp sentence unifying all creative decisions, specific to this brief>",
+  "discipline": {
+    "type": "<one of the 11 types above>",
+    "platform": "<one of the platforms above>",
+    "primaryCreative": "<main creative role>",
+    "secondaryCreatives": ["<other creative roles>"]
+  }
+}
+
+Brief:
+${briefText}`;
+
+  return callJSON(system, user, 2200, 'brief_translation');
+}
+
+async function translateBriefPlanning(briefText, projectTitle) {
+  const system = `You are a senior project manager and creative director. Generate realistic budget, timeline, team, voice, and deliverables for design projects.
+
+RULES:
+- Discipline-aware: never suggest developer roles for non-technical briefs (brand, photography, video, etc.).
+- Budget realistic for scope:
+  Simple landing page: $2k-$8k
+  Full SaaS product: $30k-$150k
+  Brand identity: $5k-$50k
+  Photo/video shoot: $3k-$25k
+  Mobile + payments: minimum 12 weeks
+- Currency: NGN for clearly local Nigerian projects, USD otherwise.
+- Timeline: realistic week counts. Build out taskDays for the gantt renderer.
+- copyVoice applies to every brand, not just copy-led projects.
+- Deliverables: 5-8 concrete named items, not "Design work".
+
+Respond ONLY with valid JSON. No markdown, no preamble.`;
+
+  const user = `Generate the PLANNING side of this brief: budget, timeline, team, voice, and deliverables.
+
+Project context: ${projectTitle || 'design project'}
+
+Return JSON with these exact keys:
+{
+  "budgetRange": {
+    "low": <number>,
+    "high": <number>,
+    "currency": "<NGN|USD>",
+    "breakdown": [
+      { "item": "<line item>", "low": <number>, "high": <number>, "notes": "<context>" }
+    ]
+  },
+  "timeframe": {
+    "total": "<X weeks>",
+    "taskDays": { "<task name>": <days> }
+  },
+  "rolesNeeded": ["<role>", "<role>"],
+  "teamRoles": [
+    {
+      "role": "<role name>",
+      "responsibility": "<what they own>",
+      "timeCommitment": "<e.g. Full-time 6 weeks>",
+      "required": <true|false>,
+      "skills": ["<skill>", "<skill>"]
+    }
+  ],
+  "copyVoice": {
+    "personality": "<3 word voice>",
+    "doSay": ["<example sentence in voice>", "<example>", "<example>"],
+    "doNotSay": ["<wrong-tone example>", "<wrong-tone example>"],
+    "writingPrinciples": ["<principle>", "<principle>", "<principle>"]
+  },
+  "deliverables": [
+    {
+      "item": "<concrete deliverable name>",
+      "format": "<file format/specs>",
+      "quantity": "<count>",
+      "discipline": "<role that produces it>",
+      "priority": "<ESSENTIAL|IMPORTANT|OPTIONAL>"
+    }
+  ]
+}
+
+Brief:
+${briefText}`;
+
+  return callJSON(system, user, 2200, 'brief_translation');
+}
+
 /**
- * translateBrief — full strategic translation. Returns the
- * complete 17-field schema. Brief templates were removed at user's
- * request — every translation now produces the same default voice
- * and renders through ResultView.
+ * translateBrief — combined translation (kept as a thin wrapper for
+ * any external caller). Returns the merged result of the two parallel
+ * halves: core (visual/strategic) + planning (budget/team/voice).
  */
 export async function translateBrief(briefText) {
+  const [core, planning] = await Promise.all([
+    translateBriefCore(briefText),
+    translateBriefPlanning(briefText),
+  ])
+  return { ...(core || {}), ...(planning || {}) }
+}
+
+// Legacy monolithic translateBrief kept for reference (DO NOT CALL):
+async function _legacyTranslateBrief(briefText) {
   const system = `You are an expert product design strategist. Your job is to translate a client brief into actionable design direction.
 
 ACCURACY RULES — follow these strictly:
@@ -922,18 +1098,25 @@ Return 6-8 high-quality, real references.`;
  * Returns: { scoreData, finalResult }
  */
 export async function translateAndAnalyse(briefText, opts = {}) {
-  // Score first (fast, 800 tokens — gives early verdict)
-  const scoreData = await scoreBrief(briefText);
-
-  // Default: only run scoreBrief + translateBrief. The heavy deep
-  // analysis (techStack + features + userFlow) was hitting the 60s
-  // Vercel function ceiling when bundled with translateBrief, so it's
-  // now an explicit on-demand call — see runDeepAnalysis below, fired
-  // by the "Generate Deep Analysis" button on the result page.
+  // Three calls in parallel:
+  //   scoreBrief          — 800 tokens, ~5s
+  //   translateBriefCore  — 2200 tokens, ~15s (visual brief)
+  //   translateBriefPlanning — 2200 tokens, ~15s (budget/team/voice)
   //
-  // Callers that genuinely need the deep block inline can pass
-  // `{ deep: true }` to restore the old parallel behaviour.
-  const translation = await translateBrief(briefText);
+  // translateBrief() wraps the two halves with Promise.all internally,
+  // so this outer Promise.all runs all three in true parallel. Total
+  // wall time is bounded by the slowest single call (~15-20s) instead
+  // of the legacy ~35-50s sequential chain. Each call also runs as a
+  // separate Vercel function invocation, so each gets its own 60s
+  // budget instead of sharing one.
+  //
+  // The deep analysis (techStack + features + userFlow) is button-
+  // triggered via runDeepAnalysis below; callers that need it inline
+  // can pass `{ deep: true }`.
+  const [scoreData, translation] = await Promise.all([
+    scoreBrief(briefText),
+    translateBrief(briefText),
+  ]);
 
   const finalResult = { ...translation };
 
