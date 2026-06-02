@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import AppContext from '../../context/AppContext'
 import { supabase } from '../../lib/supabase'
 import {
@@ -411,7 +412,16 @@ export default function AIBuilder({ build, project, onClose }) {
   )
 
   // ── Render ───────────────────────────────────────────────────────
-  return (
+  //
+  // PORTAL: we createPortal to document.body because PageTransition
+  // wraps the active section in a motion.div with `filter: blur(0px)`
+  // (from the PAGE.crossfade variant). `filter` creates a containing
+  // block for `position: fixed`, which means our overlay would only
+  // cover the page area (next to the sidebar) instead of the full
+  // viewport — and the sidebar leaks through on the left. Portalling
+  // to body escapes that containing block so inset:0 means the actual
+  // viewport edges.
+  return createPortal((
     <div style={overlayStyle}>
       {/* Header */}
       <div style={headerStyle}>
@@ -634,7 +644,7 @@ export default function AIBuilder({ build, project, onClose }) {
         />
       )}
     </div>
-  )
+  ), document.body)
 }
 
 // ──── Subcomponents ─────────────────────────────────────────────────
