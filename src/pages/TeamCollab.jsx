@@ -1884,17 +1884,32 @@ Return JSON:
   async function handleAiBuildModeConfirm(mode) {
     if (aiBuildLoading) return
     const pid = activeProject?.id
-    if (!pid || !authUser?.id) return
-    const todoTasks = (kanban?.tasks || [])
-      .filter(t => {
-        const c = String(t.column || '').toLowerCase()
-        return c === 'to do' || c === 'todo'
-      })
-      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-    if (todoTasks.length === 0) {
-      showToast?.('No TODO tasks to build.', 'info')
+    if (!pid) {
+      showToast?.('Open a project first.', 'error')
       return
     }
+    if (!authUser?.id) {
+      showToast?.('Sign in required.', 'error')
+      return
+    }
+
+    // Build every task that isn't already done — was previously
+    // filtering strictly to "To Do" column which broke whenever
+    // tasks had been moved (manually or by drag) into other columns
+    // before clicking Build. Build with AI's button enables on ANY
+    // task; this filter should match.
+    const buildable = (kanban?.tasks || [])
+      .filter(t => {
+        const c = String(t.column || '').toLowerCase()
+        return c !== 'done' && c !== 'approved' && c !== 'complete' && c !== 'completed'
+      })
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+
+    if (buildable.length === 0) {
+      showToast?.('No buildable tasks. Add tasks first or move some out of Done.', 'info')
+      return
+    }
+
     setAiBuildLoading(true)
     try {
       const build = await createBuild({
@@ -1902,14 +1917,24 @@ Return JSON:
         workspaceId: workspace?.id || null,
         userId: authUser.id,
         mode,
-        todoTasks,
+        todoTasks: buildable,
       })
+      if (!build?.id) throw new Error('No build returned from server.')
       setActiveAiBuild(build)
       setAiBuildModeOpen(false)
       setAiBuilderOpen(true)
     } catch (e) {
       console.error('[ai-build start]', e)
-      showToast?.('Could not start build: ' + (e.message || 'try again'), 'error')
+      // Surface the real reason instead of a generic toast — the
+      // most common failure here is a Supabase RLS / table issue
+      // and the user needs the actual error to act on it.
+      const reason =
+        e?.message?.includes('ai_builds')
+          ? 'AI builder tables aren\'t set up — run supabase/ai-builder.sql in your Supabase project.'
+          : e?.message?.includes('permission') || e?.code === '42501'
+            ? 'Permission denied. Check workspace membership for this project.'
+            : (e?.message || 'Could not start build. Try again.')
+      showToast?.(reason, 'error')
     } finally {
       setAiBuildLoading(false)
     }

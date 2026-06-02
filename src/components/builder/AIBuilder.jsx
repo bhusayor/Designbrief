@@ -145,8 +145,11 @@ export default function AIBuilder({ build, project, onClose }) {
       }, async (payload) => {
         const t = payload.new
         if (!t) return
+        // Append any new task that isn't already done. The previous
+        // strict 'to do' / 'todo' filter dropped new tasks if they
+        // were created directly into other columns.
         const col = String(t.column_name || '').toLowerCase()
-        if (col !== 'to do' && col !== 'todo') return
+        if (col === 'done' || col === 'approved' || col === 'complete' || col === 'completed') return
         if (seenTaskIdsRef.current.has(t.id)) return
         seenTaskIdsRef.current.add(t.id)
 
