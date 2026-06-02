@@ -68,7 +68,6 @@ export default function AIBuilder({ build, project, onClose }) {
   const [showPublish, setShowPublish] = useState(false)
   const [skipConfirm, setSkipConfirm] = useState(null)
   // BuilderChat — collapsible AI assistant under the approval panel.
-  const [chatOpen, setChatOpen] = useState(true)
 
   // macOS-dock proximity for the queue rows on the left rail.
   useProximity('.build-queue-item', {
@@ -99,6 +98,28 @@ export default function AIBuilder({ build, project, onClose }) {
       ])
       if (cancelled) return
       setBriefContext(ctx)
+
+      // Resume from where the user left off: any sections that were
+      // stuck in 'building' from a previous session (no live stream
+      // here yet — that one will only set after runNextSection fires)
+      // get flipped back to 'queued' so the auto-run picks them up.
+      // Without this, a closed-mid-build section sits in 'building'
+      // forever and the auto-loop skips past it. 'approved' and
+      // 'review' sections are left alone — those are real progress.
+      const stuck = sec.filter(s => s.status === 'building')
+      if (stuck.length > 0) {
+        try {
+          await supabase
+            .from('build_sections')
+            .update({ status: 'queued' })
+            .in('id', stuck.map(s => s.id))
+          // Reflect locally too so the auto-run kicks in immediately.
+          sec.forEach(s => { if (s.status === 'building') s.status = 'queued' })
+        } catch (e) {
+          console.warn('[AIBuilder] could not reset stuck sections', e)
+        }
+      }
+
       setSections(sec)
       sec.forEach(s => seenTaskIdsRef.current.add(s.task_id))
     })()
@@ -424,7 +445,10 @@ export default function AIBuilder({ build, project, onClose }) {
         </div>
       </div>
 
-      {/* Body */}
+      {/* Body — 3-column layout:
+            LEFT  = build queue
+            MID   = device toggle + iframe (full height) + approval (bottom strip)
+            RIGHT = AI assistant chat (always visible, same shell as TeamCollab) */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* LEFT — queue */}
         <aside style={leftPanelStyle}>
@@ -486,25 +510,26 @@ export default function AIBuilder({ build, project, onClose }) {
           </StaggerGrid>
         </aside>
 
-        {/* RIGHT — preview + approval */}
-        <main style={rightPanelStyle}>
+        {/* MIDDLE — preview + approval (preview fills, approval pinned bottom) */}
+        <main style={midPanelStyle}>
           {/* Device toggle */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6,
             padding: '10px 16px 0',
+            flexShrink: 0,
           }}>
             <DeviceBtn active={device === 'desktop'} onClick={() => setDevice('desktop')} icon={ComputerDesktopIcon} label="Desktop" />
             <DeviceBtn active={device === 'tablet'} onClick={() => setDevice('tablet')} icon={DeviceTabletIcon} label="Tablet" />
             <DeviceBtn active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={DevicePhoneMobileIcon} label="Mobile" />
           </div>
 
-          {/* Preview iframe */}
+          {/* Preview iframe — fills available middle height. */}
           <div style={{
             flex: 1,
             padding: 16,
             background: 'var(--color-surface)',
-            overflowY: 'auto',
-            display: 'flex', justifyContent: 'center',
+            overflow: 'hidden',
+            display: 'flex', justifyContent: 'center', alignItems: 'stretch',
             minHeight: 0,
           }}>
             <div style={{
@@ -516,6 +541,7 @@ export default function AIBuilder({ build, project, onClose }) {
               boxShadow: '0 18px 48px rgba(0,0,0,0.22)',
               border: '1px solid var(--color-border)',
               transition: 'width 0.25s ease',
+              display: 'flex', flexDirection: 'column',
             }}>
               {orderedSections.length === 0 ? (
                 <EmptyPreview />
@@ -524,13 +550,15 @@ export default function AIBuilder({ build, project, onClose }) {
                   title="AI build preview"
                   srcDoc={previewHtml}
                   sandbox="allow-scripts allow-same-origin"
-                  style={{ width: '100%', height: '100%', minHeight: '70vh', border: 'none', background: 'white', display: 'block' }}
+                  style={{ flex: 1, width: '100%', border: 'none', background: 'white', display: 'block' }}
                 />
               )}
             </div>
           </div>
 
-          {/* Approval panel */}
+          {/* Approval panel — pinned to the bottom of the middle column,
+              under the iframe. Only renders while there's a section in
+              review (queued / building / changes-requested). */}
           {sectionInReview && (
             <ApprovalPanel
               section={sectionInReview}
@@ -545,46 +573,40 @@ export default function AIBuilder({ build, project, onClose }) {
               onSkip={() => setSkipConfirm(sectionInReview)}
             />
           )}
+        </main>
 
-          {/* AI assistant chat — collapsible, sits under the approval
-              panel. Speaks for whichever section the preview is showing
-              (the in-review one, or the last approved if nothing else is
-              up for review). */}
+        {/* RIGHT — always-on AI assistant chat. Same shell BuilderChat
+            uses elsewhere; just permanently mounted instead of toggle-
+            collapsed so it reads as part of the workspace, not a
+            popover. Speaks for the in-review section, or the last
+            approved one if nothing's open for review. */}
+        <aside style={rightPanelStyle}>
           {(() => {
             const chatSection = sectionInReview
               || orderedSections.find(s => s.status === 'approved' && s.generated_code)
+              || orderedSections[0]
               || null
-            if (!chatSection) return null
-            if (!chatOpen) {
+            if (!chatSection) {
               return (
                 <div style={{
-                  flexShrink: 0, padding: '10px 16px',
-                  borderTop: '1px solid var(--color-border)',
-                  background: 'var(--color-card)',
-                  display: 'flex', justifyContent: 'flex-start',
+                  padding: '24px 18px', textAlign: 'center',
+                  color: 'var(--color-text-muted)',
+                  fontSize: 13, fontFamily: 'var(--font-sans)', lineHeight: 1.5,
                 }}>
-                  <BuilderChat collapsed onToggle={() => setChatOpen(true)} />
+                  The AI assistant will activate once a section is in review.
                 </div>
               )
             }
             return (
-              <div style={{
-                flexShrink: 0,
-                maxHeight: 360,
-                minHeight: 240,
-                display: 'flex', flexDirection: 'column',
-              }}>
-                <BuilderChat
-                  section={chatSection}
-                  briefContext={briefContext}
-                  projectName={project?.title || ''}
-                  onSectionUpdate={(html) => handleSectionEdit(chatSection.id, html)}
-                  onToggle={() => setChatOpen(false)}
-                />
-              </div>
+              <BuilderChat
+                section={chatSection}
+                briefContext={briefContext}
+                projectName={project?.title || ''}
+                onSectionUpdate={(html) => handleSectionEdit(chatSection.id, html)}
+              />
             )
           })()}
-        </main>
+        </aside>
       </div>
 
       {/* Skip confirm modal */}
@@ -882,16 +904,31 @@ const headerBtn = {
 }
 
 const leftPanelStyle = {
-  width: '34%', minWidth: 270, maxWidth: 380,
+  width: 280, minWidth: 240, maxWidth: 320,
   borderRight: '1px solid var(--color-border)',
   padding: '16px 14px',
   overflowY: 'auto',
   background: 'var(--color-card)',
+  flexShrink: 0,
 }
 
-const rightPanelStyle = {
+// Middle column — preview + approval. flex:1 absorbs whatever space
+// is left between the left queue and right chat rails.
+const midPanelStyle = {
   flex: 1, display: 'flex', flexDirection: 'column',
   minWidth: 0,
+}
+
+// Right rail — always-on chat panel. 340px gives BuilderChat room
+// to breathe (input, message bubbles, header) without crowding
+// the iframe. Collapses to 0 on viewports too narrow for it
+// (handled inline; see the body conditional rendering).
+const rightPanelStyle = {
+  width: 340, minWidth: 300, maxWidth: 380,
+  borderLeft: '1px solid var(--color-border)',
+  background: 'var(--color-card)',
+  display: 'flex', flexDirection: 'column',
+  flexShrink: 0,
 }
 
 const approvalPanelStyle = {

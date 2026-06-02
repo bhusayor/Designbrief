@@ -305,7 +305,14 @@ OUTPUT CONTRACT FOR THIS CALL:
   → Performance: keep the section under ~250 lines of HTML. Avoid heavy assets. CSS transforms and opacity only for animation.
   → Animations: subtle, purposeful. Use @keyframes inside the scoped style. Hover states carry micro-stories. Scroll-triggered reveals via IntersectionObserver are welcome when they serve the storytelling.
 
-  The result must feel like it could win on Awwwards, Godly, or Motionsites — but it must also be COHERENT with the sibling sections already approved. Read the "SECTIONS ALREADY BUILT" list and design this section to flow from the previous one and set up the next.`
+  PUNCTUATION BAN — read carefully:
+    Never use an em dash (—) or en dash (–) anywhere in the output.
+    No copy, no comments, no aria-labels, no alt text. Use a comma,
+    a period, parentheses, or a colon instead. This is a hard rule:
+    every dash that escapes the model gets scrubbed out client-side
+    before the iframe renders, so writing them is wasted work.
+
+  The result must feel like it could win on Awwwards, Godly, or Motionsites, but it must also be COHERENT with the sibling sections already approved. Read the "SECTIONS ALREADY BUILT" list and design this section to flow from the previous one and set up the next.`
 
 // handleFollowUp — brief-refinement chat assistant.
 // Output is conversational text, optionally ending in a single BOARD_UPDATE line.

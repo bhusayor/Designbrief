@@ -28,6 +28,21 @@ import {
   GSAP_REVEALS,
 } from './animations.js'
 
+// User-mandated: NEVER let an em dash (—) or en dash (–) end up in
+// any AI-generated copy. Sonnet leans on them in marketing prose and
+// they read awkwardly in app UI. Same scrub used by the Dashboard
+// streaming impressions panel. Replace patterns so we don't leave
+// double-spaces or stray punctuation.
+function stripDashes(s) {
+  if (!s) return s
+  return String(s)
+    .replace(/\s*—\s*/g, ' ')       // " — " → " "
+    .replace(/\s*—\s*/g, ' ')   // unicode em dash with surrounding spaces
+    .replace(/–/g, '-')              // en dash → hyphen
+    .replace(/–/g, '-')         // unicode en dash → hyphen
+    .replace(/  +/g, ' ')            // collapse any double-spaces created above
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 export async function buildSection({
@@ -150,7 +165,10 @@ export async function buildSection({
           const json = JSON.parse(payload)
           if (json.text) {
             acc += json.text
-            try { onProgress?.(acc) } catch {}
+            // Scrub dashes on every chunk so the live preview never
+            // flashes an em dash before the final stripped version
+            // lands.
+            try { onProgress?.(stripDashes(acc)) } catch {}
           }
           // Server-mapped error frames: { error: <code>, message: <text> }
           if (json.error && json.message) {
@@ -170,7 +188,9 @@ export async function buildSection({
     if (serverError.retryAfter) err.retryAfter = serverError.retryAfter
     throw err
   }
-  return acc
+  // Final pass — what gets persisted to build_sections.generated_code
+  // and what every renderer reads is guaranteed dash-free.
+  return stripDashes(acc)
 }
 
 // ─── Assemble: stitch every approved (and the currently-reviewing)
