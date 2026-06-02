@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   MapPinIcon,
   PencilSquareIcon,
@@ -204,18 +204,26 @@ export default function HistoryItem({
               border: 'none',
               color: 'var(--color-text-muted)',
               cursor: 'pointer',
-              padding: '2px 4px',
+              width: 22, height: 22,
+              padding: 0,
               lineHeight: 0,
               flexShrink: 0,
-              borderRadius: '4px',
+              borderRadius: 6,
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'background 0.12s, color 0.12s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = 'var(--color-text)'
+              e.currentTarget.style.background = 'var(--color-surface)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = 'var(--color-text-muted)'
+              e.currentTarget.style.background = 'transparent'
+            }}
           >
-            <EllipsisHorizontalIcon style={{ width: 16, height: 16 }} />
+            <EllipsisHorizontalIcon style={{ width: 18, height: 18 }} />
           </button>
         )}
       </div>
@@ -226,52 +234,77 @@ export default function HistoryItem({
           style={{
             position: 'absolute',
             right: 0,
-            top: '100%',
+            top: 'calc(100% + 4px)',
             background: 'var(--color-card)',
             border: '1px solid var(--color-border)',
-            borderRadius: '10px',
+            borderRadius: '12px',
+            // More outer padding gives icons + labels breathing room.
             padding: '6px',
-            minWidth: '150px',
+            minWidth: '184px',
             boxShadow: 'var(--shadow-dropdown)',
             animation: 'fadeUp 0.15s ease',
             zIndex: 500,
+            display: 'flex',
+            flexDirection: 'column',
+            // Tiny vertical gap between items so rows don't look glued.
+            gap: 2,
           }}
         >
-          {MENU_ITEMS.map(mi => {
+          {MENU_ITEMS.map((mi, idx) => {
             const Icon = mi.Icon
             const label = mi.key === 'pin' && item.pinned ? mi.pinnedLabel : mi.label
+            // Visually separate the destructive Delete action from the
+            // safe actions above it with a slim divider.
+            const showDivider = mi.danger && idx > 0
             return (
-              <button
-                key={mi.key}
-                onClick={() => handleMenu(mi.key)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  width: '100%',
-                  background: 'none',
-                  border: 'none',
-                  textAlign: 'left',
-                  padding: '7px 10px',
-                  fontSize: '12px',
-                  fontFamily: "'Urbanist', sans-serif",
-                  color: mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)',
-                  cursor: 'pointer',
-                  borderRadius: '6px',
-                  transition: 'background 0.12s, color 0.12s',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = mi.danger ? 'rgba(255,77,106,0.12)' : 'var(--color-surface)';
-                  if (!mi.danger) e.currentTarget.style.color = 'var(--color-text)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'none';
-                  e.currentTarget.style.color = mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)';
-                }}
-              >
-                <Icon style={{ width: 14, height: 14, flexShrink: 0 }} />
-                {label}
-              </button>
+              <React.Fragment key={mi.key}>
+                {showDivider && (
+                  <div style={{
+                    height: 1,
+                    background: 'var(--color-border)',
+                    margin: '4px -2px',
+                    opacity: 0.7,
+                  }} />
+                )}
+                <button
+                  onClick={() => handleMenu(mi.key)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    // Wider gap between icon and label.
+                    gap: 11,
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    textAlign: 'left',
+                    // Roomier touch target — same vertical rhythm as Heroicons docs.
+                    padding: '9px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    lineHeight: 1.1,
+                    fontFamily: "'Urbanist', sans-serif",
+                    color: mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)',
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    transition: 'background 0.12s, color 0.12s',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = mi.danger ? 'rgba(255,77,106,0.12)' : 'var(--color-surface)';
+                    if (!mi.danger) e.currentTarget.style.color = 'var(--color-text)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'none';
+                    e.currentTarget.style.color = mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)';
+                  }}
+                >
+                  {/* Bigger, clearer icon — 16px reads cleanly next to
+                      13px label without dominating. strokeWidth nudged
+                      up so outline icons match the visual weight of
+                      the label. */}
+                  <Icon style={{ width: 16, height: 16, strokeWidth: 1.8, flexShrink: 0 }} />
+                  <span>{label}</span>
+                </button>
+              </React.Fragment>
             )
           })}
         </div>
