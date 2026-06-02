@@ -585,11 +585,10 @@ export default function ProjectLibrary() {
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
       <div style={{
         width: '100%', boxSizing: 'border-box',
-        padding: isMobile
-          ? '24px 16px'
-          : isTablet
-            ? '32px 24px'
-            : '40px 48px',
+        // Fluid page padding scales smoothly from mobile to desktop
+        // instead of stepping at hard breakpoints (which left
+        // awkward in-between widths cramped).
+        padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 48px)',
       }}>
 
         {/* Header */}
@@ -604,8 +603,12 @@ export default function ProjectLibrary() {
           <div style={{ textAlign: isMobile ? 'center' : 'left' }}>
             <h1 style={{
               fontFamily: "'Urbanist', sans-serif", fontWeight: 800,
-              fontSize: isMobile ? '22px' : '26px',
+              // Fluid heading — scales smoothly from 22px (mobile)
+              // through tablet to 30px (large desktop) instead of
+              // a hard step at one breakpoint.
+              fontSize: 'clamp(22px, 3vw, 30px)',
               color: 'var(--color-text)', letterSpacing: '-0.02em', margin: '0 0 4px',
+              lineHeight: 1.15,
             }}>
               Project Library
             </h1>
@@ -754,18 +757,19 @@ export default function ProjectLibrary() {
               const hidden = isFree ? filtered.slice(HISTORY_CAP) : []
               const gridStyle = {
                 display: 'grid',
-                // Mobile = 1 col, tablet = 3 cols, desktop = 4 cols.
-                // minmax(0, 1fr) instead of plain 1fr — plain is
-                // minmax(auto, 1fr), and the auto minimum lets a
-                // column stretch wider than its share when content
-                // is long (e.g. a long project title). minmax(0, 1fr)
-                // holds every column to its equal share and lets the
-                // title span's ellipsis actually kick in.
-                gridTemplateColumns: isMobile
-                  ? '1fr'
-                  : isTablet
-                    ? 'repeat(3, minmax(0, 1fr))'
-                    : 'repeat(4, minmax(0, 1fr))',
+                // Fully fluid grid — `auto-fill` packs in as many
+                // 260px-minimum columns as the container can hold
+                // and stretches each to its equal share. No hard
+                // breakpoints, no awkward gaps at intermediate
+                // viewport widths.
+                //
+                // Approximate behaviour at common widths (with this
+                // page's padding):
+                //   ≤500px  → 1 column
+                //   501-820 → 2 columns
+                //   821-1100 → 3 columns
+                //   ≥1100   → 4 columns (5 on very wide screens)
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
                 gap: '16px',
                 // alignItems: stretch is the grid default; combined
                 // with height:100% on each card it produces equal-
