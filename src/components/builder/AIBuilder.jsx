@@ -13,6 +13,7 @@ import {
   completeBuild,
 } from '../../lib/aiBuildEngine'
 import { fetchBriefContext } from '../../lib/briefContext'
+import { fetchDesignSystem } from '../../lib/designSystem'
 import useProximity from '../../hooks/useProximity'
 import StaggerGrid, { StaggerItem } from '../StaggerGrid'
 import useScramble from '../../hooks/useScramble'
@@ -60,6 +61,10 @@ export default function AIBuilder({ build, project, onClose }) {
   const { authUser, workspace, showToast, showAIError, saveProject } = useContext(AppContext)
   const [sections, setSections] = useState([])
   const [briefContext, setBriefContext] = useState(null)
+  // Saved project design-system tokens — null until loaded / nothing
+  // saved yet. Both buildSection and the BuilderChat assistant
+  // honour these tokens when present.
+  const [designSystem, setDesignSystem] = useState(null)
   const [buildState, setBuildState] = useState(build)
   const [device, setDevice] = useState('desktop')
   const [streamingId, setStreamingId] = useState(null)
@@ -88,8 +93,9 @@ export default function AIBuilder({ build, project, onClose }) {
     let cancelled = false
     ;(async () => {
       if (!build?.id || !project?.id) return
-      const [ctx, sec] = await Promise.all([
+      const [ctx, ds, sec] = await Promise.all([
         fetchBriefContext(project.id),
+        fetchDesignSystem(project.id),
         supabase
           .from('build_sections')
           .select('*')
@@ -99,6 +105,7 @@ export default function AIBuilder({ build, project, onClose }) {
       ])
       if (cancelled) return
       setBriefContext(ctx)
+      setDesignSystem(ds)
 
       // Resume from where the user left off: any sections that were
       // stuck in 'building' from a previous session (no live stream
@@ -250,6 +257,7 @@ export default function AIBuilder({ build, project, onClose }) {
         section: next,
         task,
         briefContext,
+        designSystem,
         previousSections: previousApproved,
         totalTasks: ordered.length,
         buildId: buildState.id,
@@ -611,6 +619,7 @@ export default function AIBuilder({ build, project, onClose }) {
               <BuilderChat
                 section={chatSection}
                 briefContext={briefContext}
+                designSystem={designSystem}
                 projectName={project?.title || ''}
                 onSectionUpdate={(html) => handleSectionEdit(chatSection.id, html)}
               />

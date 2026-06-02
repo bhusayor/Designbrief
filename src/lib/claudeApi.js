@@ -20,6 +20,7 @@
 
 import { supabase } from './supabase.js'
 import { MODELS, MODEL_FOR, pickModel } from './models.js'
+import { designSystemToContext } from './designSystem.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const MAX_RETRIES = 2
@@ -329,8 +330,13 @@ export function buildWebsiteSection({ task, briefContext, previousSections = [],
   })
 }
 
-// Haiku helper for short interactive turns.
-export function chatRefinement({ userMessage, currentHTML, briefContext = {}, conversationHistory = [], maxTokens = 3000 } = {}) {
+// Haiku helper for short interactive turns. `designSystem` is the
+// camelCase output of fetchDesignSystem(projectId) — when present its
+// designSystemToContext() rendering is spliced into the system prompt
+// so Haiku honours the saved tokens (colors, type, button shape,
+// motion, shadow language) on every refinement, not just the brand
+// scraps from briefContext.
+export function chatRefinement({ userMessage, currentHTML, briefContext = {}, designSystem = null, conversationHistory = [], maxTokens = 3000 } = {}) {
   const messages = []
   for (const m of conversationHistory.slice(-6)) {
     if (m?.role && m?.content) messages.push({ role: m.role, content: m.content })
@@ -351,10 +357,16 @@ export function chatRefinement({ userMessage, currentHTML, briefContext = {}, co
     ].join('\n'),
   })
 
+  const dsBlock = designSystem ? designSystemToContext(designSystem) : ''
+  const system = [
+    'You are a helpful AI assistant inside a website builder. You make precise, targeted changes to website sections based on user requests. Always preserve the brand design system.',
+    dsBlock || null,
+  ].filter(Boolean).join('\n\n')
+
   return callClaude({
     taskType: 'chat_refinement',
     maxTokens,
-    system: `You are a helpful AI assistant inside a website builder. You make precise, targeted changes to website sections based on user requests. Always preserve the brand design system.`,
+    system,
     messages,
   })
 }

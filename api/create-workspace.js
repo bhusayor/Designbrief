@@ -617,7 +617,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST' && req.body?.kind === 'enhance-description') {
     const user = await requireUser(req, res)
     if (!user) return
-    const { text, title, briefContext } = req.body
+    const { text, title, briefContext, designSystemContext } = req.body
     try {
       const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
@@ -631,12 +631,16 @@ Brand personality: ${JSON.stringify(briefContext.brandPersonality || [])}
 Audience: ${briefContext.targetAudience || briefContext.projectUnderstanding || ''}`
         : ''
 
+      const dsBlock = designSystemContext
+        ? `\n\nPROJECT DESIGN SYSTEM (honour these tokens — voice, button shape, motion language must align):\n${designSystemContext}`
+        : ''
+
       const userMsg = `Task title: "${title || 'Untitled'}"
 
 User's rough description:
 """
 ${text || '(empty)'}
-"""${briefBlock}
+"""${briefBlock}${dsBlock}
 
 Rewrite this as a clear, precise, actionable description. 2-4 sentences max. Start with an action verb. Return only the description prose — no quotes, no labels, no preamble.`
 
@@ -676,7 +680,7 @@ Rewrite this as a clear, precise, actionable description. 2-4 sentences max. Sta
   if (req.method === 'POST' && req.body?.kind === 'generate-ai-prompt') {
     const user = await requireUser(req, res)
     if (!user) return
-    const { title, description, briefContext } = req.body
+    const { title, description, briefContext, designSystemContext } = req.body
     try {
       const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
@@ -695,6 +699,10 @@ Target audience: ${briefContext.targetAudience || briefContext.projectUnderstand
 Moodboard direction: ${briefContext.moodboardDirection || 'Not specified'}`
         : ''
 
+      const dsBlock = designSystemContext
+        ? `\n\nPROJECT DESIGN SYSTEM (load-bearing constraints — every section below must reference these tokens):\n${designSystemContext}`
+        : ''
+
       const userMsg = `Generate the world-class structured AI prompt for this design task.
 
 TASK:
@@ -702,7 +710,7 @@ Title: "${title || 'Untitled'}"
 Description:
 """
 ${description || '(empty)'}
-"""${briefBlock}
+"""${briefBlock}${dsBlock}
 
 Use the EXACT section structure from the system instructions — the ━ dividers around TASK, the 7 section labels (CREATIVE DIRECTION, DESIGN APPROACH, INTERACTIONS & MOTION, COPY DIRECTION, TECHNICAL APPROACH, SUCCESS METRIC, INSPIRATION) in that order. Every section must be specific to THIS task and THIS brief. No generic advice.`
 

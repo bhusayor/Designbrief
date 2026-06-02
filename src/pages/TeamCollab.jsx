@@ -37,6 +37,7 @@ import { GanttSection } from '../components/brief/renderers/shared'
 import BuildModeModal from '../components/builder/BuildModeModal'
 import AIBuilder from '../components/builder/AIBuilder'
 import DesignSystemPanel from '../components/DesignSystemPanel'
+import { fetchDesignSystem } from '../lib/designSystem'
 import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
 import { createBuild } from '../lib/aiBuildEngine'
@@ -384,7 +385,7 @@ function useWindowWidth() {
 // identity across TeamCollab re-renders. When it was declared *inside*
 // TeamCollab, every parent render created a new function reference and
 // React unmounted/remounted the modal — wiping the user's typed input.
-function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData, briefContext, showToast }) {
+function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData, briefContext, designSystem, showToast }) {
   const [form, setForm] = useState({
     title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM',
     column: initialColumn || KANBAN_COLS[0],
@@ -409,7 +410,7 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
     }
     setEnhancing(true)
     try {
-      const enhanced = await enhanceDescription(before, form.title, briefContext)
+      const enhanced = await enhanceDescription(before, form.title, briefContext, designSystem)
       if (enhanced?.trim()) {
         setOriginalDescription(before)
         if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current)
@@ -809,6 +810,18 @@ export default function TeamCollab() {
   const [aiBuilderOpen, setAiBuilderOpen] = useState(false)
   const [aiBuildModeOpen, setAiBuildModeOpen] = useState(false)
   const [designSystemOpen, setDesignSystemOpen] = useState(false)
+  // Cached design system for the active project — loaded on project
+  // change and re-loaded after the panel closes (since the user may
+  // have just edited it). Threaded into every AI helper.
+  const [designSystem, setDesignSystem] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    const pid = (activeProjectId && activeProjectId !== 'default') ? activeProjectId : activeProject?.id
+    if (!pid || pid === 'default') { setDesignSystem(null); return }
+    fetchDesignSystem(pid).then(ds => { if (!cancelled) setDesignSystem(ds) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectId, activeProject?.id, designSystemOpen])
   const [activeAiBuild, setActiveAiBuild] = useState(null)
   const [aiBuildLoading, setAiBuildLoading] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
@@ -4226,6 +4239,7 @@ STYLE:
       <AddTaskModal
         open={showAddTaskModal}
         briefContext={activeProject?.data?.result || activeProject?.result || null}
+        designSystem={designSystem}
         showToast={showToast}
         onClose={() => { setShowAddTaskModal(false); setAddTaskData({ title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM', column: KANBAN_COLS[0] }) }}
         onSave={(formData) => {

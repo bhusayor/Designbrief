@@ -1,3 +1,5 @@
+import { supabase } from './supabase'
+
 // ────────────────────────────────────────────────────────────────────
 // Project Design System library — the canonical source of truth that
 // every AI call in a project should read from.
@@ -196,6 +198,34 @@ export function dbRowToDesignSystem(row) {
     easingPreference: row.easing_preference || 'smooth',
     shadowStyle: row.shadow_style || 'medium',
     shadowColorTint: row.shadow_color_tint || 'black',
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// fetchDesignSystem — single async lookup callers use to load the
+// project's saved design system before firing an AI call. Returns
+// the camelCase shape directly (the helper handles the mapping +
+// the "no row exists yet" case). Returns null if nothing's saved or
+// the table isn't set up — callers then either pass null down (so
+// designSystemToContext returns '') or skip the integration silently.
+// ────────────────────────────────────────────────────────────────────
+export async function fetchDesignSystem(projectId) {
+  if (!projectId) return null
+  try {
+    const { data, error } = await supabase
+      .from('design_systems')
+      .select('*')
+      .eq('project_id', projectId)
+      .maybeSingle()
+    if (error) {
+      // 42P01 = table missing (Phase 1 SQL not run yet) — fail silently.
+      // PGRST116 = no row found for this project — that's expected for
+      // a project the user hasn't set up a design system for.
+      return null
+    }
+    return data ? dbRowToDesignSystem(data) : null
+  } catch {
+    return null
   }
 }
 

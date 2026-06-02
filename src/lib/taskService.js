@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { designSystemToContext } from './designSystem.js'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -258,9 +259,14 @@ export async function logActivity(taskId, projectId, userId, actorName, action, 
 // briefContext is optional — when present, the server feeds it to the
 // senior-designer prompt so the rewrite can reference the actual brand
 // instead of generic filler.
-export async function enhanceDescription(text, title, briefContext = null) {
+// designSystem is the result of fetchDesignSystem(projectId). When
+// the project has saved tokens, they get injected so the rewrite
+// honours the actual button shape / type / motion language, not just
+// the brief's tone words.
+export async function enhanceDescription(text, title, briefContext = null, designSystem = null) {
   const res = await apiCall('POST', {
     kind: 'enhance-description', text, title, briefContext,
+    designSystemContext: designSystem ? designSystemContextFor(designSystem) : null,
   })
   return res.description
 }
@@ -269,11 +275,16 @@ export async function enhanceDescription(text, title, briefContext = null) {
 // briefContext is optional — when present, the senior-director system
 // prompt anchors every section to the actual brand colors, fonts,
 // tone, and personality.
-export async function generateAIPrompt(title, description, briefContext = null) {
+export async function generateAIPrompt(title, description, briefContext = null, designSystem = null) {
   const res = await apiCall('POST', {
     kind: 'generate-ai-prompt', title, description, briefContext,
+    designSystemContext: designSystem ? designSystemContextFor(designSystem) : null,
   })
   return res.prompt
+}
+
+function designSystemContextFor(ds) {
+  return designSystemToContext(ds)
 }
 
 export async function getActivity(taskId) {

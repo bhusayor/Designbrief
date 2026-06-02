@@ -15,6 +15,7 @@ import {
   getActivity, logActivity, updateTaskInDB, mapDBTask,
   enhanceDescription, generateAIPrompt,
 } from '../lib/taskService'
+import { fetchDesignSystem } from '../lib/designSystem'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -1009,6 +1010,14 @@ export default function TaskDetailModal({
   // Auto-clears after 30s so it doesn't linger forever.
   const [originalDescription, setOriginalDescription] = useState(null)
   const restoreTimerRef = useRef(null)
+  // Project design system — loaded lazily so AI helpers honour the saved tokens.
+  const [designSystem, setDesignSystem] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    if (!projectId) { setDesignSystem(null); return }
+    fetchDesignSystem(projectId).then(ds => { if (!cancelled) setDesignSystem(ds) })
+    return () => { cancelled = true }
+  }, [projectId])
   const [shareToast, setShareToast] = useState(null)
   // Mobile-only: switch between left (Task) and right (Details) panels
   const [mobileTab, setMobileTab] = useState('task') // 'task' | 'details'
@@ -1647,7 +1656,7 @@ export default function TaskDetailModal({
     if (!before.trim()) return
     setEnhancing(true)
     try {
-      const enhanced = await enhanceDescription(before, task.title, briefContext)
+      const enhanced = await enhanceDescription(before, task.title, briefContext, designSystem)
       if (enhanced) {
         setOriginalDescription(before)
         if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current)
@@ -1683,7 +1692,7 @@ export default function TaskDetailModal({
     if (generatingPrompt) return
     setGeneratingPrompt(true)
     try {
-      const prompt = await generateAIPrompt(task.title, task.description, briefContext)
+      const prompt = await generateAIPrompt(task.title, task.description, briefContext, designSystem)
       if (prompt) {
         await patchTask({ aiPrompt: prompt }, task.aiPrompt ? 'regenerated AI prompt' : 'generated AI prompt')
         setAiPromptOpen(true)

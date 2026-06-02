@@ -40,6 +40,7 @@ const QUICK_CHIPS = [
 export default function BuilderChat({
   section,            // current build_section row (must have generated_code)
   briefContext,
+  designSystem,       // null OK — when present, threaded into chatRefinement
   projectName,
   onSectionUpdate,    // (newHtml: string) => void
   collapsed,
@@ -130,6 +131,7 @@ export default function BuilderChat({
           userMessage: text,
           currentHTML: currentHtml,
           briefContext: briefContext || {},
+          designSystem,
           conversationHistory: history,
         })
         if (aiHtml && aiHtml.trim().length > 80) {

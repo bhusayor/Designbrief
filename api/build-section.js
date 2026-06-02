@@ -61,6 +61,7 @@ export default async function handler(req, res) {
     task_description,
     task_ai_prompt,
     brief_context,
+    design_system_context,
     previous_titles,
     total_tasks,
     change_request,
@@ -97,7 +98,14 @@ export default async function handler(req, res) {
   const userPrompt = [
     'You are building a website section by section.',
     '',
-    'PROJECT BRIEF CONTEXT (the design system you MUST honour):',
+    // Design system block — when the user has saved one for this
+    // project via DesignSystemPanel, it sits above the brief context
+    // so the AI reads tokens (colors, fonts, button shape, motion,
+    // shadow tint, etc.) as load-bearing constraints. Falls through
+    // silently when no design system exists yet.
+    design_system_context ? design_system_context : null,
+    design_system_context ? '' : null,
+    'PROJECT BRIEF CONTEXT (the strategic brief — combine with the design system above):',
     briefJSON,
     '',
     'SECTIONS ALREADY APPROVED, in order (design this section to flow from the previous one):',

@@ -16,6 +16,7 @@
 
 import { supabase } from './supabase.js'
 import { compactBriefForPrompt } from './briefContext.js'
+import { designSystemToContext } from './designSystem.js'
 import {
   decideHeroMediaType,
   buildMediaQuery,
@@ -49,6 +50,7 @@ export async function buildSection({
   section,            // { id, task_id, task_title, position }
   task,               // raw task row (description + ai_prompt)
   briefContext,
+  designSystem,       // result of fetchDesignSystem(projectId) — null OK
   previousSections,   // already-approved sections, in order
   totalTasks,
   buildId,
@@ -122,6 +124,10 @@ export async function buildSection({
       task_description: task?.description || '',
       task_ai_prompt: task?.ai_prompt || '',
       brief_context: briefContext ? JSON.parse(compactBriefForPrompt(briefContext)) : null,
+      // Project design system, serialised into the prompt-ready block.
+      // Server splices this above the brief context block so the AI
+      // reads the design system as load-bearing constraints first.
+      design_system_context: designSystem ? designSystemToContext(designSystem) : null,
       previous_titles: previousTitles,
       total_tasks: totalTasks,
       change_request: changeRequest || null,
