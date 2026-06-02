@@ -36,6 +36,7 @@ import ConnectPanel from '../components/connectors/ConnectPanel'
 import { GanttSection } from '../components/brief/renderers/shared'
 import BuildModeModal from '../components/builder/BuildModeModal'
 import AIBuilder from '../components/builder/AIBuilder'
+import DesignSystemPanel from '../components/DesignSystemPanel'
 import { authedFetch } from '../lib/getAuthHeader'
 import { supabase } from '../lib/supabase'
 import { createBuild } from '../lib/aiBuildEngine'
@@ -807,6 +808,7 @@ export default function TeamCollab() {
   // Phase 2 AI Builder (website section builder)
   const [aiBuilderOpen, setAiBuilderOpen] = useState(false)
   const [aiBuildModeOpen, setAiBuildModeOpen] = useState(false)
+  const [designSystemOpen, setDesignSystemOpen] = useState(false)
   const [activeAiBuild, setActiveAiBuild] = useState(null)
   const [aiBuildLoading, setAiBuildLoading] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
@@ -4711,6 +4713,20 @@ STYLE:
                     )}
                   </div>
                 )}
+                {/* Design System — opens the project's tokens modal
+                    (colors, typography, buttons in Phase 1). Saved
+                    design system becomes the source of truth threaded
+                    into every AI call (Phase 3 wires this). */}
+                {canEdit && !isMobile && (
+                  <button
+                    onClick={() => setDesignSystemOpen(true)}
+                    title="Open the project's design system"
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}
+                  >
+                    <SwatchIcon style={{ width: 13, height: 13 }} />
+                    Design System
+                  </button>
+                )}
                 {/* Build with AI — single unified button. Active any time
                     the kanban has tasks (manually added or from a translated
                     brief). The previous "Build with AI" → BuildInterface
@@ -5618,6 +5634,15 @@ STYLE:
           projectName={projectTitle}
         />
       )}
+
+      {/* Design System panel — portalled modal */}
+      <DesignSystemPanel
+        isOpen={designSystemOpen}
+        onClose={() => setDesignSystemOpen(false)}
+        onSkip={() => setDesignSystemOpen(false)}
+        projectId={(activeProjectId && activeProjectId !== 'default') ? activeProjectId : activeProject?.id}
+        workspaceId={workspace?.id || null}
+      />
 
       {/* AI Builder — mode picker, then full-screen overlay */}
       <BuildModeModal
