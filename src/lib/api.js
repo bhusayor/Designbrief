@@ -277,6 +277,27 @@ DISCIPLINE — detect exactly one type from the brief:
   digital-product | brand | campaign | photography | video | motion | social-media | illustration | print | game | hybrid
 Detect platform: web | mobile | both | print | video | social | physical
 
+PLATFORMS (finer granularity for digital-product briefs) — return an array
+containing one or more of: website | webapp | mobile.
+  website  = marketing site, landing page, content site, brochure site,
+             portfolio, blog, e-commerce storefront. Brief language clues:
+             "landing page", "website", "brochure", "content site",
+             "marketing site", "homepage", "about us".
+  webapp   = interactive in-browser application, dashboard, SaaS, admin
+             panel, internal tool, user portal, web platform. Brief
+             language clues: "dashboard", "SaaS", "platform", "admin",
+             "tool", "portal", "console", "back-office", "operator app".
+  mobile   = native or hybrid mobile app (iOS / Android / React Native /
+             Flutter). Brief language clues: "mobile app", "iOS",
+             "Android", "native app", "app for phones".
+A brief MAY include several. Examples: a SaaS with a marketing site →
+["website", "webapp"]; a fintech with marketing site + mobile app →
+["website", "mobile"]; "everything" → ["website", "webapp", "mobile"].
+If the brief doesn't say, infer from purpose: if it sells a product or
+educates → website; if users log in to perform tasks → webapp; if it
+runs on a phone → mobile. For non-digital briefs (brand, photography,
+print, etc.) return an empty array [].
+
 COLOR PALETTE — exactly 4 colors covering Primary, Secondary, Background, Text/Neutral. Industry-matched:
   Tech/SaaS → blues, purples, neutrals
   Finance → navy, slate, gold
@@ -329,6 +350,7 @@ Return JSON with these exact keys:
   "discipline": {
     "type": "<one of the 11 types above>",
     "platform": "<one of the platforms above>",
+    "platforms": ["<one or more: website, webapp, mobile — empty [] for non-digital>"],
     "primaryCreative": "<main creative role>",
     "secondaryCreatives": ["<other creative roles>"]
   }
@@ -1137,9 +1159,32 @@ export async function translateAndAnalyse(briefText, opts = {}) {
   }
 
   if (finalResult?.discipline) {
+    const rawPlatforms = Array.isArray(finalResult.discipline.platforms)
+      ? finalResult.discipline.platforms
+      : []
+    // Whitelist + de-dupe so a malformed AI response can't leak random
+    // strings into the renderer's tabs.
+    const ALLOWED = new Set(['website', 'webapp', 'mobile'])
+    const cleanPlatforms = [...new Set(
+      rawPlatforms.map(p => String(p).toLowerCase().trim()).filter(p => ALLOWED.has(p))
+    )]
+    // If the AI didn't return platforms but did return a coarse
+    // platform string, derive a sensible default so the UI still shows
+    // something. 'web' → ['website'] is the safe pick (most briefs);
+    // briefs that meant 'webapp' will land here too but the existing
+    // 'platform' chip still tells the truth.
+    let platforms = cleanPlatforms
+    if (!platforms.length) {
+      const p = (finalResult.discipline.platform || '').toLowerCase()
+      if (p === 'mobile')      platforms = ['mobile']
+      else if (p === 'both')   platforms = ['website', 'mobile']
+      else if (p === 'web')    platforms = ['website']
+    }
+
     finalResult.discipline = {
       type: finalResult.discipline.type || 'digital-product',
       platform: finalResult.discipline.platform || 'web',
+      platforms,
       primaryCreative: finalResult.discipline.primaryCreative || 'Designer',
       secondaryCreatives: finalResult.discipline.secondaryCreatives || [],
     }

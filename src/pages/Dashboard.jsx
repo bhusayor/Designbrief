@@ -1006,7 +1006,7 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
       <IssuesBannerSection r={r} scoring={s} />
       <DesignDirectionSection r={r} showToast={showToast} />
       <TypographyMoodboardSection r={r} />
-      <TypographySection typography={r.typography} />
+      <TypographySection typography={r.typography} discipline={r.discipline} />
       {r.copyVoice && <BrandVoiceSection copyVoice={r.copyVoice} />}
       {phases.length > 0 && <GanttSection phases={phases} timeframe={r.timeframe} projectTitle={r.projectTitle} />}
       {r.budgetRange && <BudgetSection budgetRange={r.budgetRange} />}
@@ -1264,10 +1264,24 @@ function HeroSection({ r, s }) {
                 {r.discipline.type.replace(/-/g, ' ')}
               </div>
             )}
-            {r.discipline.platform && (
-              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
-                {r.discipline.platform}
-              </div>
+            {/* Prefer the granular platforms array (website / webapp /
+                mobile). Fall back to the coarse platform string when
+                the older schema is in play. */}
+            {Array.isArray(r.discipline.platforms) && r.discipline.platforms.length > 0 ? (
+              r.discipline.platforms.map(p => (
+                <div key={p} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span aria-hidden style={{ fontSize: 11 }}>
+                    {p === 'mobile' ? '📱' : p === 'webapp' ? '🛠' : '🖥'}
+                  </span>
+                  <span style={{ textTransform: 'capitalize' }}>{p}</span>
+                </div>
+              ))
+            ) : (
+              r.discipline.platform && (
+                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)', textTransform: 'capitalize' }}>
+                  {r.discipline.platform}
+                </div>
+              )
             )}
             {r.discipline.primaryCreative && (
               <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 100, padding: '4px 14px', fontFamily: "'Urbanist',sans-serif", fontSize: 11, fontWeight: 500, color: 'var(--color-text-soft)' }}>
@@ -1831,7 +1845,7 @@ function TypographyMoodboardSection({ r }) {
 
 // ─── Section 4b: Typography Showcase ─────────────────────────────────────────
 
-function TypographySection({ typography }) {
+function TypographySection({ typography, discipline }) {
   if (!typography || typeof typography !== 'object') return null
 
   const displayFont = safeTypoStr(typography.displayFont || typography.display).split('—')[0].trim() || 'Urbanist'
@@ -1907,9 +1921,44 @@ function TypographySection({ typography }) {
   const [scaleView, setScaleView] = useState(hasWeb ? 'web' : 'mobile')
   const activeScale = scaleView === 'web' ? webScale : mobileScale
 
+  // Granular product types detected on the brief. Falls back to the
+  // coarse typography.platform / discipline.platform if the AI didn't
+  // emit the platforms array (older saved briefs).
+  const detectedPlatforms = (() => {
+    if (Array.isArray(discipline?.platforms) && discipline.platforms.length) {
+      return discipline.platforms
+    }
+    if (platform === 'mobile') return ['mobile']
+    if (platform === 'both')   return ['website', 'mobile']
+    return ['website']
+  })()
+  const platformChipMeta = {
+    website: { icon: '🖥', label: 'Website' },
+    webapp:  { icon: '🛠', label: 'Webapp' },
+    mobile:  { icon: '📱', label: 'Mobile' },
+  }
+
   return (
     <section style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
-      <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>Typography</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
+        <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Typography</div>
+        {detectedPlatforms.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Sized for
+            </span>
+            {detectedPlatforms.map(p => {
+              const meta = platformChipMeta[p] || { icon: '•', label: p }
+              return (
+                <div key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 100, background: 'var(--color-surface)', border: '1px solid var(--color-border)', fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-soft)' }}>
+                  <span aria-hidden>{meta.icon}</span>
+                  <span>{meta.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         {/* Left: Font preview cards */}
