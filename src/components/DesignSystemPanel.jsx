@@ -100,13 +100,16 @@ const FONT_CATALOG = {
     'Pacifico', 'Patrick Hand', 'Reenie Beanie', 'Satisfy', 'Yellowtail',
   ],
 }
+// Flattened + alphabetised so the combobox reads as one A→Z list
+// rather than five disjoint groups. localeCompare keeps numerals and
+// accents in a sensible order.
 const FONT_LIST = [
   ...FONT_CATALOG.sans,
   ...FONT_CATALOG.serif,
   ...FONT_CATALOG.display,
   ...FONT_CATALOG.mono,
   ...FONT_CATALOG.handwriting,
-]
+].sort((a, b) => a.localeCompare(b))
 
 // Inject a <link> tag for the chosen Google Font so the live preview
 // renders in the actual face + weights. Re-renders update the href so
@@ -692,32 +695,20 @@ function FontCombobox({ value, onChange, placeholder }) {
         <div style={{
           position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
           zIndex: 20,
-          maxHeight: 220, overflowY: 'auto',
+          maxHeight: 320, overflowY: 'auto',
           background: 'var(--color-bg)',
           border: '1px solid var(--color-border)',
           borderRadius: 10,
           boxShadow: 'var(--shadow-dropdown, 0 10px 30px rgba(0,0,0,0.18))',
           padding: 4,
         }}>
-          {filtered.slice(0, 14).map(f => (
-            <button
+          {filtered.map(f => (
+            <LazyFontOption
               key={f}
-              onClick={() => commit(f)}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                width: '100%', padding: '7px 10px',
-                background: f === value ? 'rgba(139,92,246,0.10)' : 'transparent',
-                border: 'none', borderRadius: 7,
-                color: 'var(--color-text)', cursor: 'pointer',
-                fontFamily: `"${f}", sans-serif`,
-                fontSize: 14, textAlign: 'left',
-              }}
-              onMouseEnter={e => { if (f !== value) e.currentTarget.style.background = 'var(--color-surface)' }}
-              onMouseLeave={e => { if (f !== value) e.currentTarget.style.background = 'transparent' }}
-            >
-              <span>{f}</span>
-              <PreviewLoader family={f} />
-            </button>
+              family={f}
+              isSelected={f === value}
+              onPick={commit}
+            />
           ))}
         </div>
       )}
@@ -730,6 +721,44 @@ function FontCombobox({ value, onChange, placeholder }) {
 function PreviewLoader({ family }) {
   useGoogleFont(family, ['400', '700'])
   return null
+}
+
+// One row in the font combobox dropdown. Lazy-loads its Google Font
+// only after the row scrolls into view — without this, opening the
+// dropdown would inject 200 <link> tags into the document head and
+// hammer Google Fonts' CDN. IntersectionObserver disconnects after
+// the first hit so the row stays "loaded" once seen.
+function LazyFontOption({ family, isSelected, onPick }) {
+  const ref = useRef(null)
+  const [seen, setSeen] = useState(false)
+  useEffect(() => {
+    if (!ref.current) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setSeen(true); obs.disconnect() }
+    }, { threshold: 0.01 })
+    obs.observe(ref.current)
+    return () => obs.disconnect()
+  }, [])
+  return (
+    <button
+      ref={ref}
+      onClick={() => onPick(family)}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        width: '100%', padding: '8px 10px',
+        background: isSelected ? 'rgba(139,92,246,0.10)' : 'transparent',
+        border: 'none', borderRadius: 7,
+        color: 'var(--color-text)', cursor: 'pointer',
+        fontFamily: seen ? `"${family}", sans-serif` : 'var(--font-sans)',
+        fontSize: 14, textAlign: 'left',
+      }}
+      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--color-surface)' }}
+      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+    >
+      <span>{family}</span>
+      {seen && <PreviewLoader family={family} />}
+    </button>
+  )
 }
 
 function WeightPicker({ family, weights, onToggle }) {
@@ -2003,14 +2032,38 @@ function FieldLabel({ children }) {
   )
 }
 
-// Hex + colour picker fused into one control. Picker swatch on top,
-// editable hex input below — typing/pasting a valid 6-char hex
-// updates the swatch, dragging the picker updates the text in real
-// time (onInput, not just the older onChange, so the value tracks
-// the drag rather than waiting for the dialog to close).
+// Figma-style colour picker.
+// Click the swatch → popover with an SV plane, hue slider, and a
+// hex input. The plane updates as you drag, the hex input updates
+// as you drag, and typing into the hex input moves the plane +
+// hue cursor. No native <input type="color"> — that picker's
+// chrome can't be styled and feels off-brand.
 function HexPicker({ value, onChange }) {
   const [draft, setDraft] = useState(value || '#000000')
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const swatchRef = useRef(null)
   useEffect(() => { setDraft(value || '#000000') }, [value])
+
+  function openPopover() {
+    if (!swatchRef.current) return setOpen(true)
+    const r = swatchRef.current.getBoundingClientRect()
+    // Default: drop to the right of the swatch. If that overflows
+    // viewport, fall back to under the swatch instead.
+    const popW = 248
+    const popH = 260
+    let left = r.right + 10
+    let top = r.top
+    if (left + popW > window.innerWidth - 12) {
+      left = Math.max(12, r.left)
+      top = r.bottom + 10
+    }
+    if (top + popH > window.innerHeight - 12) {
+      top = Math.max(12, window.innerHeight - popH - 12)
+    }
+    setPos({ top, left })
+    setOpen(true)
+  }
 
   function commitText(raw) {
     let v = (raw || '').trim()
@@ -2019,36 +2072,32 @@ function HexPicker({ value, onChange }) {
     if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v.toUpperCase())
   }
 
-  // onInput fires on every drag pixel; onChange only fires once the
-  // picker dialog closes (Chrome) or on commit (Safari). Wiring both
-  // gives us a live hex that tracks the drag AND a reliable commit
-  // when the user closes the picker.
-  function pickerLive(e) {
-    const v = (e.target.value || '').toUpperCase()
-    setDraft(v)
-    onChange(v)
-  }
+  const validSwatch = /^#[0-9a-fA-F]{6}$/.test(draft) ? draft : '#000000'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <input
-        type="color"
-        value={/^#[0-9a-fA-F]{6}$/.test(draft) ? draft : '#000000'}
-        onInput={pickerLive}
-        onChange={pickerLive}
+      <button
+        ref={swatchRef}
+        type="button"
+        onClick={openPopover}
+        aria-label="Pick colour"
         style={{
           width: 52, height: 52, borderRadius: 12,
+          background: validSwatch,
           border: '2px solid var(--color-border)',
-          padding: 2, cursor: 'pointer', background: 'none',
+          boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.08), 0 2px 8px ${validSwatch}55`,
+          cursor: 'pointer', padding: 0,
+          transition: 'transform 0.1s',
         }}
+        onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+        onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
       />
       <input
         type="text"
         value={draft}
         onChange={e => commitText(e.target.value)}
         onBlur={() => {
-          // Restore the canonical value if the user left garbage in
-          // the input — otherwise it'd look misleading.
           if (!/^#[0-9a-fA-F]{6}$/.test(draft)) setDraft(value || '#000000')
         }}
         spellCheck={false}
@@ -2063,8 +2112,286 @@ function HexPicker({ value, onChange }) {
           outline: 'none',
         }}
       />
+      {open && createPortal(
+        <ColorPickerPopover
+          value={validSwatch}
+          top={pos.top}
+          left={pos.left}
+          onChange={hex => {
+            setDraft(hex)
+            onChange(hex)
+          }}
+          onClose={() => setOpen(false)}
+        />,
+        document.body,
+      )}
     </div>
   )
+}
+
+// ── Figma-style popover ────────────────────────────────────────────
+// SV plane + hue strip + hex input. Portalled so it can escape the
+// modal's overflow:hidden. Closes on outside click or Escape.
+function ColorPickerPopover({ value, top, left, onChange, onClose }) {
+  const ref = useRef(null)
+  const [hsv, setHsv] = useState(() => hexToHsv(value))
+  const [hexDraft, setHexDraft] = useState(value.toUpperCase())
+
+  // External value can change (typing in the small hex box). Sync.
+  useEffect(() => {
+    const next = hexToHsv(value)
+    setHsv(next)
+    setHexDraft(value.toUpperCase())
+  }, [value])
+
+  useEffect(() => {
+    function onDoc(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose()
+    }
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  function pushHsv(next) {
+    setHsv(next)
+    const hex = hsvToHex(next).toUpperCase()
+    setHexDraft(hex)
+    onChange(hex)
+  }
+
+  function commitHex(raw) {
+    let v = (raw || '').trim().toUpperCase()
+    if (!v.startsWith('#')) v = '#' + v
+    setHexDraft(v)
+    if (/^#[0-9A-F]{6}$/.test(v)) {
+      setHsv(hexToHsv(v))
+      onChange(v)
+    }
+  }
+
+  const pureHue = hsvToHex({ h: hsv.h, s: 100, v: 100 })
+
+  return (
+    <div
+      ref={ref}
+      onMouseDown={e => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        top, left,
+        width: 248,
+        background: 'var(--color-bg)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 12,
+        boxShadow: '0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px rgba(139,92,246,0.08)',
+        padding: 12,
+        zIndex: 10000,
+        fontFamily: 'var(--font-sans)',
+      }}
+    >
+      <SVPlane hsv={hsv} hueColor={pureHue} onChange={pushHsv} />
+      <HueStrip h={hsv.h} onChange={h => pushHsv({ ...hsv, h })} />
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, marginTop: 12,
+      }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 6,
+          background: hexDraft,
+          border: '1.5px solid var(--color-border)',
+          flexShrink: 0,
+        }} />
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: 10,
+          color: 'var(--color-text-muted)',
+          letterSpacing: '0.08em',
+        }}>
+          HEX
+        </span>
+        <input
+          type="text"
+          value={hexDraft.replace('#', '')}
+          onChange={e => commitHex(e.target.value)}
+          onBlur={() => {
+            if (!/^#[0-9A-F]{6}$/.test(hexDraft)) setHexDraft(hsvToHex(hsv).toUpperCase())
+          }}
+          spellCheck={false}
+          maxLength={6}
+          style={{
+            flex: 1, padding: '7px 9px',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 7,
+            fontFamily: 'var(--font-mono)', fontSize: 13,
+            color: 'var(--color-text)',
+            outline: 'none', textTransform: 'uppercase',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── SV (saturation/value) plane ────────────────────────────────────
+// Background is a horizontal saturation gradient overlaid by a
+// vertical value (black) gradient. Cursor position = hsv. Pointer
+// events tracked window-wide so drags that leave the plane still
+// register until release.
+function SVPlane({ hsv, hueColor, onChange }) {
+  const ref = useRef(null)
+  const [dragging, setDragging] = useState(false)
+
+  function pickAt(clientX, clientY) {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const x = Math.max(0, Math.min(1, (clientX - r.left) / r.width))
+    const y = Math.max(0, Math.min(1, (clientY - r.top) / r.height))
+    onChange({ h: hsv.h, s: x * 100, v: (1 - y) * 100 })
+  }
+
+  useEffect(() => {
+    if (!dragging) return
+    function onMove(e) { pickAt(e.clientX, e.clientY) }
+    function onUp() { setDragging(false) }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging, hsv.h])
+
+  return (
+    <div
+      ref={ref}
+      onMouseDown={e => {
+        setDragging(true)
+        pickAt(e.clientX, e.clientY)
+      }}
+      style={{
+        position: 'relative',
+        width: '100%', aspectRatio: '1.45 / 1',
+        borderRadius: 8,
+        background: `
+          linear-gradient(to top, #000, transparent),
+          linear-gradient(to right, #fff, ${hueColor})
+        `,
+        cursor: 'crosshair',
+        userSelect: 'none',
+      }}
+    >
+      <div style={{
+        position: 'absolute',
+        left: `${hsv.s}%`, top: `${100 - hsv.v}%`,
+        width: 14, height: 14, borderRadius: '50%',
+        border: '2px solid white',
+        boxShadow: '0 0 0 1px rgba(0,0,0,0.35)',
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+      }} />
+    </div>
+  )
+}
+
+// ── Hue strip ──────────────────────────────────────────────────────
+function HueStrip({ h, onChange }) {
+  const ref = useRef(null)
+  const [dragging, setDragging] = useState(false)
+
+  function pickAt(clientX) {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const x = Math.max(0, Math.min(1, (clientX - r.left) / r.width))
+    onChange(x * 360)
+  }
+
+  useEffect(() => {
+    if (!dragging) return
+    function onMove(e) { pickAt(e.clientX) }
+    function onUp() { setDragging(false) }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging])
+
+  const knobColor = hsvToHex({ h, s: 100, v: 100 })
+
+  return (
+    <div
+      ref={ref}
+      onMouseDown={e => {
+        setDragging(true)
+        pickAt(e.clientX)
+      }}
+      style={{
+        position: 'relative', marginTop: 12,
+        width: '100%', height: 12, borderRadius: 6,
+        background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
+        cursor: 'pointer',
+        userSelect: 'none',
+      }}
+    >
+      <div style={{
+        position: 'absolute',
+        top: '50%', left: `${(h / 360) * 100}%`,
+        width: 16, height: 16, borderRadius: '50%',
+        background: knobColor,
+        border: '2px solid white',
+        boxShadow: '0 0 0 1px rgba(0,0,0,0.35)',
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+      }} />
+    </div>
+  )
+}
+
+// ── HSV ↔ HEX helpers ─────────────────────────────────────────────
+function hexToHsv(hex) {
+  const clean = (hex || '').replace('#', '')
+  if (clean.length !== 6) return { h: 0, s: 0, v: 0 }
+  const r = parseInt(clean.slice(0, 2), 16) / 255
+  const g = parseInt(clean.slice(2, 4), 16) / 255
+  const b = parseInt(clean.slice(4, 6), 16) / 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  const d = max - min
+  let h = 0
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6
+    else if (max === g) h = (b - r) / d + 2
+    else h = (r - g) / d + 4
+    h *= 60
+    if (h < 0) h += 360
+  }
+  const s = max === 0 ? 0 : (d / max) * 100
+  const v = max * 100
+  return { h, s, v }
+}
+
+function hsvToHex({ h, s, v }) {
+  const S = s / 100
+  const V = v / 100
+  const c = V * S
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = V - c
+  let r = 0, g = 0, b = 0
+  if      (h < 60)  { r = c; g = x; b = 0 }
+  else if (h < 120) { r = x; g = c; b = 0 }
+  else if (h < 180) { r = 0; g = c; b = x }
+  else if (h < 240) { r = 0; g = x; b = c }
+  else if (h < 300) { r = x; g = 0; b = c }
+  else              { r = c; g = 0; b = x }
+  const toHex = n => Math.round((n + m) * 255).toString(16).padStart(2, '0')
+  return '#' + toHex(r) + toHex(g) + toHex(b)
 }
 
 function TextInput({ value, onChange, placeholder, type = 'text' }) {
