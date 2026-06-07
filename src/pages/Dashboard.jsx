@@ -318,6 +318,17 @@ export default function Dashboard() {
     if (!activeProjectBriefResult) return
     setResult(activeProjectBriefResult)
     setScoring(activeProjectScoring || null)
+    // Hydrate inspirations from the saved result. Briefs created
+    // before inspirations were persisted have no array here, so
+    // fall back to [] — the empty state then keeps inspiSearched
+    // false so the Find Inspiration button still appears as a
+    // one-time backfill. New briefs persist inspirations on the
+    // result object, so this path skips the fallback entirely.
+    const savedInspi = Array.isArray(activeProjectBriefResult.inspirations)
+      ? activeProjectBriefResult.inspirations
+      : []
+    setInspirations(savedInspi)
+    setInspiSearched(savedInspi.length > 0)
     setPhase('result')
     setActiveProjectBriefResult?.(null)
     setActiveProjectScoring?.(null)
@@ -532,7 +543,12 @@ export default function Dashboard() {
         ).catch(e => { console.error('Inspirations error:', e); return [] }),
       ])
 
-      const fullResult = { ...finalResult, competitors }
+      // inspirations live on the result object so reopening the
+      // brief from history (sidebar Recent / Project Library card)
+      // restores them — otherwise the InspirationsSection would fall
+      // back to its empty state + Find Inspiration button every time.
+      const inspirationsArr = Array.isArray(inspiData) ? inspiData : []
+      const fullResult = { ...finalResult, competitors, inspirations: inspirationsArr }
       setScoring(scoreData)
       const resultWithMeta = {
         ...fullResult,
@@ -541,7 +557,7 @@ export default function Dashboard() {
       setResult(resultWithMeta)
       setActiveProjectBriefResult(resultWithMeta)
       setPhase('result')
-      setInspirations(Array.isArray(inspiData) ? inspiData : [])
+      setInspirations(inspirationsArr)
       setInspiSearched(true)
       setLoadingInspi(false)
 
