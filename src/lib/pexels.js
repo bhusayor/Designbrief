@@ -6,7 +6,9 @@
 // expected to fall back to a CSS animation when null.
 // ────────────────────────────────────────────────────────────────────
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+// API base — same env var as claudeApi.js. Points at the standalone
+// Express API server (Render in production, localhost:3001 in dev).
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 async function fetchPexels(body) {
   try {

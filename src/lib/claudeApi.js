@@ -22,7 +22,12 @@ import { supabase } from './supabase.js'
 import { MODELS, MODEL_FOR, pickModel } from './models.js'
 import { designSystemToContext } from './designSystem.js'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+// API base — points at the standalone Express API server (Render in
+// production, localhost:3001 in dev). Set VITE_API_URL on Vercel to
+// the Render URL. Fetches below already template-string this base
+// into every /api/claude call, so swapping deployments is one env
+// var change away.
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const MAX_RETRIES = 2
 const BASE_DELAY_MS = 1500
 const DEFAULT_TIMEOUT_MS = 60000
