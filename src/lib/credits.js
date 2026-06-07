@@ -8,11 +8,14 @@
 // ────────────────────────────────────────────────────────────────────
 
 export const CREDIT_COSTS = {
-  // Was 10 when translateAndAnalyse bundled the deep-analysis call.
-  // Now translate-only — half the AI work, half the credits.
-  brief_translation: 6,
-  // On-demand techStack + features + userFlow block. Fired by the
-  // "Generate Deep Analysis" button on the brief result page.
+  // Full brief: translate + score + deep analysis (techStack +
+  // features + userFlow) all in parallel. The Render backend has no
+  // Vercel 60s ceiling so we bundle everything back into one click;
+  // 10 = 6 (translate) + 4 (deep) at the previous unit prices.
+  brief_translation: 10,
+  // Kept for backward compatibility with old result-page builds that
+  // still expose a manual re-run path. New translations include deep
+  // analysis up-front and never hit this charge.
   deep_analysis: 4,
   kanban_generation: 8,
   ai_task_prompt: 3,

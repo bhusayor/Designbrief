@@ -1120,38 +1120,45 @@ Return 6-8 high-quality, real references.`;
  * Returns: { scoreData, finalResult }
  */
 export async function translateAndAnalyse(briefText, opts = {}) {
-  // Three calls in parallel:
-  //   scoreBrief          — 800 tokens, ~5s
-  //   translateBriefCore  — 2200 tokens, ~15s (visual brief)
+  // Four calls in parallel:
+  //   scoreBrief             — 800 tokens,  ~5s
+  //   translateBriefCore     — 2200 tokens, ~15s (visual brief)
   //   translateBriefPlanning — 2200 tokens, ~15s (budget/team/voice)
+  //   analyseDeep            — 4000 tokens, ~20s (techStack + features + userFlow)
   //
-  // translateBrief() wraps the two halves with Promise.all internally,
-  // so this outer Promise.all runs all three in true parallel. Total
-  // wall time is bounded by the slowest single call (~15-20s) instead
-  // of the legacy ~35-50s sequential chain. Each call also runs as a
-  // separate Vercel function invocation, so each gets its own 60s
-  // budget instead of sharing one.
+  // translateBrief() wraps Core+Planning with Promise.all internally,
+  // so this outer Promise.all fans out three independent network round
+  // trips. Wall time is bounded by the slowest single call (~20-25s).
   //
-  // The deep analysis (techStack + features + userFlow) is button-
-  // triggered via runDeepAnalysis below; callers that need it inline
-  // can pass `{ deep: true }`.
-  const [scoreData, translation] = await Promise.all([
+  // The Vercel 60s ceiling that used to force deep analysis behind a
+  // button is gone now that the backend runs on Render — so deep is
+  // bundled back into the default translation flow. Callers that want
+  // to skip deep (cheap one-off scoring without the techStack cost)
+  // can still pass `{ deep: false }`.
+  //
+  // projectTitle isn't known until translateBrief returns, so we pass
+  // a generic placeholder to analyseDeep. The brief text itself
+  // already carries the product name in nearly every brief, so the
+  // model has enough context regardless.
+  const runDeep = opts.deep !== false
+  const [scoreData, translation, analysis] = await Promise.all([
     scoreBrief(briefText),
     translateBrief(briefText),
+    runDeep
+      ? analyseDeep(briefText, 'Project').catch(e => {
+          // A deep failure must not nuke the rest of the translation.
+          console.warn('[translateAndAnalyse] deep analysis failed:', e?.message)
+          return null
+        })
+      : Promise.resolve(null),
   ]);
 
   const finalResult = { ...translation };
 
-  if (opts.deep) {
-    try {
-      const analysis = await analyseDeep(briefText, scoreData?.projectTitle ?? 'Project');
-      finalResult.techStack = analysis?.techStack ?? null;
-      finalResult.features = analysis?.features ?? [];
-      finalResult.userFlow = analysis?.userFlow ?? [];
-    } catch (e) {
-      // A deep failure must not nuke the rest of the translation.
-      console.warn('[translateAndAnalyse] deep analysis failed:', e?.message)
-    }
+  if (analysis) {
+    finalResult.techStack = analysis.techStack ?? null;
+    finalResult.features = analysis.features ?? [];
+    finalResult.userFlow = analysis.userFlow ?? [];
   }
 
   if (finalResult && !finalResult.disciplineData) {
