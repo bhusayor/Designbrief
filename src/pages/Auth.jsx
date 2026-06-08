@@ -3,7 +3,20 @@ import { supabase } from '../lib/supabase'
 import { Input } from '../components/ui'
 
 export default function Auth() {
-  const [tab, setTab] = useState('login')
+  // Default tab honours a one-shot localStorage hint set by other
+  // pages that want to deep-link into a specific mode — e.g. the
+  // Shared brief viewer setting 'signup' before sending an anon
+  // viewer here so they land directly on Create account.
+  const [tab, setTab] = useState(() => {
+    try {
+      const pref = localStorage.getItem('db-auth-default-tab')
+      if (pref === 'signup' || pref === 'login') {
+        localStorage.removeItem('db-auth-default-tab')
+        return pref
+      }
+    } catch {}
+    return 'login'
+  })
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')

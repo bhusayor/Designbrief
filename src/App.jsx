@@ -259,6 +259,16 @@ function AppRouter() {
     return <AcceptInvite />;
   }
 
+  // Shared brief viewer:
+  //   - Unauthenticated visitor → bare page, no sidebar. We don't want to
+  //     show the app chrome (Recent, Library, etc.) to someone who just
+  //     wants to read the shared brief.
+  //   - Authenticated user → fall through to the default AppShell
+  //     wrapping below so the sidebar + Save-to-history button work.
+  if (activeSection === 'shared' && !authUser) {
+    return <SharedBrief />;
+  }
+
   return (
     <>
       <AppShell>

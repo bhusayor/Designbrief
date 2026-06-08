@@ -6,19 +6,27 @@
 // token rides in the URL; this page reads it out of context
 // (App.jsx routing pre-populates activeShareToken), fetches the
 // snapshot from supabase as anon, and renders it through the same
-// ResultView the owner sees — minus the owner-only sticky header
-// (hideStickyHeader prop on ResultView).
+// ResultView the owner sees — minus the owner-only sticky header.
+//
+// Header buttons branch on auth state:
+//   - Anon visitor → "Create your own" sends them to signup (App.jsx
+//     skips AppShell so no sidebar leaks the app UI).
+//   - Signed-in viewer → "Save to history" snapshots into their own
+//     projects table so the brief lands in Recent. "Create your own"
+//     opens a fresh Dashboard translator.
 // ────────────────────────────────────────────────────────────────────
 
 import { useContext, useEffect, useState } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
-import { SparklesIcon } from '@heroicons/react/24/outline'
+import { SparklesIcon, BookmarkIcon } from '@heroicons/react/24/outline'
 import { ResultView } from './Dashboard'
 
 export default function SharedBrief() {
-  const { activeShareToken } = useContext(AppContext)
+  const { activeShareToken, authUser, navigate, saveHistory, showToast } = useContext(AppContext)
   const [state, setState] = useState({ status: 'loading', data: null, error: null })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!activeShareToken) {
@@ -48,6 +56,58 @@ export default function SharedBrief() {
     })()
     return () => { cancelled = true }
   }, [activeShareToken])
+
+  // ── Header actions ────────────────────────────────────────────
+  // "Create your own" sends anon visitors to the signup page and
+  // signed-in viewers to a fresh translator. We use a localStorage
+  // hint to land anon visitors on the Create-account tab directly.
+  function handleCreateOwn() {
+    if (!authUser) {
+      try { localStorage.setItem('db-auth-default-tab', 'signup') } catch {}
+      navigate('auth')
+      return
+    }
+    navigate('dashboard')
+  }
+
+  // "Save to history" — only for signed-in viewers. Pipes the snapshot
+  // into saveHistory which writes a project row + lights up the
+  // Recent list in the sidebar. Inspirations live on result.inspirations
+  // so the standard history hydration in Dashboard.jsx restores them.
+  async function handleSaveToHistory() {
+    if (!state.data || saving) return
+    if (!authUser) {
+      showToast?.('Sign in to save briefs.', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      const snap = state.data
+      const resultWithInspi = {
+        ...snap.result,
+        inspirations: Array.isArray(snap.inspirations) ? snap.inspirations : [],
+      }
+      await saveHistory({
+        id: `hist_share_${snap.token}`,
+        section: 'translator',
+        title: snap.title || 'Shared brief',
+        ts: Date.now(),
+        pinned: false,
+        data: {
+          brief: '',
+          scoring: snap.scoring || null,
+          result: resultWithInspi,
+        },
+      })
+      setSaved(true)
+      showToast?.('Saved — check Recent in the sidebar.', 'success')
+    } catch (e) {
+      console.error('[shared-brief] save failed', e)
+      showToast?.(e?.message || 'Could not save brief. Try again.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (state.status === 'loading') {
     return (
@@ -98,12 +158,17 @@ export default function SharedBrief() {
     )
   }
 
-  // Ready — render the owner-facing ResultView with the sticky
-  // header suppressed; we supply our own minimal one above the brief.
   const snap = state.data
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
-      <PublicHeader title={snap.title} />
+      <PublicHeader
+        title={snap.title}
+        isSignedIn={!!authUser}
+        onCreateOwn={handleCreateOwn}
+        onSave={handleSaveToHistory}
+        saving={saving}
+        saved={saved}
+      />
       <ResultView
         result={snap.result || {}}
         scoring={snap.scoring || null}
@@ -133,7 +198,10 @@ function FullPage({ children }) {
   )
 }
 
-function PublicHeader({ title }) {
+// Top-of-page header. Same chrome for anon + signed-in users; only
+// the button set on the right changes (anon gets just Create your
+// own → signup; signed-in gets Save + Create your own → dashboard).
+function PublicHeader({ title, isSignedIn, onCreateOwn, onSave, saving, saved }) {
   return (
     <div style={{
       position: 'sticky', top: 0, zIndex: 20,
@@ -166,22 +234,51 @@ function PublicHeader({ title }) {
           {title || 'Untitled brief'}
         </span>
       </div>
-      <a
-        href="/"
-        style={{
-          padding: '7px 14px',
-          background: 'var(--color-text)',
-          color: 'var(--color-bg)',
-          borderRadius: 9,
-          fontFamily: "'Urbanist', sans-serif",
-          fontWeight: 600,
-          fontSize: 13,
-          textDecoration: 'none',
-          flexShrink: 0,
-        }}
-      >
-        Create your own
-      </a>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {isSignedIn && (
+          <button
+            onClick={onSave}
+            disabled={saving || saved}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px',
+              background: saved ? 'var(--color-surface)' : 'var(--color-card)',
+              color: saved ? 'var(--color-text-soft)' : 'var(--color-text)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 9,
+              fontFamily: "'Urbanist', sans-serif",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: (saving || saved) ? 'default' : 'pointer',
+              opacity: saving ? 0.7 : 1,
+              transition: 'opacity 0.15s, background 0.15s',
+            }}
+          >
+            {saving ? (
+              <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid currentColor', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite' }} />
+            ) : (
+              <BookmarkIcon style={{ width: 14, height: 14 }} />
+            )}
+            {saved ? 'Saved' : saving ? 'Saving…' : 'Save to history'}
+          </button>
+        )}
+        <button
+          onClick={onCreateOwn}
+          style={{
+            padding: '7px 14px',
+            background: 'var(--color-text)',
+            color: 'var(--color-bg)',
+            border: 'none',
+            borderRadius: 9,
+            fontFamily: "'Urbanist', sans-serif",
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          {isSignedIn ? 'Create your own' : 'Sign up to create'}
+        </button>
+      </div>
     </div>
   )
 }
