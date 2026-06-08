@@ -973,6 +973,20 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
           }
           .brief-result-root .brief-result-hero { padding-left: 32px !important; padding-right: 32px !important; gap: 32px !important; }
           .brief-result-root .brief-result-sticky { padding-left: 20px !important; padding-right: 20px !important; }
+          /* Lift desktop-baked maxWidth caps on text blocks so prose
+             reaches both edges of its container instead of stranding
+             whitespace on the right (Hero description, score-card
+             summary, creative-concept quote, attached-file chips). */
+          .brief-result-root [style*="max-width: 600"],
+          .brief-result-root [style*="max-width: 800"],
+          .brief-result-root [style*="max-width: 540"],
+          .brief-result-root [style*="max-width: 400"] {
+            max-width: 100% !important;
+          }
+          /* Tighter auto-fill minimums so tile grids land 2-3 cards
+             per row on tablet instead of one card + dead space. */
+          .brief-result-root [style*="minmax(280px"] { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important; }
+          .brief-result-root [style*="minmax(240px"] { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
         }
         @media (max-width: 700px) {
           .brief-result-root [style*="padding: 40px 48px"],
@@ -1014,6 +1028,30 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
           /* Generic large headings on mobile */
           .brief-result-root h1 { font-size: 28px !important; }
           .brief-result-root h2 { font-size: 22px !important; }
+          /* Lift every remaining width cap so blocks fill the row */
+          .brief-result-root [style*="max-width: 600"],
+          .brief-result-root [style*="max-width: 800"],
+          .brief-result-root [style*="max-width: 540"],
+          .brief-result-root [style*="max-width: 400"],
+          .brief-result-root [style*="max-width: 180"],
+          .brief-result-root [style*="max-width: 150"],
+          .brief-result-root [style*="max-width: 120"] {
+            max-width: 100% !important;
+          }
+          /* Cap auto-fill grids to a single column on mobile so cards
+             don't sit at their min-tile width with dead space beside. */
+          .brief-result-root [style*="minmax(280px"],
+          .brief-result-root [style*="minmax(240px"],
+          .brief-result-root [style*="minmax(200px"] {
+            grid-template-columns: 1fr !important;
+          }
+          /* Type-scale block: the inner 6-col grid totals ~300px
+             minimum; on viewports under 360px it would overflow. Wrap
+             it in a horizontal scroll so the rows stay readable
+             without squishing the columns. */
+          .brief-result-root .brief-result-scale-block { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          /* Centre the creative-concept quote and let it breathe */
+          .brief-result-root section [style*="text-align: center"] { margin-left: auto !important; margin-right: auto !important; }
         }
       `}</style>
 
@@ -1970,7 +2008,7 @@ function TypographySection({ typography, discipline }) {
         </div>
 
         {/* Right: Type scale table */}
-        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '20px 22px', height: 'fit-content' }}>
+        <div className="brief-result-scale-block" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '20px 22px', height: 'fit-content' }}>
           <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Type Scale</div>
 
           {/* Platform tabs — show only when both exist */}
