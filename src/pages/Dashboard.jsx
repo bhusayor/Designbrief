@@ -266,7 +266,7 @@ function useWindowWidth() {
 
 export default function Dashboard() {
   const {
-    user, navigate, saveHistory, showToast, setCreditsUsed,
+    user, authUser, navigate, saveHistory, showToast, setCreditsUsed,
     selectedWebsiteTemplate, setSelectedWebsiteTemplate,
     setActiveProjectBriefResult,
     activeProjectBriefResult,
@@ -605,6 +605,51 @@ export default function Dashboard() {
     setLoadingInspi(false)
   }
 
+  async function handleShare() {
+    if (!result) {
+      showToast?.('No brief to share yet.', 'error')
+      return
+    }
+    if (!authUser?.id) {
+      showToast?.('Sign in to share briefs.', 'error')
+      return
+    }
+    try {
+      // Snapshot the brief into supabase.shared_briefs and copy the
+      // resulting /share/<token> URL to the clipboard. The token is
+      // generated server-side by gen_random_uuid() so we let supabase
+      // assign it via the .select() roundtrip.
+      const { data, error } = await supabase
+        .from('shared_briefs')
+        .insert({
+          title: result.projectTitle || 'Untitled brief',
+          result: result,
+          scoring: scoring || null,
+          inspirations: Array.isArray(inspirations) ? inspirations : [],
+          created_by: authUser.id,
+        })
+        .select('token')
+        .single()
+      if (error) throw error
+
+      const url = `${window.location.origin}/share/${data.token}`
+      try {
+        await navigator.clipboard.writeText(url)
+        showToast?.('Share link copied — anyone with the link can view this brief.', 'success')
+      } catch {
+        // Clipboard write blocked (older browser / iframe). Still
+        // surface the URL so the user can manually copy it.
+        showToast?.(`Share URL: ${url}`, 'success')
+      }
+    } catch (e) {
+      console.error('[share] failed', e)
+      const msg = e?.code === '42P01'
+        ? 'Sharing isn\'t set up — run supabase/shared-briefs.sql first.'
+        : (e?.message || 'Could not create share link. Try again.')
+      showToast?.(msg, 'error')
+    }
+  }
+
   async function handleLoadCompetitors() {
     setLoadingCompetitors(true)
     console.log('[handleLoadCompetitors] fetching for:', result?.projectTitle, '| industry:', result?.industry, '| tone:', result?.toneWords)
@@ -765,10 +810,7 @@ export default function Dashboard() {
         onReset={handleReset}
         onDownload={handleDownload}
         downloadingPdf={downloadingPdf}
-        onShare={() => {
-          navigator.clipboard.writeText(window.location.origin + '/share/' + uid())
-            .then(() => showToast('Share link copied!', 'success'))
-        }}
+        onShare={handleShare}
         onNavigate={navigate}
         showToast={showToast}
         loadingCompetitors={loadingCompetitors}
@@ -1025,7 +1067,16 @@ function StreamingLoadingView({ streamedText, streamDone }) {
 
 // ─── Result View ──────────────────────────────────────────────────────────────
 
-function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSearched, onFetchInspirations, onReset, onDownload, downloadingPdf, onShare, onNavigate, showToast, loadingCompetitors, onLoadCompetitors }) {
+export function ResultView({
+  result: r, scoring: s,
+  inspirations = [], loadingInspi = false, inspiSearched = false,
+  onFetchInspirations = () => {},
+  onReset, onDownload, downloadingPdf = false,
+  onShare, onNavigate = () => {},
+  showToast = () => {},
+  loadingCompetitors = false, onLoadCompetitors = () => {},
+  hideStickyHeader = false,
+}) {
   const phases = buildPhasesLocal(r.timeframe?.taskDays)
   const badge = s ? verdictBadge(s.verdict) : null
 
@@ -1140,7 +1191,10 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
         }
       `}</style>
 
-      {/* Sticky header */}
+      {/* Sticky header — owner only. The shared-brief viewer renders
+          its own header outside ResultView, so we skip this when the
+          host wraps us in a read-only context. */}
+      {!hideStickyHeader && (
       <div className="brief-result-sticky" style={{ position: 'sticky', top: 0, zIndex: 20, background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)', padding: '0 32px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
           <button onClick={onReset} onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: '8px', color: 'var(--color-text-soft)', fontFamily: "'Urbanist', sans-serif", fontSize: '13px', transition: 'background 0.15s', flexShrink: 0 }}>
@@ -1188,6 +1242,7 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
           </button>
         </div>
       </div>
+      )}
 
       {/* Sections — priority order */}
       <HeroSection r={r} s={s} />

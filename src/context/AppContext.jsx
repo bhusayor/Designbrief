@@ -84,6 +84,9 @@ export function AppProvider({ children }) {
   // optional retry callback and (for rate_limited) a countdown.
   const [aiError, setAiError] = useState(null);
   const [activeIntakeId, setActiveIntakeId] = useState(null);
+  // Token from a /share/:token URL — read by the public SharedBriefPage
+  // to fetch the snapshot row out of supabase.shared_briefs.
+  const [activeShareToken, setActiveShareToken] = useState(null);
   const [intakeForms, setIntakeForms] = useState([]);
   const [loadingForms, setLoadingForms] = useState(false);
   const knownCompleteIdsRef = useRef(null); // null = not yet seeded
@@ -1641,6 +1644,8 @@ export function AppProvider({ children }) {
     // Intake
     activeIntakeId,
     setActiveIntakeId,
+    activeShareToken,
+    setActiveShareToken,
     intakeForms,
     loadingForms,
     loadIntakeForms,

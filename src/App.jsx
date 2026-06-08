@@ -18,13 +18,14 @@ import ProjectBuilder from './pages/ProjectBuilder';
 import Auth from './pages/Auth';
 import WorkspaceSetup from './pages/WorkspaceSetup';
 import AcceptInvite from './pages/AcceptInvite';
+import SharedBrief from './pages/SharedBrief';
 import UpgradeModal from './components/UpgradeModal';
 import { supabase } from './lib/supabase';
 import PageTransition from './components/PageTransition';
 
 function AppRouter() {
   const {
-    activeSection, setActiveIntakeId, navigate,
+    activeSection, setActiveIntakeId, setActiveShareToken, navigate,
     authUser, authLoading,
     workspace, setWorkspace, workspaceLoading, workspaceLoadError, loadWorkspace,
     showToast, refreshAuthUser, refreshUserPlan,
@@ -113,6 +114,16 @@ function AppRouter() {
     if (inviteMatch) {
       localStorage.setItem('db-invite-token', inviteMatch[1]);
       navigate('accept-invite');
+      return;
+    }
+
+    // Public share viewer: /share/<uuid> → render SharedBrief
+    // without requiring auth. UUID format only — the SQL column is
+    // typed uuid so anything else would 400 the supabase call.
+    const shareMatch = path.match(/^\/share\/([a-f0-9-]{30,})$/i);
+    if (shareMatch) {
+      setActiveShareToken(shareMatch[1]);
+      navigate('shared');
     }
   }, []);
 
@@ -130,6 +141,7 @@ function AppRouter() {
     builder:         <ProjectBuilder />,
     auth:            <Auth />,
     'accept-invite': <AcceptInvite />,
+    shared:          <SharedBrief />,
   };
 
   // Show spinner while auth initialises, or while workspace is loading for a
@@ -158,7 +170,7 @@ function AppRouter() {
     );
   }
 
-  const publicSections = ['auth', 'client-intake', 'join', 'accept-invite'];
+  const publicSections = ['auth', 'client-intake', 'join', 'accept-invite', 'shared'];
 
   // Unauthenticated → show Auth page
   if (!authUser && !publicSections.includes(activeSection)) {
