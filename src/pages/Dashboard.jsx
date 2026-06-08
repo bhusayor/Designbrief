@@ -881,7 +881,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Active connector badges */}
+        {/* Active connector badges — hidden from live site for now.
+            Re-enable by uncommenting the block below.
         {(connectorData?.figma || connectorData?.github) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Active</span>
@@ -899,6 +900,7 @@ export default function Dashboard() {
             )}
           </div>
         )}
+        */}
 
       </div>
     </div>

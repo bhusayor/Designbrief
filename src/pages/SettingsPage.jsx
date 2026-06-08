@@ -20,7 +20,8 @@ import {
   CameraIcon,
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
-import Connectors from './Connectors'
+// Connectors hidden from live site — re-enable by uncommenting:
+// import Connectors from './Connectors'
 import Billing from './Billing'
 
 function PanelLeftClose({ size = 16 }) {
@@ -1178,7 +1179,8 @@ const NAV = [
     items: [
       { id: 'general',    label: 'General',        icon: Cog6ToothIcon },
       { id: 'plans',      label: 'Billing',          icon: BoltIcon },
-      { id: 'connectors', label: 'Connectors',      icon: LinkIcon },
+      // Connectors hidden from live site — re-enable by uncommenting:
+      // { id: 'connectors', label: 'Connectors',      icon: LinkIcon },
       { id: 'danger',     label: 'Danger zone',     icon: ExclamationTriangleIcon },
     ],
   },
@@ -1268,7 +1270,8 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
       case 'appearance': return <AppearanceSection onSaved={showSaveToast} />
       case 'general':    return <WorkspaceGeneralSection callSettings={callSettings} onSaved={showSaveToast} />
       case 'plans':      return <Billing />
-      case 'connectors': return <Connectors embedded />
+      // Connectors hidden from live site:
+      // case 'connectors': return <Connectors embedded />
       case 'danger':
         return (
           <DangerSection

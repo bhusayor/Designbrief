@@ -11,7 +11,9 @@ import ProjectDocument from './pages/ProjectDocument';
 import ProjectOverview from './pages/ProjectOverview';
 import TeamCollab from './pages/TeamCollab';
 import ProjectLibrary from './pages/ProjectLibrary';
-import Connectors from './pages/Connectors';
+// Connectors hidden from the live site for now — re-enable by
+// uncommenting this import + the route entry below.
+// import Connectors from './pages/Connectors';
 import ProjectBuilder from './pages/ProjectBuilder';
 import Auth from './pages/Auth';
 import WorkspaceSetup from './pages/WorkspaceSetup';
@@ -124,7 +126,7 @@ function AppRouter() {
     'project-overview': <ProjectOverview />,
     team:            <TeamCollab />,
     library:         <ProjectLibrary />,
-    connectors:      <Connectors />,
+    // connectors:      <Connectors />,  // hidden from live site
     builder:         <ProjectBuilder />,
     auth:            <Auth />,
     'accept-invite': <AcceptInvite />,

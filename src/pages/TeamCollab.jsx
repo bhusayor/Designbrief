@@ -4707,6 +4707,8 @@ STYLE:
 
               {/* Right: Connect + Build with AI + Add Task + Push to Linear */}
               <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, minWidth: isMobile ? 'auto' : 120, justifyContent: 'flex-end', marginLeft: 'auto', flexShrink: 0 }}>
+                {/* Connect button hidden from live site for now —
+                    re-enable by uncommenting the block below.
                 {!isMobile && (installedConnectors.figma || installedConnectors.github || installedConnectors.linear) && (
                   <div style={{ position: 'relative' }}>
                     <button
@@ -4727,6 +4729,7 @@ STYLE:
                     )}
                   </div>
                 )}
+                */}
                 {/* Design System — opens the project's tokens modal
                     (colors, typography, buttons in Phase 1). Saved
                     design system becomes the source of truth threaded
