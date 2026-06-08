@@ -296,6 +296,7 @@ export default function Dashboard() {
   const [loadingCompetitors, setLoadingCompetitors] = useState(false)
   const [storedBriefText, setStoredBriefText] = useState('')
   const [inspiSearched, setInspiSearched] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -632,28 +633,82 @@ export default function Dashboard() {
     setStreamedText(''); setStreamDone(false)
   }
 
-  function handleDownload() {
-    if (!result) return
-    const r = result, s = scoring
-    const lines = [
-      `TRANSLATED BRIEF — ${r.projectTitle ?? 'Untitled'}`, '='.repeat(60), '',
-      s ? `BRIEF SCORE: ${s.overall}/10  (${s.verdict})` : '',
-      s ? `Clarity: ${s.clarity}/10 | Completeness: ${s.completeness}/10 | Contradictions: ${s.contradictions}/10` : '',
-      '', '─── PROJECT UNDERSTANDING ───', r.projectUnderstanding ?? '',
-      '', '─── TONE WORDS ───', (r.toneWords ?? []).join(', '),
-      '', '─── COLOUR DIRECTION ───', r.colorDirection ?? '',
-      '', '─── TYPOGRAPHY ───', typeof r.typography === 'object' ? safeTypoStr(r.typography?.rationale) || safeTypoStr(r.typography?.display) : (r.typography ?? ''),
-      '', '─── MOODBOARD KEYWORDS ───', (r.moodboardKeywords ?? []).join(', '),
-      '', '─── QUESTIONS TO ASK ───', ...(r.questionsToAsk ?? []).map((q, i) => `  ${String(i + 1).padStart(2, '0')}. ${q}`),
-      '', '─── RED FLAGS ───', ...(r.redFlags ?? []).map(f => `  ⚠ ${f}`),
-    ].filter(l => l !== undefined).join('\n')
-    const blob = new Blob([lines], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = (r.projectTitle || 'brief').toLowerCase().replace(/\s+/g, '-') + '.txt'
-    a.click()
-    URL.revokeObjectURL(url)
+  async function handleDownload() {
+    if (!result || downloadingPdf) return
+    const root = document.querySelector('.brief-result-root')
+    if (!root) {
+      showToast?.('Brief content not ready yet.', 'error')
+      return
+    }
+
+    setDownloadingPdf(true)
+    showToast?.('Preparing PDF…', 'success')
+
+    try {
+      // Dynamic import — keeps html2canvas + jspdf (~250KB combined)
+      // out of the initial bundle. They're only loaded when the user
+      // actually clicks Download.
+      const [{ default: html2canvas }, jspdfModule] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+      const { jsPDF } = jspdfModule
+
+      const bg = getComputedStyle(root).backgroundColor || '#ffffff'
+
+      const canvas = await html2canvas(root, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: bg,
+        // Force desktop layout regardless of where the user is
+        // clicking Download from. Without this, a mobile click would
+        // capture the stacked single-column view, which is fine on
+        // screen but feels sparse on an A4 page.
+        windowWidth: 1200,
+        // Exclude the sticky header — it'd appear at the top of the
+        // PDF and the action buttons aren't relevant in a saved file.
+        ignoreElements: (el) =>
+          !!(el.classList && el.classList.contains('brief-result-sticky')),
+      })
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pdfWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      // Multi-page split: drop the same full-height image on each
+      // page with a negative y-offset so the page window walks down
+      // the canvas. Cleaner than slicing the canvas — the PDF stays
+      // a single embedded image stream.
+      let heightLeft = imgHeight
+      let position = 0
+
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pdfHeight
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pdfHeight
+      }
+
+      const filename =
+        (result.projectTitle || 'brief')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') + '.pdf'
+      pdf.save(filename)
+      showToast?.('PDF downloaded', 'success')
+    } catch (e) {
+      console.error('[download pdf]', e)
+      showToast?.(e?.message || 'Could not generate PDF. Try again.', 'error')
+    } finally {
+      setDownloadingPdf(false)
+    }
   }
 
   // ── Loading phase ──────────────────────────────────────────────────────────
@@ -680,6 +735,7 @@ export default function Dashboard() {
         onFetchInspirations={handleFetchInspirations}
         onReset={handleReset}
         onDownload={handleDownload}
+        downloadingPdf={downloadingPdf}
         onShare={() => {
           navigator.clipboard.writeText(window.location.origin + '/share/' + uid())
             .then(() => showToast('Share link copied!', 'success'))
@@ -940,7 +996,7 @@ function StreamingLoadingView({ streamedText, streamDone }) {
 
 // ─── Result View ──────────────────────────────────────────────────────────────
 
-function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSearched, onFetchInspirations, onReset, onDownload, onShare, onNavigate, showToast, loadingCompetitors, onLoadCompetitors }) {
+function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSearched, onFetchInspirations, onReset, onDownload, downloadingPdf, onShare, onNavigate, showToast, loadingCompetitors, onLoadCompetitors }) {
   const phases = buildPhasesLocal(r.timeframe?.taskDays)
   const badge = s ? verdictBadge(s.verdict) : null
 
@@ -1077,9 +1133,25 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
             <ShareIcon style={{ width: '14px', height: '14px' }} />
             <span className="sticky-label">Share</span>
           </button>
-          <button onClick={onDownload} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: '9px', padding: '7px 14px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
-            <ArrowDownTrayIcon style={{ width: '14px', height: '14px' }} />
-            <span className="sticky-label">Download</span>
+          <button
+            onClick={onDownload}
+            disabled={downloadingPdf}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'var(--color-text)', color: 'var(--color-bg)',
+              border: 'none', borderRadius: '9px', padding: '7px 14px',
+              fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px',
+              cursor: downloadingPdf ? 'wait' : 'pointer',
+              opacity: downloadingPdf ? 0.7 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {downloadingPdf ? (
+              <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid currentColor', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite' }} />
+            ) : (
+              <ArrowDownTrayIcon style={{ width: '14px', height: '14px' }} />
+            )}
+            <span className="sticky-label">{downloadingPdf ? 'Preparing…' : 'Download'}</span>
           </button>
           <button onClick={() => onNavigate('team')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: '9px', padding: '7px 14px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
             <UserGroupIcon style={{ width: '14px', height: '14px' }} />
