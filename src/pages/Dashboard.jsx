@@ -644,8 +644,29 @@ export default function Dashboard() {
     setDownloadingPdf(true)
     showToast?.('Preparing PDF…', 'success')
 
+    // .brief-result-root has `height: 100% + overflow: auto` — a
+    // fixed-viewport scroll container. html2canvas defaults to
+    // measuring the element's clientHeight (the viewport-visible
+    // portion), so without expanding the element first only the
+    // first ~viewport-height of content makes it into the canvas
+    // and the PDF ends up as a single page. We temporarily strip
+    // the height + overflow caps so the element reflows to its full
+    // natural content height for the duration of the capture, then
+    // restore the originals in `finally`.
+    const orig = {
+      height: root.style.height,
+      overflow: root.style.overflow,
+      maxHeight: root.style.maxHeight,
+    }
+    root.style.height = 'auto'
+    root.style.overflow = 'visible'
+    root.style.maxHeight = 'none'
+    // Force a synchronous layout so the new dimensions are settled
+    // before html2canvas reads them.
+    void root.offsetHeight
+
     try {
-      // Dynamic import — keeps html2canvas + jspdf (~250KB combined)
+      // Dynamic import — keeps html2canvas + jspdf (~600KB combined)
       // out of the initial bundle. They're only loaded when the user
       // actually clicks Download.
       const [{ default: html2canvas }, jspdfModule] = await Promise.all([
@@ -666,6 +687,10 @@ export default function Dashboard() {
         // capture the stacked single-column view, which is fine on
         // screen but feels sparse on an A4 page.
         windowWidth: 1200,
+        // Render with a tall virtual viewport so any sticky / lazy
+        // layout passes inside the clone don't trip on a small
+        // window height.
+        windowHeight: root.scrollHeight,
         // Exclude the sticky header — it'd appear at the top of the
         // PDF and the action buttons aren't relevant in a saved file.
         ignoreElements: (el) =>
@@ -707,6 +732,10 @@ export default function Dashboard() {
       console.error('[download pdf]', e)
       showToast?.(e?.message || 'Could not generate PDF. Try again.', 'error')
     } finally {
+      // Always put the height + overflow back, even if capture failed.
+      root.style.height = orig.height
+      root.style.overflow = orig.overflow
+      root.style.maxHeight = orig.maxHeight
       setDownloadingPdf(false)
     }
   }
