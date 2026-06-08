@@ -945,37 +945,107 @@ function ResultView({ result: r, scoring: s, inspirations, loadingInspi, inspiSe
   const badge = s ? verdictBadge(s.verdict) : null
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
+    <div className="brief-result-root" style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
+
+      {/* ── Responsive overrides ───────────────────────────────────
+          Inline styles in this view bake desktop-sized padding and
+          fixed multi-column grids into every section. Rather than
+          edit ~17 components, we override the inline styles via
+          media queries here. Selectors target either an explicit
+          className we add to the few load-bearing wrappers, or the
+          serialised inline `style` attribute (React renders camelCase
+          props as kebab-case in the DOM, so [style*="1fr 1fr"]
+          reliably matches the grid declarations).
+          Breakpoints:
+            ≤ 700px  — mobile: stack everything, shrink padding
+            701-1024 — tablet: keep grids, ease padding
+            ≥ 1025px — desktop: original layout
+      */}
+      <style>{`
+        @media (max-width: 1024px) {
+          /* Section wrappers in this view come in both <section> and
+             <div> flavours but share a 40-48px / 48-48px horizontal
+             padding pattern. Target by inline style so we hit both
+             tag types without adding classNames to every section. */
+          .brief-result-root [style*="padding: 40px 48px"],
+          .brief-result-root [style*="padding: 28px 48px"] {
+            padding-left: 32px !important; padding-right: 32px !important;
+          }
+          .brief-result-root .brief-result-hero { padding-left: 32px !important; padding-right: 32px !important; gap: 32px !important; }
+          .brief-result-root .brief-result-sticky { padding-left: 20px !important; padding-right: 20px !important; }
+        }
+        @media (max-width: 700px) {
+          .brief-result-root [style*="padding: 40px 48px"],
+          .brief-result-root [style*="padding: 28px 48px"] {
+            padding-left: 16px !important; padding-right: 16px !important;
+            padding-top: 28px !important; padding-bottom: 28px !important;
+          }
+          /* Hero: stack title + score card, shrink title */
+          .brief-result-root .brief-result-hero {
+            grid-template-columns: 1fr !important;
+            padding: 28px 16px 24px !important;
+            gap: 20px !important;
+          }
+          .brief-result-root .brief-result-hero h1 { font-size: 28px !important; }
+          .brief-result-root .brief-result-hero p { font-size: 15px !important; line-height: 1.65 !important; }
+          /* Score card: drop sticky positioning when stacked */
+          .brief-result-root .brief-result-score-card { position: static !important; padding: 20px !important; }
+          /* Any 2-col / 3-col / fractional-col grid stacks to 1 column.
+             [style*="1fr 1fr"] also catches "1fr 1fr 1fr" — that's
+             desired (3-col stacks on mobile too). [style*="2fr 1fr"]
+             catches the Hero + Issues banner; [style*="repeat(3"]
+             catches the deliverables / clarity grids. The type-scale
+             table is excluded via .brief-result-no-stack so its rows
+             keep their column structure. */
+          .brief-result-root [style*="1fr 1fr"]:not(.brief-result-no-stack),
+          .brief-result-root [style*="2fr 1fr"]:not(.brief-result-no-stack),
+          .brief-result-root [style*="1fr 1.4fr"]:not(.brief-result-no-stack),
+          .brief-result-root [style*="repeat(3"]:not(.brief-result-no-stack) {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          /* Sticky header: trim padding, hide secondary button labels */
+          .brief-result-root .brief-result-sticky {
+            padding-left: 12px !important; padding-right: 12px !important;
+            gap: 8px !important;
+          }
+          .brief-result-root .brief-result-sticky .sticky-label { display: none !important; }
+          .brief-result-root .brief-result-sticky .sticky-project-title { display: none !important; }
+          /* Generic large headings on mobile */
+          .brief-result-root h1 { font-size: 28px !important; }
+          .brief-result-root h2 { font-size: 22px !important; }
+        }
+      `}</style>
 
       {/* Sticky header */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)', padding: '0 32px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button onClick={onReset} onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: '8px', color: 'var(--color-text-soft)', fontFamily: "'Urbanist', sans-serif", fontSize: '13px', transition: 'background 0.15s' }}>
+      <div className="brief-result-sticky" style={{ position: 'sticky', top: 0, zIndex: 20, background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)', padding: '0 32px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <button onClick={onReset} onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: '8px', color: 'var(--color-text-soft)', fontFamily: "'Urbanist', sans-serif", fontSize: '13px', transition: 'background 0.15s', flexShrink: 0 }}>
             <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
-            New Brief
+            <span className="sticky-label">New Brief</span>
           </button>
-          <div style={{ width: '1px', height: '20px', background: 'var(--color-border)', margin: '0 4px' }} />
-          <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '16px', color: 'var(--color-text)' }}>
+          <div className="sticky-project-title" style={{ width: '1px', height: '20px', background: 'var(--color-border)', margin: '0 4px' }} />
+          <span className="sticky-project-title" style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '16px', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {r.projectTitle ?? 'Untitled Project'}
           </span>
           {s && badge && (
-            <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: badge.bg, color: badge.color }}>
+            <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: badge.bg, color: badge.color, flexShrink: 0 }}>
               {s.verdict}
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={onShare} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '9px', padding: '7px 16px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', color: 'var(--color-text)', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <button onClick={onShare} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '9px', padding: '7px 14px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', color: 'var(--color-text)', cursor: 'pointer' }}>
             <ShareIcon style={{ width: '14px', height: '14px' }} />
-            Share
+            <span className="sticky-label">Share</span>
           </button>
-          <button onClick={onDownload} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: '9px', padding: '7px 16px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+          <button onClick={onDownload} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: '9px', padding: '7px 14px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
             <ArrowDownTrayIcon style={{ width: '14px', height: '14px' }} />
-            Download
+            <span className="sticky-label">Download</span>
           </button>
-          <button onClick={() => onNavigate('team')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: '9px', padding: '7px 16px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+          <button onClick={() => onNavigate('team')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-text)', color: 'var(--color-bg)', border: 'none', borderRadius: '9px', padding: '7px 14px', fontFamily: "'Urbanist', sans-serif", fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
             <UserGroupIcon style={{ width: '14px', height: '14px' }} />
-            Build Team
+            <span className="sticky-label">Build Team</span>
           </button>
         </div>
       </div>
@@ -1139,7 +1209,7 @@ function HeroSection({ r, s }) {
   }, [])
 
   return (
-    <div style={{ padding: '48px 48px 40px', borderBottom: '1px solid var(--color-border)', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '48px', alignItems: 'flex-start' }}>
+    <div className="brief-result-hero" style={{ padding: '48px 48px 40px', borderBottom: '1px solid var(--color-border)', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '48px', alignItems: 'flex-start' }}>
       <div>
         <SparklesIcon style={{ width: '18px', height: '18px', color: 'var(--color-text-muted)', marginBottom: '12px', display: 'block' }} />
         <h1 style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '42px', letterSpacing: '-0.03em', color: 'var(--color-text)', marginBottom: '16px', lineHeight: 1.1 }}>
@@ -1186,7 +1256,7 @@ function HeroSection({ r, s }) {
       </div>
 
       {s && (
-        <div style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 20, padding: 28, position: 'sticky', top: 70 }}>
+        <div className="brief-result-score-card" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: 20, padding: 28, position: 'sticky', top: 70 }}>
 
           {/* Score ring + verdict */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
