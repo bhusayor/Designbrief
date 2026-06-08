@@ -677,113 +677,48 @@ export default function Dashboard() {
 
       const bg = getComputedStyle(root).backgroundColor || '#ffffff'
 
-      // Measure section boundaries while the root is expanded.
-      // sectionStartsPx[i] is the Y position (in DOM px, relative to
-      // root) where section i begins. The final entry is root's full
-      // content height so the loop below knows where the last
-      // section ends.
-      const sectionEls = Array.from(root.children).filter(child => {
-        if (child.tagName === 'STYLE') return false
-        if (child.classList?.contains('brief-result-sticky')) return false
-        return true
-      })
-      const rootRect = root.getBoundingClientRect()
-      const sectionStartsPx = sectionEls.map(el => el.getBoundingClientRect().top - rootRect.top)
-      sectionStartsPx.push(root.scrollHeight)
-
       const canvas = await html2canvas(root, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: bg,
-        // Capture at the native viewport so DOM-measured section
-        // positions line up with the rendered canvas. (Earlier we
-        // forced windowWidth: 1200, but that produced a layout
-        // mismatch between the measurements and the capture, which
-        // is the root cause of mid-section page breaks.)
+        // Force desktop layout regardless of where the user is
+        // clicking Download from. Without this, a mobile click would
+        // capture the stacked single-column view, which is fine on
+        // screen but feels sparse on an A4 page.
+        windowWidth: 1200,
+        // Render with a tall virtual viewport so any sticky / lazy
+        // layout passes inside the clone don't trip on a small
+        // window height.
         windowHeight: root.scrollHeight,
+        // Exclude the sticky header — it'd appear at the top of the
+        // PDF and the action buttons aren't relevant in a saved file.
         ignoreElements: (el) =>
           !!(el.classList && el.classList.contains('brief-result-sticky')),
       })
 
-      // Convert DOM-px section positions to canvas-px section
-      // positions using the actual capture scale.
-      const canvasPerDomPx = canvas.height / root.scrollHeight
-      const sectionStartsCanvasPx = sectionStartsPx.map(y => Math.round(y * canvasPerDomPx))
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pdfWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
 
-      // PDF dimensions: every page is A4 wide; A4 height is the
-      // upper bound on a single page's content height. A section
-      // shorter than A4 stays on one page; a section taller than
-      // A4 gets split at the A4 boundary (rare — usually only
-      // happens with very long Gantt/timeline blocks).
-      const A4_WIDTH = 210
-      const A4_HEIGHT = 297
-      const imgWidth = A4_WIDTH
-      const mmPerCanvasPx = imgWidth / canvas.width
-      const pageHeightInCanvasPx = A4_HEIGHT / mmPerCanvasPx
+      // Multi-page split: drop the same full-height image on each
+      // page with a negative y-offset so the page window walks down
+      // the canvas. Cleaner than slicing the canvas — the PDF stays
+      // a single embedded image stream.
+      let heightLeft = imgHeight
+      let position = 0
 
-      // Greedy-pack sections into pages. Walk through the sections;
-      // include the next one if it still fits in the current page,
-      // otherwise close the page at the last section that fit and
-      // start a new page with the overflowing one.
-      const pageRanges = []
-      let pageStart = sectionStartsCanvasPx[0]
-      for (let i = 1; i < sectionStartsCanvasPx.length; i++) {
-        const candidateEnd = sectionStartsCanvasPx[i]
-        const heightIfIncluded = candidateEnd - pageStart
-        if (heightIfIncluded <= pageHeightInCanvasPx) continue
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pdfHeight
 
-        const prevEnd = sectionStartsCanvasPx[i - 1]
-        if (prevEnd <= pageStart) {
-          // Single section taller than an A4 page — split at the
-          // page boundary and let it span pages.
-          const sliceEnd = Math.min(pageStart + pageHeightInCanvasPx, candidateEnd)
-          pageRanges.push([pageStart, sliceEnd])
-          pageStart = sliceEnd
-        } else {
-          pageRanges.push([pageStart, prevEnd])
-          pageStart = prevEnd
-        }
-        i-- // re-evaluate this section in the fresh page
-      }
-      // Push the trailing page
-      const lastEnd = sectionStartsCanvasPx[sectionStartsCanvasPx.length - 1]
-      if (lastEnd > pageStart) pageRanges.push([pageStart, lastEnd])
-
-      // Render each page as a sliced sub-canvas, then drop it onto a
-      // PDF page sized to that exact slice. Custom-sizing every page
-      // means no trailing white space anywhere — pages always end
-      // exactly where their content does. Section integrity is
-      // already guaranteed by the greedy packer above.
-      let pdf = null
-      for (let pi = 0; pi < pageRanges.length; pi++) {
-        const [startY, endY] = pageRanges[pi]
-        const sliceCanvasHeight = endY - startY
-        const sliceHeightMm = sliceCanvasHeight * mmPerCanvasPx
-
-        const sliceCanvas = document.createElement('canvas')
-        sliceCanvas.width = canvas.width
-        sliceCanvas.height = sliceCanvasHeight
-        const ctx = sliceCanvas.getContext('2d')
-        ctx.fillStyle = bg
-        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvasHeight)
-        ctx.drawImage(
-          canvas,
-          0, startY, canvas.width, sliceCanvasHeight,
-          0, 0, canvas.width, sliceCanvasHeight,
-        )
-        const sliceImgData = sliceCanvas.toDataURL('image/jpeg', 0.92)
-
-        if (pi === 0) {
-          pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: [imgWidth, sliceHeightMm],
-          })
-        } else {
-          pdf.addPage([imgWidth, sliceHeightMm], 'portrait')
-        }
-        pdf.addImage(sliceImgData, 'JPEG', 0, 0, imgWidth, sliceHeightMm)
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pdfHeight
       }
 
       const filename =
