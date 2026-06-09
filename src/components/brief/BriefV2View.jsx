@@ -176,6 +176,10 @@ export default function BriefV2View({
             </section>
           ))}
 
+          {(result?.designSystem || designSystemBuilding) && (
+            <DesignSystemPanel ds={result?.designSystem} building={designSystemBuilding} />
+          )}
+
           <div style={{ height: 80 }} />
         </main>
       </div>
@@ -493,6 +497,107 @@ function InventoryContent({ value }) {
       })}
     </ul>
   )
+}
+
+// ── Design system summary panel ────────────────────────────────────
+// Surfaces the extracted designSystem object so the user sees what
+// was compiled. Renders six pillar cards (color / typography /
+// spacing / component / motion / visual language). Shimmers while
+// the extraction is in flight; populated once the result arrives.
+function DesignSystemPanel({ ds, building }) {
+  const pillars = [
+    { key: 'color',           label: 'Color',           lines: ds?.color           ? colorLines(ds.color)           : null },
+    { key: 'typography',      label: 'Typography',      lines: ds?.typography      ? typographyLines(ds.typography) : null },
+    { key: 'spacing',         label: 'Spacing',         lines: ds?.spacing         ? spacingLines(ds.spacing)       : null },
+    { key: 'component',       label: 'Components',      lines: ds?.component       ? componentLines(ds.component)   : null },
+    { key: 'motion',          label: 'Motion',          lines: ds?.motion          ? motionLines(ds.motion)         : null },
+    { key: 'visual_language', label: 'Visual language', lines: ds?.visual_language ? visualLines(ds.visual_language) : null },
+  ]
+
+  return (
+    <section className="brief-v2-section">
+      <div className="brief-v2-section-header">
+        <span className="brief-v2-section-chip">Design system</span>
+        <h2 className="brief-v2-section-title">
+          {building ? 'Compiling from items 12 to 17…' : 'Compiled from items 12 to 17'}
+        </h2>
+      </div>
+      <div className="brief-v2-ds-grid">
+        {pillars.map(p => (
+          <div key={p.key} className="brief-v2-ds-card">
+            <div className="brief-v2-ds-label">{p.label}</div>
+            {p.lines ? (
+              <ul className="brief-v2-ds-list">
+                {p.lines.map((l, i) => (
+                  <li key={i}>
+                    <span className="brief-v2-ds-key">{l.key}</span>
+                    <span className="brief-v2-ds-val">{l.val}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="brief-v2-skeleton">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="brief-v2-skeleton-line" style={{ width: `${55 + ((i * 17) % 38)}%` }} />
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+function colorLines(c) {
+  const out = []
+  if (c.primary)    out.push({ key: 'Primary',    val: c.primary })
+  if (c.secondary)  out.push({ key: 'Secondary',  val: c.secondary })
+  if (c.accent)     out.push({ key: 'Accent',     val: c.accent })
+  if (c.background) out.push({ key: 'Background', val: c.background })
+  if (c.surface)    out.push({ key: 'Surface',    val: c.surface })
+  if (Array.isArray(c.never_appear) && c.never_appear.length) {
+    out.push({ key: 'Never appear', val: c.never_appear.join('; ') })
+  }
+  return out
+}
+function typographyLines(t) {
+  const out = []
+  if (t.display) out.push({ key: 'Display', val: t.display })
+  if (t.body)    out.push({ key: 'Body',    val: t.body })
+  if (t.label)   out.push({ key: 'Label',   val: t.label })
+  if (Array.isArray(t.contradicts_brand) && t.contradicts_brand.length) {
+    out.push({ key: 'Contradicts brand', val: t.contradicts_brand.join('; ') })
+  }
+  return out
+}
+function spacingLines(s) {
+  const out = []
+  if (s.density)   out.push({ key: 'Density', val: s.density })
+  if (s.scale)     out.push({ key: 'Scale',   val: s.scale })
+  if (s.rationale) out.push({ key: 'Why',     val: s.rationale })
+  return out
+}
+function componentLines(c) {
+  const out = []
+  if (c.corner_radius)  out.push({ key: 'Radius',  val: c.corner_radius })
+  if (c.radius_reason)  out.push({ key: 'Why',     val: c.radius_reason })
+  if (c.density)        out.push({ key: 'Density', val: c.density })
+  if (c.borders)        out.push({ key: 'Borders', val: c.borders })
+  return out
+}
+function motionLines(m) {
+  const out = []
+  if (m.speed)        out.push({ key: 'Speed',      val: m.speed })
+  if (m.transition)   out.push({ key: 'Transition', val: m.transition })
+  if (m.speed_reason) out.push({ key: 'Why',        val: m.speed_reason })
+  return out
+}
+function visualLines(v) {
+  const out = []
+  if (v.imagery_type)      out.push({ key: 'Imagery type', val: v.imagery_type })
+  if (v.ui_style)          out.push({ key: 'UI style',     val: v.ui_style })
+  if (v.imagery_treatment) out.push({ key: 'Treatment',    val: v.imagery_treatment })
+  return out
 }
 
 // ── Completion banner ──────────────────────────────────────────────
@@ -841,6 +946,33 @@ function ResponsiveStyles() {
       .brief-v2-banner-btn-primary:hover { background: var(--color-accent); opacity: 0.9; }
       .brief-v2-banner-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+      .brief-v2-ds-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .brief-v2-ds-card {
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        padding: 16px;
+      }
+      .brief-v2-ds-label {
+        font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; color: var(--color-text-muted);
+        margin-bottom: 10px;
+      }
+      .brief-v2-ds-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+      .brief-v2-ds-list li {
+        display: grid; grid-template-columns: 90px 1fr; gap: 10px; align-items: start;
+        padding: 7px 8px;
+        background: var(--color-surface);
+        border-radius: 8px;
+        font-size: 12px; line-height: 1.5;
+      }
+      .brief-v2-ds-key { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); padding-top: 2px; }
+      .brief-v2-ds-val { color: var(--color-text); }
+
       .brief-v2-bottombar { display: none; }
 
       @keyframes briefv2shimmer {
@@ -878,6 +1010,7 @@ function ResponsiveStyles() {
         .brief-v2-tab.is-active { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); }
         .brief-v2-card-grid { grid-template-columns: 1fr; }
         .brief-v2-card.is-wide { grid-column: auto; }
+        .brief-v2-ds-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
 
       /* ── Mobile (<768) ───────────────────────────────────────── */
@@ -896,6 +1029,9 @@ function ResponsiveStyles() {
         .brief-v2-badged-row { flex-direction: column; align-items: flex-start; gap: 6px; }
         .brief-v2-roles li { grid-template-columns: 1fr; gap: 4px; }
         .brief-v2-roles-label { padding-top: 0; }
+        .brief-v2-ds-grid { grid-template-columns: 1fr; }
+        .brief-v2-ds-list li { grid-template-columns: 1fr; gap: 4px; }
+        .brief-v2-ds-key { padding-top: 0; }
         .brief-v2-bottombar {
           display: flex; align-items: center; gap: 12px;
           position: fixed; left: 12px; right: 12px; bottom: 12px;

@@ -19,6 +19,7 @@ import {
 } from '../lib/api'
 import { translateBriefV2, isV2Result } from '../lib/briefV2Translator'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
+import { extractDesignSystem } from '../lib/briefV2DesignSystem'
 import BriefV2View from '../components/brief/BriefV2View'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
@@ -301,6 +302,7 @@ export default function Dashboard() {
   const [inspiSearched, setInspiSearched] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [v2Streaming, setV2Streaming] = useState(false)
+  const [designSystemBuilding, setDesignSystemBuilding] = useState(false)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -562,12 +564,6 @@ export default function Dashboard() {
 
       if (!finalResult) throw new Error('Translation returned empty. Please try again.')
 
-      const resultWithMeta = {
-        ...finalResult,
-        _websiteTemplateId: selectedWebsiteTemplate,
-      }
-      setResult(resultWithMeta)
-      setActiveProjectBriefResult(resultWithMeta)
       setV2Streaming(false)
       // V2 briefs don't carry separate scoring / inspirations. Reset
       // those legacy slots so a previously-loaded V1 brief's stale
@@ -576,6 +572,35 @@ export default function Dashboard() {
       setInspirations([])
       setInspiSearched(false)
       setLoadingInspi(false)
+
+      // Phase 2 — async design-system extraction. Reads items 12-17
+      // and compiles a single shared object every kanban card +
+      // every AI builder run reads. We flip the building flag on so
+      // the V2View shows the "Building design system" pill, then
+      // off when the extraction lands. Failure is non-fatal: the
+      // brief still renders, designSystem just stays null.
+      setDesignSystemBuilding(true)
+      const partialResult = {
+        ...finalResult,
+        _websiteTemplateId: selectedWebsiteTemplate,
+      }
+      setResult(partialResult)
+      setActiveProjectBriefResult(partialResult)
+
+      let designSystem = null
+      try {
+        designSystem = await extractDesignSystem(finalResult)
+      } catch (e) {
+        console.warn('[translate v2] design-system extraction failed:', e?.message)
+      }
+      setDesignSystemBuilding(false)
+
+      const resultWithMeta = {
+        ...partialResult,
+        designSystem,
+      }
+      setResult(resultWithMeta)
+      setActiveProjectBriefResult(resultWithMeta)
 
       saveHistory({
         id: uid(),
@@ -819,7 +844,7 @@ export default function Dashboard() {
             result={result}
             isStreaming={v2Streaming}
             showCompletionBanner={true}
-            designSystemBuilding={false}
+            designSystemBuilding={designSystemBuilding}
             onJumpToKanban={() => navigate('team')}
             onReviewTranslation={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             onExportPdf={handleDownload}
