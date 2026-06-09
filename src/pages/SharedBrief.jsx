@@ -159,8 +159,22 @@ export default function SharedBrief() {
   }
 
   const snap = state.data
+  // Two scroll contexts:
+  //   Signed-in viewer (inside AppShell) — AppShell's <main> has
+  //     height: 100dvh + overflow: hidden. We need to BE the scroll
+  //     container here. height: 100% of main + overflowY: auto.
+  //   Anon viewer (no AppShell) — sits directly under <body>. The
+  //     page scrolls naturally; we just need a minHeight so the bg
+  //     fills short briefs.
+  // In both cases ResultView's root is set to height: auto +
+  // overflow: visible by the hideStickyHeader prop, so we stay the
+  // single source of vertical sizing.
+  const wrapperStyle = authUser
+    ? { height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }
+    : { minHeight: '100dvh', background: 'var(--color-bg)' }
+
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--color-bg)' }}>
+    <div style={wrapperStyle}>
       <PublicHeader
         title={snap.title}
         isSignedIn={!!authUser}
