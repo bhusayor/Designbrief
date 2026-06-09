@@ -299,6 +299,42 @@ export default function DesignSystemPanel({
             padding: 9px 14px !important;
             font-size: 13px !important;
           }
+          /* Colors: the Add color row was a 3-col grid
+             (52px swatch + Name + Role) on desktop. On a phone that
+             squeezes Name + Role into 100-ish px each. Stack to two
+             rows: row 1 = swatch + Name, row 2 = Role full width. */
+          .ds-add-color { padding: 14px !important; }
+          .ds-add-color-grid {
+            grid-template-columns: 52px 1fr !important;
+            grid-template-areas:
+              "swatch name"
+              "role role" !important;
+            row-gap: 12px !important;
+          }
+          .ds-add-color-grid > :first-child { grid-area: swatch; }
+          .ds-add-color-name { grid-area: name; min-width: 0; }
+          .ds-add-color-role { grid-area: role; min-width: 0; }
+
+          /* Typography: stack heading + body into a single column
+             so the two FontComboboxes get the full content width.
+             Scale preview text clamps to viewport-relative font
+             sizes so the giant H1 preview doesn't overflow and
+             trigger horizontal scroll on the whole modal. */
+          .ds-typo-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+          .ds-typo-scale {
+            overflow: hidden !important;
+          }
+          .ds-typo-scale-preview {
+            /* Clamp from 16px up to whatever ds-typo-size resolves
+               to, scaling with viewport so the bigger sizes shrink
+               proportionally on phones. min(...) caps at the
+               original size on bigger screens. */
+            font-size: clamp(16px, calc(var(--ds-typo-size) * 0.55), var(--ds-typo-size)) !important;
+            line-height: 1.2 !important;
+          }
         }
       `}</style>
       <div onClick={e => e.stopPropagation()} className="ds-modal" style={modalStyle}>
@@ -495,12 +531,12 @@ function ColorsSection({ ds, update }) {
         </div>
       )}
 
-      <div style={{
+      <div className="ds-add-color" style={{
         background: 'var(--color-surface)', borderRadius: 12, padding: 16,
         border: '1px dashed var(--color-border)',
       }}>
         <FieldLabel>Add color</FieldLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 1fr', gap: 10, alignItems: 'end' }}>
+        <div className="ds-add-color-grid" style={{ display: 'grid', gridTemplateColumns: '52px 1fr 1fr', gap: 10, alignItems: 'end' }}>
           {/* Picker + hex paired bidirectionally — typing/pasting a
               valid hex in the text field updates the picker, and
               picking a colour updates the text. */}
@@ -508,7 +544,7 @@ function ColorsSection({ ds, update }) {
             value={newColor.hex}
             onChange={v => setNewColor(p => ({ ...p, hex: v }))}
           />
-          <div>
+          <div className="ds-add-color-name">
             <FieldLabel>Name</FieldLabel>
             <TextInput
               value={newColor.name}
@@ -516,12 +552,13 @@ function ColorsSection({ ds, update }) {
               placeholder="Forest Green"
             />
           </div>
-          <div>
+          <div className="ds-add-color-role">
             <FieldLabel>Role</FieldLabel>
             <select
               value={newColor.role}
               onChange={e => setNewColor(p => ({ ...p, role: e.target.value }))}
-              style={selectStyle}
+              style={selectStyleEqualPad}
+              className="ds-role-select"
             >
               {COLOR_ROLES.map(r => (
                 <option key={r} value={r}>{r[0].toUpperCase() + r.slice(1)}</option>
@@ -607,8 +644,8 @@ function TypographySection({ ds, update }) {
         subtitle="Pair the heading + body fonts. The AI will use these in every generated component."
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-        <div>
+      <div className="ds-typo-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        <div className="ds-typo-col">
           <FieldLabel>Heading font</FieldLabel>
           <FontCombobox
             value={ds.headingFont}
@@ -624,7 +661,7 @@ function TypographySection({ ds, update }) {
             />
           </div>
         </div>
-        <div>
+        <div className="ds-typo-col">
           <FieldLabel>Body font</FieldLabel>
           <FontCombobox
             value={ds.bodyFont}
@@ -652,24 +689,26 @@ function TypographySection({ ds, update }) {
       </div>
 
       {(ds.headingFont || ds.bodyFont) && (
-        <div style={{
+        <div className="ds-typo-scale" style={{
           background: 'var(--color-surface)', borderRadius: 12, padding: 16,
+          overflow: 'hidden',
         }}>
           <FieldLabel>Scale preview</FieldLabel>
           {Object.entries(scale).map(([name, size]) => {
             const isBody = name === 'body'
             return (
-              <div key={name} style={{
+              <div key={name} className="ds-typo-scale-row" style={{
                 display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 6,
+                minWidth: 0,
               }}>
-                <span style={{
+                <span className="ds-typo-scale-label" style={{
                   fontFamily: 'var(--font-mono)', fontSize: 10,
                   color: 'var(--color-text-muted)', width: 30, flexShrink: 0,
                   textTransform: 'uppercase',
                 }}>
                   {name}
                 </span>
-                <span style={{
+                <span className="ds-typo-scale-preview" style={{
                   fontFamily: isBody
                     ? (ds.bodyFont ? `"${ds.bodyFont}", sans-serif` : 'inherit')
                     : (ds.headingFont ? `"${ds.headingFont}", sans-serif` : 'inherit'),
@@ -677,6 +716,15 @@ function TypographySection({ ds, update }) {
                   fontSize: `${size}px`,
                   color: 'var(--color-text)',
                   lineHeight: 1.15,
+                  minWidth: 0,
+                  flex: 1,
+                  wordBreak: 'break-word',
+                  overflowWrap: 'anywhere',
+                  // Reserve the natural size as the cap, but let it
+                  // shrink with the container — declared as a CSS
+                  // custom prop so the mobile @media clamp can read
+                  // it via clamp() without re-hardcoding values.
+                  ['--ds-typo-size']: `${size}px`,
                 }}>
                   {isBody
                     ? 'The quick brown fox jumps over the lazy dog.'
@@ -2662,6 +2710,32 @@ const selectStyle = {
   color: 'var(--color-text)',
   fontFamily: 'var(--font-sans)', fontSize: 14,
   outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
+}
+
+// Same as selectStyle but with appearance: none and a custom
+// chevron painted into the right padding so the label text + the
+// chevron icon sit at matched 14px insets. The native arrow renders
+// at a browser-specific offset that doesn't match the left text
+// padding; this normalises both sides.
+const CHEVRON_SVG = encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>'
+)
+const selectStyleEqualPad = {
+  width: '100%',
+  // 14px on the left for the label, 14px before the chevron + 12px
+  // chevron + 14px after = right padding 40px total so the chevron
+  // is also visually 14px from the right edge.
+  padding: '10px 40px 10px 14px',
+  background: `var(--color-surface) url("data:image/svg+xml;utf8,${CHEVRON_SVG}") no-repeat right 14px center`,
+  backgroundSize: '12px',
+  border: '1px solid var(--color-border)',
+  borderRadius: 10,
+  color: 'var(--color-text)',
+  fontFamily: 'var(--font-sans)', fontSize: 14,
+  outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  MozAppearance: 'none',
 }
 
 const fontLink = {
