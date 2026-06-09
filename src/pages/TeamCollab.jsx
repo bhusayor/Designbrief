@@ -4687,21 +4687,24 @@ STYLE:
           <button
             onClick={() => setDesignSystemOpen(true)}
             title="Open the project's design system"
-            aria-label="Design system"
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              display: 'flex', alignItems: 'center', gap: 6,
               marginLeft: 'auto',
-              width: 32, height: 32,
-              padding: 0,
+              padding: '6px 10px',
               background: 'transparent',
               border: '1.5px solid var(--color-border-strong)',
               borderRadius: 8,
               cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              fontWeight: 700,
+              fontSize: 12,
               color: 'var(--color-text)',
               flexShrink: 0,
+              minHeight: 'unset',
             }}
           >
-            <SwatchIcon style={{ width: 15, height: 15 }} />
+            <SwatchIcon style={{ width: 14, height: 14 }} />
+            <span>Design System</span>
           </button>
         )}
       </div>
@@ -4971,20 +4974,9 @@ STYLE:
                   </div>
                 )}
                 */}
-                {/* Design System — opens the project's tokens modal
-                    (colors, typography, buttons in Phase 1). Saved
-                    design system becomes the source of truth threaded
-                    into every AI call (Phase 3 wires this). */}
-                {canEdit && !isMobile && (
-                  <button
-                    onClick={() => setDesignSystemOpen(true)}
-                    title="Open the project's design system"
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}
-                  >
-                    <SwatchIcon style={{ width: 13, height: 13 }} />
-                    Design System
-                  </button>
-                )}
+                {/* Design System moved to the project-line top bar
+                    (next to Board + Team). Not rendered here in the
+                    kanban toolbar anymore. */}
                 {/* Build with AI — single unified button. Active any time
                     the kanban has tasks (manually added or from a translated
                     brief). The previous "Build with AI" → BuildInterface
