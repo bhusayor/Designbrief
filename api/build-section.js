@@ -62,6 +62,9 @@ export default async function handler(req, res) {
     task_ai_prompt,
     brief_context,
     design_system_context,
+    v2_card_context,
+    blocked,
+    blocked_reasons,
     previous_titles,
     total_tasks,
     change_request,
@@ -71,6 +74,21 @@ export default async function handler(req, res) {
 
   if (!build_id || !section_id || !task_title) {
     return res.status(400).json({ error: 'build_id, section_id, task_title required' })
+  }
+
+  // Phase 4 — refuse blocked cards before billing tokens. The V2
+  // kanban marks a card blocked when a High Red Flag, an Unconfirmed
+  // assumption, or an open Question would affect this page.
+  if (blocked === true) {
+    const reasons = Array.isArray(blocked_reasons) && blocked_reasons.length
+      ? blocked_reasons.map(r => `  - ${r.type || 'block'}: ${r.text || ''}`).join('\n')
+      : '  - The card is flagged blocked but no reasons were attached'
+    return res.status(400).json({
+      error: 'card_blocked',
+      message: 'This card is blocked. Resolve the open Red Flag, Assumption, or Question before building.',
+      reasons: blocked_reasons || [],
+      details: reasons,
+    })
   }
 
   // Verify the caller owns this build before we burn tokens on it.
@@ -95,6 +113,34 @@ export default async function handler(req, res) {
 
   const briefJSON = brief_context ? JSON.stringify(brief_context, null, 2) : '{}'
 
+  // V2 card context — when the card came from a 21-item brief, it
+  // carries its mapped journey + emotion stage so the builder can
+  // anchor Rule 1 (structure from emotional arc) and Rule 2 (section
+  // order from success definition) without re-parsing the brief.
+  const v2ContextLines = []
+  if (v2_card_context) {
+    v2ContextLines.push('THIS PAGE IN THE USER JOURNEY (anchor for Rule 1 + Rule 2):')
+    if (v2_card_context.journeyStep) {
+      const j = v2_card_context.journeyStep
+      v2ContextLines.push(`  Stage: ${j.title || ''}`)
+      if (j.action)  v2ContextLines.push(`  What the user is doing here: ${j.action}`)
+    }
+    if (v2_card_context.emotionStep?.emotion) {
+      v2ContextLines.push(`  Emotion the user should feel: ${v2_card_context.emotionStep.emotion}`)
+    }
+    if (v2_card_context.inventoryEntry) {
+      const inv = v2_card_context.inventoryEntry
+      if (inv.content) v2ContextLines.push(`  Content brief: ${inv.content}`)
+      if (inv.assets)  v2ContextLines.push(`  Assets brief: ${inv.assets}`)
+      if (inv.status)  v2ContextLines.push(`  Inventory status: ${inv.status}`)
+    }
+    if (Array.isArray(v2_card_context.relevantConstraints) && v2_card_context.relevantConstraints.length) {
+      v2ContextLines.push('  Constraints that apply to this page:')
+      for (const c of v2_card_context.relevantConstraints) v2ContextLines.push(`    - ${c}`)
+    }
+    v2ContextLines.push('')
+  }
+
   const userPrompt = [
     'You are building a website section by section.',
     '',
@@ -108,7 +154,8 @@ export default async function handler(req, res) {
     'PROJECT BRIEF CONTEXT (the strategic brief — combine with the design system above):',
     briefJSON,
     '',
-    'SECTIONS ALREADY APPROVED, in order (design this section to flow from the previous one):',
+    v2ContextLines.length ? v2ContextLines.join('\n') : null,
+    'SECTIONS ALREADY APPROVED, in order (design this section to flow from the previous one AND ensure its structure does NOT repeat any of theirs per Rule 6):',
     previousList,
     '',
     `NOW BUILD THIS SECTION (${(Array.isArray(previous_titles) ? previous_titles.length : 0) + 1} of ${total_tasks || '?'}):`,

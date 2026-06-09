@@ -17,6 +17,7 @@
 import { supabase } from './supabase.js'
 import { compactBriefForPrompt } from './briefContext.js'
 import { designSystemToContext } from './designSystem.js'
+import { designSystemToContextBlock } from './briefV2DesignSystem.js'
 import {
   decideHeroMediaType,
   buildMediaQuery,
@@ -127,7 +128,29 @@ export async function buildSection({
       // Project design system, serialised into the prompt-ready block.
       // Server splices this above the brief context block so the AI
       // reads the design system as load-bearing constraints first.
-      design_system_context: designSystem ? designSystemToContext(designSystem) : null,
+      //
+      // V2 path: when the kanban card was derived from a 21-item
+      // brief, task.design_system already carries the extracted V2
+      // design system object. designSystemToContextBlock() formats
+      // it into the same prompt-ready string. We prefer the V2
+      // object over the project-level fetched system because it
+      // reflects the brief's actual direction; only fall back to
+      // the legacy fetched system when the V2 one isn't there.
+      design_system_context:
+        task?.design_system
+          ? designSystemToContextBlock(task.design_system)
+          : (designSystem ? designSystemToContext(designSystem) : null),
+      // V2 cards carry their journey + emotion stage so the builder
+      // can anchor Rule 1 (structure from emotional arc) and Rule 2
+      // (section order from success definition) without re-parsing
+      // the brief. Server splices this into the user message.
+      v2_card_context: task?.v2 || null,
+      // Rule 6 — refuses to start a build that's blocked by an open
+      // Red Flag / Assumption / Question. The card already carries
+      // blocked + blocked_reasons; sending them lets the server
+      // surface a clean error before charging tokens.
+      blocked: task?.blocked === true,
+      blocked_reasons: task?.blocked_reasons || [],
       previous_titles: previousTitles,
       total_tasks: totalTasks,
       change_request: changeRequest || null,

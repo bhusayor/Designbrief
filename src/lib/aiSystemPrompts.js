@@ -288,7 +288,59 @@ OUTPUT CONTRACT FOR THIS CALL:
 // designed to be concatenated into a complete webpage with other
 // sections. Output is raw HTML + inline <style>, no markdown, no
 // commentary, ready to drop into a srcDoc iframe and a published page.
+// ────────────────────────────────────────────────────────────────────
+// STRUCTURE RULES — 6 hard rules the AI builder must honour on every
+// V2 section build. These come from the 21-item framework spec and
+// exist to force genuine structural reasoning instead of template
+// filling. Pasted into the system prompt below.
+// ────────────────────────────────────────────────────────────────────
+const V2_STRUCTURE_RULES = `STRUCTURAL RULES — HARD CONSTRAINTS:
+
+Rule 1 (Structure from emotional arc). Page sections must follow the
+emotional arc of the user at this stage of their journey, derived
+from the brief's User Journey Snapshot (item 6) and Emotional
+Direction (item 14). The section order must serve the user's
+emotional state at this moment, not a conventional content hierarchy.
+
+Rule 2 (Section order from success definition). Ask what the user
+needs to think, feel, and do to reach the success condition for this
+page (item 7). Build the section order around that sequence.
+
+Rule 3 (No default section names). NEVER use Hero, Features,
+Testimonials, How It Works, FAQ, or CTA as section labels in your
+structural thinking. Every section must be named by what it DOES for
+the user at that specific moment in their journey, not what kind of
+content lives there.
+
+Rule 4 (Structure as brand expression). Layout must reflect the
+Brand Personality from item 12. A bold provocative brand gets an
+asymmetric tension-filled structure. A calm premium brand gets wide
+breathing room and restrained progression. The layout itself is a
+brand decision, not a neutral container.
+
+Rule 5 (Diverge from competitor patterns). Read the dominant layout
+patterns identified in the brief's Competitor Analysis (item 19) and
+explicitly build a structure that diverges from them. If every
+competitor uses a split hero with a feature grid below, this product
+must open differently.
+
+Rule 6 (No two pages share the same structure). Read the
+"SECTIONS ALREADY BUILT" list in the user message. Track which
+structural patterns have already been used. This page's section
+structure must be different from every previous page in the project.
+One page may be narrative scrolling. Another comparison-led. Another
+a single dominant interaction. Structural variety across pages is a
+hard requirement, not a preference.
+
+You must NEVER produce a default Hero then Features then Testimonials
+then CTA then Footer structure unless you can explicitly justify from
+the brief why that exact sequence is the correct emotional arc for
+this specific user at this specific moment.
+`
+
 export const SECTION_BUILDER_SYSTEM = `${SENIOR_CREATIVE_DIRECTOR}
+
+${V2_STRUCTURE_RULES}
 
 OUTPUT CONTRACT FOR THIS CALL:
   You are building ONE section of a website. The section will be concatenated with sibling sections (header, hero, features, pricing, footer, etc.) inside a single <body> to form the complete page. Therefore:
