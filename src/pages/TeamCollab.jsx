@@ -3770,10 +3770,16 @@ STYLE:
       : (assigneeMember?.avatarUrl || null)
     const assigneeInitial = (assigneeName || '?')[0]?.toUpperCase()
 
+    const blockedReasons = Array.isArray(task.blocked_reasons) ? task.blocked_reasons : []
+    const isBlocked = task.blocked === true && blockedReasons.length > 0
+    const blockedTitle = isBlocked
+      ? 'Blocked: ' + blockedReasons.map(r => r.text || r.type).join(' · ')
+      : ''
     return (
       <div
-        className="kanban-task-card"
-        draggable={canEdit}
+        className={`kanban-task-card ${isBlocked ? 'is-blocked' : ''}`}
+        title={blockedTitle || undefined}
+        draggable={canEdit && !isBlocked}
         onDragStart={e => {
           if (!canEdit) { e.preventDefault(); return }
           e.stopPropagation()
@@ -3849,6 +3855,13 @@ STYLE:
           e.currentTarget.style.transform = 'translateY(0)'
         }}
       >
+        {isBlocked && (
+          <div className="kanban-task-blocked-badge">
+            <span aria-hidden style={{ fontSize: 12 }}>🔒</span>
+            <span>Blocked · {blockedReasons.length} {blockedReasons.length === 1 ? 'reason' : 'reasons'}</span>
+          </div>
+        )}
+
         {/* Priority indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: priorityColor }} />
@@ -4637,6 +4650,51 @@ STYLE:
         {/* ── Team tab ── */}
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
+        {/* Phase 5 — blocked-card visualisation + tablet / mobile
+            kanban overrides. Scoped to the kanban-task-card class
+            (added per card above) and the legacy column wrappers
+            so we don't touch the column rendering directly. */}
+        <style>{`
+          .kanban-task-card.is-blocked {
+            opacity: 0.72;
+            border-left: 3px solid #f59e0b !important;
+            background: linear-gradient(180deg, rgba(245,158,11,0.05), transparent 60%) var(--color-card) !important;
+            cursor: help;
+          }
+          .kanban-task-card.is-blocked:hover {
+            opacity: 0.92;
+          }
+          .kanban-task-blocked-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 9px;
+            margin-bottom: 8px;
+            background: rgba(245,158,11,0.12);
+            border: 1px solid rgba(245,158,11,0.35);
+            border-radius: 100px;
+            font-family: var(--font-sans);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #b45309;
+          }
+          /* Tablet (768-1023): tighter card padding so all four
+             columns stay visible without horizontal scroll. */
+          @media (max-width: 1023px) and (min-width: 768px) {
+            .kanban-task-card { padding: 10px 12px !important; }
+            .kanban-task-card .kanban-task-blocked-badge { padding: 3px 7px; font-size: 9px; }
+          }
+          /* Mobile (<768): make the board horizontally scrollable
+             with scroll-snap so each column snaps into view one at
+             a time. Cards span the snap viewport so they read
+             comfortably without truncating to nothing. */
+          @media (max-width: 767px) {
+            .kanban-task-card { padding: 12px 14px !important; }
+            .kanban-task-card .kanban-task-blocked-badge { font-size: 9px; }
+          }
+        `}</style>
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 8, gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: (isMobile && chatOpen) ? 'none' : 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', opacity: boardTransitioning ? 0 : 1, transform: boardTransitioning ? 'translateY(8px) scale(0.99)' : 'translateY(0) scale(1)', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
 
