@@ -1081,7 +1081,20 @@ export function ResultView({
   const badge = s ? verdictBadge(s.verdict) : null
 
   return (
-    <div className="brief-result-root" style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
+    <div className="brief-result-root" style={{
+      // In Dashboard we sit inside an AppShell content area with an
+      // explicit height, so height: 100% + overflowY: auto turns this
+      // into the brief's own scroll container. In the SharedBrief
+      // viewer (hideStickyHeader) we sit inside a page-level wrapper
+      // that only has minHeight, so the same rule resolves to a
+      // 100dvh-tall trap — only the first viewport-worth of content
+      // would render and the rest would scroll inside this div while
+      // the page above stayed put. Switching to auto/visible in that
+      // mode lets the page scroll normally and the full brief shows.
+      height: hideStickyHeader ? 'auto' : '100%',
+      overflowY: hideStickyHeader ? 'visible' : 'auto',
+      background: 'var(--color-bg)',
+    }}>
 
       {/* ── Responsive overrides ───────────────────────────────────
           Inline styles in this view bake desktop-sized padding and
