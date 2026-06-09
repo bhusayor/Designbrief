@@ -577,19 +577,10 @@ function ColorsSection({ ds, update }) {
           </div>
           <div className="ds-add-color-role">
             <FieldLabel>Role</FieldLabel>
-            <select
+            <RoleDropdown
               value={newColor.role}
-              onChange={e => setNewColor(p => ({ ...p, role: e.target.value }))}
-              style={selectStyleEqualPad}
-              className="ds-role-select"
-            >
-              {COLOR_ROLES.map(r => (
-                <option key={r} value={r} style={{ background: '#ffffff', color: '#111111' }}>
-                  {r[0].toUpperCase() + r.slice(1)}
-                </option>
-              ))}
-              <option value="custom" style={{ background: '#ffffff', color: '#111111' }}>Custom name…</option>
-            </select>
+              onChange={v => setNewColor(p => ({ ...p, role: v }))}
+            />
           </div>
         </div>
         {newColor.role === 'custom' && (
@@ -2182,6 +2173,180 @@ function FieldLabel({ children }) {
 // as you drag, and typing into the hex input moves the plane +
 // hue cursor. No native <input type="color"> — that picker's
 // chrome can't be styled and feels off-brand.
+// ────────────────────────────────────────────────────────────────────
+// RoleDropdown — custom select for the Add color "Role" field.
+// Replaces the native <select> which renders differently on every
+// platform (macOS Aqua, Windows native, Material on Android, iOS
+// wheel picker). The custom version uses the same panel + chevron
+// across web, tablet, and mobile, anchors options with white
+// background + dark text, and pads the trigger so the label text
+// and the chevron sit at matched insets.
+// ────────────────────────────────────────────────────────────────────
+function RoleDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const triggerRef = useRef(null)
+
+  const options = [
+    ...COLOR_ROLES.map(r => ({ value: r, label: r[0].toUpperCase() + r.slice(1) })),
+    { value: 'custom', label: 'Custom name…' },
+  ]
+  const current = options.find(o => o.value === value)?.label || 'Select role'
+
+  function openPanel() {
+    if (!triggerRef.current) return setOpen(true)
+    const r = triggerRef.current.getBoundingClientRect()
+    const panelH = Math.min(280, options.length * 40 + 12)
+    const fitsBelow = r.bottom + 8 + panelH <= window.innerHeight - 12
+    setPos({
+      top: fitsBelow ? r.bottom + 6 : r.top - panelH - 6,
+      left: r.left,
+      width: r.width,
+    })
+    setOpen(true)
+  }
+
+  function pick(v) {
+    onChange(v)
+    setOpen(false)
+  }
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => (open ? setOpen(false) : openPanel())}
+        className="ds-role-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        style={{
+          width: '100%',
+          // Equal 14px padding either side. Right padding leaves
+          // room for 14 + 12 chevron + 14 so chevron sits 14 from
+          // the right edge.
+          padding: '10px 40px 10px 14px',
+          background: 'var(--color-surface)',
+          border: `1px solid ${open ? 'var(--color-accent)' : 'var(--color-border)'}`,
+          borderRadius: 10,
+          color: 'var(--color-text)',
+          fontFamily: 'var(--font-sans)', fontSize: 14,
+          outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
+          textAlign: 'left',
+          position: 'relative',
+          transition: 'border-color 0.15s',
+        }}
+      >
+        <span>{current}</span>
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            right: 14,
+            top: '50%',
+            transform: `translateY(-50%) ${open ? 'rotate(180deg)' : 'rotate(0)'}`,
+            transition: 'transform 0.15s',
+            display: 'inline-flex',
+            alignItems: 'center', justifyContent: 'center',
+            color: '#ffffff',
+            background: 'var(--color-accent)',
+            width: 20, height: 20,
+            borderRadius: 6,
+          }}
+        >
+          <ChevronDownIcon style={{ width: 12, height: 12, color: '#ffffff' }} />
+        </span>
+      </button>
+      {open && createPortal(
+        <RoleDropdownPanel
+          options={options}
+          value={value}
+          top={pos.top}
+          left={pos.left}
+          width={pos.width}
+          onPick={pick}
+          onClose={() => setOpen(false)}
+        />,
+        document.body,
+      )}
+    </>
+  )
+}
+
+function RoleDropdownPanel({ options, value, top, left, width, onPick, onClose }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    function onDoc(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose()
+    }
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  return (
+    <div
+      ref={ref}
+      onMouseDown={e => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        top, left, width,
+        background: '#ffffff',
+        border: '1px solid rgba(0,0,0,0.08)',
+        borderRadius: 12,
+        boxShadow: '0 18px 50px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08)',
+        padding: 6,
+        zIndex: 11000,
+        maxHeight: 280,
+        overflowY: 'auto',
+        fontFamily: 'var(--font-sans)',
+      }}
+    >
+      {options.map(opt => {
+        const isActive = opt.value === value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onPick(opt.value)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 8,
+              background: isActive ? 'rgba(139,92,246,0.10)' : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 14,
+              fontWeight: isActive ? 700 : 500,
+              color: isActive ? '#5b21b6' : '#111827',
+              textAlign: 'left',
+              transition: 'background 0.12s',
+            }}
+            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(0,0,0,0.04)' }}
+            onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+          >
+            {isActive && (
+              <span aria-hidden style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: 'var(--color-accent)', flexShrink: 0,
+              }} />
+            )}
+            <span>{opt.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function HexPicker({ value, onChange }) {
   const [draft, setDraft] = useState(value || '#000000')
   const [open, setOpen] = useState(false)
@@ -2740,31 +2905,6 @@ const selectStyle = {
   outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
 }
 
-// Same as selectStyle but with appearance: none and a custom
-// chevron painted into the right padding so the label text + the
-// chevron icon sit at matched 14px insets. The native arrow renders
-// at a browser-specific offset that doesn't match the left text
-// padding; this normalises both sides.
-const CHEVRON_SVG = encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>'
-)
-const selectStyleEqualPad = {
-  width: '100%',
-  // 14px on the left for the label, 14px before the chevron + 12px
-  // chevron + 14px after = right padding 40px total so the chevron
-  // is also visually 14px from the right edge.
-  padding: '10px 40px 10px 14px',
-  background: `var(--color-surface) url("data:image/svg+xml;utf8,${CHEVRON_SVG}") no-repeat right 14px center`,
-  backgroundSize: '12px',
-  border: '1px solid var(--color-border)',
-  borderRadius: 10,
-  color: 'var(--color-text)',
-  fontFamily: 'var(--font-sans)', fontSize: 14,
-  outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
-  appearance: 'none',
-  WebkitAppearance: 'none',
-  MozAppearance: 'none',
-}
 
 const fontLink = {
   fontFamily: 'var(--font-mono)', fontSize: 11,
