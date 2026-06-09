@@ -17,6 +17,9 @@ import {
   callJSON,
   generateSubtasks,
 } from '../lib/api'
+import { translateBriefV2, isV2Result } from '../lib/briefV2Translator'
+import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
+import BriefV2View from '../components/brief/BriefV2View'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
 import { supabase } from '../lib/supabase'
@@ -297,6 +300,7 @@ export default function Dashboard() {
   const [storedBriefText, setStoredBriefText] = useState('')
   const [inspiSearched, setInspiSearched] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [v2Streaming, setV2Streaming] = useState(false)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -518,48 +522,59 @@ export default function Dashboard() {
           '\nIMPORTANT: The tech stack section must use this existing stack. Do not suggest replacing it.'
       }
 
-      const { scoreData, finalResult } = await translateAndAnalyse(fullContext + templateContext + connectorContext)
+      // ── V2 translation flow ─────────────────────────────────────
+      // 21-item / 5-section framework. Spawns 5 parallel section
+      // calls; sections appear in the result the moment their call
+      // returns. We flip phase to 'result' BEFORE any section comes
+      // back so the user sees the section list as skeletons and
+      // cards populate progressively as the AI works.
       clearInterval(msgTimerRef.current)
-      if (!finalResult) throw new Error('Translation returned empty. Please try again.')
       setCreditsUsed(prev => prev + 1)
 
-      // Deep technical breakdown (techStack + features + userFlow)
-      // is now part of translateAndAnalyse — runs in parallel with
-      // score + translate on the Render backend (no 60s ceiling).
-      // The 10-credit brief_translation cost covers it.
+      const fullBrief = fullContext + templateContext + connectorContext
+      const initialSkeleton = {
+        schemaVersion: BRIEF_V2_SCHEMA_VERSION,
+        projectTitle: 'Translating brief…',
+        sections: BRIEF_V2_SECTIONS.map(s => ({
+          id: s.id,
+          label: s.label,
+          items: s.items.map(it => ({ ...it, content: null })),
+        })),
+      }
+      setResult(initialSkeleton)
+      setActiveProjectBriefResult(initialSkeleton)
+      setPhase('result')
+      setV2Streaming(true)
 
-      // Fetch competitors + inspirations in parallel
-      setLoadingInspi(true)
-      const [competitors, inspiData] = await Promise.all([
-        analyseCompetitors(
-          finalResult.projectTitle,
-          finalResult.industry,
-          finalResult.toneWords,
-          fullContext
-        ).catch(e => { console.error('Competitors error:', e); return [] }),
-        apiFetchInspirations(
-          finalResult.projectTitle,
-          finalResult.toneWords,
-          finalResult.moodboardKeywords
-        ).catch(e => { console.error('Inspirations error:', e); return [] }),
-      ])
+      const finalResult = await translateBriefV2(fullBrief, {
+        onSection: (sectionId, items, partialResult) => {
+          // Force a new object reference so React picks up the change.
+          setResult({
+            ...partialResult,
+            sections: partialResult.sections.map(s => ({ ...s, items: [...s.items] })),
+          })
+          setActiveProjectBriefResult({
+            ...partialResult,
+            sections: partialResult.sections.map(s => ({ ...s, items: [...s.items] })),
+          })
+        },
+      })
 
-      // inspirations live on the result object so reopening the
-      // brief from history (sidebar Recent / Project Library card)
-      // restores them — otherwise the InspirationsSection would fall
-      // back to its empty state + Find Inspiration button every time.
-      const inspirationsArr = Array.isArray(inspiData) ? inspiData : []
-      const fullResult = { ...finalResult, competitors, inspirations: inspirationsArr }
-      setScoring(scoreData)
+      if (!finalResult) throw new Error('Translation returned empty. Please try again.')
+
       const resultWithMeta = {
-        ...fullResult,
+        ...finalResult,
         _websiteTemplateId: selectedWebsiteTemplate,
       }
       setResult(resultWithMeta)
       setActiveProjectBriefResult(resultWithMeta)
-      setPhase('result')
-      setInspirations(inspirationsArr)
-      setInspiSearched(true)
+      setV2Streaming(false)
+      // V2 briefs don't carry separate scoring / inspirations. Reset
+      // those legacy slots so a previously-loaded V1 brief's stale
+      // data doesn't bleed through.
+      setScoring(null)
+      setInspirations([])
+      setInspiSearched(false)
       setLoadingInspi(false)
 
       saveHistory({
@@ -568,7 +583,7 @@ export default function Dashboard() {
         title: finalResult.projectTitle || 'Untitled Brief',
         ts: Date.now(),
         pinned: false,
-        data: { brief: fullContext, scoring: scoreData, result: fullResult },
+        data: { brief: fullBrief, result: resultWithMeta },
       })
     } catch (err) {
       clearInterval(msgTimerRef.current)
@@ -794,11 +809,25 @@ export default function Dashboard() {
   // ── Result phase ───────────────────────────────────────────────────────────
 
   if (phase === 'result' && result) {
-    // Brief templates were removed at user's request — every brief
-    // renders through the canonical ResultView. The five renderers
-    // (AgencyDeckRenderer / TechnicalSpecRenderer / etc.) still live
-    // under src/components/brief/renderers/ but are no longer
-    // mounted from the Dashboard.
+    // V2 result (21-item framework) renders through BriefV2View.
+    // Older saved briefs use the legacy schema and continue to
+    // render through ResultView for back-compat.
+    if (isV2Result(result)) {
+      return (
+        <div className="brief-result-root" style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
+          <BriefV2View
+            result={result}
+            isStreaming={v2Streaming}
+            showCompletionBanner={true}
+            designSystemBuilding={false}
+            onJumpToKanban={() => navigate('team')}
+            onReviewTranslation={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            onExportPdf={handleDownload}
+            onBuildBoard={() => navigate('team')}
+          />
+        </div>
+      )
+    }
     return (
       <ResultView
         result={result}
