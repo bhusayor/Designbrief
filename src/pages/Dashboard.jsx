@@ -21,6 +21,7 @@ import { translateBriefV2, isV2Result } from '../lib/briefV2Translator'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
 import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
+import { exportV2BriefAsPdf } from '../lib/briefV2PdfExport'
 import BriefV2View from '../components/brief/BriefV2View'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
@@ -735,6 +736,28 @@ export default function Dashboard() {
 
   async function handleDownload() {
     if (!result || downloadingPdf) return
+
+    // ── V2 path ──────────────────────────────────────────────────
+    // V2 results get a text-based jsPDF with the 21 items grouped
+    // by section + the design system at the end. No html2canvas, no
+    // UI chrome, single-column, client-presentable. Header on every
+    // page carries the project title + the export date.
+    if (isV2Result(result)) {
+      setDownloadingPdf(true)
+      showToast?.('Building PDF…', 'success')
+      try {
+        await exportV2BriefAsPdf(result, result.projectTitle)
+        showToast?.('PDF downloaded', 'success')
+      } catch (e) {
+        console.error('[download v2 pdf]', e)
+        showToast?.(e?.message || 'Could not generate PDF. Try again.', 'error')
+      } finally {
+        setDownloadingPdf(false)
+      }
+      return
+    }
+
+    // ── Legacy V1 path — html2canvas snapshot ─────────────────────
     const root = document.querySelector('.brief-result-root')
     if (!root) {
       showToast?.('Brief content not ready yet.', 'error')
