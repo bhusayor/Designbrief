@@ -4687,16 +4687,20 @@ STYLE:
             text-transform: uppercase;
             color: #b45309;
           }
-          /* Tablet (768-1023): tighter card padding so all four
-             columns stay visible without horizontal scroll. The
-             right-side toolbar (Design System / Build with AI /
-             Add Task) also gets tightened — at the tablet width
-             these buttons used to crowd the View tabs in the
-             centre and felt squeezed. Shrinking their padding +
-             gap restores breathing room without losing labels. */
+          /* Tablet card padding by viewport — touch-tier sizing is
+             a device characteristic, not a container one. */
           @media (max-width: 1023px) and (min-width: 768px) {
             .kanban-task-card { padding: 10px 12px !important; }
             .kanban-task-card .kanban-task-blocked-badge { padding: 3px 7px; font-size: 9px; }
+          }
+          /* Toolbar action group responds to the actual available
+             width inside the kanban-board-container, NOT the
+             viewport. So when the sidebar is expanded and the
+             board's visible width drops to ~1000px even on a
+             1280px desktop viewport, the toolbar tightens just
+             like it would on a tablet. Container queries land
+             this without React-side sidebar-width tracking. */
+          @container (max-width: 1100px) {
             .kanban-toolbar-actions {
               gap: 5px !important;
               min-width: auto !important;
@@ -4709,6 +4713,24 @@ STYLE:
             .kanban-toolbar-actions > button > svg {
               width: 12px !important;
               height: 12px !important;
+            }
+          }
+          /* Even tighter when the board container shrinks below the
+             standard tablet width — sidebar wide open on a smaller
+             laptop. Just compress more padding so labels stay but
+             the row doesn't overflow. */
+          @container (max-width: 900px) {
+            .kanban-toolbar-actions {
+              gap: 4px !important;
+            }
+            .kanban-toolbar-actions > button {
+              padding: 5px 7px !important;
+              font-size: 11px !important;
+              gap: 3px !important;
+            }
+            .kanban-toolbar-actions > button > svg {
+              width: 11px !important;
+              height: 11px !important;
             }
           }
           /* Mobile (<768): each column expands to roughly viewport
@@ -4760,7 +4782,7 @@ STYLE:
           }
         `}</style>
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 8, gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: (isMobile && chatOpen) ? 'none' : 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', opacity: boardTransitioning ? 0 : 1, transform: boardTransitioning ? 'translateY(8px) scale(0.99)' : 'translateY(0) scale(1)', transition: 'opacity 0.2s ease, transform 0.2s ease' }}>
+        <div className="kanban-board-container" style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', borderRadius: 14, border: '1px solid var(--color-border)', overflow: 'hidden', display: (isMobile && chatOpen) ? 'none' : 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', opacity: boardTransitioning ? 0 : 1, transform: boardTransitioning ? 'translateY(8px) scale(0.99)' : 'translateY(0) scale(1)', transition: 'opacity 0.2s ease, transform 0.2s ease', containerType: 'inline-size' }}>
 
         {/* ── ClickUp-style toolbar ── */}
         {(() => {
