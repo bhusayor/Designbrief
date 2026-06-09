@@ -229,10 +229,81 @@ export default function DesignSystemPanel({
   if (!isOpen) return null
 
   return createPortal((
-    <div onClick={onClose} style={overlayStyle}>
-      <div onClick={e => e.stopPropagation()} style={modalStyle}>
+    <div onClick={onClose} className="ds-overlay" style={overlayStyle}>
+      <style>{`
+        /* Mobile responsive overrides for the Design System modal.
+           The desktop layout uses a 200px sidebar nav + flexible
+           content column; on narrow screens that strands the
+           content with almost no room, so we flatten everything to
+           a single column and turn the nav into a horizontal pill
+           strip the user can scroll. Modal also drops its rounded
+           edges and overlay padding so it reads as a full-screen
+           sheet on phones. */
+        @media (max-width: 767px) {
+          .ds-overlay {
+            padding: 0 !important;
+            align-items: stretch !important;
+          }
+          .ds-modal {
+            max-width: 100% !important;
+            width: 100% !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            border-radius: 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+          }
+          .ds-header {
+            padding: 12px 14px !important;
+          }
+          .ds-header-title {
+            font-size: 14px !important;
+          }
+          .ds-header-sub {
+            display: none !important;
+          }
+          .ds-body {
+            grid-template-columns: 1fr !important;
+            grid-template-rows: auto 1fr !important;
+          }
+          .ds-nav {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 6px !important;
+            padding: 10px 12px !important;
+            border-right: none !important;
+            border-bottom: 1px solid var(--color-border) !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap !important;
+          }
+          .ds-nav > button {
+            flex: 0 0 auto !important;
+            width: auto !important;
+            padding: 7px 12px !important;
+            border-radius: 100px !important;
+            background: var(--color-surface) !important;
+            font-size: 12px !important;
+            white-space: nowrap !important;
+            margin-bottom: 0 !important;
+          }
+          .ds-content {
+            padding: 18px 16px 22px !important;
+          }
+          .ds-footer {
+            padding: 10px 14px !important;
+            gap: 8px !important;
+          }
+          .ds-footer button {
+            padding: 9px 14px !important;
+            font-size: 13px !important;
+          }
+        }
+      `}</style>
+      <div onClick={e => e.stopPropagation()} className="ds-modal" style={modalStyle}>
         {/* Header */}
-        <div style={headerStyle}>
+        <div className="ds-header" style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <span style={{
               width: 32, height: 32, borderRadius: 9,
@@ -243,13 +314,13 @@ export default function DesignSystemPanel({
               <SwatchIcon style={{ width: 16, height: 16, color: 'white' }} />
             </span>
             <div style={{ minWidth: 0 }}>
-              <div style={{
+              <div className="ds-header-title" style={{
                 fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15,
                 color: 'var(--color-text)', letterSpacing: '-0.01em',
               }}>
                 Design System
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--color-text-muted)' }}>
+              <div className="ds-header-sub" style={{ fontSize: 11.5, color: 'var(--color-text-muted)' }}>
                 The source of truth for every AI generation in this project
               </div>
             </div>
@@ -260,9 +331,9 @@ export default function DesignSystemPanel({
         </div>
 
         {/* Body */}
-        <div style={bodyStyle}>
+        <div className="ds-body" style={bodyStyle}>
           {/* Left rail — section nav */}
-          <aside style={navStyle}>
+          <aside className="ds-nav" style={navStyle}>
             {SECTIONS.map(s => {
               const isActive = s.id === activeSection
               return (
@@ -291,7 +362,7 @@ export default function DesignSystemPanel({
           </aside>
 
           {/* Content — active section */}
-          <main style={contentStyle}>
+          <main className="ds-content" style={contentStyle}>
             {isLoading ? <SectionLoading /> : (() => {
               switch (activeSection) {
                 case 'colors':     return <ColorsSection ds={ds} update={update} />
@@ -310,7 +381,7 @@ export default function DesignSystemPanel({
         </div>
 
         {/* Footer */}
-        <div style={footerStyle}>
+        <div className="ds-footer" style={footerStyle}>
           <span />
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} style={cancelBtn}>Cancel</button>
