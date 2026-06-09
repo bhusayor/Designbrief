@@ -4646,6 +4646,64 @@ STYLE:
             </button>
           )
         })()}
+
+        {/* Design System — step 3 on the project line, next to Board
+            + Team. Desktop / tablet render the full labelled pill;
+            mobile renders an icon-only square so it fits next to the
+            project-switcher pill without crowding the top bar. */}
+        {canEdit && !isMobile && (() => {
+          const isDone = !!designSystem
+          return (
+            <button
+              onClick={() => setDesignSystemOpen(true)}
+              title="Open the project's design system"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '6px 14px', borderRadius: 8,
+                border: '1px solid transparent',
+                background: 'transparent',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%',
+                background: isDone ? '#16a34a' : 'var(--color-border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, transition: 'background 0.2s',
+              }}>
+                {isDone ? (
+                  <CheckIcon style={{ width: 10, height: 10, color: 'white' }} />
+                ) : (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)' }}>3</span>
+                )}
+              </div>
+              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 13, color: 'var(--color-text-muted)' }}>
+                Design System
+              </span>
+            </button>
+          )
+        })()}
+        {canEdit && isMobile && (
+          <button
+            onClick={() => setDesignSystemOpen(true)}
+            title="Open the project's design system"
+            aria-label="Design system"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginLeft: 'auto',
+              width: 32, height: 32,
+              padding: 0,
+              background: 'transparent',
+              border: '1.5px solid var(--color-border-strong)',
+              borderRadius: 8,
+              cursor: 'pointer',
+              color: 'var(--color-text)',
+              flexShrink: 0,
+            }}
+          >
+            <SwatchIcon style={{ width: 15, height: 15 }} />
+          </button>
+        )}
       </div>
 
       {/* ── Main content ── */}
