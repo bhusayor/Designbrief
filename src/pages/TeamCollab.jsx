@@ -385,6 +385,38 @@ function useWindowWidth() {
 // identity across TeamCollab re-renders. When it was declared *inside*
 // TeamCollab, every parent render created a new function reference and
 // React unmounted/remounted the modal — wiping the user's typed input.
+// Phase 5b — column-switcher tab bar visible only on mobile. CSS
+// hides it everywhere ≥768px. Tracks active column via prop, calls
+// onTabClick(idx) to scrollIntoView in the parent's scroll container.
+function KanbanMobileTabbar({ customCols, taskCounts, activeColIdx, onTabClick }) {
+  if (!customCols?.length) return null
+  return (
+    <div className="kanban-mobile-tabbar" role="tablist" aria-label="Kanban columns">
+      {customCols.map((col, idx) => {
+        const isActive = idx === activeColIdx
+        const count = taskCounts?.[col.id] || 0
+        return (
+          <button
+            key={col.id}
+            role="tab"
+            aria-selected={isActive}
+            className={`kanban-mobile-tab ${isActive ? 'is-active' : ''}`}
+            onClick={() => onTabClick?.(idx)}
+          >
+            <span
+              className="kanban-mobile-tab-dot"
+              style={{ background: col.color || 'var(--color-text-soft)' }}
+              aria-hidden
+            />
+            <span>{col.label}</span>
+            <span className="kanban-mobile-tab-count">{count}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData, briefContext, designSystem, showToast }) {
   const [form, setForm] = useState({
     title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM',
@@ -769,6 +801,9 @@ export default function TeamCollab() {
   const [activeTab, setActiveTab] = useState('board')
   const [invites, setInvites] = useState([])
   const [viewMode, setViewMode] = useState('board')
+  // Phase 5b — mobile kanban scroll-snap carousel state.
+  const kanbanScrollRef = useRef(null)
+  const [kanbanActiveCol, setKanbanActiveCol] = useState(0)
   const [customCols, setCustomCols] = useState(() => {
     try {
       const saved = localStorage.getItem('tc-cols-' + (activeProjectId || 'default'))
@@ -822,6 +857,30 @@ export default function TeamCollab() {
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProjectId, activeProject?.id, designSystemOpen])
+
+  // Phase 5b — keep kanbanActiveCol in sync with which column is
+  // currently snapped into view. Uses IntersectionObserver instead of
+  // scroll-position math because mobile Safari throttles scroll
+  // events on momentum scrolling.
+  useEffect(() => {
+    const el = kanbanScrollRef.current
+    if (!el) return
+    const cols = Array.from(el.querySelectorAll('.kanban-board-column'))
+    if (!cols.length) return
+    const obs = new IntersectionObserver((entries) => {
+      // Pick the entry with the largest intersection ratio that's
+      // also more than 50% visible.
+      const visible = entries
+        .filter(e => e.intersectionRatio >= 0.5)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+      if (visible[0]) {
+        const idx = cols.indexOf(visible[0].target)
+        if (idx >= 0) setKanbanActiveCol(idx)
+      }
+    }, { root: el, threshold: [0.4, 0.5, 0.7, 0.9] })
+    cols.forEach(c => obs.observe(c))
+    return () => obs.disconnect()
+  }, [customCols, kanban?.tasks?.length, viewMode])
   const [activeAiBuild, setActiveAiBuild] = useState(null)
   const [aiBuildLoading, setAiBuildLoading] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
@@ -4652,8 +4711,9 @@ STYLE:
         {activeTab === 'board' && (<>
         {/* Phase 5 — blocked-card visualisation + tablet / mobile
             kanban overrides. Scoped to the kanban-task-card class
-            (added per card above) and the legacy column wrappers
-            so we don't touch the column rendering directly. */}
+            (added per card above) and the kanban-board-scroll /
+            kanban-board-column classes added to the column wrappers
+            below so we don't touch the column rendering directly. */}
         <style>{`
           .kanban-task-card.is-blocked {
             opacity: 0.72;
@@ -4680,19 +4740,110 @@ STYLE:
             text-transform: uppercase;
             color: #b45309;
           }
+          /* Mobile column switcher tab bar — only visible <768 */
+          .kanban-mobile-tabbar { display: none; }
+
           /* Tablet (768-1023): tighter card padding so all four
              columns stay visible without horizontal scroll. */
           @media (max-width: 1023px) and (min-width: 768px) {
             .kanban-task-card { padding: 10px 12px !important; }
             .kanban-task-card .kanban-task-blocked-badge { padding: 3px 7px; font-size: 9px; }
           }
-          /* Mobile (<768): make the board horizontally scrollable
-             with scroll-snap so each column snaps into view one at
-             a time. Cards span the snap viewport so they read
-             comfortably without truncating to nothing. */
+          /* Mobile (<768): horizontally swipeable columns. The board
+             scroll container snaps each column to the viewport so
+             one column shows at a time. Tap a tab to scrollTo. */
           @media (max-width: 767px) {
             .kanban-task-card { padding: 12px 14px !important; }
             .kanban-task-card .kanban-task-blocked-badge { font-size: 9px; }
+            .kanban-board-scroll {
+              scroll-snap-type: x mandatory;
+              scroll-behavior: smooth;
+              -webkit-overflow-scrolling: touch;
+              padding: 8px 12px 16px !important;
+            }
+            .kanban-board-scroll > * { gap: 12px !important; }
+            .kanban-board-column {
+              scroll-snap-align: start;
+              scroll-snap-stop: always;
+              width: calc(100vw - 24px) !important;
+              min-width: calc(100vw - 24px);
+              flex-shrink: 0;
+              max-height: none;
+            }
+            .kanban-mobile-tabbar {
+              display: flex;
+              gap: 4px;
+              padding: 10px 12px;
+              overflow-x: auto;
+              background: var(--color-bg);
+              border-bottom: 1px solid var(--color-border);
+              position: sticky;
+              top: 0;
+              z-index: 5;
+              -webkit-overflow-scrolling: touch;
+            }
+            .kanban-mobile-tab {
+              flex: 1;
+              min-width: max-content;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+              padding: 7px 12px;
+              border-radius: 100px;
+              background: transparent;
+              border: 1px solid transparent;
+              color: var(--color-text-soft);
+              font-family: var(--font-sans);
+              font-size: 12px;
+              font-weight: 700;
+              cursor: pointer;
+              white-space: nowrap;
+              transition: background 0.15s, color 0.15s, border-color 0.15s;
+            }
+            .kanban-mobile-tab.is-active {
+              background: var(--color-card);
+              border-color: var(--color-border);
+              color: var(--color-text);
+            }
+            .kanban-mobile-tab-dot {
+              width: 6px; height: 6px; border-radius: 50%;
+              flex-shrink: 0;
+            }
+            .kanban-mobile-tab-count {
+              font-family: var(--font-mono);
+              font-size: 10px;
+              padding: 1px 6px;
+              border-radius: 100px;
+              background: var(--color-surface);
+              color: var(--color-text-muted);
+            }
+          }
+          /* Bottom-sheet styling for the task detail modal on
+             mobile + tablet. The TaskDetailModal already renders as
+             a portal-positioned full-screen overlay; the inner card
+             gets a slide-up animation and bottom-anchored layout so
+             it reads as a bottom sheet on touch viewports. Desktop
+             unchanged. */
+          @media (max-width: 1023px) {
+            .task-detail-modal-card,
+            [data-task-detail-modal] {
+              position: fixed !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+              top: auto !important;
+              transform: none !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              max-height: 92vh !important;
+              border-radius: 18px 18px 0 0 !important;
+              animation: kanban-bottomsheet-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+          }
+          @keyframes kanban-bottomsheet-up {
+            from { transform: translateY(100%); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
           }
         `}</style>
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 8, gap: 8 }}>
@@ -5035,13 +5186,34 @@ STYLE:
 
         {/* Kanban board */}
         {viewMode === 'board' && (
-        <div style={{
-          flex: 1,
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          padding: '12px 16px',
-          background: 'var(--color-surface)',
-        }}>
+        <>
+        <KanbanMobileTabbar
+          customCols={customCols}
+          taskCounts={(kanban?.tasks || []).reduce((acc, t) => {
+            acc[t.column] = (acc[t.column] || 0) + 1
+            return acc
+          }, {})}
+          scrollRef={kanbanScrollRef}
+          activeColIdx={kanbanActiveCol}
+          onTabClick={(idx) => {
+            const el = kanbanScrollRef.current
+            if (!el) return
+            const cols = el.querySelectorAll('.kanban-board-column')
+            const target = cols[idx]
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+          }}
+        />
+        <div
+          ref={kanbanScrollRef}
+          className="kanban-board-scroll"
+          style={{
+            flex: 1,
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            padding: '12px 16px',
+            background: 'var(--color-surface)',
+          }}
+        >
           <div style={{
             display: 'flex',
             flexDirection: 'row',
@@ -5057,6 +5229,7 @@ STYLE:
               const accentCol = col.color
               return (
                 <div key={col.id}
+                  className="kanban-board-column"
                   draggable
                   onDragStart={e => {
                     if (draggedTaskRef.current) { e.preventDefault(); return }
@@ -5308,6 +5481,7 @@ STYLE:
             </div>
           </div>
         </div>
+        </>
         )}
 
         {/* Bottom bar — only when unassigned tasks exist */}
