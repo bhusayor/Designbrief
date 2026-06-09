@@ -3,8 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/connectors/status.js":  { "maxDuration": 10 },
-    "api/connectors/index.js":   { "maxDuration": 20 },
     "api/claude.js":             { "maxDuration": 60 },
     "api/build-component.js":    { "maxDuration": 30 },
     "api/build-section.js":      { "maxDuration": 60 },
@@ -12,7 +10,8 @@
     "api/pexels.js":             { "maxDuration": 15 },
     "api/invite.js":             { "maxDuration": 15 },
     "api/settings.js":           { "maxDuration": 30 },
-    "api/create-workspace.js":   { "maxDuration": 30 }
+    "api/create-workspace.js":   { "maxDuration": 30 },
+    "api/send-intake-email.js":  { "maxDuration": 15 }
   },
   "headers": [
     {
@@ -35,10 +34,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/connectors/figma",  "destination": "/api/connectors" },
-    { "source": "/api/connectors/github", "destination": "/api/connectors" },
-    { "source": "/api/connectors/notion", "destination": "/api/connectors" },
-    { "source": "/api/connectors/gdocs",  "destination": "/api/connectors" },
     { "source": "/api/:path*",            "destination": "/api/:path*" },
     { "source": "/invite/:token",         "destination": "/index.html" },
     { "source": "/(.*)",                  "destination": "/index.html" }
