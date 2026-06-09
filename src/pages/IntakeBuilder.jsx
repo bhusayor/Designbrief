@@ -36,6 +36,7 @@ import {
   defaultSettings,
   estimatedMinutes,
 } from '../lib/intakeQuestionSets'
+import IntakeDelivery from '../components/intake/IntakeDelivery'
 import {
   ArrowLeftIcon,
   ArrowsUpDownIcon,
@@ -64,13 +65,17 @@ const slug = () => Math.random().toString(36).slice(2, 14)
 // Public component
 // ────────────────────────────────────────────────────────────────────
 export default function IntakeBuilder() {
-  const { authUser, showToast, navigate } = useContext(AppContext)
+  const { authUser, user, showToast, navigate } = useContext(AppContext)
   const [form, setForm] = useState(() => freshForm())
   const [activeTab, setActiveTab] = useState('questions')
   const [previewOpen, setPreviewOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
-  const [shareUrl, setShareUrl] = useState(null)
+  // After Publish, we route the same screen to IntakeDelivery instead
+  // of staying on the builder. The user can click Edit form to come
+  // back. justPublished prevents a flash of the builder before the
+  // delivery view mounts.
+  const [view, setView] = useState('builder') // 'builder' | 'delivery'
 
   const w = useWindowWidth()
   const isMobile = w < 768
@@ -87,6 +92,21 @@ export default function IntakeBuilder() {
           }))
         }}
         onBack={() => navigate?.('dashboard')}
+      />
+    )
+  }
+
+  // Delivery view: shown after Publish OR when reopening an active form.
+  if (view === 'delivery' && form.id) {
+    const designerName =
+      user?.firstName ||
+      (user?.name ? String(user.name).split(/\s+/)[0] : null) ||
+      (authUser?.email ? String(authUser.email).split('@')[0] : 'Your designer')
+    return (
+      <IntakeDelivery
+        form={form}
+        designerName={designerName}
+        onEdit={() => setView('builder')}
       />
     )
   }
@@ -123,10 +143,9 @@ export default function IntakeBuilder() {
       })
       const { error } = await supabase.from('intake_forms').upsert(row, { onConflict: 'id' })
       if (error) throw error
-      const url = window.location.origin + '/intake/' + id
       setForm(f => ({ ...f, id, status: 'active' }))
-      setShareUrl(url)
-      showToast?.('Published! Share the link with your client.', 'success')
+      setView('delivery')
+      showToast?.('Published. Share the link with your client.', 'success')
     } catch (e) {
       console.error('[intake publish]', e)
       showToast?.(e.message || 'Could not publish.', 'error')
@@ -212,7 +231,6 @@ export default function IntakeBuilder() {
       )}
 
       {previewOpen && <PreviewModal form={form} onClose={() => setPreviewOpen(false)} />}
-      {shareUrl   && <PublishSuccessModal url={shareUrl} onClose={() => setShareUrl(null)} />}
     </div>
   )
 }
