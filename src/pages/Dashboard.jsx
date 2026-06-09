@@ -20,6 +20,7 @@ import {
 import { translateBriefV2, isV2Result } from '../lib/briefV2Translator'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
+import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
 import BriefV2View from '../components/brief/BriefV2View'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
@@ -595,9 +596,23 @@ export default function Dashboard() {
       }
       setDesignSystemBuilding(false)
 
+      // Phase 3 — derive kanban cards from item 4 (Deliverables)
+      // with rich descriptions composed from items 1/2/5/6/7/14/20/21
+      // and blocked detection from items 9/10/11. Deterministic, no
+      // AI call. Stored on result.kanbanCards so TeamCollab can
+      // populate the board the instant "Build board" is clicked.
+      const v2WithDs = { ...finalResult, designSystem }
+      let kanbanCards = null
+      try {
+        kanbanCards = buildKanbanFromV2(v2WithDs)
+      } catch (e) {
+        console.warn('[translate v2] kanban derivation failed:', e?.message)
+      }
+
       const resultWithMeta = {
         ...partialResult,
         designSystem,
+        kanbanCards,
       }
       setResult(resultWithMeta)
       setActiveProjectBriefResult(resultWithMeta)

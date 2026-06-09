@@ -3560,6 +3560,45 @@ STYLE:
 
   async function handleGenerateKanban() {
     if (!teamMembers.length) return
+
+    // ── V2 fast path ─────────────────────────────────────────────
+    // When the active project's brief was translated through the
+    // V2 framework, its result already carries deterministic kanban
+    // cards derived from item 4 (Deliverables) with rich
+    // descriptions composed from items 1, 2, 5, 6, 7, 14, 20, 21
+    // and blocked detection from items 9, 10, 11. No AI call, no
+    // credit charge — just assign and persist.
+    const v2Result = activeProject?.data?.result || activeProject?.result || null
+    const v2Cards = v2Result?.kanbanCards
+    if (v2Cards?.tasks?.length) {
+      setLoading(true)
+      addMessage('ai', 'Loading kanban cards from your translated brief...')
+      const enrichedTasks = enrichTasksWithNames(v2Cards.tasks, teamMembers)
+      const tasksWithDates = calculateDueDates(enrichedTasks, new Date())
+      const enrichedData = {
+        ...v2Cards,
+        tasks: tasksWithDates,
+        projectTimeline: v2Cards.projectTimeline || 'Auto-derived from brief',
+      }
+      setKanban(enrichedData)
+      setPhase('kanban')
+      if (activeProject) {
+        saveProject({ ...activeProject, teamMembers, kanban: enrichedData })
+      }
+      if (authUser && activeProject?.id) {
+        saveTasksToDB(tasksWithDates, activeProject.id, authUser.id).catch(console.error)
+      }
+      setLoading(false)
+      const blocked = tasksWithDates.filter(t => t.blocked).length
+      const msg = '✅ Kanban populated — **' + enrichedTasks.length + ' tasks** from your translated brief.' +
+        (blocked ? '\n\n⚠ **' + blocked + ' cards blocked** by Red Flags, unclear assumptions, or open questions.' : '') +
+        '\n\nClick any card to see the rich description, design system, and what is required.'
+      addMessage('ai', msg)
+      setConversationHistory(prev => [...prev, { role: 'assistant', content: msg }])
+      return
+    }
+
+    // ── Legacy path (V1 briefs) ──────────────────────────────────
     // Free-plan credit gate (8 credits per kanban generation)
     if (consumeCredits) {
       const r = await consumeCredits('kanban_generation')
