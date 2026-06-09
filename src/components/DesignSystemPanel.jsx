@@ -2238,24 +2238,21 @@ function RoleDropdown({ value, onChange }) {
         }}
       >
         <span>{current}</span>
-        <span
+        <ChevronDownIcon
           aria-hidden
           style={{
             position: 'absolute',
             right: 14,
             top: '50%',
             transform: `translateY(-50%) ${open ? 'rotate(180deg)' : 'rotate(0)'}`,
-            transition: 'transform 0.15s',
-            display: 'inline-flex',
-            alignItems: 'center', justifyContent: 'center',
-            color: '#ffffff',
-            background: 'var(--color-accent)',
-            width: 20, height: 20,
-            borderRadius: 6,
+            transition: 'transform 0.15s, color 0.15s',
+            width: 14, height: 14,
+            // Theme aware — inherits the active text-muted token so
+            // it reads naturally on light, dark, or device-matched
+            // themes. Picks up the accent on open as the visual cue.
+            color: open ? 'var(--color-accent)' : 'var(--color-text-muted)',
           }}
-        >
-          <ChevronDownIcon style={{ width: 12, height: 12, color: '#ffffff' }} />
-        </span>
+        />
       </button>
       {open && createPortal(
         <RoleDropdownPanel
@@ -2295,15 +2292,20 @@ function RoleDropdownPanel({ options, value, top, left, width, onPick, onClose }
       style={{
         position: 'fixed',
         top, left, width,
-        background: '#ffffff',
-        border: '1px solid rgba(0,0,0,0.08)',
+        // Theme aware — uses the same surface + border tokens
+        // every other panel in the app uses, so this panel reads
+        // light in light mode, dark in dark mode, and follows the
+        // device when the app is on system-mode.
+        background: 'var(--color-card)',
+        border: '1px solid var(--color-border)',
         borderRadius: 12,
-        boxShadow: '0 18px 50px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08)',
+        boxShadow: '0 18px 50px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08)',
         padding: 6,
         zIndex: 11000,
         maxHeight: 280,
         overflowY: 'auto',
         fontFamily: 'var(--font-sans)',
+        color: 'var(--color-text)',
       }}
     >
       {options.map(opt => {
@@ -2326,11 +2328,11 @@ function RoleDropdownPanel({ options, value, top, left, width, onPick, onClose }
               fontFamily: 'inherit',
               fontSize: 14,
               fontWeight: isActive ? 700 : 500,
-              color: isActive ? '#5b21b6' : '#111827',
+              color: isActive ? 'var(--color-accent)' : 'var(--color-text)',
               textAlign: 'left',
               transition: 'background 0.12s',
             }}
-            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(0,0,0,0.04)' }}
+            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--color-surface)' }}
             onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
           >
             {isActive && (
