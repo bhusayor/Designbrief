@@ -4792,68 +4792,46 @@ STYLE:
           const donePercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, padding: isMobile ? '0 12px' : '0 20px', height: 44, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)', flexShrink: 0 }}>
-              {/* Left: Board / Team / Design System steps — same
-                  numbered-pill row across all viewports. Design
-                  System is step 3 on web + tablet only; mobile is
-                  too narrow for three labelled pills, so it gets an
-                  icon-only Design System in the right action group
-                  instead. */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6, flexShrink: 0 }}>
-                {(() => {
+              {/* Left: Board+Team steps (mobile) + task count + progress */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 10, flexShrink: 0 }}>
+                {isMobile && (() => {
                   const boardDone = !!kanban?.tasks?.length
                   const teamDone = teamMembers.some(m => m.name?.trim())
-                  const dsDone = !!designSystem
-                  const stepBtn = (opts) => ({
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: isMobile ? '4px 10px' : '5px 12px',
-                    borderRadius: 8,
-                    border: opts.active ? '1px solid var(--color-border)' : '1px solid transparent',
-                    background: opts.active ? 'var(--color-surface)' : 'transparent',
-                    cursor: 'pointer', minHeight: 'unset',
-                    fontFamily: 'var(--font-sans)',
-                  })
-                  const dotStyle = (done, active) => ({
-                    width: 15, height: 15, borderRadius: '50%',
-                    background: done ? '#16a34a' : active ? 'var(--color-text)' : 'var(--color-border)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  })
-                  const labelStyle = (active) => ({
-                    fontFamily: 'var(--font-sans)',
-                    fontWeight: active ? 700 : 500,
-                    fontSize: 12,
-                    color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
-                  })
                   return (
                     <>
-                      <button onClick={() => setActiveTab('board')} style={stepBtn({ active: activeTab === 'board' })}>
-                        <div style={dotStyle(boardDone, activeTab === 'board')}>
-                          {boardDone
-                            ? <CheckIcon style={{ width: 8, height: 8, color: 'white' }} />
-                            : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 700, color: activeTab === 'board' ? 'var(--color-bg)' : 'var(--color-text-muted)' }}>1</span>}
+                      <button onClick={() => setActiveTab('board')}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 7, border: activeTab === 'board' ? '1px solid var(--color-border)' : '1px solid transparent', background: activeTab === 'board' ? 'var(--color-surface)' : 'transparent', cursor: 'pointer', minHeight: 'unset' }}>
+                        <div style={{ width: 15, height: 15, borderRadius: '50%', background: boardDone ? '#16a34a' : activeTab === 'board' ? 'var(--color-text)' : 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {boardDone ? <CheckIcon style={{ width: 8, height: 8, color: 'white' }} /> : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 700, color: activeTab === 'board' ? 'var(--color-bg)' : 'var(--color-text-muted)' }}>1</span>}
                         </div>
-                        <span style={labelStyle(activeTab === 'board')}>Board</span>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: activeTab === 'board' ? 700 : 500, fontSize: 12, color: activeTab === 'board' ? 'var(--color-text)' : 'var(--color-text-muted)' }}>Board</span>
                       </button>
-                      <button onClick={() => setShowTeamModal(true)} style={stepBtn({ active: false })}>
-                        <div style={dotStyle(teamDone, false)}>
-                          {teamDone
-                            ? <CheckIcon style={{ width: 8, height: 8, color: 'white' }} />
-                            : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 700, color: 'var(--color-text-muted)' }}>2</span>}
+                      <button onClick={() => setShowTeamModal(true)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 7, border: '1px solid transparent', background: 'transparent', cursor: 'pointer', minHeight: 'unset' }}>
+                        <div style={{ width: 15, height: 15, borderRadius: '50%', background: teamDone ? '#16a34a' : 'var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {teamDone ? <CheckIcon style={{ width: 8, height: 8, color: 'white' }} /> : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 700, color: 'var(--color-text-muted)' }}>2</span>}
                         </div>
-                        <span style={labelStyle(false)}>Team</span>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 12, color: 'var(--color-text-muted)' }}>Team</span>
                       </button>
-                      {canEdit && !isMobile && (
-                        <button onClick={() => setDesignSystemOpen(true)} style={stepBtn({ active: false })} title="Open the project's design system">
-                          <div style={dotStyle(dsDone, false)}>
-                            {dsDone
-                              ? <CheckIcon style={{ width: 8, height: 8, color: 'white' }} />
-                              : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 700, color: 'var(--color-text-muted)' }}>3</span>}
-                          </div>
-                          <span style={labelStyle(false)}>Design System</span>
-                        </button>
-                      )}
+                      <div style={{ width: 1, height: 16, background: 'var(--color-border)', flexShrink: 0 }} />
                     </>
                   )
                 })()}
+                {!isMobile && (
+                  <>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--color-text-muted)' }}>
+                      {totalTasks} task{totalTasks !== 1 ? 's' : ''}
+                    </span>
+                    {totalTasks > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 60, height: 3, background: 'var(--color-border)', borderRadius: 2 }}>
+                          <div style={{ width: donePercent + '%', height: '100%', background: '#16a34a', borderRadius: 2, transition: 'width 0.4s ease' }} />
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)' }}>{donePercent}%</span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* View tabs — 2 visible on mobile (+ more), all on desktop */}
@@ -4935,20 +4913,18 @@ STYLE:
                   </div>
                 )}
                 */}
-                {/* Design System — desktop + tablet render this as
-                    step 3 on the LEFT (next to Board + Team).
-                    Mobile is too narrow for a third labelled step,
-                    so it keeps an icon-only Design System pill here
-                    at the top-right of the toolbar, level with the
-                    project line. */}
-                {canEdit && isMobile && (
+                {/* Design System — opens the project's tokens modal
+                    (colors, typography, buttons in Phase 1). Saved
+                    design system becomes the source of truth threaded
+                    into every AI call (Phase 3 wires this). */}
+                {canEdit && !isMobile && (
                   <button
                     onClick={() => setDesignSystemOpen(true)}
                     title="Open the project's design system"
-                    aria-label="Design system"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', color: 'var(--color-text)', flexShrink: 0 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}
                   >
-                    <SwatchIcon style={{ width: 14, height: 14 }} />
+                    <SwatchIcon style={{ width: 13, height: 13 }} />
+                    Design System
                   </button>
                 )}
                 {/* Build with AI — single unified button. Active any time
