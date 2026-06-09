@@ -299,21 +299,44 @@ export default function DesignSystemPanel({
             padding: 9px 14px !important;
             font-size: 13px !important;
           }
-          /* Colors: the Add color row was a 3-col grid
-             (52px swatch + Name + Role) on desktop. On a phone that
-             squeezes Name + Role into 100-ish px each. Stack to two
-             rows: row 1 = swatch + Name, row 2 = Role full width. */
+          /* Colors: the Add color row was a 3-col grid (52px
+             swatch + Name + Role) on desktop. On a phone every
+             field gets its own row so each touch target reads
+             properly. HexPicker also flips its internal layout to
+             swatch + hex input side by side (instead of stacked)
+             so the hex code can use a comfortable width. */
           .ds-add-color { padding: 14px !important; }
           .ds-add-color-grid {
-            grid-template-columns: 52px 1fr !important;
+            grid-template-columns: 1fr !important;
             grid-template-areas:
-              "swatch name"
-              "role role" !important;
-            row-gap: 12px !important;
+              "swatch"
+              "name"
+              "role" !important;
+            row-gap: 14px !important;
           }
           .ds-add-color-grid > :first-child { grid-area: swatch; }
           .ds-add-color-name { grid-area: name; min-width: 0; }
           .ds-add-color-role { grid-area: role; min-width: 0; }
+          .ds-hex-picker {
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 10px !important;
+          }
+          .ds-hex-swatch {
+            width: 44px !important;
+            height: 44px !important;
+            border-radius: 10px !important;
+          }
+          .ds-hex-input {
+            flex: 1 !important;
+            width: auto !important;
+            padding: 11px 14px !important;
+            text-align: left !important;
+            font-size: 14px !important;
+            border-radius: 10px !important;
+            min-height: 44px !important;
+            box-sizing: border-box !important;
+          }
 
           /* Typography: stack heading + body into a single column
              so the two FontComboboxes get the full content width.
@@ -561,9 +584,11 @@ function ColorsSection({ ds, update }) {
               className="ds-role-select"
             >
               {COLOR_ROLES.map(r => (
-                <option key={r} value={r}>{r[0].toUpperCase() + r.slice(1)}</option>
+                <option key={r} value={r} style={{ background: '#ffffff', color: '#111111' }}>
+                  {r[0].toUpperCase() + r.slice(1)}
+                </option>
               ))}
-              <option value="custom">Custom name…</option>
+              <option value="custom" style={{ background: '#ffffff', color: '#111111' }}>Custom name…</option>
             </select>
           </div>
         </div>
@@ -2194,12 +2219,13 @@ function HexPicker({ value, onChange }) {
   const validSwatch = /^#[0-9a-fA-F]{6}$/.test(draft) ? draft : '#000000'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="ds-hex-picker" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <button
         ref={swatchRef}
         type="button"
         onClick={openPopover}
         aria-label="Pick colour"
+        className="ds-hex-swatch"
         style={{
           width: 52, height: 52, borderRadius: 12,
           background: validSwatch,
@@ -2207,6 +2233,7 @@ function HexPicker({ value, onChange }) {
           boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.08), 0 2px 8px ${validSwatch}55`,
           cursor: 'pointer', padding: 0,
           transition: 'transform 0.1s',
+          flexShrink: 0,
         }}
         onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
         onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -2220,6 +2247,7 @@ function HexPicker({ value, onChange }) {
           if (!/^#[0-9a-fA-F]{6}$/.test(draft)) setDraft(value || '#000000')
         }}
         spellCheck={false}
+        className="ds-hex-input"
         style={{
           width: 52, padding: '4px 2px',
           textAlign: 'center',
