@@ -2261,6 +2261,7 @@ function RoleDropdown({ value, onChange }) {
           top={pos.top}
           left={pos.left}
           width={pos.width}
+          triggerRef={triggerRef}
           onPick={pick}
           onClose={() => setOpen(false)}
         />,
@@ -2270,20 +2271,32 @@ function RoleDropdown({ value, onChange }) {
   )
 }
 
-function RoleDropdownPanel({ options, value, top, left, width, onPick, onClose }) {
+function RoleDropdownPanel({ options, value, top, left, width, triggerRef, onPick, onClose }) {
   const ref = useRef(null)
   useEffect(() => {
+    // Outside-click handler. Crucially we ALSO treat clicks on the
+    // trigger as "inside" — otherwise clicking the trigger to close
+    // would fire this listener on mousedown (closing the panel),
+    // then the trigger's own onClick would fire on click (toggling
+    // open back to true), and the panel would appear to never close.
+    // touchstart handles the same case on mobile where mousedown
+    // doesn't fire on tap.
     function onDoc(e) {
-      if (ref.current && !ref.current.contains(e.target)) onClose()
+      const t = e.target
+      if (ref.current && ref.current.contains(t)) return
+      if (triggerRef?.current && triggerRef.current.contains(t)) return
+      onClose()
     }
     function onKey(e) { if (e.key === 'Escape') onClose() }
     document.addEventListener('mousedown', onDoc)
+    document.addEventListener('touchstart', onDoc, { passive: true })
     document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('touchstart', onDoc)
       document.removeEventListener('keydown', onKey)
     }
-  }, [onClose])
+  }, [onClose, triggerRef])
 
   return (
     <div
