@@ -2,19 +2,34 @@
 -- intake-public-tracking.sql — Phase 3 of the Client Intake Form
 -- rebuild.
 --
--- Two pieces:
---   1. increment_intake_open(form_id) RPC — bumps open_count on
+-- Three pieces:
+--   1. Column adds on intake_submissions for the public RPC. Some
+--      were added by earlier migrations (status, submitted_at) but
+--      client_email never landed on the submissions table — only on
+--      intake_forms. The RPC writes to it, so it has to exist.
+--   2. increment_intake_open(form_id) RPC — bumps open_count on
 --      intake_forms by 1. Runs with SECURITY DEFINER so the
 --      anonymous client form viewer can call it without needing
 --      an UPDATE policy on the table itself.
---   2. submit_intake_anon(...) RPC — atomically inserts the
+--   3. submit_intake_anon(...) RPC — atomically inserts the
 --      submission row + bumps submission_count on the form row.
 --      Same SECURITY DEFINER pattern so the public form can submit
 --      without an INSERT policy that would otherwise let any anon
 --      client write arbitrary rows.
 --
--- Safe to run more than once — both use CREATE OR REPLACE.
+-- Safe to run more than once — every column add uses IF NOT EXISTS,
+-- both RPCs use CREATE OR REPLACE.
 -- ────────────────────────────────────────────────────────────────────
+
+-- ── 0. Required columns on intake_submissions ──────────────────────
+-- client_email never made it into any prior migration. The other
+-- two were added in supabase/intake-status.sql but we declare them
+-- here too so this file is self-contained — re-running it on a
+-- database that already has them is a no-op.
+alter table intake_submissions
+  add column if not exists client_email text,
+  add column if not exists status       text default 'pending',
+  add column if not exists submitted_at timestamptz;
 
 -- ── 1. Open-count incrementer ──────────────────────────────────────
 create or replace function increment_intake_open(form_id text)
