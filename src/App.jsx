@@ -96,7 +96,11 @@ function AppRouter() {
   useEffect(() => {
     const path = window.location.pathname;
 
-    const intakeMatch = path.match(/^\/intake\/([a-z0-9-]+)$/i);
+    // /intake/<form-id> — the new builder generates IDs as
+    // "intake_<12 chars>", so the matcher has to allow underscores
+    // alongside alphanumeric + hyphen. Legacy IDs that only used
+    // hyphens still match. Case-insensitive for hand-typed URLs.
+    const intakeMatch = path.match(/^\/intake\/([A-Za-z0-9_-]+)$/);
     if (intakeMatch) {
       setActiveIntakeId(intakeMatch[1]);
       navigate('client-intake');

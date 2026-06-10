@@ -927,8 +927,15 @@ function ResponsiveStyles() {
       .ib-status-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; background: var(--color-surface); color: var(--color-text-soft); border: 1px solid var(--color-border); }
       .ib-status-pill.ib-status-active { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
 
+      /* Both .ib-layout (flex item) and .ib-main (grid item) need
+         min-height: 0 explicitly. Without it, browsers treat them
+         as min-content tall, which lets .ib-pane's content push
+         past the bounded root and AppShell's overflow:hidden
+         clips everything. With min-height: 0 the flex/grid chain
+         hands a definite bounded height down to .ib-pane and its
+         overflow-y: auto finally engages. */
       .ib-layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 0; min-height: 0; }
-      .ib-main { display: flex; flex-direction: column; min-width: 0; }
+      .ib-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
       .ib-tabs { display: flex; gap: 4px; padding: 14px 24px 0; background: var(--color-bg); border-bottom: 1px solid var(--color-border); }
       .ib-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: transparent; border: 1px solid transparent; border-bottom: none; border-radius: 9px 9px 0 0; font: 600 13px 'Urbanist', sans-serif; color: var(--color-text-soft); cursor: pointer; position: relative; top: 1px; }
