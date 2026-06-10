@@ -34,6 +34,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { requireAuth, checkRateLimit, logUsage } from './api/lib/authMiddleware.js'
 import { mapClaudeError } from './api/lib/claudeError.js'
 import { pickModel } from './src/lib/models.js'
+import { runIntakePipeline } from './intake-pipeline.js'
 
 dotenv.config()
 
@@ -352,6 +353,35 @@ app.post('/api/pexels', async (req, res) => {
   }
 })
 
+// ────────────────────────────────────────────────────────────────────
+// POST /api/process-intake — Phase 4 of the Client Intake Form
+// rebuild. Runs the 8-step pipeline (enrichment → brief assembly →
+// V2 translation → design system → kanban → notification). Returns
+// 202 immediately so the client doesn't wait for the full ~30-60s
+// processing; the pipeline runs asynchronously and updates the
+// submission row's status as each step lands.
+//
+// No auth — the public client form needs to call this right after
+// submit. The pipeline itself reads + writes via the service-role
+// supabase client so RLS isn't a concern. To prevent stranger-
+// triggered runs, the pipeline silently no-ops if the submission
+// isn't in ['pending', 'failed'] when it loads.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/process-intake', async (req, res) => {
+  const { submission_id } = req.body || {}
+  if (!submission_id) {
+    return res.status(400).json({ error: 'bad_request', message: 'submission_id is required' })
+  }
+  // Acknowledge immediately so the client form's submit flow doesn't
+  // wait. The pipeline runs in the background; the Express process
+  // keeps it alive until completion.
+  res.status(202).json({ ok: true, status: 'queued', submission_id })
+  // Fire-and-forget; failures are written to the submission row.
+  Promise.resolve(runIntakePipeline(submission_id)).catch(e => {
+    console.error('[process-intake] uncaught', e?.message || e)
+  })
+})
+
 // ── Unhandled-error fallback ───────────────────────────────────────
 app.use((err, _req, res, _next) => {
   console.error('[server] unhandled error', err)
@@ -367,5 +397,6 @@ app.listen(PORT, () => {
   console.log('  GET  /health')
   console.log('  POST /api/claude')
   console.log('  POST /api/pexels')
+  console.log('  POST /api/process-intake')
   console.log('CORS origins:', allowedOrigins.join(', '))
 })

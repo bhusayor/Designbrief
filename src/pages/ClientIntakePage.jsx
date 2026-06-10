@@ -203,26 +203,28 @@ function FormShell({ form }) {
       // Try the anonymous RPC first. Falls back to direct insert if
       // the RPC isn't deployed yet (legacy intake-public-tracking.sql
       // missing).
-      let inserted = false
+      let submissionId = null
       try {
-        const { error: rpcErr } = await supabase.rpc('submit_intake_anon', {
+        // submit_intake_anon returns the new submission id (text)
+        const { data: rpcId, error: rpcErr } = await supabase.rpc('submit_intake_anon', {
           p_form_id: form.id,
           p_answers: answers,
           p_client_email: extractEmail(answers, allQuestions),
           p_mood_urls: moodUrls,
         })
-        if (!rpcErr) inserted = true
+        if (!rpcErr) submissionId = rpcId
         else if (rpcErr.message?.toLowerCase().includes('form_expired')) {
           throw new Error('expired')
         }
       } catch (e) {
         if (e.message === 'expired') throw e
       }
-      if (!inserted) {
+      if (!submissionId) {
+        const fallbackId = 'sub_' + Math.random().toString(36).slice(2, 14)
         const { error: insertErr } = await supabase
           .from('intake_submissions')
           .insert({
-            id: 'sub_' + Math.random().toString(36).slice(2, 14),
+            id: fallbackId,
             intake_form_id: form.id,
             answers,
             client_email: extractEmail(answers, allQuestions),
@@ -231,7 +233,23 @@ function FormShell({ form }) {
             submitted_at: new Date().toISOString(),
           })
         if (insertErr) throw insertErr
+        submissionId = fallbackId
       }
+
+      // Phase 4 — fire-and-forget the processing pipeline. Runs on
+      // Render with no Vercel timeout ceiling. We don't wait for
+      // the response; the client sees the completion screen
+      // immediately while the pipeline runs in the background and
+      // updates the submission row's status as each step lands.
+      const pipelineUrl = (import.meta.env.VITE_API_URL || '') + '/api/process-intake'
+      if (pipelineUrl) {
+        fetch(pipelineUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ submission_id: submissionId }),
+        }).catch(e => console.warn('[client-intake] pipeline kickoff failed', e?.message))
+      }
+
       try { localStorage.removeItem(DRAFT_KEY(form.id)) } catch {}
       setPhase('done')
     } catch (e) {

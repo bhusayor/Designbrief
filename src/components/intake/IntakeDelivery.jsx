@@ -384,10 +384,19 @@ function StatusPanel({ form, counts, submissions, loading, showToast }) {
 
 function capitalise(s) { return String(s || '').replace(/^./, c => c.toUpperCase()) }
 function prettyStatus(s) {
+  // Phase 4 pipeline emits these status values in order. Older
+  // submissions may carry legacy values too (translating /
+  // complete / completed); keep both alive.
   const v = String(s || 'pending')
-  if (v === 'completed') return 'Ready'
-  if (v === 'processing') return 'Translating'
+  if (v === 'complete' || v === 'completed') return 'Ready'
+  if (v === 'failed') return 'Failed'
   if (v === 'pending') return 'Pending'
+  if (v === 'enriching') return 'Enriching'
+  if (v === 'translating') return 'Translating'
+  if (v === 'extracting_design_system') return 'Building design system'
+  if (v === 'building_kanban') return 'Building board'
+  if (v === 'notifying') return 'Wrapping up'
+  if (v === 'processing') return 'Translating'
   return capitalise(v)
 }
 function prettyDate(iso) {
@@ -450,7 +459,14 @@ function Styles() {
       .id-pill-expired { background: rgba(239,68,68,0.10); color: #b91c1c; border-color: rgba(239,68,68,0.35); }
       .id-pill-draft   { background: rgba(245,158,11,0.10); color: #b45309; border-color: rgba(245,158,11,0.30); }
       .id-pill-completed { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
+      .id-pill-complete  { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
       .id-pill-processing { background: rgba(139,92,246,0.12); color: var(--color-accent); border-color: rgba(139,92,246,0.35); }
+      .id-pill-enriching,
+      .id-pill-translating,
+      .id-pill-extracting_design_system,
+      .id-pill-building_kanban,
+      .id-pill-notifying { background: rgba(139,92,246,0.12); color: var(--color-accent); border-color: rgba(139,92,246,0.35); }
+      .id-pill-failed   { background: rgba(239,68,68,0.10); color: #b91c1c; border-color: rgba(239,68,68,0.35); }
       .id-pill-pending { background: var(--color-surface); color: var(--color-text-soft); }
 
       .id-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
