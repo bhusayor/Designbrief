@@ -84,6 +84,10 @@ export function AppProvider({ children }) {
   // optional retry callback and (for rate_limited) a countdown.
   const [aiError, setAiError] = useState(null);
   const [activeIntakeId, setActiveIntakeId] = useState(null);
+  // Phase 5 — submission id of the brief currently being reviewed.
+  // Set from IntakeDelivery's View Brief button on a submission row;
+  // read by the new IntakeBriefReview page.
+  const [activeIntakeSubmissionId, setActiveIntakeSubmissionId] = useState(null);
   // Token from a /share/:token URL — read by the public SharedBriefPage
   // to fetch the snapshot row out of supabase.shared_briefs.
   const [activeShareToken, setActiveShareToken] = useState(null);
@@ -1644,6 +1648,8 @@ export function AppProvider({ children }) {
     // Intake
     activeIntakeId,
     setActiveIntakeId,
+    activeIntakeSubmissionId,
+    setActiveIntakeSubmissionId,
     activeShareToken,
     setActiveShareToken,
     intakeForms,

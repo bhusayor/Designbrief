@@ -30,6 +30,12 @@ alter table intake_submissions
   add column if not exists enriched_answers jsonb,
   add column if not exists assembled_brief  text,
 
+  -- Phase 5 approval timestamp. Null = unlocked (designer can still
+  -- edit + the AI builder is not yet authorised for this brief's
+  -- kanban cards). Non-null = locked, brief is the source of truth.
+  -- Unlock writes it back to null after a confirm modal.
+  add column if not exists approved_at timestamptz,
+
   -- All flags surfaced by the pipeline (red flags + assumptions +
   -- questions), captured here in one place so the Phase 5 review
   -- screen can render them without re-deriving from the translation.

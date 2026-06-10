@@ -314,19 +314,25 @@ function QrTile({ url, formName }) {
 // Status panel
 // ────────────────────────────────────────────────────────────────────
 function StatusPanel({ form, counts, submissions, loading, showToast }) {
-  const { navigate, setActiveProjectBriefResult, setActiveProjectScoring } = useContext(AppContext)
+  const { navigate, setActiveIntakeSubmissionId } = useContext(AppContext)
   const isExpired = form?.expires_at && new Date(form.expires_at).getTime() < Date.now()
   const status = isExpired ? 'expired' : (form?.status || 'draft')
 
   function openBrief(sub) {
-    const r = sub.translated_result
-    if (!r) {
-      showToast?.('This submission has not been translated yet. Phase 4 wires the pipeline.', 'success')
+    if (!sub?.translated_result) {
+      const s = String(sub?.status || 'pending')
+      const pending = ['pending', 'enriching', 'translating', 'extracting_design_system', 'building_kanban', 'notifying']
+      if (pending.includes(s)) {
+        showToast?.('Still processing — check back in a minute.', 'success')
+      } else if (s === 'failed') {
+        showToast?.('Processing failed for this submission. ' + (sub.failure_message || ''), 'error')
+      } else {
+        showToast?.('No translated brief yet for this submission.', 'success')
+      }
       return
     }
-    setActiveProjectBriefResult?.(r)
-    setActiveProjectScoring?.(sub.scoring || null)
-    navigate?.('dashboard')
+    setActiveIntakeSubmissionId?.(sub.id)
+    navigate?.('intake-review')
   }
 
   return (

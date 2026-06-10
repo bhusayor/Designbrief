@@ -19,6 +19,7 @@ import Auth from './pages/Auth';
 import WorkspaceSetup from './pages/WorkspaceSetup';
 import AcceptInvite from './pages/AcceptInvite';
 import SharedBrief from './pages/SharedBrief';
+import IntakeBriefReview from './pages/IntakeBriefReview';
 import UpgradeModal from './components/UpgradeModal';
 import { supabase } from './lib/supabase';
 import PageTransition from './components/PageTransition';
@@ -146,6 +147,7 @@ function AppRouter() {
     auth:            <Auth />,
     'accept-invite': <AcceptInvite />,
     shared:          <SharedBrief />,
+    'intake-review': <IntakeBriefReview />,
   };
 
   // Show spinner while auth initialises, or while workspace is loading for a
