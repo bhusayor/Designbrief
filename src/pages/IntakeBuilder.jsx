@@ -111,6 +111,33 @@ export default function IntakeBuilder() {
     )
   }
 
+  // Promise.race wrapper so a stuck Supabase request never leaves
+  // the Save / Publish button spinning forever. 15s is generous; if
+  // the upsert hasn't returned by then something is wrong upstream.
+  function withTimeout(p, ms = 15000, label = 'request') {
+    return Promise.race([
+      p,
+      new Promise((_, rj) => setTimeout(
+        () => rj(new Error(`${label} timed out after ${ms / 1000}s. Check your connection and try again.`)),
+        ms,
+      )),
+    ])
+  }
+
+  // Common error messages for the patterns we actually see in
+  // practice. A column-doesn't-exist points at the missing Phase 1.1
+  // migration; everything else falls through to the raw message.
+  function explainError(e) {
+    const msg = (e?.message || '').toLowerCase()
+    if (msg.includes('column') && msg.includes('does not exist')) {
+      return 'Database is missing the new intake columns. Run supabase/intake-form-builder.sql in the SQL editor.'
+    }
+    if (msg.includes('row-level security') || msg.includes('rls')) {
+      return 'Permission error. Sign out + sign in again to refresh your session.'
+    }
+    return e?.message || 'Could not save. Try again.'
+  }
+
   async function handleSaveDraft() {
     if (saving) return
     if (!authUser?.id) { showToast?.('Sign in to save.', 'error'); return }
@@ -118,13 +145,17 @@ export default function IntakeBuilder() {
     try {
       const id = form.id || ('intake_' + slug())
       const row = formToRow(form, authUser.id, { status: 'draft', id })
-      const { error } = await supabase.from('intake_forms').upsert(row, { onConflict: 'id' })
+      const { error } = await withTimeout(
+        supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
+        15000,
+        'Save',
+      )
       if (error) throw error
       setForm(f => ({ ...f, id }))
       showToast?.('Draft saved.', 'success')
     } catch (e) {
       console.error('[intake save]', e)
-      showToast?.(e.message || 'Could not save.', 'error')
+      showToast?.(explainError(e), 'error')
     } finally {
       setSaving(false)
     }
@@ -141,14 +172,18 @@ export default function IntakeBuilder() {
         status: 'active',
         published_at: new Date().toISOString(),
       })
-      const { error } = await supabase.from('intake_forms').upsert(row, { onConflict: 'id' })
+      const { error } = await withTimeout(
+        supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
+        15000,
+        'Publish',
+      )
       if (error) throw error
       setForm(f => ({ ...f, id, status: 'active' }))
       setView('delivery')
       showToast?.('Published. Share the link with your client.', 'success')
     } catch (e) {
       console.error('[intake publish]', e)
-      showToast?.(e.message || 'Could not publish.', 'error')
+      showToast?.(explainError(e), 'error')
     } finally {
       setPublishing(false)
     }
@@ -876,7 +911,14 @@ function IconBtn({ children, onClick, disabled, title, danger }) {
 function ResponsiveStyles() {
   return (
     <style>{`
-      .ib-root { font-family: 'Urbanist', sans-serif; background: var(--color-bg); color: var(--color-text); min-height: 100dvh; display: flex; flex-direction: column; }
+      /* AppShell wraps every page in a flex column main with
+         height: 100dvh + overflow: hidden. The builder needs a
+         definite height to hand down so .ib-pane's overflow-y: auto
+         actually engages. Using height: 100% (of the AppShell main)
+         gives us that. The legacy min-height: 100dvh let content
+         push the root past the parent and AppShell would clip,
+         making the whole page un-scrollable. */
+      .ib-root { font-family: 'Urbanist', sans-serif; background: var(--color-bg); color: var(--color-text); height: 100%; min-height: 100dvh; display: flex; flex-direction: column; }
       .ib-topbar { display: flex; align-items: center; gap: 14px; padding: 12px 22px; border-bottom: 1px solid var(--color-border); background: var(--color-bg); flex-shrink: 0; }
       .ib-topbar-back { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9px; background: transparent; border: 1px solid var(--color-border); color: var(--color-text-soft); cursor: pointer; font: 600 12px/1.2 'Urbanist', sans-serif; }
       .ib-topbar-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
@@ -947,7 +989,7 @@ function ResponsiveStyles() {
       .ib-side-preview-head > :first-child { font: 800 13px 'Urbanist', sans-serif; }
       .ib-side-preview-hint { font: 500 11px 'Urbanist', sans-serif; color: var(--color-text-muted); }
 
-      .ib-pt-wrap { padding: 40px 24px 80px; max-width: 920px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+      .ib-pt-wrap { padding: 40px 24px 80px; max-width: 920px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1; overflow-y: auto; }
       .ib-pt-h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; }
       .ib-pt-sub { font-size: 14px; color: var(--color-text-soft); margin: 0 0 28px; max-width: 560px; }
       .ib-pt-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
