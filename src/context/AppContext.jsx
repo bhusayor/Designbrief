@@ -88,6 +88,9 @@ export function AppProvider({ children }) {
   // Set from IntakeDelivery's View Brief button on a submission row;
   // read by the new IntakeBriefReview page.
   const [activeIntakeSubmissionId, setActiveIntakeSubmissionId] = useState(null);
+  // Phase 6 — token in the URL when a client is responding to a
+  // designer follow-up question via the public /followup/:token page.
+  const [activeFollowupToken, setActiveFollowupToken] = useState(null);
   // Token from a /share/:token URL — read by the public SharedBriefPage
   // to fetch the snapshot row out of supabase.shared_briefs.
   const [activeShareToken, setActiveShareToken] = useState(null);
@@ -1650,6 +1653,8 @@ export function AppProvider({ children }) {
     setActiveIntakeId,
     activeIntakeSubmissionId,
     setActiveIntakeSubmissionId,
+    activeFollowupToken,
+    setActiveFollowupToken,
     activeShareToken,
     setActiveShareToken,
     intakeForms,

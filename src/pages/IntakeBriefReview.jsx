@@ -99,6 +99,41 @@ export default function IntakeBriefReview() {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Follow-ups loader hook
+// ────────────────────────────────────────────────────────────────────
+function useFollowups(submissionId) {
+  const [list, setList] = useState([])
+  const [loading, setLoading] = useState(true)
+  const reload = async () => {
+    if (!submissionId) return
+    try {
+      const { data, error } = await supabase
+        .from('intake_followups')
+        .select('*')
+        .eq('submission_id', submissionId)
+        .order('sent_at', { ascending: false })
+      if (error) throw error
+      setList(data || [])
+    } catch (e) {
+      console.warn('[review] followups load', e?.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    ;(async () => {
+      await reload()
+      if (cancelled) return
+    })()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submissionId])
+  return { list, loading, reload }
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Shell — manages editable result + tab state + persistence
 // ────────────────────────────────────────────────────────────────────
 function ReviewShell({ submission, form, onBack, showToast }) {
@@ -119,6 +154,8 @@ function ReviewShell({ submission, form, onBack, showToast }) {
   const [approving, setApproving] = useState(false)
   const [locked, setLocked] = useState(!!submission?.approved_at)
   const [showUnlockConfirm, setShowUnlockConfirm] = useState(false)
+  const { list: followups, reload: reloadFollowups } = useFollowups(submission?.id)
+  const [composer, setComposer] = useState(null)  // { question, context }
 
   const w = useWindowWidth()
   const isMobile = w < 768
@@ -204,6 +241,35 @@ function ReviewShell({ submission, form, onBack, showToast }) {
     }
   }
 
+  async function handleSendFollowup(question, context) {
+    if (!question?.trim()) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const apiUrl = (import.meta.env.VITE_API_URL || '') + '/api/intake-followup'
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + (session?.access_token || ''),
+        },
+        body: JSON.stringify({
+          action: 'send',
+          submission_id: submission.id,
+          question_text: question,
+          context_text: context || null,
+        }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j.message || j.error || `HTTP ${res.status}`)
+      setComposer(null)
+      showToast?.('Question sent to the client.', 'success')
+      await reloadFollowups()
+    } catch (e) {
+      console.error('[send followup]', e)
+      showToast?.(e.message || 'Could not send the question.', 'error')
+    }
+  }
+
   async function handleUnlock() {
     setShowUnlockConfirm(false)
     try {
@@ -284,7 +350,13 @@ function ReviewShell({ submission, form, onBack, showToast }) {
             />
           )}
           {isMobile && mobileTab === 'flags' && (
-            <FlagsPanel flags={flags} cards={result.kanbanCards?.tasks} onJumpToBrief={() => setMobileTab('brief')} />
+            <FlagsPanel
+              flags={flags}
+              cards={result.kanbanCards?.tasks}
+              followups={followups}
+              locked={locked}
+              onSendQuestion={(q) => setComposer({ question: q })}
+            />
           )}
           {isMobile && mobileTab === 'system' && (
             <DesignSystemPanel ds={result.designSystem} locked={locked} onChange={patchDesignSystem} />
@@ -297,7 +369,13 @@ function ReviewShell({ submission, form, onBack, showToast }) {
             <RightTabs current={rightTab} onSwitch={setRightTab} />
             <div className="br-rightbody">
               {rightTab === 'flags' && (
-                <FlagsPanel flags={flags} cards={result.kanbanCards?.tasks} />
+                <FlagsPanel
+                  flags={flags}
+                  cards={result.kanbanCards?.tasks}
+                  followups={followups}
+                  locked={locked}
+                  onSendQuestion={(q) => setComposer({ question: q })}
+                />
               )}
               {rightTab === 'system' && (
                 <DesignSystemPanel ds={result.designSystem} locked={locked} onChange={patchDesignSystem} />
@@ -343,6 +421,8 @@ function ReviewShell({ submission, form, onBack, showToast }) {
           kanban={result.kanbanCards}
           locked={locked}
           onChangeDs={patchDesignSystem}
+          followups={followups}
+          onSendQuestion={(q) => setComposer({ question: q })}
         />
       )}
 
@@ -373,6 +453,13 @@ function ReviewShell({ submission, form, onBack, showToast }) {
           confirmLabel="Yes, unlock"
           onConfirm={handleUnlock}
           onCancel={() => setShowUnlockConfirm(false)}
+        />
+      )}
+      {composer && (
+        <FollowupComposerModal
+          question={composer.question}
+          onCancel={() => setComposer(null)}
+          onSend={(q, ctx) => handleSendFollowup(q, ctx)}
         />
       )}
     </div>
@@ -917,8 +1004,17 @@ function TabBtn({ id, current, onSwitch, icon: Icon, children }) {
 // ────────────────────────────────────────────────────────────────────
 // Flags panel
 // ────────────────────────────────────────────────────────────────────
-function FlagsPanel({ flags, cards, onJumpToBrief }) {
+function FlagsPanel({ flags, cards, followups = [], locked, onSendQuestion }) {
   const total = flags.red.length + flags.assumptions.length + flags.questions.length
+
+  // Map "question text → followup record" so each question knows
+  // whether it's already been sent + whether it's been answered.
+  const followupByQuestion = useMemo(() => {
+    const m = new Map()
+    for (const f of followups) m.set(normaliseText(f.question_text), f)
+    return m
+  }, [followups])
+
   return (
     <div className="br-panel">
       <div className="br-panel-head">
@@ -941,19 +1037,81 @@ function FlagsPanel({ flags, cards, onJumpToBrief }) {
       </Group>
 
       <Group title={`Blocking questions (${flags.questions.length})`} empty="No open questions.">
-        {flags.questions.map((q, i) => (
-          <FlagItem key={i} icon={QuestionMarkCircleIcon} variant="critical"
-            text={q.text || q} meta="Send to client to unblock" />
-        ))}
+        {flags.questions.map((q, i) => {
+          const text = q.text || q
+          const followup = followupByQuestion.get(normaliseText(text))
+          return (
+            <QuestionRow
+              key={i}
+              text={text}
+              followup={followup}
+              locked={locked}
+              onSend={() => onSendQuestion?.(text)}
+            />
+          )
+        })}
       </Group>
 
-      <p className="br-panel-foot">
-        Send-to-client follow-up emails are arriving in Phase 6 polish.
-        For now, copy the question into the email composer on the IntakeDelivery page.
-      </p>
+      {followups.length > 0 && (
+        <Group title={`All follow-ups (${followups.length})`} empty="">
+          {followups.map(f => (
+            <FollowupRow key={f.token} followup={f} />
+          ))}
+        </Group>
+      )}
     </div>
   )
 }
+
+function QuestionRow({ text, followup, locked, onSend }) {
+  const status = followup?.status
+  const variant = status === 'answered' ? 'ok' : (status === 'sent' ? 'warn' : 'critical')
+  return (
+    <li className={`br-flag-item br-flag-${variant}`}>
+      <QuestionMarkCircleIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
+      <div className="br-flag-body">
+        <div>{text}</div>
+        <div className="br-flag-meta">
+          {status === 'answered'
+            ? <>Answered {followup.answered_at ? prettyDate(followup.answered_at) : ''}</>
+            : status === 'sent'
+              ? <>Sent {followup.sent_at ? prettyDate(followup.sent_at) : ''} · awaiting reply</>
+              : 'Send to client to unblock'}
+        </div>
+        {status === 'answered' && followup.answer_text && (
+          <div className="br-followup-answer"><strong>Client:</strong> {followup.answer_text}</div>
+        )}
+      </div>
+      {!locked && status !== 'answered' && (
+        <button onClick={onSend} className="br-send-btn">
+          {status === 'sent' ? 'Resend' : 'Send to client'}
+        </button>
+      )}
+    </li>
+  )
+}
+
+function FollowupRow({ followup }) {
+  const variant = followup.status === 'answered' ? 'ok' : 'warn'
+  return (
+    <li className={`br-flag-item br-flag-${variant}`}>
+      <QuestionMarkCircleIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
+      <div className="br-flag-body">
+        <div>{followup.question_text}</div>
+        <div className="br-flag-meta">
+          {followup.status === 'answered'
+            ? <>Answered {prettyDate(followup.answered_at)}</>
+            : <>Sent {prettyDate(followup.sent_at)}</>}
+        </div>
+        {followup.answer_text && (
+          <div className="br-followup-answer"><strong>Client:</strong> {followup.answer_text}</div>
+        )}
+      </div>
+    </li>
+  )
+}
+
+function normaliseText(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ') }
 function Group({ title, children, empty }) {
   const list = Array.isArray(children) ? children.filter(Boolean) : (children ? [children] : [])
   return (
@@ -1121,7 +1279,7 @@ function MobileTabBar({ current, onSwitch }) {
 // ────────────────────────────────────────────────────────────────────
 // Tablet drawer
 // ────────────────────────────────────────────────────────────────────
-function DrawerPanel({ tab, onSwitch, onClose, flags, cards, ds, kanban, locked, onChangeDs }) {
+function DrawerPanel({ tab, onSwitch, onClose, flags, cards, ds, kanban, locked, onChangeDs, followups, onSendQuestion }) {
   return (
     <div className="br-drawer-backdrop" onClick={onClose}>
       <aside className="br-drawer" onClick={e => e.stopPropagation()} aria-label="Drawer">
@@ -1131,7 +1289,7 @@ function DrawerPanel({ tab, onSwitch, onClose, flags, cards, ds, kanban, locked,
         </header>
         <RightTabs current={tab} onSwitch={onSwitch} />
         <div className="br-drawer-body">
-          {tab === 'flags'  && <FlagsPanel flags={flags} cards={cards} />}
+          {tab === 'flags'  && <FlagsPanel flags={flags} cards={cards} followups={followups} locked={locked} onSendQuestion={onSendQuestion} />}
           {tab === 'system' && <DesignSystemPanel ds={ds} locked={locked} onChange={onChangeDs} />}
           {tab === 'kanban' && <KanbanPreview kanban={kanban} />}
         </div>
@@ -1283,6 +1441,53 @@ function ExportOption({ title, description, onClick, busy }) {
       <ArrowRightIcon style={{ width: 14, height: 14, color: 'var(--color-text-muted)', flexShrink: 0 }} />
       {busy && <span className="br-export-opt-busy">Generating…</span>}
     </button>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Follow-up composer modal — send a blocking question to the client
+// ────────────────────────────────────────────────────────────────────
+function FollowupComposerModal({ question: initial, onCancel, onSend }) {
+  const [question, setQuestion] = useState(initial || '')
+  const [context, setContext] = useState(
+    "Hi, I'm finalising the brief and would like one more answer to help me get it right."
+  )
+  const [sending, setSending] = useState(false)
+  async function send() {
+    if (sending) return
+    setSending(true)
+    try {
+      await onSend(question, context)
+    } finally {
+      setSending(false)
+    }
+  }
+  return (
+    <div className="br-modal-backdrop" onClick={onCancel}>
+      <div className="br-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+        <header className="br-modal-head">
+          <span>Send to client</span>
+          <button onClick={onCancel} className="br-icon-only"><XMarkIcon style={{ width: 14, height: 14 }} /></button>
+        </header>
+        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label className="br-field">
+            <span className="br-label">Question</span>
+            <textarea className="br-textarea" rows={3} value={question} onChange={e => setQuestion(e.target.value)} />
+          </label>
+          <label className="br-field">
+            <span className="br-label">Context (optional)</span>
+            <textarea className="br-textarea" rows={3} value={context} onChange={e => setContext(e.target.value)} />
+            <span className="br-edit-hint">A short paragraph the client reads above the question. Keep it warm and brief.</span>
+          </label>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button onClick={onCancel} className="br-btn br-btn-quiet">Cancel</button>
+            <button onClick={send} disabled={sending || !question.trim()} className="br-btn br-btn-primary">
+              {sending ? 'Sending…' : 'Send'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1521,6 +1726,12 @@ function Styles() {
       .br-flag-body { flex: 1; min-width: 0; }
       .br-flag-body > :first-child { font: 600 12.5px 'Urbanist', sans-serif; color: var(--color-text); margin-bottom: 2px; }
       .br-flag-meta { font: 600 10px 'Urbanist', sans-serif; color: var(--color-text-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+      .br-send-btn { padding: 5px 11px; background: var(--color-accent); color: white; border: none; border-radius: 7px; font: 700 11px 'Urbanist', sans-serif; cursor: pointer; flex-shrink: 0; align-self: flex-start; }
+      .br-send-btn:hover { opacity: 0.92; }
+      .br-followup-answer { margin-top: 6px; padding: 7px 10px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 7px; font: 500 12px 'Urbanist', sans-serif; color: var(--color-text); line-height: 1.5; }
+      .br-followup-answer strong { font-weight: 700; color: var(--color-text-muted); margin-right: 4px; }
+      .br-field { display: flex; flex-direction: column; gap: 5px; }
+      .br-label { font: 700 11px 'Urbanist', sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-muted); }
 
       .br-ds-group { padding: 0; }
       .br-ds-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }

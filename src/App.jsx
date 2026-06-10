@@ -20,13 +20,14 @@ import WorkspaceSetup from './pages/WorkspaceSetup';
 import AcceptInvite from './pages/AcceptInvite';
 import SharedBrief from './pages/SharedBrief';
 import IntakeBriefReview from './pages/IntakeBriefReview';
+import ClientFollowupPage from './pages/ClientFollowupPage';
 import UpgradeModal from './components/UpgradeModal';
 import { supabase } from './lib/supabase';
 import PageTransition from './components/PageTransition';
 
 function AppRouter() {
   const {
-    activeSection, setActiveIntakeId, setActiveShareToken, navigate,
+    activeSection, setActiveIntakeId, setActiveShareToken, setActiveFollowupToken, navigate,
     authUser, authLoading,
     workspace, setWorkspace, workspaceLoading, workspaceLoadError, loadWorkspace,
     showToast, refreshAuthUser, refreshUserPlan,
@@ -122,6 +123,16 @@ function AppRouter() {
       return;
     }
 
+    // Public follow-up response page — /followup/<token>. Token is
+    // up to 24 char alphanumeric per the SQL column. Public, no
+    // auth required.
+    const followupMatch = path.match(/^\/followup\/([A-Za-z0-9_-]+)$/);
+    if (followupMatch) {
+      setActiveFollowupToken(followupMatch[1]);
+      navigate('client-followup');
+      return;
+    }
+
     // Public share viewer: /share/<uuid> → render SharedBrief
     // without requiring auth. UUID format only — the SQL column is
     // typed uuid so anything else would 400 the supabase call.
@@ -148,6 +159,7 @@ function AppRouter() {
     'accept-invite': <AcceptInvite />,
     shared:          <SharedBrief />,
     'intake-review': <IntakeBriefReview />,
+    'client-followup': <ClientFollowupPage />,
   };
 
   // Show spinner while auth initialises, or while workspace is loading for a
@@ -176,7 +188,7 @@ function AppRouter() {
     );
   }
 
-  const publicSections = ['auth', 'client-intake', 'join', 'accept-invite', 'shared'];
+  const publicSections = ['auth', 'client-intake', 'join', 'accept-invite', 'shared', 'client-followup'];
 
   // Unauthenticated → show Auth page
   if (!authUser && !publicSections.includes(activeSection)) {
@@ -273,6 +285,13 @@ function AppRouter() {
   //     wrapping below so the sidebar + Save-to-history button work.
   if (activeSection === 'shared' && !authUser) {
     return <SharedBrief />;
+  }
+
+  // Public client follow-up response — always renders bare (no
+  // AppShell). The client never has an account; even if they
+  // somehow do, they shouldn't see app chrome on this page.
+  if (activeSection === 'client-followup') {
+    return <ClientFollowupPage />;
   }
 
   return (
