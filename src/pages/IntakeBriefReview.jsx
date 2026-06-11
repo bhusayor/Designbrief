@@ -157,6 +157,52 @@ function ReviewShell({ submission, form, onBack, showToast }) {
   const { list: followups, reload: reloadFollowups } = useFollowups(submission?.id)
   const [composer, setComposer] = useState(null)  // { question, context }
 
+  // Sweep B — auto-unblock matching. When a follow-up question gets
+  // answered, walk every kanban card's blocked_reasons and surface
+  // an Apply banner if any reason text matches an answered question.
+  // We don't auto-mutate the result because the designer should
+  // confirm the action; the banner exposes Apply + Dismiss.
+  const unblockTargets = useMemo(() => {
+    const answered = new Set(
+      followups
+        .filter(f => f.status === 'answered')
+        .map(f => normaliseText(f.question_text)),
+    )
+    if (!answered.size) return []
+    const tasks = result?.kanbanCards?.tasks || []
+    const out = []
+    for (let i = 0; i < tasks.length; i++) {
+      const t = tasks[i]
+      const reasons = Array.isArray(t.blocked_reasons) ? t.blocked_reasons : []
+      const matching = reasons.filter(r => r?.text && answered.has(normaliseText(r.text)))
+      if (matching.length) out.push({ taskIndex: i, taskTitle: t.title, matching })
+    }
+    return out
+  }, [followups, result?.kanbanCards?.tasks])
+
+  function applyUnblocks() {
+    if (locked || !unblockTargets.length) return
+    const answered = new Set(
+      followups
+        .filter(f => f.status === 'answered')
+        .map(f => normaliseText(f.question_text)),
+    )
+    const tasks = (result.kanbanCards?.tasks || []).map(t => {
+      const reasons = Array.isArray(t.blocked_reasons) ? t.blocked_reasons : []
+      const remaining = reasons.filter(r => !(r?.text && answered.has(normaliseText(r.text))))
+      if (remaining.length === reasons.length) return t
+      return {
+        ...t,
+        blocked_reasons: remaining,
+        blocked: remaining.length > 0,
+        status: remaining.length > 0 ? 'blocked' : 'todo',
+      }
+    })
+    setDirty(true)
+    setResult(r => ({ ...r, kanbanCards: { ...(r.kanbanCards || {}), tasks } }))
+    showToast?.(`Updated ${unblockTargets.length} card${unblockTargets.length === 1 ? '' : 's'}. Save to persist.`, 'success')
+  }
+
   const w = useWindowWidth()
   const isMobile = w < 768
   const isTablet = w >= 768 && w < 1024
@@ -356,6 +402,8 @@ function ReviewShell({ submission, form, onBack, showToast }) {
               followups={followups}
               locked={locked}
               onSendQuestion={(q) => setComposer({ question: q })}
+              unblockTargets={unblockTargets}
+              onApplyUnblocks={applyUnblocks}
             />
           )}
           {isMobile && mobileTab === 'system' && (
@@ -423,6 +471,8 @@ function ReviewShell({ submission, form, onBack, showToast }) {
           onChangeDs={patchDesignSystem}
           followups={followups}
           onSendQuestion={(q) => setComposer({ question: q })}
+          unblockTargets={unblockTargets}
+          onApplyUnblocks={applyUnblocks}
         />
       )}
 
@@ -1004,7 +1054,7 @@ function TabBtn({ id, current, onSwitch, icon: Icon, children }) {
 // ────────────────────────────────────────────────────────────────────
 // Flags panel
 // ────────────────────────────────────────────────────────────────────
-function FlagsPanel({ flags, cards, followups = [], locked, onSendQuestion }) {
+function FlagsPanel({ flags, cards, followups = [], locked, onSendQuestion, unblockTargets = [], onApplyUnblocks }) {
   const total = flags.red.length + flags.assumptions.length + flags.questions.length
 
   // Map "question text → followup record" so each question knows
@@ -1021,6 +1071,26 @@ function FlagsPanel({ flags, cards, followups = [], locked, onSendQuestion }) {
         <h3>Flags</h3>
         <span className="br-panel-sub">{total} to review</span>
       </div>
+
+      {unblockTargets.length > 0 && !locked && (
+        <div className="br-unblock-banner">
+          <div className="br-unblock-body">
+            <div className="br-unblock-title">
+              {unblockTargets.length} card{unblockTargets.length === 1 ? '' : 's'} ready to unblock
+            </div>
+            <div className="br-unblock-meta">
+              Client answers cover the block reasons on{' '}
+              {unblockTargets.slice(0, 3).map((u, i) => (
+                <span key={i}>
+                  <strong>{u.taskTitle}</strong>{i < Math.min(unblockTargets.length, 3) - 1 ? ', ' : ''}
+                </span>
+              ))}
+              {unblockTargets.length > 3 ? `, and ${unblockTargets.length - 3} more.` : '.'}
+            </div>
+          </div>
+          <button onClick={onApplyUnblocks} className="br-unblock-btn">Apply</button>
+        </div>
+      )}
 
       <Group title={`Red flags (${flags.red.length})`} empty="No red flags.">
         {flags.red.map((f, i) => (
@@ -1279,7 +1349,7 @@ function MobileTabBar({ current, onSwitch }) {
 // ────────────────────────────────────────────────────────────────────
 // Tablet drawer
 // ────────────────────────────────────────────────────────────────────
-function DrawerPanel({ tab, onSwitch, onClose, flags, cards, ds, kanban, locked, onChangeDs, followups, onSendQuestion }) {
+function DrawerPanel({ tab, onSwitch, onClose, flags, cards, ds, kanban, locked, onChangeDs, followups, onSendQuestion, unblockTargets, onApplyUnblocks }) {
   return (
     <div className="br-drawer-backdrop" onClick={onClose}>
       <aside className="br-drawer" onClick={e => e.stopPropagation()} aria-label="Drawer">
@@ -1289,7 +1359,7 @@ function DrawerPanel({ tab, onSwitch, onClose, flags, cards, ds, kanban, locked,
         </header>
         <RightTabs current={tab} onSwitch={onSwitch} />
         <div className="br-drawer-body">
-          {tab === 'flags'  && <FlagsPanel flags={flags} cards={cards} followups={followups} locked={locked} onSendQuestion={onSendQuestion} />}
+          {tab === 'flags'  && <FlagsPanel flags={flags} cards={cards} followups={followups} locked={locked} onSendQuestion={onSendQuestion} unblockTargets={unblockTargets} onApplyUnblocks={onApplyUnblocks} />}
           {tab === 'system' && <DesignSystemPanel ds={ds} locked={locked} onChange={onChangeDs} />}
           {tab === 'kanban' && <KanbanPreview kanban={kanban} />}
         </div>
@@ -1726,6 +1796,12 @@ function Styles() {
       .br-flag-body { flex: 1; min-width: 0; }
       .br-flag-body > :first-child { font: 600 12.5px 'Urbanist', sans-serif; color: var(--color-text); margin-bottom: 2px; }
       .br-flag-meta { font: 600 10px 'Urbanist', sans-serif; color: var(--color-text-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+      .br-unblock-banner { display: flex; gap: 10px; align-items: center; padding: 12px 14px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.30); border-radius: 10px; }
+      .br-unblock-body { flex: 1; min-width: 0; }
+      .br-unblock-title { font: 700 12.5px 'Urbanist', sans-serif; color: #047857; margin-bottom: 2px; }
+      .br-unblock-meta { font: 500 11.5px 'Urbanist', sans-serif; color: var(--color-text-soft); line-height: 1.5; }
+      .br-unblock-btn { padding: 7px 14px; background: #10b981; color: white; border: none; border-radius: 8px; font: 800 12px 'Urbanist', sans-serif; cursor: pointer; flex-shrink: 0; }
+      .br-unblock-btn:hover { opacity: 0.9; }
       .br-send-btn { padding: 5px 11px; background: var(--color-accent); color: white; border: none; border-radius: 7px; font: 700 11px 'Urbanist', sans-serif; cursor: pointer; flex-shrink: 0; align-self: flex-start; }
       .br-send-btn:hover { opacity: 0.92; }
       .br-followup-answer { margin-top: 6px; padding: 7px 10px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 7px; font: 500 12px 'Urbanist', sans-serif; color: var(--color-text); line-height: 1.5; }

@@ -197,8 +197,17 @@ function FormShell({ form }) {
     setSubmitError(null)
     try {
       // Collect mood/reference URLs across all upload questions.
+      // After Phase 6 polish, uploaded files are objects
+      // { name, size, type, url, path } — pull the public URL so the
+      // pipeline can include them in the brief.
       const moodUrls = Object.entries(answers)
-        .flatMap(([_qid, val]) => Array.isArray(val) ? val.filter(v => typeof v === 'string' && /^https?:\/\//.test(v)) : [])
+        .flatMap(([_qid, val]) => Array.isArray(val) ? val : [])
+        .map(v => {
+          if (typeof v === 'string' && /^https?:\/\//.test(v)) return v
+          if (v && typeof v === 'object' && typeof v.url === 'string' && /^https?:\/\//.test(v.url)) return v.url
+          return null
+        })
+        .filter(Boolean)
         .join('\n')
       // Try the anonymous RPC first. Falls back to direct insert if
       // the RPC isn't deployed yet (legacy intake-public-tracking.sql
@@ -321,6 +330,7 @@ function FormShell({ form }) {
                   onChange={(v) => setAnswer(current.id, v)}
                   uploadsAllowed={form.settings?.file_uploads_enabled !== false}
                   t={t}
+                  formId={form.id}
                 />
               </div>
 
@@ -385,7 +395,7 @@ function CompletionScreen({ form, t }) {
 // ────────────────────────────────────────────────────────────────────
 // Question input dispatcher
 // ────────────────────────────────────────────────────────────────────
-function QuestionInput({ q, value, onChange, uploadsAllowed, t }) {
+function QuestionInput({ q, value, onChange, uploadsAllowed, t, formId }) {
   switch (q.type) {
     case 'short_text':
       return <ShortText value={value} onChange={onChange} />
@@ -399,11 +409,11 @@ function QuestionInput({ q, value, onChange, uploadsAllowed, t }) {
       return <Scale low={q.scale_low_label} high={q.scale_high_label} value={value} onChange={onChange} />
     case 'reference_upload':
       return uploadsAllowed
-        ? <FileDrop accept="image/jpeg,image/png,image/webp,application/pdf" valueArr={value} onChange={onChange} t={t} kind="reference" />
+        ? <FileDrop accept="image/jpeg,image/png,image/webp,application/pdf" valueArr={value} onChange={onChange} t={t} kind="reference" formId={formId} />
         : <DisabledMsg msg={t.uploadsDisabled} />
     case 'file_upload':
       return uploadsAllowed
-        ? <FileDrop accept="*/*" valueArr={value} onChange={onChange} t={t} kind="file" />
+        ? <FileDrop accept="*/*" valueArr={value} onChange={onChange} t={t} kind="file" formId={formId} />
         : <DisabledMsg msg={t.uploadsDisabled} />
     default:
       return <ShortText value={value} onChange={onChange} />
@@ -516,7 +526,7 @@ function Scale({ low, high, value, onChange }) {
   )
 }
 
-function FileDrop({ accept, valueArr, onChange, t, kind }) {
+function FileDrop({ accept, valueArr, onChange, t, kind, formId }) {
   const files = Array.isArray(valueArr) ? valueArr : []
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -534,9 +544,29 @@ function FileDrop({ accept, valueArr, onChange, t, kind }) {
           continue
         }
         try {
-          const dataUrl = await fileToDataUrl(f)
-          next.push({ name: f.name, size: f.size, type: f.type, data: dataUrl })
+          // Upload to the intake-uploads Storage bucket. Path is
+          // namespaced under the form id so the designer can see at
+          // a glance in the Supabase dashboard which form a file
+          // came from. Timestamp + random suffix prevent collisions
+          // on double-submits + keep the URL unguessable.
+          const cleanName = f.name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 60)
+          const path = `${formId || 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${cleanName}`
+          const { error: upErr } = await supabase.storage
+            .from('intake-uploads')
+            .upload(path, f, { cacheControl: '3600', contentType: f.type })
+          if (upErr) {
+            // Bucket missing or policy not in place — fall back to a
+            // data URL so the form still works during the migration
+            // window before the storage SQL is run.
+            console.warn('[upload] storage failed, falling back to data URL', upErr?.message)
+            const dataUrl = await fileToDataUrl(f)
+            next.push({ name: f.name, size: f.size, type: f.type, data: dataUrl })
+            continue
+          }
+          const { data: pub } = supabase.storage.from('intake-uploads').getPublicUrl(path)
+          next.push({ name: f.name, size: f.size, type: f.type, url: pub.publicUrl, path })
         } catch (e) {
+          console.warn('[upload]', e?.message)
           setError(t.fileFailed)
         }
       }
@@ -595,7 +625,7 @@ function FileDrop({ accept, valueArr, onChange, t, kind }) {
           {files.map((f, i) => (
             <li key={i} className="ci-file-row">
               {isImage(f) ? (
-                <img src={f.data} alt="" className="ci-file-thumb" />
+                <img src={f.url || f.data} alt="" className="ci-file-thumb" />
               ) : (
                 <span className="ci-file-icon">📎</span>
               )}
