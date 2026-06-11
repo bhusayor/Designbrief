@@ -37,8 +37,11 @@ import {
   estimatedMinutes,
 } from '../lib/intakeQuestionSets'
 import IntakeDelivery from '../components/intake/IntakeDelivery'
+import { motion } from 'framer-motion'
+import StaggerGrid, { StaggerItem } from '../components/StaggerGrid'
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   ArrowsUpDownIcon,
   ArrowUpTrayIcon,
   CheckIcon,
@@ -283,35 +286,59 @@ function ProjectTypeScreen({ onPick, onBack }) {
     custom:    PlusIcon,
   }
   return (
-    <div className="ib-root">
+    <div className="ib-root ib-pt-root">
       <ResponsiveStyles />
-      <header className="ib-topbar">
-        <button onClick={onBack} className="ib-topbar-back" aria-label="Back">
-          <ArrowLeftIcon style={{ width: 16, height: 16 }} />
-          <span>Dashboard</span>
-        </button>
-        <div className="ib-topbar-title">
-          <span className="ib-topbar-eyebrow">New intake form</span>
-          <span className="ib-topbar-name">Pick a project type</span>
-        </div>
-        <span style={{ width: 80 }} />
-      </header>
-      <div className="ib-pt-wrap">
-        <h1 className="ib-pt-h1">What kind of project is this for?</h1>
-        <p className="ib-pt-sub">Each type comes with a default set of questions tuned for that work. Rename, reorder, delete, or add on the next screen.</p>
-        <div className="ib-pt-grid">
+
+      {/* Minimal ghost back affordance, top-left, 24px from edges.
+          Replaces the deleted top bar. */}
+      <button onClick={onBack} className="ib-pt-back" aria-label="Back">
+        <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+        <span>Back</span>
+      </button>
+
+      <main className="ib-pt-stage">
+        <StaggerGrid speed="normal" className="ib-pt-headblock">
+          <StaggerItem variant="itemUp">
+            {/* Step indicator: dot 1 active, 2-3 inactive. The inactive
+                colour swaps per theme via the .ib-pt-dot-dim class. */}
+            <div className="ib-pt-steps">
+              <div className="ib-pt-dot" />
+              <div className="ib-pt-dot ib-pt-dot-dim" />
+              <div className="ib-pt-dot ib-pt-dot-dim" />
+              <span className="ib-pt-steps-label">Step 1 of 3 &mdash; Project type</span>
+            </div>
+          </StaggerItem>
+          <StaggerItem variant="itemUp">
+            <h1 className="ib-pt-h1">What kind of project is this?</h1>
+          </StaggerItem>
+          <StaggerItem variant="itemUp">
+            <p className="ib-pt-sub">Each type comes with smart questions tuned for that work. You can edit everything next.</p>
+          </StaggerItem>
+        </StaggerGrid>
+
+        <StaggerGrid speed="fast" className="ib-pt-grid">
           {PROJECT_TYPES.map(t => {
             const Icon = icons[t.id] || PlusIcon
+            const isCustom = t.id === 'custom'
             return (
-              <button key={t.id} className="ib-pt-card" onClick={() => onPick(t.id)}>
-                <span className="ib-pt-icon"><Icon style={{ width: 22, height: 22 }} /></span>
-                <span className="ib-pt-label">{t.label}</span>
-                <span className="ib-pt-tagline">{t.tagline}</span>
-              </button>
+              <StaggerItem key={t.id} variant="itemUp">
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => onPick(t.id)}
+                  className={`ib-pt-card${isCustom ? ' ib-pt-card-custom' : ''}`}
+                >
+                  <span className="ib-pt-card-arrow" aria-hidden>
+                    <ArrowRightIcon style={{ width: 14, height: 14 }} />
+                  </span>
+                  <span className="ib-pt-icon"><Icon style={{ width: 22, height: 22 }} /></span>
+                  <span className="ib-pt-label">{t.label}</span>
+                  <span className="ib-pt-tagline">{t.tagline}</span>
+                </motion.button>
+              </StaggerItem>
             )
           })}
-        </div>
-      </div>
+        </StaggerGrid>
+      </main>
     </div>
   )
 }
@@ -996,15 +1023,164 @@ function ResponsiveStyles() {
       .ib-side-preview-head > :first-child { font: 800 13px 'Urbanist', sans-serif; }
       .ib-side-preview-hint { font: 500 11px 'Urbanist', sans-serif; color: var(--color-text-muted); }
 
-      .ib-pt-wrap { padding: 40px 24px 80px; max-width: 920px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1; overflow-y: auto; }
-      .ib-pt-h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; }
-      .ib-pt-sub { font-size: 14px; color: var(--color-text-soft); margin: 0 0 28px; max-width: 560px; }
-      .ib-pt-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-      .ib-pt-card { display: flex; flex-direction: column; gap: 10px; padding: 22px 18px; background: var(--color-card); border: 1px solid var(--color-border); border-radius: 14px; text-align: left; cursor: pointer; font-family: inherit; transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s; }
-      .ib-pt-card:hover { border-color: var(--color-accent); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
-      .ib-pt-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(139,92,246,0.10); color: var(--color-accent); border-radius: 10px; }
-      .ib-pt-label { font: 800 15px 'Urbanist', sans-serif; color: var(--color-text); }
-      .ib-pt-tagline { font: 500 12px 'Urbanist', sans-serif; color: var(--color-text-soft); line-height: 1.5; }
+      /* ── Project-type picker (redesigned) ─────────────────────
+         Theme-aware tokens used everywhere; per-theme overrides
+         live further down for values without a CSS variable
+         counterpart (e.g. inset highlight, dim step dot, raw
+         border alpha). */
+      .ib-pt-root {
+        position: relative;
+        --ib-pt-card-border: rgba(0,0,0,0.08);
+        --ib-pt-inset: transparent;
+        --ib-pt-dot-dim: rgba(0,0,0,0.08);
+        --ib-pt-shadow-hover: 0 8px 24px rgba(139,92,246,0.12);
+      }
+      [data-theme="dark"] .ib-pt-root {
+        --ib-pt-card-border: rgba(255,255,255,0.07);
+        --ib-pt-inset: inset 0 1px 0 rgba(255,255,255,0.04);
+        --ib-pt-dot-dim: rgba(255,255,255,0.1);
+        --ib-pt-shadow-hover: 0 8px 24px rgba(139,92,246,0.12);
+      }
+
+      .ib-pt-back {
+        position: absolute; top: 24px; left: 24px;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 10px;
+        background: transparent; border: none;
+        color: var(--color-text-muted);
+        font: 600 13px 'Urbanist', sans-serif;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: color 0.18s ease;
+        z-index: 5;
+      }
+      .ib-pt-back:hover { color: var(--color-text); }
+
+      .ib-pt-stage {
+        /* flex: 1 makes the stage take the remaining vertical space
+           inside AppShell's bounded main; overflow-y: auto lets the
+           content scroll on short viewports instead of getting
+           clipped by AppShell's overflow: hidden. */
+        flex: 1;
+        overflow-y: auto;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: calc(100vh - 48px);
+        padding: 48px 24px;
+        max-width: 920px; width: 100%; margin: 0 auto;
+        box-sizing: border-box;
+      }
+
+      .ib-pt-headblock { display: flex; flex-direction: column; align-items: center; width: 100%; }
+
+      .ib-pt-steps { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+      .ib-pt-dot { width: 24px; height: 4px; border-radius: 99px; background: #8B5CF6; }
+      .ib-pt-dot.ib-pt-dot-dim { background: var(--ib-pt-dot-dim); }
+      .ib-pt-steps-label {
+        font: 700 11px 'DM Mono', 'JetBrains Mono', monospace;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--color-text-muted);
+        margin-left: 8px;
+      }
+
+      .ib-pt-h1 {
+        font-size: clamp(28px, 4vw, 40px);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: var(--color-text);
+        text-align: center;
+        margin: 0;
+        line-height: 1.1;
+      }
+      .ib-pt-sub {
+        font-size: 15px;
+        color: var(--color-text-muted);
+        max-width: 480px;
+        margin: 8px auto 40px;
+        text-align: center;
+        line-height: 1.6;
+      }
+
+      .ib-pt-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        width: 100%;
+      }
+
+      .ib-pt-card {
+        position: relative;
+        display: flex; flex-direction: column;
+        padding: 24px;
+        background: var(--color-card);
+        border: 1px solid var(--ib-pt-card-border);
+        border-radius: 16px;
+        box-shadow: var(--ib-pt-inset);
+        text-align: left;
+        cursor: pointer;
+        font-family: inherit;
+        transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .ib-pt-card:hover {
+        border-color: rgba(139,92,246,0.5);
+        transform: translateY(-3px);
+        box-shadow: var(--ib-pt-inset), var(--ib-pt-shadow-hover);
+      }
+      .ib-pt-card-arrow {
+        position: absolute; top: 20px; right: 20px;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: #8B5CF6;
+        opacity: 0;
+        transform: translateX(-4px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      .ib-pt-card:hover .ib-pt-card-arrow { opacity: 1; transform: translateX(0); }
+
+      .ib-pt-icon {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 44px; height: 44px;
+        background: rgba(139,92,246,0.12);
+        border: 1px solid rgba(139,92,246,0.2);
+        color: #8B5CF6;
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+      .ib-pt-label {
+        font-family: 'Urbanist', sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--color-text);
+        margin-bottom: 6px;
+        display: block;
+      }
+      .ib-pt-tagline {
+        font-size: 13px;
+        color: var(--color-text-muted);
+        line-height: 1.55;
+        display: block;
+      }
+
+      /* Custom card: blank-slate variant — dashed border, no fill,
+         hover ramps to a faint accent wash + solid border. */
+      .ib-pt-card-custom {
+        background: transparent;
+        border: 1px dashed rgba(139,92,246,0.35);
+        box-shadow: none;
+      }
+      .ib-pt-card-custom:hover {
+        border-style: solid;
+        border-color: rgba(139,92,246,0.6);
+        background: rgba(139,92,246,0.05);
+        box-shadow: var(--ib-pt-shadow-hover);
+      }
+      .ib-pt-card-custom .ib-pt-icon {
+        background: transparent;
+        border: 1px dashed rgba(139,92,246,0.4);
+      }
+      .ib-pt-card-custom:hover .ib-pt-icon {
+        border-style: solid;
+        border-color: rgba(139,92,246,0.6);
+      }
 
       .ib-switch { position: relative; width: 36px; height: 20px; border-radius: 100px; background: var(--color-border); border: none; cursor: pointer; transition: background 0.15s; }
       .ib-switch:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -1069,6 +1245,13 @@ function ResponsiveStyles() {
         .ib-layout { grid-template-columns: 1fr; }
         .ib-side-preview { display: none; }
         .ib-pt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .ib-pt-back { top: 18px; left: 18px; }
+      }
+      @media (max-width: 639px) {
+        .ib-pt-grid { grid-template-columns: 1fr; }
+        .ib-pt-stage { padding: 32px 18px; min-height: calc(100vh - 32px); }
+        .ib-pt-sub { margin-bottom: 28px; }
+        .ib-pt-card { padding: 20px; }
       }
       @media (max-width: 767px) {
         .ib-topbar { padding: 10px 14px; gap: 10px; }
@@ -1085,9 +1268,6 @@ function ResponsiveStyles() {
         .ib-qcard-logic { margin-left: 0; width: 100%; justify-content: center; }
         .ib-actions { padding: 10px 14px; gap: 6px; }
         .ib-actions .ib-btn { flex: 1; justify-content: center; padding: 9px 10px; font-size: 12px; }
-        .ib-pt-wrap { padding: 24px 14px 60px; }
-        .ib-pt-h1 { font-size: 22px; }
-        .ib-pt-grid { grid-template-columns: 1fr; }
       }
     `}</style>
   )
