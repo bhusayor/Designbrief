@@ -131,11 +131,20 @@ function FormShell({ form }) {
   const t = translations(langSettings)
 
   // ── Restore from localStorage on mount ──────────────────────────
-  const [phase, setPhase] = useState('opening') // 'opening' | 'filling' | 'submitting' | 'done'
+  const [phase, setPhase] = useState('intro') // 'intro' | 'filling' | 'submitting' | 'done'
   const [answers, setAnswers] = useState({})
   const [step, setStep] = useState(0)
   const [restoredBack, setRestoredBack] = useState(false)
   const [submitError, setSubmitError] = useState(null)
+
+  // Page 0 — collected before any questions render. business_name
+  // is the most load-bearing: it gets substituted into question
+  // text + the assembled brief + the designer's notification
+  // subject.
+  const [clientName, setClientName] = useState('')
+  const [businessName, setBusinessName] = useState('')
+  const [clientEmail, setClientEmail] = useState('')
+  const [pageZeroErrors, setPageZeroErrors] = useState({})
 
   useEffect(() => {
     try {
@@ -145,6 +154,9 @@ function FormShell({ form }) {
       if (draft && draft.answers && typeof draft.step === 'number') {
         setAnswers(draft.answers)
         setStep(Math.max(0, Math.min(draft.step, allQuestions.length - 1)))
+        if (draft.clientName) setClientName(draft.clientName)
+        if (draft.businessName) setBusinessName(draft.businessName)
+        if (draft.clientEmail) setClientEmail(draft.clientEmail)
         if (draft.phase === 'filling') {
           setPhase('filling')
           setRestoredBack(true)
@@ -157,13 +169,17 @@ function FormShell({ form }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.id, allQuestions.length])
 
-  // Persist progress on every change.
+  // Persist progress on every change. We capture Page 0 fields once
+  // the user advances out of intro so a refresh mid-form doesn't
+  // wipe them.
   useEffect(() => {
     if (phase !== 'filling') return
     try {
-      localStorage.setItem(DRAFT_KEY(form.id), JSON.stringify({ phase, step, answers }))
+      localStorage.setItem(DRAFT_KEY(form.id), JSON.stringify({
+        phase, step, answers, clientName, businessName, clientEmail,
+      }))
     } catch {}
-  }, [phase, step, answers, form.id])
+  }, [phase, step, answers, clientName, businessName, clientEmail, form.id])
 
   // ── Visible-questions logic (conditional-rule evaluator) ────────
   const visible = useMemo(
@@ -192,6 +208,35 @@ function FormShell({ form }) {
     setAnswers(prev => ({ ...prev, [qid]: value }))
   }
 
+  function handlePageZeroContinue() {
+    const errors = {}
+    if (!clientName.trim()) errors.clientName = 'Your name is required'
+    if (!businessName.trim()) errors.businessName = 'Business name is required'
+    if (clientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail.trim())) {
+      errors.clientEmail = 'Please enter a valid email'
+    }
+    if (Object.keys(errors).length > 0) {
+      setPageZeroErrors(errors)
+      return
+    }
+    setPageZeroErrors({})
+    setPhase('filling')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Personalise question text using the business name. Swaps
+  // "your business", "your brand", "your product", "your company"
+  // for the captured name so the form feels written for them.
+  // No business name yet → return the text untouched.
+  const personalizeQuestion = useMemo(() => {
+    const trimmed = businessName.trim()
+    if (!trimmed) return (t) => t
+    return (text) => String(text || '').replace(
+      /\byour (business|brand|product|company)\b/gi,
+      trimmed,
+    )
+  }, [businessName])
+
   async function handleSubmit() {
     setPhase('submitting')
     setSubmitError(null)
@@ -212,14 +257,19 @@ function FormShell({ form }) {
       // Try the anonymous RPC first. Falls back to direct insert if
       // the RPC isn't deployed yet (legacy intake-public-tracking.sql
       // missing).
+      const resolvedEmail = clientEmail.trim() || extractEmail(answers, allQuestions)
+      const trimmedClientName   = clientName.trim() || null
+      const trimmedBusinessName = businessName.trim() || null
       let submissionId = null
       try {
         // submit_intake_anon returns the new submission id (text)
         const { data: rpcId, error: rpcErr } = await supabase.rpc('submit_intake_anon', {
           p_form_id: form.id,
           p_answers: answers,
-          p_client_email: extractEmail(answers, allQuestions),
+          p_client_email: resolvedEmail,
           p_mood_urls: moodUrls,
+          p_client_name: trimmedClientName,
+          p_business_name: trimmedBusinessName,
         })
         if (!rpcErr) submissionId = rpcId
         else if (rpcErr.message?.toLowerCase().includes('form_expired')) {
@@ -236,7 +286,9 @@ function FormShell({ form }) {
             id: fallbackId,
             intake_form_id: form.id,
             answers,
-            client_email: extractEmail(answers, allQuestions),
+            client_email: resolvedEmail,
+            client_name: trimmedClientName,
+            business_name: trimmedBusinessName,
             mood_urls: moodUrls,
             status: 'pending',
             submitted_at: new Date().toISOString(),
@@ -271,7 +323,7 @@ function FormShell({ form }) {
   }
 
   // ── Render branches ────────────────────────────────────────────
-  if (phase === 'done') return <CompletionScreen form={form} t={t} />
+  if (phase === 'done') return <CompletionScreen form={form} t={t} clientName={clientName} businessName={businessName} />
   if (phase === 'submitting') return <CenteredMessage spinner>{t.submitting}</CenteredMessage>
 
   if (!total) {
@@ -288,8 +340,21 @@ function FormShell({ form }) {
     <div className="ci-root" style={{ ['--accent']: accent }}>
       <Styles />
 
-      {phase === 'opening' ? (
-        <OpeningScreen form={form} t={t} estMinutes={estimatedMinutes(allQuestions)} onStart={() => setPhase('filling')} />
+      {phase === 'intro' ? (
+        <IntroScreen
+          form={form}
+          t={t}
+          estMinutes={estimatedMinutes(allQuestions)}
+          clientName={clientName}
+          businessName={businessName}
+          clientEmail={clientEmail}
+          setClientName={setClientName}
+          setBusinessName={setBusinessName}
+          setClientEmail={setClientEmail}
+          errors={pageZeroErrors}
+          clearError={(key) => setPageZeroErrors(prev => ({ ...prev, [key]: undefined }))}
+          onContinue={handlePageZeroContinue}
+        />
       ) : (
         <>
           {showProgress && (
@@ -308,20 +373,20 @@ function FormShell({ form }) {
 
           <div className="ci-screen">
             <div className="ci-screen-inner">
-              <button
-                onClick={back}
-                disabled={safeStep === 0}
-                className="ci-back-link"
-                aria-label={t.back}
-              >
-                <ArrowLeftIcon style={{ width: 14, height: 14 }} />
-                <span>{t.back}</span>
-              </button>
+              {/* Back affordance only renders past the first question.
+                  Step 0 has nothing meaningful behind it (the intro
+                  page already collected the up-front context). */}
+              {safeStep > 0 && (
+                <button onClick={back} className="ci-back-link" aria-label={t.back}>
+                  <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+                  <span>{t.back}</span>
+                </button>
+              )}
 
               <div className="ci-counter">{t.questionWord} {safeStep + 1} {t.of} {total}</div>
 
-              <h2 className="ci-q-text">{current.text}</h2>
-              {current.helper_text && <p className="ci-q-helper">{current.helper_text}</p>}
+              <h2 className="ci-q-text">{personalizeQuestion(current.text)}</h2>
+              {current.helper_text && <p className="ci-q-helper">{personalizeQuestion(current.helper_text)}</p>}
 
               <div className="ci-q-input">
                 <QuestionInput
@@ -353,41 +418,152 @@ function FormShell({ form }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Opening screen
+// Page 0 — intro form (replaces the legacy OpeningScreen).
+// Collects client name, business name, optional email before any
+// question is shown. Business name flows through every question +
+// the assembled brief + the designer notification.
 // ────────────────────────────────────────────────────────────────────
-function OpeningScreen({ form, t, estMinutes, onStart }) {
+function IntroScreen({
+  form, t, estMinutes,
+  clientName, businessName, clientEmail,
+  setClientName, setBusinessName, setClientEmail,
+  errors, clearError, onContinue,
+}) {
   const b = form.branding || {}
   return (
-    <div className="ci-open">
-      {b.logo_url && <img src={b.logo_url} alt="" className="ci-open-logo" />}
-      <p className="ci-open-welcome">
-        {b.welcome_message || t.defaultWelcome}
-      </p>
-      <p className="ci-open-est">
-        {t.estimatedTime} {estMinutes} {estMinutes === 1 ? t.minute : t.minutes}
-      </p>
-      <button onClick={onStart} className="ci-start">
-        {t.start} <ArrowRightIcon style={{ width: 16, height: 16 }} />
-      </button>
+    <div className="ci-intro-stage">
+      <div className="ci-intro-card">
+        {b.logo_url && <img src={b.logo_url} alt="" className="ci-intro-logo" />}
+
+        {/* Step indicator — 1 of 3, first dot active. Inactive dot
+            colour is theme-aware via .ci-step-dot-dim. */}
+        <div className="ci-intro-steps">
+          <span className="ci-step-dot" />
+          <span className="ci-step-dot ci-step-dot-dim" />
+          <span className="ci-step-dot ci-step-dot-dim" />
+          <span className="ci-intro-steps-label">{t.beforeWeStart}</span>
+        </div>
+
+        <h1 className="ci-intro-h1">{t.tellUsTitle}</h1>
+        <p className="ci-intro-sub">{t.tellUsSub}</p>
+
+        <IntroField
+          label={t.yourNameLabel}
+          placeholder={t.yourNamePlaceholder}
+          value={clientName}
+          onChange={setClientName}
+          required
+          error={errors.clientName}
+          clearError={() => clearError('clientName')}
+          onEnter={onContinue}
+          t={t}
+        />
+        <IntroField
+          label={t.businessLabel}
+          sublabel={t.businessSub}
+          placeholder={t.businessPlaceholder}
+          value={businessName}
+          onChange={setBusinessName}
+          required
+          error={errors.businessName}
+          clearError={() => clearError('businessName')}
+          onEnter={onContinue}
+          t={t}
+        />
+        <IntroField
+          label={t.emailLabel}
+          sublabel={t.emailSub}
+          placeholder={t.emailPlaceholder}
+          type="email"
+          value={clientEmail}
+          onChange={setClientEmail}
+          error={errors.clientEmail}
+          clearError={() => clearError('clientEmail')}
+          onEnter={onContinue}
+          t={t}
+        />
+
+        <button onClick={onContinue} className="ci-intro-continue">
+          {t.continue}
+          <ArrowRightIcon style={{ width: 16, height: 16 }} />
+        </button>
+
+        <p className="ci-intro-foot">
+          <span className="ci-intro-req-star">*</span> {t.requiredFields}
+          {estMinutes > 0 && <> · {t.estimatedTime} {estMinutes} {estMinutes === 1 ? t.minute : t.minutes}</>}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function IntroField({ label, sublabel, value, onChange, placeholder, type = 'text', required = false, error, clearError, onEnter, t }) {
+  return (
+    <div className="ci-intro-field">
+      <div className="ci-intro-field-head">
+        <label className="ci-intro-label">{label}</label>
+        {required
+          ? <span className="ci-intro-req-star" aria-label="required">*</span>
+          : <span className="ci-intro-opt-tag">{t.optionalLabel || 'optional'}</span>}
+      </div>
+      {sublabel && <p className="ci-intro-sublabel">{sublabel}</p>}
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        className={`ci-intro-input${error ? ' is-error' : ''}`}
+        onChange={(e) => { onChange(e.target.value); if (error) clearError?.() }}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onEnter?.() } }}
+        autoCapitalize={type === 'email' ? 'off' : 'words'}
+        autoCorrect={type === 'email' ? 'off' : undefined}
+        spellCheck={type === 'email' ? false : undefined}
+        inputMode={type === 'email' ? 'email' : undefined}
+      />
+      {error && <p className="ci-intro-err">{error}</p>}
     </div>
   )
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Completion screen
+// Completion screen — redesigned premium thank-you.
 // ────────────────────────────────────────────────────────────────────
-function CompletionScreen({ form, t }) {
+function CompletionScreen({ form, t, clientName, businessName }) {
   const b = form.branding || {}
+  const firstName = (clientName || '').trim().split(/\s+/)[0]
+  const greeting = firstName ? `${t.thanksWithName} ${firstName}.` : t.thankYou
   return (
-    <div className="ci-open">
-      {b.logo_url && <img src={b.logo_url} alt="" className="ci-open-logo" />}
-      <div className="ci-done-check" aria-hidden>
-        <CheckIcon style={{ width: 28, height: 28 }} />
+    <div className="ci-done-stage">
+      <div className="ci-done-card">
+        {b.logo_url && <img src={b.logo_url} alt="" className="ci-done-logo" />}
+        <div className="ci-done-check" aria-hidden>
+          <CheckIcon style={{ width: 30, height: 30 }} />
+        </div>
+        <h1 className="ci-done-h1">{greeting}</h1>
+        <p className="ci-done-lead">
+          {b.completion_message || t.defaultDone}
+        </p>
+        {businessName?.trim() && (
+          <div className="ci-done-meta">
+            <span className="ci-done-meta-label">{t.briefForLabel}</span>
+            <span className="ci-done-meta-value">{businessName.trim()}</span>
+          </div>
+        )}
+        <ol className="ci-done-next">
+          <li>
+            <span className="ci-done-next-num">1</span>
+            <span>{t.nextStep1}</span>
+          </li>
+          <li>
+            <span className="ci-done-next-num">2</span>
+            <span>{t.nextStep2}</span>
+          </li>
+          <li>
+            <span className="ci-done-next-num">3</span>
+            <span>{t.nextStep3}</span>
+          </li>
+        </ol>
+        <p className="ci-done-close">{t.youCanClose}</p>
       </div>
-      <h1 className="ci-done-h1">{t.thankYou}</h1>
-      <p className="ci-open-welcome">
-        {b.completion_message || t.defaultDone}
-      </p>
     </div>
   )
 }
@@ -798,6 +974,27 @@ function translations(lang) {
     fileTooBig: '{name} is too large (max 8MB).',
     fileFailed: 'Could not read the file. Try a different one.',
     restored: 'Welcome back — continuing where you left off.',
+    // Page 0
+    beforeWeStart: 'Before we start',
+    tellUsTitle: 'Tell us about your project',
+    tellUsSub: 'This helps us personalise your questions and generate a brief that actually sounds like your brand.',
+    yourNameLabel: 'Your name',
+    yourNamePlaceholder: 'e.g. Amaka Okafor',
+    businessLabel: 'Business or product name',
+    businessSub: 'This is what we use throughout your brief.',
+    businessPlaceholder: 'e.g. Nestiq, PocketBase, Akaani',
+    emailLabel: 'Your email',
+    emailSub: "We'll send you a copy of your answers.",
+    emailPlaceholder: 'you@business.com',
+    optionalLabel: 'optional',
+    requiredFields: 'Required fields',
+    // Thank-you screen
+    thanksWithName: 'Thanks,',
+    briefForLabel: 'Brief for',
+    nextStep1: 'Your answers go straight to your designer.',
+    nextStep2: 'A first draft of the brief is being prepared in the background.',
+    nextStep3: "You'll hear back with next steps shortly.",
+    youCanClose: 'You can safely close this tab.',
   }
   const fr = {
     start: 'Commencer', continue: 'Continuer', back: 'Retour', submit: 'Envoyer', submitting: 'Envoi…',
@@ -812,6 +1009,25 @@ function translations(lang) {
     fileTooBig: '{name} est trop volumineux (max 8 Mo).',
     fileFailed: 'Impossible de lire le fichier.',
     restored: 'Bon retour. Reprenons où vous en étiez.',
+    beforeWeStart: 'Avant de commencer',
+    tellUsTitle: 'Parlez-nous de votre projet',
+    tellUsSub: 'Cela nous aide à personnaliser vos questions et à rédiger un brief qui ressemble vraiment à votre marque.',
+    yourNameLabel: 'Votre nom',
+    yourNamePlaceholder: 'ex. Amaka Okafor',
+    businessLabel: 'Nom de l\'entreprise ou du produit',
+    businessSub: 'C\'est ce que nous utiliserons dans votre brief.',
+    businessPlaceholder: 'ex. Nestiq, PocketBase, Akaani',
+    emailLabel: 'Votre email',
+    emailSub: 'Nous vous enverrons une copie de vos réponses.',
+    emailPlaceholder: 'vous@entreprise.com',
+    optionalLabel: 'facultatif',
+    requiredFields: 'Champs requis',
+    thanksWithName: 'Merci,',
+    briefForLabel: 'Brief pour',
+    nextStep1: 'Vos réponses partent directement à votre designer.',
+    nextStep2: 'Un premier jet du brief est en préparation en arrière-plan.',
+    nextStep3: 'Vous aurez bientôt des nouvelles avec les prochaines étapes.',
+    youCanClose: 'Vous pouvez fermer cet onglet en toute sécurité.',
   }
   const es = {
     start: 'Empezar', continue: 'Continuar', back: 'Volver', submit: 'Enviar', submitting: 'Enviando…',
@@ -826,6 +1042,25 @@ function translations(lang) {
     fileTooBig: '{name} es demasiado grande (máx 8 MB).',
     fileFailed: 'No se pudo leer el archivo.',
     restored: 'Bienvenido de vuelta. Continuamos donde lo dejaste.',
+    beforeWeStart: 'Antes de empezar',
+    tellUsTitle: 'Cuéntanos sobre tu proyecto',
+    tellUsSub: 'Esto nos ayuda a personalizar tus preguntas y generar un brief que suene a tu marca.',
+    yourNameLabel: 'Tu nombre',
+    yourNamePlaceholder: 'p. ej. Amaka Okafor',
+    businessLabel: 'Nombre del negocio o producto',
+    businessSub: 'Esto es lo que usaremos en tu brief.',
+    businessPlaceholder: 'p. ej. Nestiq, PocketBase, Akaani',
+    emailLabel: 'Tu correo',
+    emailSub: 'Te enviaremos una copia de tus respuestas.',
+    emailPlaceholder: 'tu@negocio.com',
+    optionalLabel: 'opcional',
+    requiredFields: 'Campos obligatorios',
+    thanksWithName: 'Gracias,',
+    briefForLabel: 'Brief para',
+    nextStep1: 'Tus respuestas llegan directamente a tu diseñador.',
+    nextStep2: 'Se está preparando un primer borrador del brief en segundo plano.',
+    nextStep3: 'Pronto sabrás los próximos pasos.',
+    youCanClose: 'Puedes cerrar esta pestaña tranquilamente.',
   }
   const pt = {
     start: 'Começar', continue: 'Continuar', back: 'Voltar', submit: 'Enviar', submitting: 'Enviando…',
@@ -840,6 +1075,25 @@ function translations(lang) {
     fileTooBig: '{name} é muito grande (máx 8 MB).',
     fileFailed: 'Não foi possível ler o arquivo.',
     restored: 'Bem-vindo de volta. Continuando de onde parou.',
+    beforeWeStart: 'Antes de começar',
+    tellUsTitle: 'Conte-nos sobre o seu projeto',
+    tellUsSub: 'Isso nos ajuda a personalizar suas perguntas e gerar um brief com a cara da sua marca.',
+    yourNameLabel: 'Seu nome',
+    yourNamePlaceholder: 'ex. Amaka Okafor',
+    businessLabel: 'Nome do negócio ou produto',
+    businessSub: 'É o que usaremos ao longo do seu brief.',
+    businessPlaceholder: 'ex. Nestiq, PocketBase, Akaani',
+    emailLabel: 'Seu email',
+    emailSub: 'Enviaremos uma cópia das suas respostas.',
+    emailPlaceholder: 'voce@negocio.com',
+    optionalLabel: 'opcional',
+    requiredFields: 'Campos obrigatórios',
+    thanksWithName: 'Obrigado,',
+    briefForLabel: 'Brief para',
+    nextStep1: 'Suas respostas vão direto para o seu designer.',
+    nextStep2: 'Um primeiro rascunho do brief está sendo preparado em segundo plano.',
+    nextStep3: 'Em breve você terá novidades sobre os próximos passos.',
+    youCanClose: 'Você pode fechar esta aba tranquilamente.',
   }
   if (lang === 'fr') return fr
   if (lang === 'es') return es
@@ -989,6 +1243,186 @@ function Styles() {
       .ci-spinner-ring { width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(0,0,0,0.08); border-top-color: var(--accent); animation: ci-spin 0.8s linear infinite; }
       @keyframes ci-spin { to { transform: rotate(360deg); } }
 
+      /* ── Page 0 — intro form (replaces opening welcome) ──────── */
+      .ci-intro-stage {
+        flex: 1;
+        display: flex; align-items: center; justify-content: center;
+        padding: 48px 24px;
+        min-height: calc(100vh - 48px);
+        box-sizing: border-box;
+      }
+      .ci-intro-card {
+        width: 100%; max-width: 480px;
+        display: flex; flex-direction: column;
+      }
+      .ci-intro-logo { max-height: 44px; max-width: 200px; margin-bottom: 24px; align-self: flex-start; }
+      .ci-intro-steps { display: flex; align-items: center; gap: 6px; margin-bottom: 32px; }
+      .ci-step-dot { width: 28px; height: 4px; border-radius: 99px; background: var(--accent); display: inline-block; }
+      .ci-step-dot-dim { background: var(--ci-dot-dim, rgba(0,0,0,0.10)); }
+      [data-theme="dark"] .ci-step-dot-dim { background: rgba(255,255,255,0.10); }
+      .ci-intro-steps-label {
+        font: 700 11px 'JetBrains Mono', 'DM Mono', monospace;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--color-text-muted);
+        margin-left: 8px;
+      }
+
+      .ci-intro-h1 {
+        font: 800 clamp(24px, 4vw, 36px) 'Urbanist', sans-serif;
+        letter-spacing: -0.03em;
+        color: var(--color-text);
+        margin: 0 0 8px;
+        line-height: 1.15;
+      }
+      .ci-intro-sub {
+        font: 500 15px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        margin: 0 0 40px;
+        line-height: 1.6;
+      }
+
+      .ci-intro-field { margin-bottom: 20px; }
+      .ci-intro-field-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+      .ci-intro-label { font: 600 14px 'Urbanist', sans-serif; color: var(--color-text); }
+      .ci-intro-req-star { color: var(--accent); font-size: 14px; line-height: 1; }
+      .ci-intro-opt-tag {
+        font: 600 11px 'JetBrains Mono', 'DM Mono', monospace;
+        letter-spacing: 0.05em;
+        color: var(--color-text-muted);
+        text-transform: lowercase;
+      }
+      .ci-intro-sublabel {
+        font: 500 13px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        margin: 0 0 8px;
+        line-height: 1.5;
+      }
+      .ci-intro-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--color-surface);
+        border: 1.5px solid var(--color-border);
+        border-radius: 12px;
+        color: var(--color-text);
+        font: 500 15px 'Urbanist', sans-serif;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+      .ci-intro-input:focus { border-color: var(--accent); background: var(--color-bg); }
+      .ci-intro-input.is-error { border-color: #EF4444; }
+      .ci-intro-err { font: 500 12px 'Urbanist', sans-serif; color: #EF4444; margin: 6px 0 0; }
+
+      .ci-intro-continue {
+        width: 100%;
+        padding: 14px 24px;
+        margin-top: 8px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font: 700 16px 'Urbanist', sans-serif;
+        cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        transition: background 0.18s ease, transform 0.05s ease;
+        min-height: 48px;
+      }
+      .ci-intro-continue:hover { filter: brightness(0.94); }
+      .ci-intro-continue:active { transform: translateY(1px); }
+
+      .ci-intro-foot {
+        font: 600 11px 'JetBrains Mono', 'DM Mono', monospace;
+        color: var(--color-text-muted);
+        text-align: center;
+        margin: 16px 0 0;
+        letter-spacing: 0.02em;
+      }
+
+      /* ── Redesigned thank-you screen ────────────────────────── */
+      .ci-done-stage {
+        flex: 1;
+        display: flex; align-items: center; justify-content: center;
+        padding: 48px 24px;
+        min-height: calc(100vh - 48px);
+        box-sizing: border-box;
+      }
+      .ci-done-card {
+        width: 100%; max-width: 480px;
+        display: flex; flex-direction: column; align-items: center;
+        text-align: center;
+      }
+      .ci-done-logo { max-height: 44px; max-width: 200px; margin-bottom: 24px; }
+      .ci-done-check {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 64px; height: 64px;
+        background: rgba(16,185,129,0.12);
+        color: #10b981;
+        border: 1px solid rgba(16,185,129,0.30);
+        border-radius: 50%;
+        margin-bottom: 24px;
+      }
+      .ci-done-h1 {
+        font: 800 clamp(26px, 4.2vw, 36px) 'Urbanist', sans-serif;
+        letter-spacing: -0.03em;
+        color: var(--color-text);
+        margin: 0 0 10px;
+        line-height: 1.15;
+      }
+      .ci-done-lead {
+        font: 500 15px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        margin: 0 0 24px;
+        line-height: 1.6;
+        max-width: 420px;
+      }
+      .ci-done-meta {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 8px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 100px;
+        margin-bottom: 28px;
+      }
+      .ci-done-meta-label {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .ci-done-meta-value {
+        font: 700 13px 'Urbanist', sans-serif;
+        color: var(--color-text);
+      }
+      .ci-done-next {
+        list-style: none; padding: 0; margin: 0 0 28px;
+        display: flex; flex-direction: column; gap: 12px;
+        width: 100%;
+        text-align: left;
+      }
+      .ci-done-next li {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 12px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        font: 500 13.5px 'Urbanist', sans-serif;
+        color: var(--color-text);
+        line-height: 1.55;
+      }
+      .ci-done-next-num {
+        flex-shrink: 0;
+        width: 22px; height: 22px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--accent); color: white;
+        border-radius: 50%;
+        font: 700 11px 'JetBrains Mono', monospace;
+        line-height: 1;
+      }
+      .ci-done-close {
+        font: 500 12px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        margin: 0;
+      }
+
       /* Tablet (768-1023): tighter padding, Continue stays inline */
       @media (max-width: 1023px) {
         .ci-screen { padding: 30px 20px 140px; }
@@ -1013,6 +1447,11 @@ function Styles() {
         .ci-open-logo { max-height: 48px; }
         .ci-open-welcome { font-size: 16px; }
         .ci-pill { font-size: 14px; padding: 13px 16px; }
+        .ci-intro-stage { padding: 32px 18px; min-height: calc(100vh - 32px); }
+        .ci-done-stage { padding: 32px 18px; min-height: calc(100vh - 32px); }
+        .ci-intro-h1 { font-size: 24px; }
+        .ci-done-h1 { font-size: 24px; }
+        .ci-done-next { gap: 8px; }
       }
     `}</style>
   )

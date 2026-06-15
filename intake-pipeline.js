@@ -68,7 +68,7 @@ export async function runIntakePipeline(submissionId) {
   // ── 4c: assemble brief ────────────────────────────────────────
   let briefText
   try {
-    briefText = await assembleBrief(enriched, form, answers, questions)
+    briefText = await assembleBrief(enriched, form, answers, questions, submission)
     await update(submissionId, { assembled_brief: briefText })
   } catch (e) {
     return finishFailed(submissionId, 'assembling', e)
@@ -93,6 +93,18 @@ export async function runIntakePipeline(submissionId) {
     console.warn('[pipeline] design-system failed (non-fatal)', e?.message)
   }
   v2Result.designSystem = designSystem
+
+  // ── Project title override ────────────────────────────────────
+  // When the client supplied a business name on Page 0, surface it
+  // as the project title in the form "<Business> — <Project type>".
+  // The V2 translator may have generated its own descriptive title,
+  // but the business-name version is what the designer expects to
+  // see throughout the app.
+  const bizName = String(submission?.business_name || '').trim()
+  if (bizName) {
+    const typeLabel = labelForType(form.project_type)
+    v2Result.projectTitle = `${bizName} - ${typeLabel}`
+  }
 
   // ── 4f + 4g: kanban + block detection ─────────────────────────
   try {
@@ -178,8 +190,10 @@ Counts:
 // ────────────────────────────────────────────────────────────────────
 // 4c — brief assembly
 // ────────────────────────────────────────────────────────────────────
-async function assembleBrief(enriched, form, answers, questions) {
+async function assembleBrief(enriched, form, answers, questions, submission) {
   const projectType = labelForType(form.project_type)
+  const businessName = String(submission?.business_name || '').trim()
+  const clientName   = String(submission?.client_name   || '').trim()
   const transcript = questions
     .map(q => {
       const v = answers[q.id]
@@ -203,9 +217,14 @@ Hard rules:
 - Reference what the client said directly. When you incorporate an AI-inferred expansion, write it in your own voice without flagging it inside the brief (the metadata captures it).
 - Acknowledge contradictions and unknowns honestly — don't paper over them.
 - Never use em dashes (—) or en dashes (–). Use commas, semicolons, or short sentences.
+- When a business name is supplied, use it throughout the brief whenever you would otherwise have written "the client", "your business", "your brand", "your product", or "your company". Never use those generic placeholders if a business name is present.
 - Output PLAIN TEXT. No markdown, no headings with #, no code fences.`
 
-  const user = `Project type: ${projectType}
+  const identityBlock = businessName
+    ? `Business name: ${businessName}\n${clientName ? `Client contact: ${clientName}\n` : ''}Use "${businessName}" throughout the brief when referring to the brand.\n\n`
+    : ''
+
+  const user = `${identityBlock}Project type: ${projectType}
 
 CLIENT'S RAW ANSWERS:
 ${transcript}
@@ -644,13 +663,28 @@ async function notifyDesigner(form, submission, v2Result, flags) {
   const reviewUrl = `${appUrl.replace(/\/$/, '')}/intake/${form.id}` // delivery view
   const projectTitle = v2Result?.projectTitle || form.project_name || 'New brief'
 
+  // Page 0 fields. When both are present the subject + heading get
+  // a much warmer "Amaka Okafor (Nestiq) just completed your intake
+  // form" instead of the generic "New brief".
+  const clientName   = String(submission?.client_name || '').trim()
+  const businessName = String(submission?.business_name || '').trim()
+
+  const eyebrow = clientName && businessName
+    ? `${clientName} (${businessName}) just completed your intake form`
+    : clientName
+      ? `${clientName} just completed your intake form`
+      : 'New brief from a client'
+  const subject = clientName && businessName
+    ? `${clientName} (${businessName}) just completed your intake form`
+    : `New brief: ${projectTitle}`
+
   const summary = summaryFromV2(v2Result)
   const flagCount = flags.length
   const highRedFlags = flags.filter(f => f.type === 'red_flag' && f.severity === 'High').length
 
   const html = `<!doctype html><html><body style="font-family:-apple-system,sans-serif;background:#f5f5f7;padding:32px 16px;margin:0;">
 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;">
-  <tr><td style="padding:30px 30px 6px;"><div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#8b8b94;font-weight:700;">New brief from a client</div><h1 style="font-size:22px;margin:6px 0 0;">${escapeHtml(projectTitle)}</h1></td></tr>
+  <tr><td style="padding:30px 30px 6px;"><div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#8b8b94;font-weight:700;">${escapeHtml(eyebrow)}</div><h1 style="font-size:22px;margin:6px 0 0;">${escapeHtml(projectTitle)}</h1></td></tr>
   <tr><td style="padding:8px 30px 14px;color:#374151;line-height:1.6;font-size:14px;">${escapeHtml(summary)}</td></tr>
   ${flagCount > 0 ? `<tr><td style="padding:0 30px 14px;"><div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;color:#92400e;font-size:13px;"><strong>${flagCount}</strong> flag${flagCount === 1 ? '' : 's'} to review${highRedFlags ? `, including <strong>${highRedFlags} High</strong> severity` : ''}.</div></td></tr>` : ''}
   <tr><td align="center" style="padding:4px 30px 28px;"><a href="${escapeHtml(reviewUrl)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9px;font-weight:700;font-size:14px;">Review the brief</a></td></tr>
@@ -660,9 +694,9 @@ async function notifyDesigner(form, submission, v2Result, flags) {
   await resend.emails.send({
     from: 'DesignBrief AI <onboarding@resend.dev>',
     to: designerEmail,
-    subject: `New brief: ${projectTitle}`,
+    subject,
     html,
-    text: `${projectTitle}\n\n${summary}\n\n${flagCount > 0 ? `${flagCount} flag${flagCount === 1 ? '' : 's'} to review.\n\n` : ''}Review: ${reviewUrl}`,
+    text: `${eyebrow}\n\n${projectTitle}\n\n${summary}\n\n${flagCount > 0 ? `${flagCount} flag${flagCount === 1 ? '' : 's'} to review.\n\n` : ''}Review: ${reviewUrl}`,
   })
 }
 
