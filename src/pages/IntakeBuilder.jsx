@@ -80,9 +80,43 @@ export default function IntakeBuilder() {
   // delivery view mounts.
   const [view, setView] = useState('builder') // 'builder' | 'delivery'
 
+  // forceShowPageZero is set by the picker's Back button so the
+  // designer can edit the recipient they entered on Page 0 without
+  // having to clear it first. The Page 0 screen's Continue clears
+  // this back to false.
+  const [forceShowPageZero, setForceShowPageZero] = useState(false)
+
   const w = useWindowWidth()
   const isMobile = w < 768
   const isTablet = w >= 768 && w < 1024
+
+  // Three-step gate for new forms:
+  //   1. Page 0   — designer enters client name + business + email
+  //   2. Picker   — designer picks a project type
+  //   3. Builder  — full editor (questions / branding / settings)
+  // Existing forms (form.id present from a prior save) skip 1-2
+  // because they were filled the first time around.
+  const recipient = form.settings?.recipient || {}
+  const hasRecipient = Boolean((recipient.client_name || '').trim() && (recipient.business_name || '').trim())
+
+  if ((!form.id && !hasRecipient) || forceShowPageZero) {
+    return (
+      <IntakeIntroScreen
+        initial={recipient}
+        onContinue={(r) => {
+          setForm(f => ({
+            ...f,
+            settings: { ...(f.settings || {}), recipient: r },
+          }))
+          setForceShowPageZero(false)
+        }}
+        onBack={() => {
+          if (forceShowPageZero) setForceShowPageZero(false)
+          else navigate?.('dashboard')
+        }}
+      />
+    )
+  }
 
   if (!form.project_type) {
     return (
@@ -94,7 +128,12 @@ export default function IntakeBuilder() {
             questions: defaultQuestionsFor(typeId),
           }))
         }}
-        onBack={() => navigate?.('dashboard')}
+        onBack={() => {
+          // If Page 0 has been filled on this draft, go back to edit
+          // the recipient. Otherwise exit to dashboard.
+          if (hasRecipient && !form.id) setForceShowPageZero(true)
+          else navigate?.('dashboard')
+        }}
       />
     )
   }
@@ -196,13 +235,31 @@ export default function IntakeBuilder() {
     <div className="ib-root">
       <ResponsiveStyles />
 
-      {/* Topbar — Dashboard back button removed; the sidebar already
-          covers nav between sections. Title is now a single bold
-          heading with the project type, plus a small status pill. */}
+      {/* Topbar — small Back button on the left returns to the
+          project-type picker so the designer can switch type
+          without losing the recipient they entered on Page 0.
+          Confirms before discarding question edits. */}
       <header className="ib-topbar">
+        <button
+          type="button"
+          onClick={() => {
+            const defaults = defaultQuestionsFor(form.project_type)
+            const hasEdits = JSON.stringify(form.questions) !== JSON.stringify(defaults)
+            if (form.id || hasEdits) {
+              const ok = window.confirm('Go back to the project-type picker? Your customised questions will be replaced with the defaults for the new type if you change it.')
+              if (!ok) return
+            }
+            setForm(f => ({ ...f, project_type: null, questions: [] }))
+          }}
+          className="ib-topbar-back"
+          aria-label="Change project type"
+        >
+          <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+          <span>Change type</span>
+        </button>
         <div className="ib-topbar-title">
           <h1 className="ib-topbar-name">{labelForType(form.project_type)}</h1>
-          <span className="ib-topbar-eyebrow">Client intake form</span>
+          <span className="ib-topbar-eyebrow">{recipient.business_name?.trim() || 'Client intake form'}</span>
         </div>
         <span className={`ib-status-pill ib-status-${form.status || 'draft'}`}>
           {form.status === 'active' ? 'Active' : 'Draft'}
@@ -275,6 +332,136 @@ export default function IntakeBuilder() {
 // ────────────────────────────────────────────────────────────────────
 // Project-type card grid (first screen)
 // ────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────
+// IntakeIntroScreen — Page 0 of the designer-side flow.
+//
+// Captures the client name, business name, and email before the
+// designer picks a project type. These values get persisted under
+// form.settings.recipient so:
+//   - the project-type picker can keep them
+//   - the builder can show the business name in the topbar eyebrow
+//   - the public client form (ClientIntakePage) pre-populates Page 0
+//     with them — the actual client can still edit, but a designer
+//     who already knows the values saves them the typing.
+// ────────────────────────────────────────────────────────────────────
+function IntakeIntroScreen({ initial = {}, onContinue, onBack }) {
+  const [clientName, setClientName]     = useState(initial.client_name   || '')
+  const [businessName, setBusinessName] = useState(initial.business_name || '')
+  const [clientEmail, setClientEmail]   = useState(initial.client_email  || '')
+  const [errors, setErrors]             = useState({})
+
+  function handleContinue() {
+    const e = {}
+    if (!clientName.trim())   e.clientName   = "Client's name is required"
+    if (!businessName.trim()) e.businessName = 'Business or product name is required'
+    if (clientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail.trim())) {
+      e.clientEmail = 'Please enter a valid email'
+    }
+    if (Object.keys(e).length) { setErrors(e); return }
+    setErrors({})
+    onContinue?.({
+      client_name:   clientName.trim(),
+      business_name: businessName.trim(),
+      client_email:  clientEmail.trim() || null,
+    })
+  }
+
+  function clear(k) { setErrors(prev => ({ ...prev, [k]: undefined })) }
+
+  return (
+    <div className="ib-root ib-pt-root">
+      <ResponsiveStyles />
+
+      <button onClick={onBack} className="ib-pt-back" aria-label="Back">
+        <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+        <span>Back</span>
+      </button>
+
+      <main className="ib-pt-stage">
+        <div className="ib-intro-headblock">
+          <div className="ib-pt-steps">
+            <div className="ib-pt-dot" />
+            <div className="ib-pt-dot ib-pt-dot-dim" />
+            <div className="ib-pt-dot ib-pt-dot-dim" />
+            <span className="ib-pt-steps-label">Step 1 of 3 &mdash; About your client</span>
+          </div>
+          <h1 className="ib-pt-h1" style={{ textAlign: 'left' }}>Who is this brief for?</h1>
+          <p className="ib-pt-sub" style={{ textAlign: 'left', margin: '8px 0 32px' }}>
+            Capture the client + business up front. We'll use the business name throughout the brief, the kanban board, and the client's intake form.
+          </p>
+        </div>
+
+        <div className="ib-intro-form">
+          <IbIntroField
+            label="Client's name"
+            placeholder="e.g. Amaka Okafor"
+            value={clientName}
+            onChange={(v) => { setClientName(v); if (errors.clientName) clear('clientName') }}
+            required
+            error={errors.clientName}
+            onEnter={handleContinue}
+          />
+          <IbIntroField
+            label="Business or product name"
+            sublabel="This is what we use throughout the brief and the kanban board."
+            placeholder="e.g. Nestiq, PocketBase, Akaani"
+            value={businessName}
+            onChange={(v) => { setBusinessName(v); if (errors.businessName) clear('businessName') }}
+            required
+            error={errors.businessName}
+            onEnter={handleContinue}
+          />
+          <IbIntroField
+            label="Client's email"
+            sublabel="Optional. We'll pre-fill it on the form so they don't retype it."
+            placeholder="amaka@business.com"
+            type="email"
+            value={clientEmail}
+            onChange={(v) => { setClientEmail(v); if (errors.clientEmail) clear('clientEmail') }}
+            error={errors.clientEmail}
+            onEnter={handleContinue}
+          />
+
+          <button onClick={handleContinue} className="ib-intro-continue">
+            Continue
+            <ArrowRightIcon style={{ width: 16, height: 16 }} />
+          </button>
+          <p className="ib-intro-foot">
+            <span className="ib-intro-req">*</span> Required fields
+          </p>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function IbIntroField({ label, sublabel, value, onChange, placeholder, type = 'text', required = false, error, onEnter }) {
+  return (
+    <div className="ib-intro-field">
+      <div className="ib-intro-field-head">
+        <label className="ib-intro-label">{label}</label>
+        {required
+          ? <span className="ib-intro-req" aria-label="required">*</span>
+          : <span className="ib-intro-opt">optional</span>}
+      </div>
+      {sublabel && <p className="ib-intro-sub">{sublabel}</p>}
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        className={`ib-intro-input${error ? ' is-error' : ''}`}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onEnter?.() } }}
+        autoCapitalize={type === 'email' ? 'off' : 'words'}
+        autoCorrect={type === 'email' ? 'off' : undefined}
+        spellCheck={type === 'email' ? false : undefined}
+        inputMode={type === 'email' ? 'email' : undefined}
+      />
+      {error && <p className="ib-intro-err">{error}</p>}
+    </div>
+  )
+}
+
 function ProjectTypeScreen({ onPick, onBack }) {
   const icons = {
     website:   GlobeAltIcon,
@@ -1083,9 +1270,64 @@ function ResponsiveStyles() {
          making the whole page un-scrollable. */
       .ib-root { font-family: 'Urbanist', sans-serif; background: var(--color-bg); color: var(--color-text); height: 100%; min-height: 100dvh; display: flex; flex-direction: column; }
       .ib-topbar { display: flex; align-items: center; gap: 14px; padding: 18px 28px; border-bottom: 1px solid var(--color-border); background: var(--color-bg); flex-shrink: 0; }
+      .ib-topbar-back {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 11px;
+        background: transparent;
+        border: 1px solid var(--color-border);
+        border-radius: 9px;
+        color: var(--color-text-soft);
+        font: 600 12px 'Urbanist', sans-serif;
+        cursor: pointer;
+        transition: border-color 0.15s ease, color 0.15s ease;
+        flex-shrink: 0;
+      }
+      .ib-topbar-back:hover { border-color: var(--color-text-soft); color: var(--color-text); }
       .ib-topbar-title { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
       .ib-topbar-name { font: 800 22px/1.15 'Urbanist', sans-serif; letter-spacing: -0.02em; color: var(--color-text); margin: 0; }
       .ib-topbar-eyebrow { font: 700 10px 'JetBrains Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); }
+
+      /* ── Page 0 (designer-side intro) ───────────────────────── */
+      .ib-intro-headblock { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
+      .ib-intro-form { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 18px; }
+      .ib-intro-field { display: flex; flex-direction: column; gap: 5px; }
+      .ib-intro-field-head { display: flex; align-items: center; gap: 6px; }
+      .ib-intro-label { font: 600 14px 'Urbanist', sans-serif; color: var(--color-text); }
+      .ib-intro-req { color: var(--color-accent); font-size: 14px; line-height: 1; }
+      .ib-intro-opt { font: 600 11px 'JetBrains Mono', monospace; letter-spacing: 0.05em; color: var(--color-text-muted); text-transform: lowercase; }
+      .ib-intro-sub { font: 500 13px 'Urbanist', sans-serif; color: var(--color-text-muted); margin: 0; line-height: 1.5; }
+      .ib-intro-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--color-surface);
+        border: 1.5px solid var(--color-border);
+        border-radius: 12px;
+        color: var(--color-text);
+        font: 500 15px 'Urbanist', sans-serif;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.18s ease, background 0.18s ease;
+      }
+      .ib-intro-input:focus { border-color: var(--color-accent); background: var(--color-bg); }
+      .ib-intro-input.is-error { border-color: #EF4444; }
+      .ib-intro-err { font: 500 12px 'Urbanist', sans-serif; color: #EF4444; margin: 4px 0 0; }
+      .ib-intro-continue {
+        width: 100%;
+        padding: 14px 24px;
+        margin-top: 4px;
+        background: var(--color-accent);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font: 700 16px 'Urbanist', sans-serif;
+        cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        transition: filter 0.18s ease, transform 0.05s ease;
+        min-height: 48px;
+      }
+      .ib-intro-continue:hover { filter: brightness(0.94); }
+      .ib-intro-continue:active { transform: translateY(1px); }
+      .ib-intro-foot { font: 600 11px 'JetBrains Mono', monospace; color: var(--color-text-muted); text-align: center; margin: 4px 0 0; letter-spacing: 0.02em; }
       .ib-status-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; background: var(--color-surface); color: var(--color-text-soft); border: 1px solid var(--color-border); }
       .ib-status-pill.ib-status-active { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
 
@@ -1502,6 +1744,8 @@ function ResponsiveStyles() {
         .ib-topbar { padding: 14px 16px; gap: 10px; }
         .ib-topbar-name { font-size: 18px; }
         .ib-topbar-eyebrow { font-size: 9px; }
+        .ib-topbar-back span { display: none; }
+        .ib-topbar-back { padding: 6px 8px; }
         .ib-tabs { padding: 10px 14px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .ib-tab { flex-shrink: 0; padding: 7px 12px; font-size: 12px; }
         .ib-pane { padding: 14px 14px 120px; }

@@ -141,9 +141,14 @@ function FormShell({ form }) {
   // is the most load-bearing: it gets substituted into question
   // text + the assembled brief + the designer's notification
   // subject.
-  const [clientName, setClientName] = useState('')
-  const [businessName, setBusinessName] = useState('')
-  const [clientEmail, setClientEmail] = useState('')
+  //
+  // Pre-fill from form.settings.recipient when the designer entered
+  // the values on the builder's Page 0 — the actual client can
+  // still edit, but they save the typing when the values are right.
+  const designerRecipient = form?.settings?.recipient || {}
+  const [clientName, setClientName] = useState(designerRecipient.client_name || '')
+  const [businessName, setBusinessName] = useState(designerRecipient.business_name || '')
+  const [clientEmail, setClientEmail] = useState(designerRecipient.client_email || '')
   const [pageZeroErrors, setPageZeroErrors] = useState({})
 
   useEffect(() => {
