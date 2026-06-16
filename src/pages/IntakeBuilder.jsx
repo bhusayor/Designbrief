@@ -196,14 +196,13 @@ export default function IntakeBuilder() {
     <div className="ib-root">
       <ResponsiveStyles />
 
+      {/* Topbar — Dashboard back button removed; the sidebar already
+          covers nav between sections. Title is now a single bold
+          heading with the project type, plus a small status pill. */}
       <header className="ib-topbar">
-        <button onClick={() => navigate?.('dashboard')} className="ib-topbar-back" aria-label="Back to dashboard">
-          <ArrowLeftIcon style={{ width: 16, height: 16 }} />
-          <span>Dashboard</span>
-        </button>
         <div className="ib-topbar-title">
+          <h1 className="ib-topbar-name">{labelForType(form.project_type)}</h1>
           <span className="ib-topbar-eyebrow">Client intake form</span>
-          <span className="ib-topbar-name">{labelForType(form.project_type)}</span>
         </div>
         <span className={`ib-status-pill ib-status-${form.status || 'draft'}`}>
           {form.status === 'active' ? 'Active' : 'Draft'}
@@ -346,9 +345,54 @@ function ProjectTypeScreen({ onPick, onBack }) {
 // ────────────────────────────────────────────────────────────────────
 // Questions editor
 // ────────────────────────────────────────────────────────────────────
+// Sections live in code (not the DB) so they stay consistent across
+// every form. Order matters — sections render top-to-bottom.
+const QUESTION_SECTIONS = [
+  { id: 'basics',      label: 'Project basics',       hint: 'What this project is, what it has to do.' },
+  { id: 'audience',    label: 'Audience + goals',     hint: "Who it's for and what success looks like." },
+  { id: 'visual',      label: 'Visual direction',     hint: 'Tone, references, and how it should feel.' },
+  { id: 'constraints', label: 'Scope + constraints',  hint: 'Timeline, budget, must-haves, must-avoids.' },
+]
+const DEFAULT_SECTION_ID = QUESTION_SECTIONS[0].id
+
+// Resolve which section a question belongs to. If the question
+// already has a section_id, honour it. Otherwise, fall back to a
+// position-based bucket so legacy forms still organise sensibly.
+function resolveSectionId(q, index, total) {
+  if (q.section_id) return q.section_id
+  if (q.locked) return QUESTION_SECTIONS[QUESTION_SECTIONS.length - 1].id
+  const buckets = QUESTION_SECTIONS.length
+  const idx = Math.min(buckets - 1, Math.floor((index / Math.max(total, 1)) * buckets))
+  return QUESTION_SECTIONS[idx].id
+}
+
 function QuestionsEditor({ questions, setQuestions }) {
   const [dragIdx, setDragIdx] = useState(null)
   const [dragOverIdx, setDragOverIdx] = useState(null)
+  // Per-section expand state. Default first section open + every
+  // section that contains a question open so the designer immediately
+  // sees their content; empty sections collapse.
+  const [openSections, setOpenSections] = useState(() => {
+    const initial = {}
+    for (const s of QUESTION_SECTIONS) initial[s.id] = true
+    return initial
+  })
+  const toggleSection = (id) => setOpenSections(prev => ({ ...prev, [id]: !prev[id] }))
+
+  // Backfill section_id on every question so the rest of the editor
+  // can operate on it. Idempotent — only writes if at least one
+  // question is missing the field.
+  useEffect(() => {
+    const total = questions.length
+    let needsBackfill = false
+    const next = questions.map((q, i) => {
+      if (q.section_id) return q
+      needsBackfill = true
+      return { ...q, section_id: resolveSectionId(q, i, total) }
+    })
+    if (needsBackfill) setQuestions(next)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions])
 
   function update(i, patch) { setQuestions(questions.map((q, idx) => idx === i ? { ...q, ...patch } : q)) }
   function dup(i) {
@@ -362,18 +406,37 @@ function QuestionsEditor({ questions, setQuestions }) {
     if (questions[i].locked) return
     setQuestions(reindex(questions.filter((_, idx) => idx !== i)))
   }
-  function add() {
+  function add(sectionId) {
     const lockedIdx = questions.findIndex(q => q.locked)
     const blank = {
       id: uid('q'), text: 'New question', helper_text: '',
       type: 'short_text', required: true, options: null,
       scale_low_label: null, scale_high_label: null,
       conditional_rules: [], order_index: 0, locked: false,
+      section_id: sectionId || DEFAULT_SECTION_ID,
     }
-    const next = lockedIdx >= 0
-      ? [...questions.slice(0, lockedIdx), blank, ...questions.slice(lockedIdx)]
-      : [...questions, blank]
+    // Insert at the end of the target section so the new card lands
+    // visibly within the section the designer clicked Add inside.
+    // Locked closer always sits at the very end of the list.
+    let next
+    if (lockedIdx >= 0) {
+      // Find last index in target section that isn't the locked closer.
+      let insertAt = lockedIdx
+      for (let i = lockedIdx - 1; i >= 0; i--) {
+        if (questions[i].section_id === (sectionId || DEFAULT_SECTION_ID)) { insertAt = i + 1; break }
+      }
+      next = [...questions.slice(0, insertAt), blank, ...questions.slice(insertAt)]
+    } else {
+      // Insert at the last index of the target section.
+      let insertAt = questions.length
+      for (let i = questions.length - 1; i >= 0; i--) {
+        if (questions[i].section_id === (sectionId || DEFAULT_SECTION_ID)) { insertAt = i + 1; break }
+      }
+      next = [...questions.slice(0, insertAt), blank, ...questions.slice(insertAt)]
+    }
     setQuestions(reindex(next))
+    // Make sure the section we added to is expanded.
+    setOpenSections(prev => ({ ...prev, [sectionId || DEFAULT_SECTION_ID]: true }))
   }
   function move(fromI, toI) {
     if (fromI === toI || toI == null || fromI == null) return
@@ -386,33 +449,106 @@ function QuestionsEditor({ questions, setQuestions }) {
     setQuestions(reindex(next))
   }
 
+  // Group by section, preserving order within each. We also track
+  // each question's true index in the global array so move /
+  // duplicate / delete still operate against the source-of-truth
+  // flat list.
+  const grouped = useMemo(() => {
+    const total = questions.length
+    const bySection = new Map()
+    for (const s of QUESTION_SECTIONS) bySection.set(s.id, [])
+    questions.forEach((q, globalIdx) => {
+      const sid = q.section_id || resolveSectionId(q, globalIdx, total)
+      const list = bySection.get(sid) || bySection.get(DEFAULT_SECTION_ID)
+      list.push({ q, globalIdx })
+    })
+    return bySection
+  }, [questions])
+
   return (
     <div className="ib-qedit">
+      <PageZeroPreview />
       <p className="ib-section-tip">
-        Drag the card or use the arrows to reorder. The final question is locked because the translator relies on it.
+        Questions are grouped into sections. Click a section to expand and edit. The final question is locked because the translator relies on it.
       </p>
-      {questions.map((q, i) => (
-        <QuestionCard
-          key={q.id}
-          q={q}
-          index={i}
-          total={questions.length}
-          others={questions}
-          onChange={(patch) => update(i, patch)}
-          onDuplicate={() => dup(i)}
-          onDelete={() => remove(i)}
-          onMoveUp={() => move(i, i - 1)}
-          onMoveDown={() => move(i, i + 1)}
-          dragOverIdx={dragOverIdx}
-          onDragStart={() => setDragIdx(i)}
-          onDragOver={() => setDragOverIdx(i)}
-          onDrop={() => { move(dragIdx, i); setDragIdx(null); setDragOverIdx(null) }}
-          onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
-        />
-      ))}
-      <button onClick={add} className="ib-add-btn">
-        <PlusIcon style={{ width: 14, height: 14 }} /> Add question
-      </button>
+
+      {QUESTION_SECTIONS.map(section => {
+        const entries = grouped.get(section.id) || []
+        const isOpen = openSections[section.id] !== false
+        return (
+          <div key={section.id} className={`ib-section-block ${isOpen ? 'is-open' : ''}`}>
+            <button
+              type="button"
+              onClick={() => toggleSection(section.id)}
+              className="ib-section-head"
+              aria-expanded={isOpen}
+              aria-controls={`ib-section-${section.id}`}
+            >
+              <span className="ib-section-chev" aria-hidden>
+                {isOpen ? <ChevronUpIcon style={{ width: 14, height: 14 }} /> : <ChevronDownIcon style={{ width: 14, height: 14 }} />}
+              </span>
+              <span className="ib-section-head-text">
+                <span className="ib-section-label">{section.label}</span>
+                <span className="ib-section-hint">{section.hint}</span>
+              </span>
+              <span className="ib-section-count">{entries.length}</span>
+            </button>
+
+            {isOpen && (
+              <div id={`ib-section-${section.id}`} className="ib-section-body">
+                {entries.length === 0 && (
+                  <p className="ib-section-empty">No questions in this section yet.</p>
+                )}
+                {entries.map(({ q, globalIdx }) => (
+                  <QuestionCard
+                    key={q.id}
+                    q={q}
+                    index={globalIdx}
+                    total={questions.length}
+                    others={questions}
+                    onChange={(patch) => update(globalIdx, patch)}
+                    onDuplicate={() => dup(globalIdx)}
+                    onDelete={() => remove(globalIdx)}
+                    onMoveUp={() => move(globalIdx, globalIdx - 1)}
+                    onMoveDown={() => move(globalIdx, globalIdx + 1)}
+                    dragOverIdx={dragOverIdx}
+                    onDragStart={() => setDragIdx(globalIdx)}
+                    onDragOver={() => setDragOverIdx(globalIdx)}
+                    onDrop={() => { move(dragIdx, globalIdx); setDragIdx(null); setDragOverIdx(null) }}
+                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
+                  />
+                ))}
+                <button onClick={() => add(section.id)} className="ib-add-btn">
+                  <PlusIcon style={{ width: 14, height: 14 }} /> Add question to {section.label}
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Read-only preview card that surfaces the 3 system fields the
+// client fills on Page 0 of the public form, before any custom
+// questions render. The designer needs to know these get collected
+// up-front so they don't add duplicate questions for name + email.
+function PageZeroPreview() {
+  return (
+    <div className="ib-pz-card">
+      <div className="ib-pz-head">
+        <span className="ib-pz-chip">Page 0</span>
+        <div>
+          <div className="ib-pz-title">Collected before your questions</div>
+          <div className="ib-pz-sub">Every client fills these three fields on the welcome screen. You don't need to ask them again below.</div>
+        </div>
+      </div>
+      <ul className="ib-pz-list">
+        <li><span className="ib-pz-dot ib-pz-dot-req" />Your name <span className="ib-pz-tag">required</span></li>
+        <li><span className="ib-pz-dot ib-pz-dot-req" />Business or product name <span className="ib-pz-tag">required</span></li>
+        <li><span className="ib-pz-dot" />Your email <span className="ib-pz-tag ib-pz-tag-opt">optional</span></li>
+      </ul>
     </div>
   )
 }
@@ -946,11 +1082,10 @@ function ResponsiveStyles() {
          push the root past the parent and AppShell would clip,
          making the whole page un-scrollable. */
       .ib-root { font-family: 'Urbanist', sans-serif; background: var(--color-bg); color: var(--color-text); height: 100%; min-height: 100dvh; display: flex; flex-direction: column; }
-      .ib-topbar { display: flex; align-items: center; gap: 14px; padding: 12px 22px; border-bottom: 1px solid var(--color-border); background: var(--color-bg); flex-shrink: 0; }
-      .ib-topbar-back { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9px; background: transparent; border: 1px solid var(--color-border); color: var(--color-text-soft); cursor: pointer; font: 600 12px/1.2 'Urbanist', sans-serif; }
-      .ib-topbar-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-      .ib-topbar-eyebrow { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); font-weight: 700; }
-      .ib-topbar-name { font-size: 15px; font-weight: 800; color: var(--color-text); }
+      .ib-topbar { display: flex; align-items: center; gap: 14px; padding: 18px 28px; border-bottom: 1px solid var(--color-border); background: var(--color-bg); flex-shrink: 0; }
+      .ib-topbar-title { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+      .ib-topbar-name { font: 800 22px/1.15 'Urbanist', sans-serif; letter-spacing: -0.02em; color: var(--color-text); margin: 0; }
+      .ib-topbar-eyebrow { font: 700 10px 'JetBrains Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); }
       .ib-status-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; background: var(--color-surface); color: var(--color-text-soft); border: 1px solid var(--color-border); }
       .ib-status-pill.ib-status-active { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
 
@@ -970,6 +1105,116 @@ function ResponsiveStyles() {
       .ib-pane { flex: 1; overflow-y: auto; padding: 22px 24px 120px; background: var(--color-surface); }
 
       .ib-section-tip { font-size: 12px; color: var(--color-text-muted); margin: 0 0 14px; }
+
+      /* ── Page 0 preview card (read-only) ────────────────────── */
+      .ib-pz-card {
+        margin-bottom: 18px;
+        padding: 14px 16px;
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        border-left: 3px solid var(--color-accent);
+      }
+      .ib-pz-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+      .ib-pz-chip {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--color-accent);
+        background: rgba(139,92,246,0.10);
+        border: 1px solid rgba(139,92,246,0.25);
+        border-radius: 100px;
+        padding: 4px 10px;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+      .ib-pz-title { font: 800 14px 'Urbanist', sans-serif; color: var(--color-text); margin: 1px 0 2px; }
+      .ib-pz-sub { font: 500 12px 'Urbanist', sans-serif; color: var(--color-text-muted); line-height: 1.5; }
+      .ib-pz-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+      .ib-pz-list li {
+        display: flex; align-items: center; gap: 10px;
+        padding: 8px 10px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        font: 600 13px 'Urbanist', sans-serif;
+        color: var(--color-text);
+      }
+      .ib-pz-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
+      .ib-pz-dot-req { background: var(--color-accent); }
+      .ib-pz-tag {
+        margin-left: auto;
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.06em; text-transform: uppercase;
+        color: var(--color-accent);
+        background: rgba(139,92,246,0.10);
+        padding: 2px 8px;
+        border-radius: 100px;
+      }
+      .ib-pz-tag-opt {
+        color: var(--color-text-muted);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+      }
+
+      /* ── Collapsible section block ──────────────────────────── */
+      .ib-section-block {
+        background: var(--color-card);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        transition: border-color 0.15s ease;
+      }
+      .ib-section-block.is-open { border-color: var(--color-border-strong, var(--color-border)); }
+      .ib-section-head {
+        display: flex; align-items: center; gap: 12px;
+        width: 100%;
+        padding: 14px 16px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+        transition: background 0.15s ease;
+      }
+      .ib-section-head:hover { background: var(--color-surface); }
+      .ib-section-chev {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 24px; height: 24px;
+        background: var(--color-surface);
+        border-radius: 6px;
+        color: var(--color-text-soft);
+        flex-shrink: 0;
+      }
+      .ib-section-head-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .ib-section-label { font: 800 14px 'Urbanist', sans-serif; color: var(--color-text); letter-spacing: -0.01em; }
+      .ib-section-hint { font: 500 12px 'Urbanist', sans-serif; color: var(--color-text-muted); }
+      .ib-section-count {
+        font: 700 11px 'JetBrains Mono', monospace;
+        color: var(--color-text-soft);
+        background: var(--color-surface);
+        padding: 4px 10px;
+        border-radius: 100px;
+        min-width: 28px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .ib-section-body {
+        padding: 14px 16px;
+        border-top: 1px solid var(--color-border);
+        background: var(--color-surface);
+      }
+      .ib-section-body .ib-qcard:last-of-type { margin-bottom: 14px; }
+      .ib-section-empty {
+        font: 500 12px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        margin: 12px 0;
+        padding: 10px 12px;
+        background: var(--color-surface);
+        border: 1px dashed var(--color-border);
+        border-radius: 8px;
+        text-align: center;
+      }
 
       .ib-qcard { background: var(--color-card); border: 1px solid var(--color-border); border-radius: 12px; padding: 14px; margin-bottom: 12px; transition: border-color 0.15s; }
       .ib-qcard.is-locked { background: var(--color-surface); opacity: 0.88; }
@@ -1254,9 +1499,9 @@ function ResponsiveStyles() {
         .ib-pt-card { padding: 20px; }
       }
       @media (max-width: 767px) {
-        .ib-topbar { padding: 10px 14px; gap: 10px; }
-        .ib-topbar-name { font-size: 14px; }
-        .ib-topbar-back span { display: none; }
+        .ib-topbar { padding: 14px 16px; gap: 10px; }
+        .ib-topbar-name { font-size: 18px; }
+        .ib-topbar-eyebrow { font-size: 9px; }
         .ib-tabs { padding: 10px 14px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .ib-tab { flex-shrink: 0; padding: 7px 12px; font-size: 12px; }
         .ib-pane { padding: 14px 14px 120px; }
