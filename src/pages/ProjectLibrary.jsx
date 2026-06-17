@@ -15,6 +15,7 @@ function useWindowWidth() {
 }
 import { Button, Badge } from '../components/ui';
 import { ROLE_META } from '../lib/constants';
+import { supabase } from '../lib/supabase';
 import {
   ClockIcon,
   SparklesIcon,
@@ -22,6 +23,20 @@ import {
   LinkIcon,
   LockClosedIcon,
   MagnifyingGlassIcon,
+  // Card meta + action icons
+  DocumentTextIcon,
+  InboxArrowDownIcon,
+  FlagIcon,
+  CheckBadgeIcon,
+  CalendarDaysIcon,
+  EyeIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  EllipsisHorizontalIcon,
+  EnvelopeIcon,
+  ArrowTopRightOnSquareIcon,
+  ExclamationTriangleIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -271,7 +286,16 @@ function SearchEmpty({ query }) {
 
 // ─── IntakeFormCard ───────────────────────────────────────────────────────────
 
-function IntakeFormCard({ form, onView, onCopyLink }) {
+function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClickAway = (e) => {
+      if (!e.target.closest?.('[data-card-menu]')) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onClickAway);
+    return () => document.removeEventListener('mousedown', onClickAway);
+  }, [menuOpen]);
   // Most recent submission. With many submissions per form (a form
   // can be sent to multiple clients) the others stay accessible via
   // the Delivery view; the card just surfaces the freshest pipeline
@@ -386,6 +410,12 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
         </div>
       )}
 
+      {/* Meta stats row — iconified glanceable data:
+          questions count, submissions count, open count,
+          flag count, expiry. Each chip has an icon so the row
+          reads even when scanned quickly. */}
+      <MetaStatsRow form={form} submission={submission} />
+
       {/* Status indicator — pipeline-aware: Draft / Awaiting /
           Processing / Ready / Approved / Failed */}
       <div style={{
@@ -409,6 +439,9 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
         }}>
           {progress.label}
         </span>
+        {submission?.approved_at && (
+          <CheckBadgeIcon style={{ width: 12, height: 12, color: progress.color, marginLeft: 4 }} />
+        )}
         {(submission?.submitted_at || form.published_at) && (
           <span style={{
             fontFamily: "'Urbanist', sans-serif",
@@ -421,48 +454,232 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
         )}
       </div>
 
-      {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 8 }}>
+      {/* Action buttons row.
+          Primary (filled) — varies by state. Review brief when
+          ready; otherwise the most useful follow-up action.
+          Secondary (icon-only) — Open public form in a new tab.
+          Ellipsis menu — Copy link / Open public / Delete. */}
+      <div style={{ display: 'flex', gap: 6 }}>
         {isReady ? (
-          <button
-            onClick={() => onView(form)}
-            style={{
-              flex: 1,
-              background: 'var(--color-text)',
-              color: 'var(--color-bg)',
-              border: 'none',
-              borderRadius: 9,
-              padding: '8px 0',
-              fontFamily: "'Urbanist', sans-serif",
-              fontWeight: 700, fontSize: 12,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}
-          >
+          <button onClick={() => onView(form)} style={primaryBtn} title="Review the translated brief">
             <SparklesIcon style={{ width: 13, height: 13 }} />
             Review brief
+            <ChevronRightIcon style={{ width: 12, height: 12, marginLeft: 'auto' }} />
+          </button>
+        ) : progress.tone === 'accent' ? (
+          <button onClick={() => onCopyLink(form)} style={secondaryBtn} title="Copy share link">
+            <LinkIcon style={{ width: 13, height: 13 }} />
+            Copy link
+          </button>
+        ) : form.status === 'draft' ? (
+          <button onClick={() => onCopyLink(form)} style={secondaryBtn} title="Copy share link">
+            <PencilSquareIcon style={{ width: 13, height: 13 }} />
+            Open draft
           </button>
         ) : (
-          <button
-            onClick={() => onCopyLink(form)}
-            style={{
-              flex: 1,
-              background: 'var(--color-surface)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 9,
-              padding: '8px 0',
-              fontFamily: "'Urbanist', sans-serif",
-              fontWeight: 600, fontSize: 12,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}
-          >
+          <button onClick={() => onCopyLink(form)} style={secondaryBtn} title="Copy share link">
             <LinkIcon style={{ width: 13, height: 13 }} />
-            {form.status === 'draft' ? 'Open draft' : 'Copy link'}
+            Copy link
           </button>
         )}
+
+        <button
+          onClick={() => onOpenPublic?.(form)}
+          style={iconBtn}
+          title="Open public form in a new tab"
+          aria-label="Open public form in a new tab"
+        >
+          <ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />
+        </button>
+
+        <div style={{ position: 'relative' }} data-card-menu>
+          <button
+            onClick={() => setMenuOpen(v => !v)}
+            style={iconBtn}
+            title="More actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label="More actions"
+          >
+            <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
+          </button>
+          {menuOpen && (
+            <CardMenu
+              form={form}
+              onCopyLink={() => { setMenuOpen(false); onCopyLink?.(form); }}
+              onOpenPublic={() => { setMenuOpen(false); onOpenPublic?.(form); }}
+              onView={() => { setMenuOpen(false); onView?.(form); }}
+              onDelete={() => { setMenuOpen(false); onDelete?.(form); }}
+              isReady={isReady}
+            />
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Card button + menu styling shared by all states ─────────────
+const primaryBtn = {
+  flex: 1,
+  background: 'var(--color-text)',
+  color: 'var(--color-bg)',
+  border: 'none',
+  borderRadius: 9,
+  padding: '8px 12px',
+  fontFamily: "'Urbanist', sans-serif",
+  fontWeight: 700, fontSize: 12,
+  cursor: 'pointer',
+  display: 'flex', alignItems: 'center', gap: 6,
+};
+const secondaryBtn = {
+  flex: 1,
+  background: 'var(--color-surface)',
+  color: 'var(--color-text)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 9,
+  padding: '8px 12px',
+  fontFamily: "'Urbanist', sans-serif",
+  fontWeight: 600, fontSize: 12,
+  cursor: 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+};
+const iconBtn = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  width: 32, height: 32,
+  background: 'var(--color-surface)',
+  color: 'var(--color-text-soft)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 9,
+  cursor: 'pointer',
+  flexShrink: 0,
+};
+
+// ─── MetaStatsRow ────────────────────────────────────────────────
+// Glanceable chip row inside an intake card. Surfaces:
+//   📋 question count          (always)
+//   📨 submission count        (when at least one client submitted)
+//   👁 form open count         (when published + has opens)
+//   ⚠ red-flag count          (when the freshest submission has them)
+//   ⏰ expires in X days       (when expires_at is in the future)
+// Hidden entirely when there's nothing useful to show.
+function MetaStatsRow({ form, submission }) {
+  const qCount = Array.isArray(form.questions) ? form.questions.length
+    : (Array.isArray(form.sections)
+      ? form.sections.reduce((sum, s) => sum + (s.questions?.length || 0), 0)
+      : 0);
+  const submissions = form.submission_count || 0;
+  const opens = form.open_count || 0;
+  const redFlags = (() => {
+    const list = submission?.flags;
+    if (!Array.isArray(list)) return 0;
+    return list.filter(f => f?.type === 'red_flag' && String(f.severity || '').toLowerCase() === 'high').length;
+  })();
+  const expiresInDays = (() => {
+    if (!form.expires_at) return null;
+    const ms = new Date(form.expires_at).getTime() - Date.now();
+    if (ms <= 0) return 0;
+    return Math.ceil(ms / 86400000);
+  })();
+
+  const chips = [];
+  if (qCount > 0) chips.push({ icon: DocumentTextIcon, label: `${qCount}`, title: `${qCount} question${qCount === 1 ? '' : 's'}` });
+  if (submissions > 0) chips.push({ icon: InboxArrowDownIcon, label: `${submissions}`, title: `${submissions} submission${submissions === 1 ? '' : 's'}` });
+  if (opens > 0 && submissions !== opens) chips.push({ icon: EyeIcon, label: `${opens}`, title: `Opened ${opens} time${opens === 1 ? '' : 's'}` });
+  if (redFlags > 0) chips.push({ icon: ExclamationTriangleIcon, label: `${redFlags}`, title: `${redFlags} high-severity red flag${redFlags === 1 ? '' : 's'}`, tone: 'warn' });
+  if (expiresInDays != null && expiresInDays <= 14) chips.push({
+    icon: CalendarDaysIcon,
+    label: expiresInDays === 0 ? 'Expired' : `${expiresInDays}d`,
+    title: expiresInDays === 0 ? 'Form expired' : `Expires in ${expiresInDays} day${expiresInDays === 1 ? '' : 's'}`,
+    tone: expiresInDays <= 3 ? 'warn' : undefined,
+  });
+
+  if (!chips.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+      {chips.map((c, i) => (
+        <span
+          key={i}
+          title={c.title}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '3px 8px',
+            background: c.tone === 'warn' ? 'rgba(217,119,6,0.08)' : 'var(--color-surface)',
+            border: '1px solid ' + (c.tone === 'warn' ? 'rgba(217,119,6,0.20)' : 'var(--color-border)'),
+            borderRadius: 100,
+            fontFamily: "'Urbanist', sans-serif",
+            fontSize: 11, fontWeight: 700,
+            color: c.tone === 'warn' ? '#b45309' : 'var(--color-text-soft)',
+          }}
+        >
+          <c.icon style={{ width: 11, height: 11 }} />
+          {c.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ─── CardMenu ────────────────────────────────────────────────────
+// Small popover anchored to the ellipsis button. Click-outside
+// dismisses (handled by IntakeFormCard's useEffect listener).
+function CardMenu({ form, onCopyLink, onOpenPublic, onView, onDelete, isReady }) {
+  const items = [];
+  if (isReady) {
+    items.push({ icon: SparklesIcon, label: 'Review brief', onClick: onView });
+  }
+  items.push({ icon: LinkIcon, label: 'Copy share link', onClick: onCopyLink });
+  items.push({ icon: ArrowTopRightOnSquareIcon, label: 'Open public form', onClick: onOpenPublic });
+  if (form.client_email) {
+    items.push({
+      icon: EnvelopeIcon,
+      label: 'Email client',
+      onClick: () => { window.location.href = `mailto:${form.client_email}`; },
+    });
+  }
+  items.push({ icon: TrashIcon, label: 'Delete form', onClick: onDelete, danger: true });
+
+  return (
+    <div
+      role="menu"
+      style={{
+        position: 'absolute',
+        top: 'calc(100% + 4px)',
+        right: 0,
+        minWidth: 180,
+        background: 'var(--color-card)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 10,
+        boxShadow: '0 12px 24px rgba(0,0,0,0.12)',
+        padding: 4,
+        zIndex: 30,
+      }}
+    >
+      {items.map((it, i) => (
+        <button
+          key={i}
+          role="menuitem"
+          onClick={it.onClick}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 9,
+            width: '100%',
+            padding: '8px 10px',
+            background: 'transparent',
+            border: 'none',
+            borderRadius: 7,
+            fontFamily: "'Urbanist', sans-serif",
+            fontSize: 12, fontWeight: 600,
+            color: it.danger ? '#dc2626' : 'var(--color-text)',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = it.danger ? 'rgba(220,38,38,0.06)' : 'var(--color-surface)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          <it.icon style={{ width: 13, height: 13, flexShrink: 0 }} />
+          {it.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -507,7 +724,7 @@ function deriveIntakeProgress(form, submission) {
 
 // ─── StatusColumn ─────────────────────────────────────────────────────────────
 
-function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink }) {
+function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete }) {
   return (
     <div>
       {/* Column header */}
@@ -554,6 +771,8 @@ function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink }) {
           form={form}
           onView={onView}
           onCopyLink={onCopyLink}
+          onOpenPublic={onOpenPublic}
+          onDelete={onDelete}
         />
       ))}
     </div>
@@ -637,6 +856,30 @@ export default function ProjectLibrary() {
       window.location.origin) + '/intake/' + form.id;
     navigator.clipboard.writeText(url);
     showToast('Link copied to clipboard');
+  }
+
+  function handleOpenPublic(form) {
+    const url = (import.meta.env.VITE_APP_URL ||
+      window.location.origin) + '/intake/' + form.id;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  async function handleDeleteForm(form) {
+    const label = form.settings?.recipient?.business_name || form.project_name || 'this form';
+    const ok = window.confirm(`Delete the intake form for "${label}"? Submissions stay in the database; only the form template is removed.`);
+    if (!ok) return;
+    try {
+      const { error } = await supabase
+        .from('intake_forms')
+        .delete()
+        .eq('id', form.id);
+      if (error) throw error;
+      showToast('Form deleted.');
+      loadIntakeForms?.();
+    } catch (e) {
+      console.error('[library] delete failed', e);
+      showToast(e?.message || 'Could not delete the form.', 'error');
+    }
   }
 
   // ── Filter / sort history ────────────────────────────────────────────────────
@@ -943,6 +1186,8 @@ export default function ProjectLibrary() {
                   forms={buckets.awaiting}
                   onView={handleViewForm}
                   onCopyLink={handleCopyLink}
+                  onOpenPublic={handleOpenPublic}
+                  onDelete={handleDeleteForm}
                 />
                 <StatusColumn
                   title="In Progress"
@@ -951,6 +1196,8 @@ export default function ProjectLibrary() {
                   forms={buckets.processing}
                   onView={handleViewForm}
                   onCopyLink={handleCopyLink}
+                  onOpenPublic={handleOpenPublic}
+                  onDelete={handleDeleteForm}
                 />
                 <StatusColumn
                   title="Ready to Review"
@@ -959,6 +1206,8 @@ export default function ProjectLibrary() {
                   forms={buckets.ready}
                   onView={handleViewForm}
                   onCopyLink={handleCopyLink}
+                  onOpenPublic={handleOpenPublic}
+                  onDelete={handleDeleteForm}
                 />
               </div>
             </div>
