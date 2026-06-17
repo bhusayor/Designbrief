@@ -1556,24 +1556,20 @@ export default function ProjectLibrary() {
           //     the next column "peeks" past the right edge so the
           //     user knows to scroll.
           const useHorizontalScroll = isMobile || isTablet;
-          // Column widths sized to the longest single-line content
-          // any card can hold: a multi-chip meta row, status pill +
-          // approved badge + "30m ago" timestamp inline, business
-          // name in the header. Horizontal scroll guarantees every
-          // column is reachable regardless of viewport.
-          //   Tablet — 440px: a typical 768-1023 viewport shows
-          //                   roughly one full column plus a
-          //                   half-column peek. Cards have ~408px
-          //                   of content width after padding,
-          //                   which fits every chip row + button
-          //                   row on a single line without
-          //                   truncation, even for long business
-          //                   names + 4-5 meta chips.
-          //   Mobile — 320px: phone-sized; still wide enough for
-          //                   typical card content on one line,
-          //                   with overflow chips truncating
-          //                   cleanly rather than wrapping.
-          const columnWidth = isMobile ? 320 : 440;
+          // Generous column widths so each card has plenty of room
+          // for its content; the swipe board's own overflow-x
+          // handles bringing every column into view via horizontal
+          // scroll. The whole board's total width = sum of column
+          // widths + gaps and freely exceeds the viewport — only
+          // the inner swipe scroller moves, so the page itself
+          // never gets a horizontal scrollbar.
+          //   Tablet — 540px: each card has ~508px of usable width
+          //                   after padding. Comfortable for long
+          //                   business names + every chip + the
+          //                   full button label.
+          //   Mobile — 340px: phone-sized; still gives the card
+          //                   enough room to breathe.
+          const columnWidth = isMobile ? 340 : 540;
           const sharedColumnProps = {
             onView: handleViewForm,
             onCopyLink: handleCopyLink,
@@ -1606,25 +1602,22 @@ export default function ProjectLibrary() {
               <div
                 className="intake-board"
                 style={useHorizontalScroll ? {
+                  // Flex row that horizontally scrolls when its
+                  // children (the columns) overflow. Total board
+                  // width = sum of column widths + gaps, freely
+                  // exceeds the viewport — the page padding gives
+                  // the visible window. overflow-x: auto on this
+                  // element makes the inner row scroll, NOT the
+                  // page. (Outer page wrapper has overflow-x:
+                  // hidden as the safety net.)
                   display: 'flex',
                   gap: 12,
                   overflowX: 'auto',
                   overflowY: 'visible',
-                  // Snap each column into view as the user swipes
-                  // instead of free-scrolling between two halves.
                   scrollSnapType: 'x mandatory',
                   scrollPaddingLeft: 4,
                   paddingBottom: 12,
-                  // iOS momentum scrolling.
                   WebkitOverflowScrolling: 'touch',
-                  // Contain horizontal overflow inside this swipe
-                  // area so the page itself never scrolls
-                  // horizontally — the sidebar slide-in on tablet
-                  // was bumping the page width and triggering a
-                  // body-level horizontal scroll.
-                  maxWidth: '100%',
-                  width: '100%',
-                  boxSizing: 'border-box',
                 } : {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
