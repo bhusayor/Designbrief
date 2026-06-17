@@ -120,10 +120,19 @@ function FormShell({ form }) {
   // Read whatever shape the form uses: new (questions[]) or legacy
   // (sections[] flattened into a question array). Builder writes
   // questions[]; legacy reads stay supported so old forms still work.
+  //
+  // Designers can disable whole sections from the builder's
+  // Questions tab — any question whose section_id appears in
+  // form.settings.disabled_sections is skipped here so the client
+  // never sees those questions.
   const allQuestions = useMemo(() => {
-    if (Array.isArray(form.questions) && form.questions.length) return form.questions
-    return legacyFlatten(form.sections)
-  }, [form.questions, form.sections])
+    const base = Array.isArray(form.questions) && form.questions.length
+      ? form.questions
+      : legacyFlatten(form.sections)
+    const disabled = new Set(form.settings?.disabled_sections || [])
+    if (!disabled.size) return base
+    return base.filter(q => !disabled.has(q.section_id))
+  }, [form.questions, form.sections, form.settings?.disabled_sections])
 
   const accent = form.branding?.primary_color || '#8B5CF6'
   const langSettings = form.settings?.language || 'en'

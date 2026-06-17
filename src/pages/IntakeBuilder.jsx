@@ -128,9 +128,12 @@ export default function IntakeBuilder() {
   }
 
   // Promise.race wrapper so a stuck Supabase request never leaves
-  // the Save / Publish button spinning forever. 15s is generous; if
-  // the upsert hasn't returned by then something is wrong upstream.
-  function withTimeout(p, ms = 15000, label = 'request') {
+  // the Save / Publish button spinning forever. 60s default because
+  // an intake_forms row can carry a lot of JSONB (questions[],
+  // branding with a data-URL logo, settings, recipient, …) and
+  // upserts on slow networks were hitting the previous 15s
+  // ceiling.
+  function withTimeout(p, ms = 60000, label = 'request') {
     return Promise.race([
       p,
       new Promise((_, rj) => setTimeout(
@@ -167,7 +170,7 @@ export default function IntakeBuilder() {
       })
       const { error } = await withTimeout(
         supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
-        15000,
+        60000,
         'Save',
       )
       if (error) throw error
@@ -197,7 +200,7 @@ export default function IntakeBuilder() {
       })
       const { error } = await withTimeout(
         supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
-        15000,
+        60000,
         'Publish',
       )
       if (error) throw error
@@ -245,6 +248,11 @@ export default function IntakeBuilder() {
               <QuestionsEditor
                 questions={form.questions}
                 setQuestions={(q) => setForm(f => ({ ...f, questions: q }))}
+                disabledSections={form.settings?.disabled_sections || []}
+                setDisabledSections={(arr) => setForm(f => ({
+                  ...f,
+                  settings: { ...(f.settings || {}), disabled_sections: arr },
+                }))}
               />
             )}
             {activeTab === 'branding' && (
@@ -265,16 +273,18 @@ export default function IntakeBuilder() {
           </div>
 
           <div className="ib-actions">
-            {/* Change type sits on the left, separated from the
-                Save / Preview / Publish trio on the right by a flex
-                spacer. Confirms before discarding customisations. */}
+            {/* Back returns to the start screen where the designer
+                can edit client name, business, email, or pick a
+                different project type. Confirms before discarding
+                question customisations because a fresh type swap
+                seeds the new type's defaults. */}
             <button
               type="button"
               onClick={() => {
                 const defaults = defaultQuestionsFor(form.project_type)
                 const hasEdits = JSON.stringify(form.questions) !== JSON.stringify(defaults)
                 if (form.id || hasEdits) {
-                  const ok = window.confirm('Go back to the project-type picker? Your customised questions will be replaced with the defaults for the new type if you change it.')
+                  const ok = window.confirm("Go back to the start screen? You'll be able to edit the client name, business, email, and project type. Your customised questions will be replaced with the defaults if you pick a different type.")
                   if (!ok) return
                 }
                 setForm(f => ({ ...f, project_type: null, questions: [] }))
@@ -282,7 +292,7 @@ export default function IntakeBuilder() {
               className="ib-btn ib-btn-quiet ib-actions-left"
             >
               <ArrowLeftIcon style={{ width: 14, height: 14 }} />
-              <span>Change type</span>
+              <span>Back</span>
             </button>
             <button onClick={handleSaveDraft} disabled={saving} className="ib-btn ib-btn-quiet">
               {saving ? 'Saving…' : 'Save draft'}
@@ -353,12 +363,12 @@ function IntakeStartScreen({ initialRecipient = {}, onSubmit }) {
   const businessRef = useRef(null)
   const emailRef = useRef(null)
 
-  // When the designer arrives here from the builder's "Change type"
-  // button, the recipient is already saved. Skip re-showing the
-  // recipient form so they can swap type immediately. The submit
-  // path still passes the current state through, so the recipient
-  // stays intact.
-  const recipientPrefilled = Boolean((initialRecipient.client_name || '').trim() && (initialRecipient.business_name || '').trim())
+  // Always render the recipient form. When the designer arrives
+  // here from the builder's Back button, the fields are simply
+  // pre-filled with whatever they entered before — they can edit
+  // name, business, or email in-place and pick a (new) type
+  // without losing their place in the flow.
+  const recipientPrefilled = false
 
   function validate() {
     const e = {}
@@ -556,7 +566,16 @@ function resolveSectionId(q, index, total) {
   return QUESTION_SECTIONS[idx].id
 }
 
-function QuestionsEditor({ questions, setQuestions }) {
+function QuestionsEditor({ questions, setQuestions, disabledSections = [], setDisabledSections }) {
+  const disabledSet = new Set(disabledSections)
+  function toggleSectionEnabled(sectionId) {
+    if (!setDisabledSections) return
+    if (disabledSet.has(sectionId)) {
+      setDisabledSections(disabledSections.filter(id => id !== sectionId))
+    } else {
+      setDisabledSections([...disabledSections, sectionId])
+    }
+  }
   const [dragIdx, setDragIdx] = useState(null)
   const [dragOverIdx, setDragOverIdx] = useState(null)
   // Per-section expand state. Default first section open + every
@@ -662,24 +681,42 @@ function QuestionsEditor({ questions, setQuestions }) {
       {QUESTION_SECTIONS.map(section => {
         const entries = grouped.get(section.id) || []
         const isOpen = openSections[section.id] === true
+        const isEnabled = !disabledSet.has(section.id)
         return (
-          <div key={section.id} className={`ib-section-block ${isOpen ? 'is-open' : ''}`}>
-            <button
-              type="button"
-              onClick={() => toggleSection(section.id)}
-              className="ib-section-head"
-              aria-expanded={isOpen}
-              aria-controls={`ib-section-${section.id}`}
-            >
-              <span className="ib-section-chev" aria-hidden>
-                {isOpen ? <ChevronUpIcon style={{ width: 14, height: 14 }} /> : <ChevronDownIcon style={{ width: 14, height: 14 }} />}
-              </span>
-              <span className="ib-section-head-text">
-                <span className="ib-section-label">{section.label}</span>
-                <span className="ib-section-hint">{section.hint}</span>
-              </span>
-              <span className="ib-section-count">{entries.length}</span>
-            </button>
+          <div key={section.id} className={`ib-section-block ${isOpen ? 'is-open' : ''} ${isEnabled ? '' : 'is-disabled'}`}>
+            <div className="ib-section-head-row">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                className="ib-section-head"
+                aria-expanded={isOpen}
+                aria-controls={`ib-section-${section.id}`}
+              >
+                <span className="ib-section-chev" aria-hidden>
+                  {isOpen ? <ChevronUpIcon style={{ width: 14, height: 14 }} /> : <ChevronDownIcon style={{ width: 14, height: 14 }} />}
+                </span>
+                <span className="ib-section-head-text">
+                  <span className="ib-section-label">{section.label}</span>
+                  <span className="ib-section-hint">{section.hint}</span>
+                </span>
+                <span className="ib-section-count">{entries.length}</span>
+              </button>
+              {/* Enable/disable toggle. Disabled sections persist
+                  under form.settings.disabled_sections and the
+                  public client form skips every question whose
+                  section_id matches. */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isEnabled}
+                aria-label={isEnabled ? `Disable section ${section.label}` : `Enable section ${section.label}`}
+                onClick={(e) => { e.stopPropagation(); toggleSectionEnabled(section.id); }}
+                className={`ib-section-switch ${isEnabled ? 'is-on' : ''}`}
+                title={isEnabled ? 'On — clients will see this section' : 'Off — clients will not see this section'}
+              >
+                <span className="ib-section-switch-knob" />
+              </button>
+            </div>
 
             {isOpen && (
               <div id={`ib-section-${section.id}`} className="ib-section-body">
@@ -1435,6 +1472,33 @@ function ResponsiveStyles() {
         transition: border-color 0.15s ease;
       }
       .ib-section-block.is-open { border-color: var(--color-border-strong, var(--color-border)); }
+      .ib-section-block.is-disabled .ib-section-head-text { opacity: 0.55; }
+      .ib-section-block.is-disabled .ib-section-body { opacity: 0.6; pointer-events: none; }
+
+      .ib-section-head-row { display: flex; align-items: center; padding-right: 14px; gap: 8px; }
+      .ib-section-head-row .ib-section-head { flex: 1; }
+      .ib-section-switch {
+        position: relative;
+        width: 36px; height: 20px;
+        background: var(--color-border);
+        border: 1px solid var(--color-border-strong, var(--color-border));
+        border-radius: 100px;
+        cursor: pointer;
+        flex-shrink: 0;
+        padding: 0;
+        transition: background 0.18s ease, border-color 0.18s ease;
+      }
+      .ib-section-switch.is-on { background: var(--color-accent); border-color: var(--color-accent); }
+      .ib-section-switch-knob {
+        position: absolute;
+        top: 1px; left: 1px;
+        width: 16px; height: 16px;
+        background: white;
+        border-radius: 50%;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+        transition: transform 0.18s ease;
+      }
+      .ib-section-switch.is-on .ib-section-switch-knob { transform: translateX(16px); }
       .ib-section-head {
         display: flex; align-items: center; gap: 12px;
         width: 100%;
