@@ -508,6 +508,7 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
           {menuOpen && (
             <CardMenu
               form={form}
+              submission={submission}
               progress={progress}
               onCopyLink={() => { setMenuOpen(false); onCopyLink?.(form); }}
               onOpenPublic={() => { setMenuOpen(false); onOpenPublic?.(form); }}
@@ -631,7 +632,7 @@ function MetaStatsRow({ form, submission }) {
 // ─── CardMenu ────────────────────────────────────────────────────
 // Small popover anchored to the ellipsis button. Click-outside
 // dismisses (handled by IntakeFormCard's useEffect listener).
-function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, isReady, hasSubmission }) {
+function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, isReady, hasSubmission }) {
   // Resolve the client email from any source the data might be in.
   // Page 0 writes to settings.recipient.client_email; the publish
   // path mirrors to the legacy column; older forms might have only
@@ -641,6 +642,30 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
     || form?.client_email
     || null;
 
+  // ── In Progress: a deliberately tight menu ─────────────────────
+  // While the pipeline is running the designer is just waiting. The
+  // only actions that earn their slot:
+  //   Email client — opens a preloaded "got your form, working on
+  //                  the brief now" mailto so the designer can fire
+  //                  a quick reassurance in one click.
+  //   Delete form  — cancel + remove if the submission was sent in
+  //                  error or no longer wanted.
+  // Open public form + Extend expiry are deliberately omitted — the
+  // form's been filled, the link is already alive; previewing or
+  // extending isn't useful in this state.
+  if (progress?.tone === 'accent') {
+    const items = [];
+    if (clientEmail) {
+      items.push({
+        icon: EnvelopeIcon,
+        label: 'Email client',
+        onClick: () => { window.location.href = buildInProgressMailto(clientEmail, form, submission); },
+      });
+    }
+    items.push({ icon: TrashIcon, label: 'Delete form', onClick: onDelete, danger: true });
+    return renderMenu(items);
+  }
+
   const items = [];
   if (isReady) {
     items.push({ icon: SparklesIcon, label: 'Review brief', onClick: onView });
@@ -648,12 +673,9 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
       items.push({ icon: EnvelopeIcon, label: 'Share brief with client', onClick: onShareBrief });
     }
   }
-  // View raw client answers. Skip this entry when In Progress
-  // (progress.tone === 'accent') because the card's primary CTA is
-  // already "View submission" — duplicating it in the dropdown was
-  // noise. Still shown on Ready to Review (primary is Review brief)
-  // and Expired (primary is Renew expiry).
-  if (hasSubmission && progress?.tone !== 'accent') {
+  // View raw client answers. Still shown on Ready to Review
+  // (primary is Review brief) and Expired (primary is Renew expiry).
+  if (hasSubmission) {
     const lbl = progress?.tone === 'expired' ? 'View past submissions' : 'View submission';
     items.push({ icon: InboxArrowDownIcon, label: lbl, onClick: onViewSubmission });
   }
@@ -665,7 +687,8 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
   if (progress?.tone === 'expired') {
     items.push({ icon: ArrowPathIcon, label: 'Renew expiry', onClick: onRenew });
   }
-  // Always-available preview of the public client form.
+  // Public-form preview. Useful in Awaiting + Ready states (sanity
+  // check / verify after edits). Omitted for In Progress above.
   items.push({ icon: ArrowTopRightOnSquareIcon, label: 'Open public form', onClick: onOpenPublic });
   if (clientEmail) {
     items.push({
@@ -678,6 +701,44 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
     items.push({ icon: ArrowPathIcon, label: 'Extend expiry', onClick: onRenew });
   }
   items.push({ icon: TrashIcon, label: 'Delete form', onClick: onDelete, danger: true });
+
+  return renderMenu(items);
+}
+
+// Universal mailto for In Progress cards. Pre-fills a warm
+// reassurance message addressed by first name + business so the
+// designer can fire-and-forget while waiting on the pipeline.
+function buildInProgressMailto(email, form, submission) {
+  const firstName = (
+    submission?.client_name
+    || form?.settings?.recipient?.client_name
+    || ''
+  ).trim().split(/\s+/)[0] || 'there';
+  const business = (
+    submission?.business_name
+    || form?.settings?.recipient?.business_name
+    || ''
+  ).trim();
+  const subject = business
+    ? `Got your intake for ${business}`
+    : 'Got your project intake';
+  const body = [
+    `Hi ${firstName},`,
+    '',
+    `Just a quick note to let you know I've received your intake${business ? ` for ${business}` : ''} and I'm putting your brief together now.`,
+    '',
+    "You'll hear back from me shortly with the full direction.",
+    '',
+    'Thanks for the great inputs.',
+  ].join('\n');
+  const params = new URLSearchParams({ subject, body });
+  return `mailto:${email}?${params.toString()}`;
+}
+
+// Shared menu render. Pulled out so the early-return for the In
+// Progress state stays terse without duplicating the dropdown
+// markup.
+function renderMenu(items) {
 
   return (
     <div
