@@ -648,9 +648,12 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
       items.push({ icon: EnvelopeIcon, label: 'Share brief with client', onClick: onShareBrief });
     }
   }
-  // View raw client answers — useful while waiting (In Progress) and
-  // for catching anything that came in just before expiry.
-  if (hasSubmission) {
+  // View raw client answers. Skip this entry when In Progress
+  // (progress.tone === 'accent') because the card's primary CTA is
+  // already "View submission" — duplicating it in the dropdown was
+  // noise. Still shown on Ready to Review (primary is Review brief)
+  // and Expired (primary is Renew expiry).
+  if (hasSubmission && progress?.tone !== 'accent') {
     const lbl = progress?.tone === 'expired' ? 'View past submissions' : 'View submission';
     items.push({ icon: InboxArrowDownIcon, label: lbl, onClick: onViewSubmission });
   }
