@@ -815,7 +815,15 @@ export function AppProvider({ children }) {
             id,
             status,
             result,
+            translated_result,
             scoring,
+            flags,
+            client_name,
+            business_name,
+            client_email,
+            approved_at,
+            failure_step,
+            failure_message,
             submitted_at,
             created_at
           )

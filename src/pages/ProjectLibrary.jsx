@@ -272,9 +272,25 @@ function SearchEmpty({ query }) {
 // ─── IntakeFormCard ───────────────────────────────────────────────────────────
 
 function IntakeFormCard({ form, onView, onCopyLink }) {
-  const submission = form.intake_submissions?.[0];
-  const isComplete = form.status === 'complete' ||
-    submission?.status === 'complete';
+  // Most recent submission. With many submissions per form (a form
+  // can be sent to multiple clients) the others stay accessible via
+  // the Delivery view; the card just surfaces the freshest pipeline
+  // state.
+  const submission = (form.intake_submissions || [])
+    .slice()
+    .sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at))[0];
+
+  // Recipient fields. Prefer the submission's actual values (the
+  // client's filled Page 0), then fall back to the designer's
+  // pre-fill on form.settings.recipient, then legacy columns.
+  const recipient = form.settings?.recipient || {};
+  const businessName = submission?.business_name || recipient.business_name || '';
+  const clientName   = submission?.client_name   || recipient.client_name   || form.client_name || '';
+
+  // Pipeline-aware status. The card surfaces what's actually
+  // happening so the designer can decide whether to follow up.
+  const progress = deriveIntakeProgress(form, submission);
+  const isReady = progress.tone === 'success';
 
   const timeAgo = (dateStr) => {
     if (!dateStr) return 'Just now';
@@ -317,7 +333,7 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>
-          {form.project_name || 'Untitled Project'}
+          {businessName || form.project_name || 'Untitled Project'}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {form.project_type && (
@@ -344,7 +360,7 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
       </div>
 
       {/* Client info */}
-      {form.client_name && (
+      {clientName && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12,
         }}>
@@ -358,57 +374,56 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
             color: 'var(--color-text-muted)',
             flexShrink: 0,
           }}>
-            {form.client_name[0].toUpperCase()}
+            {clientName[0].toUpperCase()}
           </div>
           <span style={{
             fontFamily: "'Urbanist', sans-serif",
             fontSize: 12,
             color: 'var(--color-text-soft)',
           }}>
-            {form.client_name}
+            {clientName}
           </span>
         </div>
       )}
 
-      {/* Status indicator */}
+      {/* Status indicator — pipeline-aware: Draft / Awaiting /
+          Processing / Ready / Approved / Failed */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12,
         padding: '6px 10px',
-        background: isComplete
-          ? 'rgba(22,163,74,0.06)' : 'rgba(217,119,6,0.06)',
-        border: '1px solid ' + (isComplete
-          ? 'rgba(22,163,74,0.15)' : 'rgba(217,119,6,0.15)'),
+        background: progress.bg,
+        border: '1px solid ' + progress.border,
         borderRadius: 8,
       }}>
         <div style={{
           width: 6, height: 6, borderRadius: '50%',
-          background: isComplete ? '#16a34a' : '#d97706',
-          animation: !isComplete ? 'pulse 2s infinite' : 'none',
+          background: progress.color,
+          animation: progress.pulse ? 'pulse 2s infinite' : 'none',
         }} />
         <span style={{
           fontFamily: "'Urbanist', sans-serif",
           fontSize: 10, fontWeight: 700,
-          color: isComplete ? '#16a34a' : '#d97706',
+          color: progress.color,
           letterSpacing: '0.04em',
           textTransform: 'uppercase',
         }}>
-          {isComplete ? 'Brief ready' : 'Awaiting client'}
+          {progress.label}
         </span>
-        {isComplete && submission?.submitted_at && (
+        {(submission?.submitted_at || form.published_at) && (
           <span style={{
             fontFamily: "'Urbanist', sans-serif",
             fontSize: 9,
             color: 'var(--color-text-muted)',
             marginLeft: 'auto',
           }}>
-            {timeAgo(submission.submitted_at)}
+            {timeAgo(submission?.submitted_at || form.published_at)}
           </span>
         )}
       </div>
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 8 }}>
-        {isComplete ? (
+        {isReady ? (
           <button
             onClick={() => onView(form)}
             style={{
@@ -425,7 +440,7 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
             }}
           >
             <SparklesIcon style={{ width: 13, height: 13 }} />
-            View Brief
+            Review brief
           </button>
         ) : (
           <button
@@ -444,12 +459,50 @@ function IntakeFormCard({ form, onView, onCopyLink }) {
             }}
           >
             <LinkIcon style={{ width: 13, height: 13 }} />
-            Copy Link
+            {form.status === 'draft' ? 'Open draft' : 'Copy link'}
           </button>
         )}
       </div>
     </div>
   );
+}
+
+// ─── Intake progress helper ───────────────────────────────────────────────────
+//
+// Surfaces one of seven UI states for an intake form card based on
+// the form's status, the freshest submission's pipeline status, and
+// the submission's approved_at timestamp.
+function deriveIntakeProgress(form, submission) {
+  const STYLES = {
+    success:    { color: '#16a34a', bg: 'rgba(22,163,74,0.06)',  border: 'rgba(22,163,74,0.15)',  pulse: false, tone: 'success' },
+    accent:     { color: '#7C3AED', bg: 'rgba(124,58,237,0.06)', border: 'rgba(124,58,237,0.18)', pulse: true,  tone: 'accent'  },
+    awaiting:   { color: '#d97706', bg: 'rgba(217,119,6,0.06)',  border: 'rgba(217,119,6,0.15)',  pulse: true,  tone: 'awaiting' },
+    neutral:    { color: '#6b7280', bg: 'rgba(107,114,128,0.06)',border: 'rgba(107,114,128,0.15)',pulse: false, tone: 'neutral' },
+    danger:     { color: '#dc2626', bg: 'rgba(220,38,38,0.06)',  border: 'rgba(220,38,38,0.18)',  pulse: false, tone: 'danger'  },
+  };
+  if (form?.status === 'draft' && !form?.published_at) {
+    return { ...STYLES.neutral, label: 'Draft' };
+  }
+  if (!submission) {
+    return { ...STYLES.awaiting, label: 'Awaiting client' };
+  }
+  const s = String(submission.status || '').toLowerCase();
+  if (s === 'failed') {
+    return { ...STYLES.danger, label: 'Processing failed' };
+  }
+  if (submission.approved_at) {
+    return { ...STYLES.success, label: 'Approved' };
+  }
+  if (s === 'complete' || s === 'completed' || submission.translated_result) {
+    return { ...STYLES.success, label: 'Brief ready' };
+  }
+  if (['enriching', 'translating', 'extracting_design_system', 'building_kanban', 'notifying'].includes(s)) {
+    return { ...STYLES.accent, label: 'Processing' };
+  }
+  if (s === 'pending') {
+    return { ...STYLES.accent, label: 'Pending' };
+  }
+  return { ...STYLES.awaiting, label: 'Awaiting client' };
 }
 
 // ─── StatusColumn ─────────────────────────────────────────────────────────────
@@ -514,6 +567,7 @@ export default function ProjectLibrary() {
     history, navigate, setActiveProject, openProject,
     intakeForms, loadIntakeForms, showToast,
     userPlan, openUpgradeModal,
+    setActiveIntakeSubmissionId,
   } = useContext(AppContext);
 
   const windowWidth = useWindowWidth()
@@ -540,23 +594,42 @@ export default function ProjectLibrary() {
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   function handleViewForm(form) {
-    const submission = form.intake_submissions?.[0];
-    if (!submission?.result) return;
+    // Pick the freshest submission, same logic as the card.
+    const subs = (form.intake_submissions || []).slice()
+      .sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at));
+    const submission = subs[0];
 
-    setActiveProject({
-      id: form.id,
-      title: form.project_name,
-      result: submission.result,
-      scoring: submission.scoring,
-      data: {
-        brief: submission.brief_text || '',
-        scoring: submission.scoring,
+    // V2 path: a translated_result + a submission id route straight
+    // to the Phase 5 review screen.
+    if (submission?.translated_result && submission.id) {
+      setActiveIntakeSubmissionId?.(submission.id);
+      navigate('intake-review');
+      return;
+    }
+
+    // Legacy V1 fallback: render the old document view if a V1
+    // result is sitting on the row.
+    if (submission?.result) {
+      setActiveProject({
+        id: form.id,
+        title: form.project_name,
         result: submission.result,
-      },
-      ts: submission.submitted_at || form.created_at,
-      source: 'intake',
-    });
-    navigate('document');
+        scoring: submission.scoring,
+        data: {
+          brief: submission.brief_text || '',
+          scoring: submission.scoring,
+          result: submission.result,
+        },
+        ts: submission.submitted_at || form.created_at,
+        source: 'intake',
+      });
+      navigate('document');
+      return;
+    }
+
+    // Nothing to view yet — the form is still awaiting the client
+    // or mid-processing. Toast and stay put.
+    showToast?.('Brief is not ready yet.', 'success');
   }
 
   function handleCopyLink(form) {

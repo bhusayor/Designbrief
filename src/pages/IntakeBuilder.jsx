@@ -68,7 +68,7 @@ const slug = () => Math.random().toString(36).slice(2, 14)
 // Public component
 // ────────────────────────────────────────────────────────────────────
 export default function IntakeBuilder() {
-  const { authUser, user, showToast, navigate } = useContext(AppContext)
+  const { authUser, user, showToast, navigate, workspace, loadIntakeForms } = useContext(AppContext)
   const [form, setForm] = useState(() => freshForm())
   const [activeTab, setActiveTab] = useState('questions')
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -160,14 +160,20 @@ export default function IntakeBuilder() {
     setSaving(true)
     try {
       const id = form.id || ('intake_' + slug())
-      const row = formToRow(form, authUser.id, { status: 'draft', id })
+      const row = formToRow(form, authUser.id, {
+        status: 'draft',
+        id,
+        workspace_id: form.workspace_id || workspace?.id || null,
+      })
       const { error } = await withTimeout(
         supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
         15000,
         'Save',
       )
       if (error) throw error
-      setForm(f => ({ ...f, id }))
+      setForm(f => ({ ...f, id, workspace_id: row.workspace_id }))
+      // Refresh the library list so the saved draft appears as a card.
+      loadIntakeForms?.()
       showToast?.('Draft saved.', 'success')
     } catch (e) {
       console.error('[intake save]', e)
@@ -187,6 +193,7 @@ export default function IntakeBuilder() {
         id,
         status: 'active',
         published_at: new Date().toISOString(),
+        workspace_id: form.workspace_id || workspace?.id || null,
       })
       const { error } = await withTimeout(
         supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
@@ -194,8 +201,11 @@ export default function IntakeBuilder() {
         'Publish',
       )
       if (error) throw error
-      setForm(f => ({ ...f, id, status: 'active' }))
+      setForm(f => ({ ...f, id, status: 'active', workspace_id: row.workspace_id }))
       setView('delivery')
+      // Refresh the Project Library so the published form lands in
+      // the active workspace's intake tab right away.
+      loadIntakeForms?.()
       showToast?.('Published. Share the link with your client.', 'success')
     } catch (e) {
       console.error('[intake publish]', e)
@@ -1166,10 +1176,17 @@ function freshForm() {
 }
 function labelForType(id) { return PROJECT_TYPES.find(t => t.id === id)?.label || 'Untitled form' }
 function formToRow(form, userId, override = {}) {
+  // Compose a friendly project_name from the recipient when present
+  // so the library card reads "Nestiq - Website" rather than just
+  // "Website". Falls back to the type label for legacy drafts.
+  const business = String(form.settings?.recipient?.business_name || '').trim()
+  const typeLabel = labelForType(form.project_type)
+  const projectName = business ? `${business} - ${typeLabel}` : typeLabel
   return {
     id: override.id ?? form.id,
     user_id: userId,
-    project_name: labelForType(form.project_type),
+    workspace_id: override.workspace_id ?? form.workspace_id ?? null,
+    project_name: projectName,
     project_type: form.project_type,
     questions: form.questions,
     branding: form.branding,
@@ -1177,6 +1194,11 @@ function formToRow(form, userId, override = {}) {
     expires_at: form.expires_at,
     published_at: override.published_at ?? form.published_at,
     status: override.status ?? form.status,
+    // Mirror the recipient onto the legacy top-level columns so the
+    // existing Project Library card (which still reads form.client_name)
+    // surfaces a name without needing a code change.
+    client_name:   form.settings?.recipient?.client_name   ?? null,
+    client_email:  form.settings?.recipient?.client_email  ?? null,
     sections: [],
   }
 }
