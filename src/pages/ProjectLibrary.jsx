@@ -350,16 +350,21 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
         transition: 'all 0.15s',
       }}
     >
-      {/* Project name + type */}
+      {/* Project name + type. Title clamps to 2 lines max + breaks
+          on word boundary so long business names wrap cleanly
+          instead of being cut mid-word. */}
       <div style={{ marginBottom: 10 }}>
         <div style={{
           fontFamily: "'Urbanist', sans-serif",
           fontWeight: 700, fontSize: 14,
           color: 'var(--color-text)',
           marginBottom: 4,
+          lineHeight: 1.35,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          wordBreak: 'break-word',
         }}>
           {businessName || form.project_name || 'Untitled Project'}
         </div>
@@ -529,13 +534,14 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
 }
 
 // ─── Card button + menu styling shared by all states ─────────────
-// minWidth: 0 lets flex: 1 shrink below the natural content size so
-// the wrapped <span> label can truncate. Without it, text + icons +
-// chevron would push the button wider than the card on narrow
-// viewports.
+// Buttons reserve a min-width so labels like "View submission" and
+// "Renew expiry" never get squeezed. white-space: nowrap stops the
+// browser from breaking the label across lines. The column itself
+// is wide enough to hold this comfortably; the card padding keeps
+// the buttons inside their box.
 const primaryBtn = {
   flex: 1,
-  minWidth: 0,
+  minWidth: 100,
   background: 'var(--color-text)',
   color: 'var(--color-bg)',
   border: 'none',
@@ -545,10 +551,11 @@ const primaryBtn = {
   fontWeight: 700, fontSize: 12,
   cursor: 'pointer',
   display: 'flex', alignItems: 'center', gap: 6,
+  whiteSpace: 'nowrap',
 };
 const secondaryBtn = {
   flex: 1,
-  minWidth: 0,
+  minWidth: 100,
   background: 'var(--color-surface)',
   color: 'var(--color-text)',
   border: '1px solid var(--color-border)',
@@ -558,15 +565,12 @@ const secondaryBtn = {
   fontWeight: 600, fontSize: 12,
   cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-};
-// Label wrapper shared by every primary/secondary button — truncates
-// with an ellipsis when the card is too narrow for the full text.
-const btnLabel = {
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
-  flexShrink: 1,
-  minWidth: 0,
+};
+// Label wrapper — kept as a plain span. Buttons never truncate
+// their labels now; the column is sized to fit the longest label.
+const btnLabel = {
+  whiteSpace: 'nowrap',
 };
 const btnIcon = {
   width: 13, height: 13,
@@ -1333,11 +1337,17 @@ export default function ProjectLibrary() {
           )}
         </div>
 
-        {/* Tab bar */}
+        {/* Tab bar — overflow-x: auto + nowrap so the tabs scroll
+            horizontally instead of wrapping when the viewport (or
+            tab list) is narrow. scrollbarWidth: thin keeps the
+            scrollbar subtle. */}
         <div style={{
           display: 'flex', gap: 4,
           borderBottom: '1px solid var(--color-border)',
           marginBottom: 24, paddingBottom: 0,
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
+          scrollbarWidth: 'thin',
         }}>
           {[
             { id: 'projects', label: 'All Projects', badge: null },
@@ -1358,6 +1368,8 @@ export default function ProjectLibrary() {
                   marginBottom: -1,
                   transition: 'all 0.15s',
                   display: 'flex', alignItems: 'center', gap: 0,
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {tab.label}
@@ -1624,6 +1636,7 @@ export default function ProjectLibrary() {
                     key={c.title}
                     style={useHorizontalScroll ? {
                       flexShrink: 0,
+                      minWidth: 280,
                       width: columnWidth,
                       scrollSnapAlign: 'start',
                     } : undefined}
