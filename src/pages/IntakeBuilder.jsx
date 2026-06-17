@@ -215,23 +215,39 @@ export default function IntakeBuilder() {
   async function handlePublish() {
     if (publishing) return
     if (!authUser?.id) { showToast?.('Sign in to publish.', 'error'); return }
+    console.log('[intake publish] click — existing id?', !!form.id, 'status:', form.status)
     setPublishing(true)
     try {
       const id = form.id || ('intake_' + slug())
       const row = formToRow(form, authUser.id, {
         id,
         status: 'active',
-        published_at: new Date().toISOString(),
+        // published_at: only set on FIRST publish. Re-publishes (the
+        // designer hit Edit form, made changes, hit Publish again)
+        // preserve the original publish date so the library shows
+        // when the link first went out, not the most recent edit.
+        published_at: form.published_at || new Date().toISOString(),
         workspace_id: form.workspace_id || workspace?.id || null,
       })
+      console.log('[intake publish] upserting row id:', row.id)
       const { error } = await upsertFormResilient(row, 'Publish')
-      if (error) throw error
-      setForm(f => ({ ...f, id, status: 'active', workspace_id: row.workspace_id }))
+      if (error) {
+        console.error('[intake publish] upsert error:', error)
+        throw error
+      }
+      console.log('[intake publish] success — switching to delivery view')
+      setForm(f => ({
+        ...f,
+        id,
+        status: 'active',
+        published_at: row.published_at,
+        workspace_id: row.workspace_id,
+      }))
       setView('delivery')
       // Refresh the Project Library so the published form lands in
       // the active workspace's intake tab right away.
       loadIntakeForms?.()
-      showToast?.('Published. Share the link with your client.', 'success')
+      showToast?.(form.published_at ? 'Form updated.' : 'Published. Share the link with your client.', 'success')
     } catch (e) {
       console.error('[intake publish]', e)
       showToast?.(explainError(e), 'error')
@@ -322,7 +338,7 @@ export default function IntakeBuilder() {
               <EyeIcon style={{ width: 14, height: 14 }} /> Preview
             </button>
             <button onClick={handlePublish} disabled={publishing} className="ib-btn ib-btn-primary">
-              {publishing ? 'Publishing…' : (form.status === 'active' ? 'Update' : 'Publish')}
+              {publishing ? 'Publishing…' : 'Publish'}
             </button>
           </div>
         </main>

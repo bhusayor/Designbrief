@@ -23,7 +23,6 @@ import { supabase } from '../../lib/supabase'
 import { estimatedMinutes } from '../../lib/intakeQuestionSets'
 import {
   ArrowDownTrayIcon,
-  ArrowLeftIcon,
   CheckIcon,
   ClipboardDocumentIcon,
   EnvelopeIcon,
@@ -46,11 +45,10 @@ export default function IntakeDelivery({ form, onEdit, designerName }) {
     <div className="id-root">
       <Styles />
 
+      {/* Topbar — Dashboard back button removed (designers reach
+          the dashboard via the sidebar; this view's only forward
+          path is Edit form or sharing the link). */}
       <header className="id-topbar">
-        <button onClick={() => navigate?.('dashboard')} className="id-back" aria-label="Back to dashboard">
-          <ArrowLeftIcon style={{ width: 16, height: 16 }} />
-          <span>Dashboard</span>
-        </button>
         <div className="id-title">
           <span className="id-eyebrow">Client intake form</span>
           <span className="id-name">{form.project_name || 'Untitled form'}</span>
@@ -410,7 +408,6 @@ function Styles() {
     <style>{`
       .id-root { font-family: 'Urbanist', sans-serif; background: var(--color-bg); color: var(--color-text); min-height: 100dvh; display: flex; flex-direction: column; }
       .id-topbar { display: flex; align-items: center; gap: 14px; padding: 12px 22px; border-bottom: 1px solid var(--color-border); background: var(--color-bg); flex-shrink: 0; }
-      .id-back { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9px; background: transparent; border: 1px solid var(--color-border); color: var(--color-text-soft); cursor: pointer; font: 600 12px 'Urbanist', sans-serif; }
       .id-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
       .id-eyebrow { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); font-weight: 700; }
       .id-name { font-size: 15px; font-weight: 800; color: var(--color-text); }
@@ -488,7 +485,6 @@ function Styles() {
       }
       @media (max-width: 767px) {
         .id-topbar { padding: 10px 14px; }
-        .id-back span { display: none; }
         .id-wrap { padding: 18px 14px 80px; }
         .id-grid { grid-template-columns: 1fr; gap: 12px; }
         .id-tile { padding: 16px; }
