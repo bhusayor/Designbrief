@@ -209,28 +209,10 @@ export default function IntakeBuilder() {
     <div className="ib-root">
       <ResponsiveStyles />
 
-      {/* Topbar — small Back button on the left returns to the
-          project-type picker so the designer can switch type
-          without losing the recipient they entered on Page 0.
-          Confirms before discarding question edits. */}
+      {/* Topbar — just the title block + status pill now. Change
+          type was moved to the bottom action bar (left side) where
+          it sits alongside the other secondary actions. */}
       <header className="ib-topbar">
-        <button
-          type="button"
-          onClick={() => {
-            const defaults = defaultQuestionsFor(form.project_type)
-            const hasEdits = JSON.stringify(form.questions) !== JSON.stringify(defaults)
-            if (form.id || hasEdits) {
-              const ok = window.confirm('Go back to the project-type picker? Your customised questions will be replaced with the defaults for the new type if you change it.')
-              if (!ok) return
-            }
-            setForm(f => ({ ...f, project_type: null, questions: [] }))
-          }}
-          className="ib-topbar-back"
-          aria-label="Change project type"
-        >
-          <ArrowLeftIcon style={{ width: 14, height: 14 }} />
-          <span>Change type</span>
-        </button>
         <div className="ib-topbar-title">
           <h1 className="ib-topbar-name">{labelForType(form.project_type)}</h1>
           <span className="ib-topbar-eyebrow">{recipient.business_name?.trim() || 'Client intake form'}</span>
@@ -273,6 +255,25 @@ export default function IntakeBuilder() {
           </div>
 
           <div className="ib-actions">
+            {/* Change type sits on the left, separated from the
+                Save / Preview / Publish trio on the right by a flex
+                spacer. Confirms before discarding customisations. */}
+            <button
+              type="button"
+              onClick={() => {
+                const defaults = defaultQuestionsFor(form.project_type)
+                const hasEdits = JSON.stringify(form.questions) !== JSON.stringify(defaults)
+                if (form.id || hasEdits) {
+                  const ok = window.confirm('Go back to the project-type picker? Your customised questions will be replaced with the defaults for the new type if you change it.')
+                  if (!ok) return
+                }
+                setForm(f => ({ ...f, project_type: null, questions: [] }))
+              }}
+              className="ib-btn ib-btn-quiet ib-actions-left"
+            >
+              <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+              <span>Change type</span>
+            </button>
             <button onClick={handleSaveDraft} disabled={saving} className="ib-btn ib-btn-quiet">
               {saving ? 'Saving…' : 'Save draft'}
             </button>
@@ -342,6 +343,13 @@ function IntakeStartScreen({ initialRecipient = {}, onSubmit }) {
   const businessRef = useRef(null)
   const emailRef = useRef(null)
 
+  // When the designer arrives here from the builder's "Change type"
+  // button, the recipient is already saved. Skip re-showing the
+  // recipient form so they can swap type immediately. The submit
+  // path still passes the current state through, so the recipient
+  // stays intact.
+  const recipientPrefilled = Boolean((initialRecipient.client_name || '').trim() && (initialRecipient.business_name || '').trim())
+
   function validate() {
     const e = {}
     if (!clientName.trim())   e.clientName   = "Client's name is required"
@@ -385,60 +393,74 @@ function IntakeStartScreen({ initialRecipient = {}, onSubmit }) {
           <StaggerItem variant="itemUp">
             <div className="ib-pt-steps">
               <div className="ib-pt-dot" />
+              <div className={`ib-pt-dot ${recipientPrefilled ? '' : 'ib-pt-dot-dim'}`} />
               <div className="ib-pt-dot ib-pt-dot-dim" />
-              <div className="ib-pt-dot ib-pt-dot-dim" />
-              <span className="ib-pt-steps-label">New client intake</span>
+              <span className="ib-pt-steps-label">
+                {recipientPrefilled ? 'Change project type' : 'New client intake'}
+              </span>
             </div>
           </StaggerItem>
           <StaggerItem variant="itemUp">
-            <h1 className="ib-start-h1">Set up a new client intake</h1>
+            <h1 className="ib-start-h1">
+              {recipientPrefilled
+                ? `Pick a project type for ${(initialRecipient.business_name || '').trim()}`
+                : 'Set up a new client intake'}
+            </h1>
           </StaggerItem>
           <StaggerItem variant="itemUp">
-            <p className="ib-start-sub">Tell us who this brief is for, then pick the kind of project. We'll seed the form with smart questions tuned to that work.</p>
+            <p className="ib-start-sub">
+              {recipientPrefilled
+                ? "Swap the type and we'll reseed the form with questions tuned to that work. Your recipient info stays as-is."
+                : "Tell us who this brief is for, then pick the kind of project. We'll seed the form with smart questions tuned to that work."}
+            </p>
           </StaggerItem>
         </StaggerGrid>
 
-        <StaggerGrid speed="fast" className="ib-start-fields">
-          <StaggerItem variant="itemUp">
-            <SbField
-              fieldRef={nameRef}
-              label="Client's name"
-              placeholder="e.g. Amaka Okafor"
-              value={clientName}
-              onChange={(v) => { setClientName(v); if (errors.clientName) clear('clientName') }}
-              required
-              error={errors.clientName}
-            />
-          </StaggerItem>
-          <StaggerItem variant="itemUp">
-            <SbField
-              fieldRef={businessRef}
-              label="Business or product name"
-              sublabel="This is what we use throughout the brief and the kanban board."
-              placeholder="e.g. Nestiq, PocketBase, Akaani"
-              value={businessName}
-              onChange={(v) => { setBusinessName(v); if (errors.businessName) clear('businessName') }}
-              required
-              error={errors.businessName}
-            />
-          </StaggerItem>
-          <StaggerItem variant="itemUp">
-            <SbField
-              fieldRef={emailRef}
-              label="Client's email"
-              sublabel="Optional. We'll pre-fill it on their intake form so they don't retype it."
-              placeholder="amaka@business.com"
-              type="email"
-              value={clientEmail}
-              onChange={(v) => { setClientEmail(v); if (errors.clientEmail) clear('clientEmail') }}
-              error={errors.clientEmail}
-            />
-          </StaggerItem>
-        </StaggerGrid>
+        {!recipientPrefilled && (
+          <>
+            <StaggerGrid speed="fast" className="ib-start-fields">
+              <StaggerItem variant="itemUp">
+                <SbField
+                  fieldRef={nameRef}
+                  label="Client's name"
+                  placeholder="e.g. Amaka Okafor"
+                  value={clientName}
+                  onChange={(v) => { setClientName(v); if (errors.clientName) clear('clientName') }}
+                  required
+                  error={errors.clientName}
+                />
+              </StaggerItem>
+              <StaggerItem variant="itemUp">
+                <SbField
+                  fieldRef={businessRef}
+                  label="Business or product name"
+                  sublabel="This is what we use throughout the brief and the kanban board."
+                  placeholder="e.g. Nestiq, PocketBase, Akaani"
+                  value={businessName}
+                  onChange={(v) => { setBusinessName(v); if (errors.businessName) clear('businessName') }}
+                  required
+                  error={errors.businessName}
+                />
+              </StaggerItem>
+              <StaggerItem variant="itemUp">
+                <SbField
+                  fieldRef={emailRef}
+                  label="Client's email"
+                  sublabel="Optional. We'll pre-fill it on their intake form so they don't retype it."
+                  placeholder="amaka@business.com"
+                  type="email"
+                  value={clientEmail}
+                  onChange={(v) => { setClientEmail(v); if (errors.clientEmail) clear('clientEmail') }}
+                  error={errors.clientEmail}
+                />
+              </StaggerItem>
+            </StaggerGrid>
 
-        <div className="ib-start-divider">
-          <span>Pick a project type</span>
-        </div>
+            <div className="ib-start-divider">
+              <span>Pick a project type</span>
+            </div>
+          </>
+        )}
 
         <StaggerGrid speed="fast" className="ib-pt-grid">
           {PROJECT_TYPES.map(t => {
@@ -465,7 +487,9 @@ function IntakeStartScreen({ initialRecipient = {}, onSubmit }) {
         </StaggerGrid>
 
         <p className="ib-start-foot">
-          <span className="ib-start-req">*</span> Required fields. Pick a project type to continue.
+          {recipientPrefilled
+            ? 'Pick a project type to continue.'
+            : <><span className="ib-start-req">*</span> Required fields. Pick a project type to continue.</>}
         </p>
       </main>
     </div>
@@ -526,13 +550,11 @@ function QuestionsEditor({ questions, setQuestions }) {
   const [dragIdx, setDragIdx] = useState(null)
   const [dragOverIdx, setDragOverIdx] = useState(null)
   // Per-section expand state. Default first section open + every
-  // section that contains a question open so the designer immediately
-  // sees their content; empty sections collapse.
-  const [openSections, setOpenSections] = useState(() => {
-    const initial = {}
-    for (const s of QUESTION_SECTIONS) initial[s.id] = true
-    return initial
-  })
+  // Sections default closed. Designer expands the section they want
+  // to edit. The Add-question handler still auto-opens the section
+  // the new card was added to so the new question doesn't disappear
+  // behind a closed header.
+  const [openSections, setOpenSections] = useState({})
   const toggleSection = (id) => setOpenSections(prev => ({ ...prev, [id]: !prev[id] }))
 
   // Backfill section_id on every question so the rest of the editor
@@ -630,7 +652,7 @@ function QuestionsEditor({ questions, setQuestions }) {
 
       {QUESTION_SECTIONS.map(section => {
         const entries = grouped.get(section.id) || []
-        const isOpen = openSections[section.id] !== false
+        const isOpen = openSections[section.id] === true
         return (
           <div key={section.id} className={`ib-section-block ${isOpen ? 'is-open' : ''}`}>
             <button
@@ -1300,15 +1322,22 @@ function ResponsiveStyles() {
 
       /* ── IntakeStartScreen — recipient form + type picker ──── */
       .ib-start-stage {
+        /* Full-bleed inside AppShell's bounded main. Content blocks
+           below the stage keep their own readable max-widths, but
+           the stage itself fills the viewport so the layout doesn't
+           feel cramped against either edge. */
         flex: 1;
         overflow-y: auto;
         display: flex; flex-direction: column;
-        padding: 56px 24px 72px;
-        max-width: 720px; width: 100%; margin: 0 auto;
+        padding: 56px 56px 72px;
+        width: 100%;
         box-sizing: border-box;
-        gap: 36px;
+        gap: 40px;
       }
-      .ib-start-headblock { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+      /* Each inner block stays readable. Head block + fields + cards
+         are independent strips so the cards can run wider than the
+         text columns. */
+      .ib-start-headblock { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 720px; }
       .ib-start-h1 {
         font-size: clamp(28px, 4vw, 38px);
         font-weight: 800;
@@ -1325,7 +1354,7 @@ function ResponsiveStyles() {
         max-width: 520px;
       }
 
-      .ib-start-fields { display: flex; flex-direction: column; gap: 18px; }
+      .ib-start-fields { display: flex; flex-direction: column; gap: 18px; max-width: 560px; }
       .ib-start-field { display: flex; flex-direction: column; gap: 5px; scroll-margin-top: 80px; }
       .ib-start-field-head { display: flex; align-items: center; gap: 6px; }
       .ib-start-label { font: 600 14px 'Urbanist', sans-serif; color: var(--color-text); }
@@ -1372,7 +1401,7 @@ function ResponsiveStyles() {
       .ib-start-foot .ib-start-req { font-size: 11px; margin-right: 2px; }
 
       @media (max-width: 1023px) {
-        .ib-start-stage { padding: 40px 20px 60px; gap: 28px; }
+        .ib-start-stage { padding: 40px 28px 60px; gap: 28px; }
       }
       @media (max-width: 639px) {
         .ib-start-stage { padding: 28px 16px 56px; gap: 22px; }
@@ -1552,7 +1581,11 @@ function ResponsiveStyles() {
       .ib-btn-quiet { background: var(--color-surface); }
       .ib-btn-primary { background: var(--color-accent); color: white; border-color: transparent; }
 
-      .ib-actions { position: sticky; bottom: 0; background: var(--color-bg); border-top: 1px solid var(--color-border); padding: 12px 24px; display: flex; gap: 10px; justify-content: flex-end; z-index: 10; }
+      .ib-actions { position: sticky; bottom: 0; background: var(--color-bg); border-top: 1px solid var(--color-border); padding: 12px 24px; display: flex; gap: 10px; align-items: center; z-index: 10; }
+      /* Change-type sits on the left edge of the action bar. The
+         margin-right: auto spacer pushes Save / Preview / Publish
+         to the right edge without needing a separate wrapper. */
+      .ib-actions-left { margin-right: auto; }
 
       .ib-side-preview { border-left: 1px solid var(--color-border); background: var(--color-card); overflow-y: auto; }
       .ib-side-preview-inner { padding: 16px; }
