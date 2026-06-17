@@ -1500,73 +1500,91 @@ export default function ProjectLibrary() {
             else if (prog.tone === 'expired') buckets.expired.push(f);
             else                              buckets.awaiting.push(f); // covers neutral (draft), awaiting, danger
           }
+          // Two layout modes for the intake board:
+          //   Desktop (≥1024px): 4-column CSS grid (every column
+          //     visible at once, no scroll).
+          //   Tablet + mobile (<1024px): horizontal swipe — flex
+          //     row with overflow-x: auto + per-column scroll-snap
+          //     so each column locks into view as the user swipes.
+          //     Columns get a fixed width so they don't collapse;
+          //     the next column "peeks" past the right edge so the
+          //     user knows to scroll.
+          const useHorizontalScroll = isMobile || isTablet;
+          const columnWidth = isMobile ? 280 : 320;
+          const sharedColumnProps = {
+            onView: handleViewForm,
+            onCopyLink: handleCopyLink,
+            onOpenPublic: handleOpenPublic,
+            onDelete: handleDeleteForm,
+            onRenew: handleRenewExpiry,
+            onViewSubmission: handleViewSubmission,
+            onShareBrief: handleShareBriefWithClient,
+            onResendInvite: handleResendInvite,
+          };
+          const columnDefs = [
+            { title: 'Awaiting Client',  color: '#d97706',           icon: ClockIcon,    forms: buckets.awaiting },
+            { title: 'In Progress',      color: 'var(--color-blue)', icon: BoltIcon,     forms: buckets.processing },
+            { title: 'Ready to Review',  color: '#16a34a',           icon: SparklesIcon, forms: buckets.ready },
+            { title: 'Expired',          color: '#b91c1c',           icon: NoSymbolIcon, forms: buckets.expired },
+          ];
           return (
             <div>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile
-                  ? '1fr'
-                  : isTablet
-                    ? '1fr 1fr'
-                    : 'repeat(4, minmax(0, 1fr))',
-                gap: 16,
-              }}>
-                <StatusColumn
-                  title="Awaiting Client"
-                  color="#d97706"
-                  icon={ClockIcon}
-                  forms={buckets.awaiting}
-                  onView={handleViewForm}
-                  onCopyLink={handleCopyLink}
-                  onOpenPublic={handleOpenPublic}
-                  onDelete={handleDeleteForm}
-                  onRenew={handleRenewExpiry}
-                  onViewSubmission={handleViewSubmission}
-                  onShareBrief={handleShareBriefWithClient}
-                  onResendInvite={handleResendInvite}
-                />
-                <StatusColumn
-                  title="In Progress"
-                  color="var(--color-blue)"
-                  icon={BoltIcon}
-                  forms={buckets.processing}
-                  onView={handleViewForm}
-                  onCopyLink={handleCopyLink}
-                  onOpenPublic={handleOpenPublic}
-                  onDelete={handleDeleteForm}
-                  onRenew={handleRenewExpiry}
-                  onViewSubmission={handleViewSubmission}
-                  onShareBrief={handleShareBriefWithClient}
-                  onResendInvite={handleResendInvite}
-                />
-                <StatusColumn
-                  title="Ready to Review"
-                  color="#16a34a"
-                  icon={SparklesIcon}
-                  forms={buckets.ready}
-                  onView={handleViewForm}
-                  onCopyLink={handleCopyLink}
-                  onOpenPublic={handleOpenPublic}
-                  onDelete={handleDeleteForm}
-                  onRenew={handleRenewExpiry}
-                  onViewSubmission={handleViewSubmission}
-                  onShareBrief={handleShareBriefWithClient}
-                  onResendInvite={handleResendInvite}
-                />
-                <StatusColumn
-                  title="Expired"
-                  color="#b91c1c"
-                  icon={NoSymbolIcon}
-                  forms={buckets.expired}
-                  onView={handleViewForm}
-                  onCopyLink={handleCopyLink}
-                  onOpenPublic={handleOpenPublic}
-                  onDelete={handleDeleteForm}
-                  onRenew={handleRenewExpiry}
-                  onViewSubmission={handleViewSubmission}
-                  onShareBrief={handleShareBriefWithClient}
-                  onResendInvite={handleResendInvite}
-                />
+              {useHorizontalScroll && (
+                <div style={{
+                  fontFamily: "'Urbanist', sans-serif",
+                  fontSize: 11,
+                  color: 'var(--color-text-muted)',
+                  marginBottom: 8,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  Swipe to see other columns →
+                </div>
+              )}
+              <div
+                className="intake-board"
+                style={useHorizontalScroll ? {
+                  display: 'flex',
+                  gap: 14,
+                  overflowX: 'auto',
+                  overflowY: 'visible',
+                  // Snap each column into view as the user swipes
+                  // instead of free-scrolling between two halves.
+                  scrollSnapType: 'x mandatory',
+                  // Negative margin lets the columns bleed past the
+                  // page padding so the user can swipe all the way
+                  // to either edge cleanly.
+                  marginLeft: -8,
+                  marginRight: -8,
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  paddingBottom: 8,
+                  // Mask the native scrollbar; the peek + snap
+                  // already telegraph scrollability.
+                  WebkitOverflowScrolling: 'touch',
+                } : {
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                  gap: 16,
+                }}
+              >
+                {columnDefs.map((c) => (
+                  <div
+                    key={c.title}
+                    style={useHorizontalScroll ? {
+                      flexShrink: 0,
+                      width: columnWidth,
+                      scrollSnapAlign: 'start',
+                    } : undefined}
+                  >
+                    <StatusColumn
+                      title={c.title}
+                      color={c.color}
+                      icon={c.icon}
+                      forms={c.forms}
+                      {...sharedColumnProps}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           );
