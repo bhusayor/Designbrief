@@ -17,6 +17,7 @@ import { Button, Badge } from '../components/ui';
 import { ROLE_META } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import SubmissionAnswersModal from '../components/intake/SubmissionAnswersModal';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import {
   ClockIcon,
   SparklesIcon,
@@ -842,6 +843,10 @@ export default function ProjectLibrary() {
   // Open modal showing raw submission answers. State holds
   // { form, submissions[] } so we can paginate through multiple.
   const [answersModal, setAnswersModal] = useState(null);
+  // Delete-form confirmation modal state. Holds the form being
+  // deleted + a busy flag while the supabase delete is in flight.
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const pendingCount = intakeForms.filter(f => f.status !== 'complete').length;
 
@@ -1021,10 +1026,17 @@ export default function ProjectLibrary() {
     }
   }
 
-  async function handleDeleteForm(form) {
-    const label = form.settings?.recipient?.business_name || form.project_name || 'this form';
-    const ok = window.confirm(`Delete the intake form for "${label}"? Submissions stay in the database; only the form template is removed.`);
-    if (!ok) return;
+  // Card-level handler — opens the styled ConfirmDeleteModal.
+  // The actual delete runs in confirmDeleteForm() when the user
+  // hits the destructive button.
+  function handleDeleteForm(form) {
+    setDeleteTarget(form);
+  }
+
+  async function confirmDeleteForm() {
+    const form = deleteTarget;
+    if (!form || deleting) return;
+    setDeleting(true);
     try {
       const { error } = await supabase
         .from('intake_forms')
@@ -1033,9 +1045,12 @@ export default function ProjectLibrary() {
       if (error) throw error;
       showToast('Form deleted.');
       loadIntakeForms?.();
+      setDeleteTarget(null);
     } catch (e) {
       console.error('[library] delete failed', e);
       showToast(e?.message || 'Could not delete the form.', 'error');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -1410,6 +1425,37 @@ export default function ProjectLibrary() {
           onClose={() => setAnswersModal(null)}
         />
       )}
+
+      {/* Styled delete-form confirmation. Reuses the shared
+          ConfirmDeleteModal so the destructive UX matches every
+          other "Are you sure?" flow in the app. */}
+      <ConfirmDeleteModal
+        open={!!deleteTarget}
+        title="Delete intake form?"
+        description={(() => {
+          const label = deleteTarget?.settings?.recipient?.business_name
+            || deleteTarget?.project_name
+            || 'this form';
+          const subs = deleteTarget?.intake_submissions?.length || 0;
+          return (
+            <>
+              You're about to delete the intake form for{' '}
+              <strong>{label}</strong>. The shareable link will stop working immediately and the form template will be gone.
+              {subs > 0 && (
+                <>
+                  {' '}<br /><br />
+                  <strong>{subs}</strong> client submission{subs === 1 ? '' : 's'} attached to this form will also be removed.
+                </>
+              )}
+              {' '}This can't be undone.
+            </>
+          );
+        })()}
+        confirmLabel="Delete form"
+        busy={deleting}
+        onCancel={() => { if (!deleting) setDeleteTarget(null); }}
+        onConfirm={confirmDeleteForm}
+      />
     </div>
   );
 }
