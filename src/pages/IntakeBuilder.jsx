@@ -128,12 +128,11 @@ export default function IntakeBuilder() {
   }
 
   // Promise.race wrapper so a stuck Supabase request never leaves
-  // the Save / Publish button spinning forever. 60s default because
+  // the Save / Publish button spinning forever. 120s default because
   // an intake_forms row can carry a lot of JSONB (questions[],
   // branding with a data-URL logo, settings, recipient, …) and
-  // upserts on slow networks were hitting the previous 15s
-  // ceiling.
-  function withTimeout(p, ms = 60000, label = 'request') {
+  // upserts under Supabase backpressure can take a while.
+  function withTimeout(p, ms = 120000, label = 'request') {
     return Promise.race([
       p,
       new Promise((_, rj) => setTimeout(
@@ -141,6 +140,37 @@ export default function IntakeBuilder() {
         ms,
       )),
     ])
+  }
+
+  // Resilient upsert. If a "column does not exist" error comes back
+  // (e.g. the user hasn't run the workspace-scoped-content.sql or
+  // the legacy client_name/client_email columns aren't on their
+  // schema), strip the offending columns and retry. After up to 3
+  // strips we give up and surface the error so the user gets a
+  // real message instead of a silent hang.
+  async function upsertFormResilient(rowIn, label) {
+    let row = { ...rowIn }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { error } = await withTimeout(
+        supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
+        120000,
+        label,
+      )
+      if (!error) return { error: null }
+      // Surface the full diagnosis so a missing column or RLS
+      // issue is visible in DevTools instead of being swallowed.
+      console.warn('[intake upsert]', label, attempt, {
+        code: error.code, message: error.message, hint: error.hint, details: error.details,
+      })
+      const msg = String(error.message || '').toLowerCase()
+      const match = msg.match(/could not find the '([^']+)' column/i)
+        || msg.match(/column "([^"]+)" of relation "intake_forms" does not exist/i)
+      if (!match) return { error }
+      const missingColumn = match[1]
+      if (!(missingColumn in row)) return { error }
+      delete row[missingColumn]
+    }
+    return { error: new Error(`${label} failed after 3 retries with missing columns.`) }
   }
 
   // Common error messages for the patterns we actually see in
@@ -168,11 +198,7 @@ export default function IntakeBuilder() {
         id,
         workspace_id: form.workspace_id || workspace?.id || null,
       })
-      const { error } = await withTimeout(
-        supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
-        60000,
-        'Save',
-      )
+      const { error } = await upsertFormResilient(row, 'Save')
       if (error) throw error
       setForm(f => ({ ...f, id, workspace_id: row.workspace_id }))
       // Refresh the library list so the saved draft appears as a card.
@@ -198,11 +224,7 @@ export default function IntakeBuilder() {
         published_at: new Date().toISOString(),
         workspace_id: form.workspace_id || workspace?.id || null,
       })
-      const { error } = await withTimeout(
-        supabase.from('intake_forms').upsert(row, { onConflict: 'id' }),
-        60000,
-        'Publish',
-      )
+      const { error } = await upsertFormResilient(row, 'Publish')
       if (error) throw error
       setForm(f => ({ ...f, id, status: 'active', workspace_id: row.workspace_id }))
       setView('delivery')
@@ -222,17 +244,16 @@ export default function IntakeBuilder() {
     <div className="ib-root">
       <ResponsiveStyles />
 
-      {/* Topbar — just the title block + status pill now. Change
-          type was moved to the bottom action bar (left side) where
-          it sits alongside the other secondary actions. */}
+      {/* Topbar — title block + expiry pill. Draft/Active status was
+          removed (not useful once published) in favour of the
+          expires_at countdown so the designer sees how long the
+          shareable link stays alive. */}
       <header className="ib-topbar">
         <div className="ib-topbar-title">
           <h1 className="ib-topbar-name">{labelForType(form.project_type)}</h1>
           <span className="ib-topbar-eyebrow">{recipient.business_name?.trim() || 'Client intake form'}</span>
         </div>
-        <span className={`ib-status-pill ib-status-${form.status || 'draft'}`}>
-          {form.status === 'active' ? 'Active' : 'Draft'}
-        </span>
+        <ExpiryPill expiresAt={form.expires_at} />
       </header>
 
       <div className="ib-layout">
@@ -345,6 +366,35 @@ export default function IntakeBuilder() {
 // the designer back to this screen with the recipient pre-filled
 // from form.settings.recipient so they can edit either side.
 // ────────────────────────────────────────────────────────────────────
+// ── ExpiryPill ───────────────────────────────────────────────────
+// Replaces the previous Draft/Active status pill in the topbar.
+// Shows the form's expiry date as a small pill that flips into a
+// warning tint when the link is within 3 days of dying, and into
+// an expired tint when the timestamp has passed.
+function ExpiryPill({ expiresAt }) {
+  if (!expiresAt) {
+    return (
+      <span className="ib-expiry-pill ib-expiry-none" title="No expiry set — the link never expires">
+        No expiry
+      </span>
+    )
+  }
+  const ts = new Date(expiresAt).getTime()
+  const days = Math.ceil((ts - Date.now()) / 86400000)
+  const dateStr = new Date(expiresAt).toLocaleDateString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+  })
+  let tone = 'ok'
+  let label = `Expires ${dateStr}`
+  if (days <= 0) { tone = 'expired'; label = `Expired ${dateStr}` }
+  else if (days <= 3) { tone = 'warn'; label = `Expires in ${days}d (${dateStr})` }
+  return (
+    <span className={`ib-expiry-pill ib-expiry-${tone}`} title={`Form expires on ${dateStr}`}>
+      {label}
+    </span>
+  )
+}
+
 function IntakeStartScreen({ initialRecipient = {}, onSubmit }) {
   const icons = {
     website:   GlobeAltIcon,
@@ -1444,6 +1494,22 @@ function ResponsiveStyles() {
       }
       .ib-status-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; background: var(--color-surface); color: var(--color-text-soft); border: 1px solid var(--color-border); }
       .ib-status-pill.ib-status-active { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
+
+      .ib-expiry-pill {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.04em;
+        padding: 5px 11px;
+        border-radius: 100px;
+        background: var(--color-surface);
+        color: var(--color-text-soft);
+        border: 1px solid var(--color-border);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .ib-expiry-pill.ib-expiry-ok      { color: var(--color-text); }
+      .ib-expiry-pill.ib-expiry-warn    { background: rgba(217,119,6,0.10); color: #b45309; border-color: rgba(217,119,6,0.30); }
+      .ib-expiry-pill.ib-expiry-expired { background: rgba(220,38,38,0.10); color: #b91c1c; border-color: rgba(220,38,38,0.30); }
+      .ib-expiry-pill.ib-expiry-none    { color: var(--color-text-muted); font-style: normal; }
 
       /* Both .ib-layout (flex item) and .ib-main (grid item) need
          min-height: 0 explicitly. Without it, browsers treat them

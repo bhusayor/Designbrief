@@ -313,6 +313,26 @@ function QrTile({ url, formName }) {
 // ────────────────────────────────────────────────────────────────────
 // Status panel
 // ────────────────────────────────────────────────────────────────────
+// Expiry pill rendered inside the delivery view's "Share link"
+// header. Same colour ladder as the builder topbar's pill:
+//   ok      — accent text, neutral background. Plenty of time.
+//   warn    — amber, within 3 days of dying.
+//   expired — red, past the timestamp.
+//   none    — muted, when expires_at is not set.
+function DeliveryExpiryPill({ expiresAt }) {
+  if (!expiresAt) {
+    return <span className="id-pill id-pill-none" title="No expiry — the link never expires">No expiry</span>
+  }
+  const ts = new Date(expiresAt).getTime()
+  const days = Math.ceil((ts - Date.now()) / 86400000)
+  const dateStr = new Date(expiresAt).toLocaleDateString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+  })
+  if (days <= 0) return <span className="id-pill id-pill-expired" title={`Expired ${dateStr}`}>Expired {dateStr}</span>
+  if (days <= 3) return <span className="id-pill id-pill-warn" title={`Expires in ${days} day${days === 1 ? '' : 's'} (${dateStr})`}>Expires in {days}d</span>
+  return <span className="id-pill id-pill-ok" title={`Expires ${dateStr}`}>Expires {dateStr}</span>
+}
+
 function StatusPanel({ form, counts, submissions, loading, showToast }) {
   const { navigate, setActiveIntakeSubmissionId } = useContext(AppContext)
   const isExpired = form?.expires_at && new Date(form.expires_at).getTime() < Date.now()
@@ -338,8 +358,12 @@ function StatusPanel({ form, counts, submissions, loading, showToast }) {
   return (
     <section className="id-status">
       <div className="id-status-head">
-        <h3>Form status</h3>
-        <span className={`id-pill id-pill-${status}`}>{capitalise(status)}</span>
+        <h3>Share link</h3>
+        {/* Replaces the previous "Form status" badge (Draft/Active)
+            since the form is by definition active once it lands on
+            this delivery view. Show how long the link stays alive
+            instead — that's the actionable detail. */}
+        <DeliveryExpiryPill expiresAt={form?.expires_at} />
       </div>
 
       <div className="id-stats">
@@ -462,6 +486,9 @@ function Styles() {
       .id-status-head h3 { margin: 0; font: 800 14px 'Urbanist', sans-serif; }
       .id-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; background: var(--color-surface); color: var(--color-text-soft); border: 1px solid var(--color-border); }
       .id-pill-active { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
+      .id-pill-ok     { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); }
+      .id-pill-warn   { background: rgba(217,119,6,0.10); color: #b45309; border-color: rgba(217,119,6,0.30); }
+      .id-pill-none   { background: var(--color-surface); color: var(--color-text-muted); border-color: var(--color-border); }
       .id-pill-expired { background: rgba(239,68,68,0.10); color: #b91c1c; border-color: rgba(239,68,68,0.35); }
       .id-pill-draft   { background: rgba(245,158,11,0.10); color: #b45309; border-color: rgba(245,158,11,0.30); }
       .id-pill-completed { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
