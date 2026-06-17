@@ -25,7 +25,7 @@
 //   <768  mobile    — single column + Preview FAB → modal
 // ────────────────────────────────────────────────────────────────────
 
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -80,59 +80,33 @@ export default function IntakeBuilder() {
   // delivery view mounts.
   const [view, setView] = useState('builder') // 'builder' | 'delivery'
 
-  // forceShowPageZero is set by the picker's Back button so the
-  // designer can edit the recipient they entered on Page 0 without
-  // having to clear it first. The Page 0 screen's Continue clears
-  // this back to false.
-  const [forceShowPageZero, setForceShowPageZero] = useState(false)
 
   const w = useWindowWidth()
   const isMobile = w < 768
   const isTablet = w >= 768 && w < 1024
 
-  // Three-step gate for new forms:
-  //   1. Page 0   — designer enters client name + business + email
-  //   2. Picker   — designer picks a project type
-  //   3. Builder  — full editor (questions / branding / settings)
-  // Existing forms (form.id present from a prior save) skip 1-2
-  // because they were filled the first time around.
+  // Two-step gate for new forms:
+  //   1. Start screen — one page with the recipient form (name +
+  //      business + email) AND the project-type cards. The designer
+  //      enters everything in a single scroll, then clicks a type
+  //      card to proceed; the card click validates the fields. No
+  //      back button on this screen.
+  //   2. Builder — full editor. A "Change type" back button on its
+  //      topbar returns to the start screen (recipient pre-filled
+  //      from form.settings.recipient).
   const recipient = form.settings?.recipient || {}
-  const hasRecipient = Boolean((recipient.client_name || '').trim() && (recipient.business_name || '').trim())
-
-  if ((!form.id && !hasRecipient) || forceShowPageZero) {
-    return (
-      <IntakeIntroScreen
-        initial={recipient}
-        onContinue={(r) => {
-          setForm(f => ({
-            ...f,
-            settings: { ...(f.settings || {}), recipient: r },
-          }))
-          setForceShowPageZero(false)
-        }}
-        onBack={() => {
-          if (forceShowPageZero) setForceShowPageZero(false)
-          else navigate?.('dashboard')
-        }}
-      />
-    )
-  }
 
   if (!form.project_type) {
     return (
-      <ProjectTypeScreen
-        onPick={(typeId) => {
+      <IntakeStartScreen
+        initialRecipient={recipient}
+        onSubmit={({ recipient: r, project_type: t }) => {
           setForm(f => ({
             ...f,
-            project_type: typeId,
-            questions: defaultQuestionsFor(typeId),
+            settings: { ...(f.settings || {}), recipient: r },
+            project_type: t,
+            questions: defaultQuestionsFor(t),
           }))
-        }}
-        onBack={() => {
-          // If Page 0 has been filled on this draft, go back to edit
-          // the recipient. Otherwise exit to dashboard.
-          if (hasRecipient && !form.id) setForceShowPageZero(true)
-          else navigate?.('dashboard')
         }}
       />
     )
@@ -330,139 +304,27 @@ export default function IntakeBuilder() {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Project-type card grid (first screen)
-// ────────────────────────────────────────────────────────────────────
-// ────────────────────────────────────────────────────────────────────
-// IntakeIntroScreen — Page 0 of the designer-side flow.
+// IntakeStartScreen — the single first-screen the designer lands on
+// when they click Client Intake in the sidebar. Combines the client
+// recipient form (name + business + email) and the project-type
+// picker into one continuous page. No back button — they came from
+// the sidebar; the sidebar is how they leave.
 //
-// Captures the client name, business name, and email before the
-// designer picks a project type. These values get persisted under
-// form.settings.recipient so:
-//   - the project-type picker can keep them
-//   - the builder can show the business name in the topbar eyebrow
-//   - the public client form (ClientIntakePage) pre-populates Page 0
-//     with them — the actual client can still edit, but a designer
-//     who already knows the values saves them the typing.
+// Interaction:
+//   - Designer fills the 3 fields at the top.
+//   - Designer clicks a project-type card.
+//   - The card click validates the fields first. If anything is
+//     missing or malformed, errors render inline + the page scrolls
+//     to the first invalid field. Card stays unselected until
+//     validation passes.
+//   - On valid pick: onSubmit({ recipient, project_type }) fires and
+//     the parent transitions to the builder.
+//
+// The builder's "Change type" button clears project_type to bring
+// the designer back to this screen with the recipient pre-filled
+// from form.settings.recipient so they can edit either side.
 // ────────────────────────────────────────────────────────────────────
-function IntakeIntroScreen({ initial = {}, onContinue, onBack }) {
-  const [clientName, setClientName]     = useState(initial.client_name   || '')
-  const [businessName, setBusinessName] = useState(initial.business_name || '')
-  const [clientEmail, setClientEmail]   = useState(initial.client_email  || '')
-  const [errors, setErrors]             = useState({})
-
-  function handleContinue() {
-    const e = {}
-    if (!clientName.trim())   e.clientName   = "Client's name is required"
-    if (!businessName.trim()) e.businessName = 'Business or product name is required'
-    if (clientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail.trim())) {
-      e.clientEmail = 'Please enter a valid email'
-    }
-    if (Object.keys(e).length) { setErrors(e); return }
-    setErrors({})
-    onContinue?.({
-      client_name:   clientName.trim(),
-      business_name: businessName.trim(),
-      client_email:  clientEmail.trim() || null,
-    })
-  }
-
-  function clear(k) { setErrors(prev => ({ ...prev, [k]: undefined })) }
-
-  return (
-    <div className="ib-root ib-pt-root">
-      <ResponsiveStyles />
-
-      <button onClick={onBack} className="ib-pt-back" aria-label="Back">
-        <ArrowLeftIcon style={{ width: 14, height: 14 }} />
-        <span>Back</span>
-      </button>
-
-      <main className="ib-pt-stage">
-        <div className="ib-intro-headblock">
-          <div className="ib-pt-steps">
-            <div className="ib-pt-dot" />
-            <div className="ib-pt-dot ib-pt-dot-dim" />
-            <div className="ib-pt-dot ib-pt-dot-dim" />
-            <span className="ib-pt-steps-label">Step 1 of 3 &mdash; About your client</span>
-          </div>
-          <h1 className="ib-pt-h1" style={{ textAlign: 'left' }}>Who is this brief for?</h1>
-          <p className="ib-pt-sub" style={{ textAlign: 'left', margin: '8px 0 32px' }}>
-            Capture the client + business up front. We'll use the business name throughout the brief, the kanban board, and the client's intake form.
-          </p>
-        </div>
-
-        <div className="ib-intro-form">
-          <IbIntroField
-            label="Client's name"
-            placeholder="e.g. Amaka Okafor"
-            value={clientName}
-            onChange={(v) => { setClientName(v); if (errors.clientName) clear('clientName') }}
-            required
-            error={errors.clientName}
-            onEnter={handleContinue}
-          />
-          <IbIntroField
-            label="Business or product name"
-            sublabel="This is what we use throughout the brief and the kanban board."
-            placeholder="e.g. Nestiq, PocketBase, Akaani"
-            value={businessName}
-            onChange={(v) => { setBusinessName(v); if (errors.businessName) clear('businessName') }}
-            required
-            error={errors.businessName}
-            onEnter={handleContinue}
-          />
-          <IbIntroField
-            label="Client's email"
-            sublabel="Optional. We'll pre-fill it on the form so they don't retype it."
-            placeholder="amaka@business.com"
-            type="email"
-            value={clientEmail}
-            onChange={(v) => { setClientEmail(v); if (errors.clientEmail) clear('clientEmail') }}
-            error={errors.clientEmail}
-            onEnter={handleContinue}
-          />
-
-          <button onClick={handleContinue} className="ib-intro-continue">
-            Continue
-            <ArrowRightIcon style={{ width: 16, height: 16 }} />
-          </button>
-          <p className="ib-intro-foot">
-            <span className="ib-intro-req">*</span> Required fields
-          </p>
-        </div>
-      </main>
-    </div>
-  )
-}
-
-function IbIntroField({ label, sublabel, value, onChange, placeholder, type = 'text', required = false, error, onEnter }) {
-  return (
-    <div className="ib-intro-field">
-      <div className="ib-intro-field-head">
-        <label className="ib-intro-label">{label}</label>
-        {required
-          ? <span className="ib-intro-req" aria-label="required">*</span>
-          : <span className="ib-intro-opt">optional</span>}
-      </div>
-      {sublabel && <p className="ib-intro-sub">{sublabel}</p>}
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        className={`ib-intro-input${error ? ' is-error' : ''}`}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onEnter?.() } }}
-        autoCapitalize={type === 'email' ? 'off' : 'words'}
-        autoCorrect={type === 'email' ? 'off' : undefined}
-        spellCheck={type === 'email' ? false : undefined}
-        inputMode={type === 'email' ? 'email' : undefined}
-      />
-      {error && <p className="ib-intro-err">{error}</p>}
-    </div>
-  )
-}
-
-function ProjectTypeScreen({ onPick, onBack }) {
+function IntakeStartScreen({ initialRecipient = {}, onSubmit }) {
   const icons = {
     website:   GlobeAltIcon,
     mobile:    Square3Stack3DIcon,
@@ -471,36 +333,112 @@ function ProjectTypeScreen({ onPick, onBack }) {
     redesign:  ArrowsUpDownIcon,
     custom:    PlusIcon,
   }
+
+  const [clientName, setClientName]     = useState(initialRecipient.client_name   || '')
+  const [businessName, setBusinessName] = useState(initialRecipient.business_name || '')
+  const [clientEmail, setClientEmail]   = useState(initialRecipient.client_email  || '')
+  const [errors, setErrors]             = useState({})
+  const nameRef = useRef(null)
+  const businessRef = useRef(null)
+  const emailRef = useRef(null)
+
+  function validate() {
+    const e = {}
+    if (!clientName.trim())   e.clientName   = "Client's name is required"
+    if (!businessName.trim()) e.businessName = 'Business or product name is required'
+    if (clientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail.trim())) {
+      e.clientEmail = 'Please enter a valid email'
+    }
+    return e
+  }
+
+  function clear(k) { setErrors(prev => ({ ...prev, [k]: undefined })) }
+
+  function handleCardClick(typeId) {
+    const e = validate()
+    if (Object.keys(e).length) {
+      setErrors(e)
+      const ref = e.clientName ? nameRef : e.businessName ? businessRef : emailRef
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      ref.current?.focus()
+      return
+    }
+    onSubmit?.({
+      recipient: {
+        client_name:   clientName.trim(),
+        business_name: businessName.trim(),
+        client_email:  clientEmail.trim() || null,
+      },
+      project_type: typeId,
+    })
+  }
+
   return (
     <div className="ib-root ib-pt-root">
       <ResponsiveStyles />
 
-      {/* Minimal ghost back affordance, top-left, 24px from edges.
-          Replaces the deleted top bar. */}
-      <button onClick={onBack} className="ib-pt-back" aria-label="Back">
-        <ArrowLeftIcon style={{ width: 14, height: 14 }} />
-        <span>Back</span>
-      </button>
+      {/* No back affordance — this is the entry point from the
+          sidebar; users navigate away via the sidebar itself. */}
 
-      <main className="ib-pt-stage">
-        <StaggerGrid speed="normal" className="ib-pt-headblock">
+      <main className="ib-start-stage">
+        <StaggerGrid speed="normal" className="ib-start-headblock">
           <StaggerItem variant="itemUp">
-            {/* Step indicator: dot 1 active, 2-3 inactive. The inactive
-                colour swaps per theme via the .ib-pt-dot-dim class. */}
             <div className="ib-pt-steps">
               <div className="ib-pt-dot" />
               <div className="ib-pt-dot ib-pt-dot-dim" />
               <div className="ib-pt-dot ib-pt-dot-dim" />
-              <span className="ib-pt-steps-label">Step 1 of 3 &mdash; Project type</span>
+              <span className="ib-pt-steps-label">New client intake</span>
             </div>
           </StaggerItem>
           <StaggerItem variant="itemUp">
-            <h1 className="ib-pt-h1">What kind of project is this?</h1>
+            <h1 className="ib-start-h1">Set up a new client intake</h1>
           </StaggerItem>
           <StaggerItem variant="itemUp">
-            <p className="ib-pt-sub">Each type comes with smart questions tuned for that work. You can edit everything next.</p>
+            <p className="ib-start-sub">Tell us who this brief is for, then pick the kind of project. We'll seed the form with smart questions tuned to that work.</p>
           </StaggerItem>
         </StaggerGrid>
+
+        <StaggerGrid speed="fast" className="ib-start-fields">
+          <StaggerItem variant="itemUp">
+            <SbField
+              fieldRef={nameRef}
+              label="Client's name"
+              placeholder="e.g. Amaka Okafor"
+              value={clientName}
+              onChange={(v) => { setClientName(v); if (errors.clientName) clear('clientName') }}
+              required
+              error={errors.clientName}
+            />
+          </StaggerItem>
+          <StaggerItem variant="itemUp">
+            <SbField
+              fieldRef={businessRef}
+              label="Business or product name"
+              sublabel="This is what we use throughout the brief and the kanban board."
+              placeholder="e.g. Nestiq, PocketBase, Akaani"
+              value={businessName}
+              onChange={(v) => { setBusinessName(v); if (errors.businessName) clear('businessName') }}
+              required
+              error={errors.businessName}
+            />
+          </StaggerItem>
+          <StaggerItem variant="itemUp">
+            <SbField
+              fieldRef={emailRef}
+              label="Client's email"
+              sublabel="Optional. We'll pre-fill it on their intake form so they don't retype it."
+              placeholder="amaka@business.com"
+              type="email"
+              value={clientEmail}
+              onChange={(v) => { setClientEmail(v); if (errors.clientEmail) clear('clientEmail') }}
+              error={errors.clientEmail}
+            />
+          </StaggerItem>
+        </StaggerGrid>
+
+        <div className="ib-start-divider">
+          <span>Pick a project type</span>
+        </div>
 
         <StaggerGrid speed="fast" className="ib-pt-grid">
           {PROJECT_TYPES.map(t => {
@@ -510,8 +448,9 @@ function ProjectTypeScreen({ onPick, onBack }) {
               <StaggerItem key={t.id} variant="itemUp">
                 <motion.button
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => onPick(t.id)}
+                  onClick={() => handleCardClick(t.id)}
                   className={`ib-pt-card${isCustom ? ' ib-pt-card-custom' : ''}`}
+                  type="button"
                 >
                   <span className="ib-pt-card-arrow" aria-hidden>
                     <ArrowRightIcon style={{ width: 14, height: 14 }} />
@@ -524,7 +463,37 @@ function ProjectTypeScreen({ onPick, onBack }) {
             )
           })}
         </StaggerGrid>
+
+        <p className="ib-start-foot">
+          <span className="ib-start-req">*</span> Required fields. Pick a project type to continue.
+        </p>
       </main>
+    </div>
+  )
+}
+
+function SbField({ fieldRef, label, sublabel, value, onChange, placeholder, type = 'text', required = false, error }) {
+  return (
+    <div className="ib-start-field" ref={fieldRef}>
+      <div className="ib-start-field-head">
+        <label className="ib-start-label">{label}</label>
+        {required
+          ? <span className="ib-start-req" aria-label="required">*</span>
+          : <span className="ib-start-opt">optional</span>}
+      </div>
+      {sublabel && <p className="ib-start-sublabel">{sublabel}</p>}
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        className={`ib-start-input${error ? ' is-error' : ''}`}
+        onChange={(e) => onChange(e.target.value)}
+        autoCapitalize={type === 'email' ? 'off' : 'words'}
+        autoCorrect={type === 'email' ? 'off' : undefined}
+        spellCheck={type === 'email' ? false : undefined}
+        inputMode={type === 'email' ? 'email' : undefined}
+      />
+      {error && <p className="ib-start-err">{error}</p>}
     </div>
   )
 }
@@ -1328,6 +1297,87 @@ function ResponsiveStyles() {
       .ib-intro-continue:hover { filter: brightness(0.94); }
       .ib-intro-continue:active { transform: translateY(1px); }
       .ib-intro-foot { font: 600 11px 'JetBrains Mono', monospace; color: var(--color-text-muted); text-align: center; margin: 4px 0 0; letter-spacing: 0.02em; }
+
+      /* ── IntakeStartScreen — recipient form + type picker ──── */
+      .ib-start-stage {
+        flex: 1;
+        overflow-y: auto;
+        display: flex; flex-direction: column;
+        padding: 56px 24px 72px;
+        max-width: 720px; width: 100%; margin: 0 auto;
+        box-sizing: border-box;
+        gap: 36px;
+      }
+      .ib-start-headblock { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+      .ib-start-h1 {
+        font-size: clamp(28px, 4vw, 38px);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: var(--color-text);
+        margin: 12px 0 6px;
+        line-height: 1.15;
+      }
+      .ib-start-sub {
+        font-size: 15px;
+        color: var(--color-text-muted);
+        margin: 0;
+        line-height: 1.6;
+        max-width: 520px;
+      }
+
+      .ib-start-fields { display: flex; flex-direction: column; gap: 18px; }
+      .ib-start-field { display: flex; flex-direction: column; gap: 5px; scroll-margin-top: 80px; }
+      .ib-start-field-head { display: flex; align-items: center; gap: 6px; }
+      .ib-start-label { font: 600 14px 'Urbanist', sans-serif; color: var(--color-text); }
+      .ib-start-req { color: var(--color-accent); font-size: 14px; line-height: 1; }
+      .ib-start-opt { font: 600 11px 'JetBrains Mono', monospace; letter-spacing: 0.05em; color: var(--color-text-muted); text-transform: lowercase; }
+      .ib-start-sublabel { font: 500 13px 'Urbanist', sans-serif; color: var(--color-text-muted); margin: 0; line-height: 1.5; }
+      .ib-start-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--color-surface);
+        border: 1.5px solid var(--color-border);
+        border-radius: 12px;
+        color: var(--color-text);
+        font: 500 15px 'Urbanist', sans-serif;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.18s ease, background 0.18s ease;
+      }
+      .ib-start-input:focus { border-color: var(--color-accent); background: var(--color-bg); }
+      .ib-start-input.is-error { border-color: #EF4444; }
+      .ib-start-err { font: 500 12px 'Urbanist', sans-serif; color: #EF4444; margin: 4px 0 0; }
+
+      .ib-start-divider {
+        display: flex; align-items: center; gap: 14px;
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.1em; text-transform: uppercase;
+        color: var(--color-text-muted);
+        margin: 4px 0 0;
+      }
+      .ib-start-divider::before, .ib-start-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--color-border);
+      }
+
+      .ib-start-foot {
+        font: 600 11px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+        text-align: center;
+        margin: 4px 0 0;
+        letter-spacing: 0.02em;
+      }
+      .ib-start-foot .ib-start-req { font-size: 11px; margin-right: 2px; }
+
+      @media (max-width: 1023px) {
+        .ib-start-stage { padding: 40px 20px 60px; gap: 28px; }
+      }
+      @media (max-width: 639px) {
+        .ib-start-stage { padding: 28px 16px 56px; gap: 22px; }
+        .ib-start-h1 { font-size: 26px; }
+      }
       .ib-status-pill { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; background: var(--color-surface); color: var(--color-text-soft); border: 1px solid var(--color-border); }
       .ib-status-pill.ib-status-active { background: rgba(16,185,129,0.12); color: #047857; border-color: rgba(16,185,129,0.35); }
 
