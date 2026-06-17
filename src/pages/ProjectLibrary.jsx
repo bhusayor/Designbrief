@@ -37,6 +37,8 @@ import {
   ArrowTopRightOnSquareIcon,
   ExclamationTriangleIcon,
   ChevronRightIcon,
+  ArrowPathIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -286,7 +288,7 @@ function SearchEmpty({ query }) {
 
 // ─── IntakeFormCard ───────────────────────────────────────────────────────────
 
-function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete }) {
+function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRenew }) {
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!menuOpen) return;
@@ -466,6 +468,12 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete }) {
             Review brief
             <ChevronRightIcon style={{ width: 12, height: 12, marginLeft: 'auto' }} />
           </button>
+        ) : progress.tone === 'expired' ? (
+          <button onClick={() => onRenew?.(form)} style={primaryBtn} title="Extend the form's expiry and reactivate the share link">
+            <ArrowPathIcon style={{ width: 13, height: 13 }} />
+            Renew expiry
+            <ChevronRightIcon style={{ width: 12, height: 12, marginLeft: 'auto' }} />
+          </button>
         ) : progress.tone === 'accent' ? (
           <button onClick={() => onCopyLink(form)} style={secondaryBtn} title="Copy share link">
             <LinkIcon style={{ width: 13, height: 13 }} />
@@ -497,10 +505,12 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete }) {
           {menuOpen && (
             <CardMenu
               form={form}
+              progress={progress}
               onCopyLink={() => { setMenuOpen(false); onCopyLink?.(form); }}
               onOpenPublic={() => { setMenuOpen(false); onOpenPublic?.(form); }}
               onView={() => { setMenuOpen(false); onView?.(form); }}
               onDelete={() => { setMenuOpen(false); onDelete?.(form); }}
+              onRenew={() => { setMenuOpen(false); onRenew?.(form); }}
               isReady={isReady}
             />
           )}
@@ -614,10 +624,13 @@ function MetaStatsRow({ form, submission }) {
 // ─── CardMenu ────────────────────────────────────────────────────
 // Small popover anchored to the ellipsis button. Click-outside
 // dismisses (handled by IntakeFormCard's useEffect listener).
-function CardMenu({ form, onCopyLink, onOpenPublic, onView, onDelete, isReady }) {
+function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, onRenew, isReady }) {
   const items = [];
   if (isReady) {
     items.push({ icon: SparklesIcon, label: 'Review brief', onClick: onView });
+  }
+  if (progress?.tone === 'expired') {
+    items.push({ icon: ArrowPathIcon, label: 'Renew expiry', onClick: onRenew });
   }
   items.push({ icon: LinkIcon, label: 'Copy share link', onClick: onCopyLink });
   items.push({ icon: ArrowTopRightOnSquareIcon, label: 'Open public form', onClick: onOpenPublic });
@@ -627,6 +640,12 @@ function CardMenu({ form, onCopyLink, onOpenPublic, onView, onDelete, isReady })
       label: 'Email client',
       onClick: () => { window.location.href = `mailto:${form.client_email}`; },
     });
+  }
+  // Designers can also manually extend a non-expired form. Useful
+  // when a client is dragging their feet — bump the deadline before
+  // it hits the wall.
+  if (progress?.tone !== 'expired' && form.expires_at) {
+    items.push({ icon: ArrowPathIcon, label: 'Extend expiry', onClick: onRenew });
   }
   items.push({ icon: TrashIcon, label: 'Delete form', onClick: onDelete, danger: true });
 
@@ -687,27 +706,42 @@ function deriveIntakeProgress(form, submission) {
     awaiting:   { color: '#d97706', bg: 'rgba(217,119,6,0.06)',  border: 'rgba(217,119,6,0.15)',  pulse: true,  tone: 'awaiting' },
     neutral:    { color: '#6b7280', bg: 'rgba(107,114,128,0.06)',border: 'rgba(107,114,128,0.15)',pulse: false, tone: 'neutral' },
     danger:     { color: '#dc2626', bg: 'rgba(220,38,38,0.06)',  border: 'rgba(220,38,38,0.18)',  pulse: false, tone: 'danger'  },
+    expired:    { color: '#b91c1c', bg: 'rgba(185,28,28,0.06)',  border: 'rgba(185,28,28,0.20)',  pulse: false, tone: 'expired' },
   };
+
+  // Computed-expired check. Honoured ONLY when the brief isn't
+  // already done (translated/approved). A ready brief is the
+  // useful artefact — link expiry doesn't take that away from the
+  // designer; we leave it in Ready to Review and let the
+  // submission state win.
+  const linkExpired = form?.status === 'expired'
+    || (form?.expires_at && new Date(form.expires_at).getTime() < Date.now());
+
+  // Brief-level done states take precedence over link expiry.
+  if (submission?.approved_at) {
+    return { ...STYLES.success, label: 'Approved' };
+  }
+  const subStatus = String(submission?.status || '').toLowerCase();
+  if (submission && (subStatus === 'complete' || subStatus === 'completed' || submission.translated_result)) {
+    return { ...STYLES.success, label: 'Brief ready' };
+  }
+
+  if (linkExpired) {
+    return { ...STYLES.expired, label: 'Link expired' };
+  }
   if (form?.status === 'draft' && !form?.published_at) {
     return { ...STYLES.neutral, label: 'Draft' };
   }
   if (!submission) {
     return { ...STYLES.awaiting, label: 'Awaiting client' };
   }
-  const s = String(submission.status || '').toLowerCase();
-  if (s === 'failed') {
+  if (subStatus === 'failed') {
     return { ...STYLES.danger, label: 'Processing failed' };
   }
-  if (submission.approved_at) {
-    return { ...STYLES.success, label: 'Approved' };
-  }
-  if (s === 'complete' || s === 'completed' || submission.translated_result) {
-    return { ...STYLES.success, label: 'Brief ready' };
-  }
-  if (['enriching', 'translating', 'extracting_design_system', 'building_kanban', 'notifying'].includes(s)) {
+  if (['enriching', 'translating', 'extracting_design_system', 'building_kanban', 'notifying'].includes(subStatus)) {
     return { ...STYLES.accent, label: 'Processing' };
   }
-  if (s === 'pending') {
+  if (subStatus === 'pending') {
     return { ...STYLES.accent, label: 'Pending' };
   }
   return { ...STYLES.awaiting, label: 'Awaiting client' };
@@ -715,7 +749,7 @@ function deriveIntakeProgress(form, submission) {
 
 // ─── StatusColumn ─────────────────────────────────────────────────────────────
 
-function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete }) {
+function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete, onRenew }) {
   return (
     <div>
       {/* Column header */}
@@ -764,6 +798,7 @@ function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onO
           onCopyLink={onCopyLink}
           onOpenPublic={onOpenPublic}
           onDelete={onDelete}
+          onRenew={onRenew}
         />
       ))}
     </div>
@@ -853,6 +888,33 @@ export default function ProjectLibrary() {
     const url = (import.meta.env.VITE_APP_URL ||
       window.location.origin) + '/intake/' + form.id;
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  async function handleRenewExpiry(form) {
+    // Simple prompt for the extension window. 30 days is the default
+    // — matches what most designers want for a follow-up. Cancel
+    // returns immediately so a stray click doesn't extend by some
+    // garbage number.
+    const daysStr = window.prompt('Extend this form for how many days?', '30');
+    if (daysStr == null) return;
+    const days = parseInt(daysStr, 10);
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
+      showToast('Enter a number between 1 and 365.', 'error');
+      return;
+    }
+    const newExpiry = new Date(Date.now() + days * 86400000).toISOString();
+    try {
+      const { error } = await supabase
+        .from('intake_forms')
+        .update({ expires_at: newExpiry, status: 'active' })
+        .eq('id', form.id);
+      if (error) throw error;
+      showToast(`Form extended by ${days} day${days === 1 ? '' : 's'}.`);
+      loadIntakeForms?.();
+    } catch (e) {
+      console.error('[library] renew failed', e);
+      showToast(e?.message || 'Could not renew the form.', 'error');
+    }
   }
 
   async function handleDeleteForm(form) {
@@ -1151,23 +1213,26 @@ export default function ProjectLibrary() {
         {activeTab === 'intakes' && (() => {
           // Bucket each form by the same progress-tone the card uses
           // so columns reflect actual pipeline state, not just the
-          // form's raw status. Without this, "active" (published +
-          // awaiting client) didn't match any column and forms went
-          // missing from the UI entirely.
-          const buckets = { awaiting: [], processing: [], ready: [] };
+          // form's raw status.
+          const buckets = { awaiting: [], processing: [], ready: [], expired: [] };
           for (const f of intakeForms) {
             const subs = (f.intake_submissions || []).slice()
               .sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at));
             const prog = deriveIntakeProgress(f, subs[0]);
             if (prog.tone === 'success')      buckets.ready.push(f);
             else if (prog.tone === 'accent')  buckets.processing.push(f);
+            else if (prog.tone === 'expired') buckets.expired.push(f);
             else                              buckets.awaiting.push(f); // covers neutral (draft), awaiting, danger
           }
           return (
             <div>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 1fr 1fr',
+                gridTemplateColumns: isMobile
+                  ? '1fr'
+                  : isTablet
+                    ? '1fr 1fr'
+                    : 'repeat(4, minmax(0, 1fr))',
                 gap: 16,
               }}>
                 <StatusColumn
@@ -1179,6 +1244,7 @@ export default function ProjectLibrary() {
                   onCopyLink={handleCopyLink}
                   onOpenPublic={handleOpenPublic}
                   onDelete={handleDeleteForm}
+                  onRenew={handleRenewExpiry}
                 />
                 <StatusColumn
                   title="In Progress"
@@ -1189,6 +1255,7 @@ export default function ProjectLibrary() {
                   onCopyLink={handleCopyLink}
                   onOpenPublic={handleOpenPublic}
                   onDelete={handleDeleteForm}
+                  onRenew={handleRenewExpiry}
                 />
                 <StatusColumn
                   title="Ready to Review"
@@ -1199,6 +1266,18 @@ export default function ProjectLibrary() {
                   onCopyLink={handleCopyLink}
                   onOpenPublic={handleOpenPublic}
                   onDelete={handleDeleteForm}
+                  onRenew={handleRenewExpiry}
+                />
+                <StatusColumn
+                  title="Expired"
+                  color="#b91c1c"
+                  icon={NoSymbolIcon}
+                  forms={buckets.expired}
+                  onView={handleViewForm}
+                  onCopyLink={handleCopyLink}
+                  onOpenPublic={handleOpenPublic}
+                  onDelete={handleDeleteForm}
+                  onRenew={handleRenewExpiry}
                 />
               </div>
             </div>
