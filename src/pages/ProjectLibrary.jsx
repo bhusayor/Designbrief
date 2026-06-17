@@ -662,12 +662,12 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
   if (progress?.tone === 'expired') {
     items.push({ icon: ArrowPathIcon, label: 'Renew expiry', onClick: onRenew });
   }
-  items.push({ icon: LinkIcon, label: 'Copy share link', onClick: onCopyLink });
+  // Always-available preview of the public client form.
   items.push({ icon: ArrowTopRightOnSquareIcon, label: 'Open public form', onClick: onOpenPublic });
   if (clientEmail) {
     items.push({
       icon: EnvelopeIcon,
-      label: 'Email client (manual)',
+      label: 'Email client',
       onClick: () => { window.location.href = `mailto:${clientEmail}`; },
     });
   }
