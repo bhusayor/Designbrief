@@ -463,34 +463,34 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
           ready; otherwise the most useful follow-up action.
           Secondary (icon-only) — Open public form in a new tab.
           Ellipsis menu — Copy link / Open public / Delete. */}
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
         {isReady ? (
           <button onClick={() => onView(form)} style={primaryBtn} title="Review the translated brief">
-            <SparklesIcon style={{ width: 13, height: 13 }} />
-            Review brief
-            <ChevronRightIcon style={{ width: 12, height: 12, marginLeft: 'auto' }} />
+            <SparklesIcon style={btnIcon} />
+            <span style={btnLabel}>Review brief</span>
+            <ChevronRightIcon style={btnChevron} />
           </button>
         ) : progress.tone === 'expired' ? (
           <button onClick={() => onRenew?.(form)} style={primaryBtn} title="Extend the form's expiry and reactivate the share link">
-            <ArrowPathIcon style={{ width: 13, height: 13 }} />
-            Renew expiry
-            <ChevronRightIcon style={{ width: 12, height: 12, marginLeft: 'auto' }} />
+            <ArrowPathIcon style={btnIcon} />
+            <span style={btnLabel}>Renew expiry</span>
+            <ChevronRightIcon style={btnChevron} />
           </button>
         ) : progress.tone === 'accent' ? (
           <button onClick={() => onViewSubmission?.(form)} style={primaryBtn} title="View what the client submitted">
-            <InboxArrowDownIcon style={{ width: 13, height: 13 }} />
-            View submission
-            <ChevronRightIcon style={{ width: 12, height: 12, marginLeft: 'auto' }} />
+            <InboxArrowDownIcon style={btnIcon} />
+            <span style={btnLabel}>View submission</span>
+            <ChevronRightIcon style={btnChevron} />
           </button>
         ) : form.status === 'draft' ? (
           <button onClick={() => onCopyLink(form)} style={secondaryBtn} title="Copy share link">
-            <PencilSquareIcon style={{ width: 13, height: 13 }} />
-            Open draft
+            <PencilSquareIcon style={btnIcon} />
+            <span style={btnLabel}>Open draft</span>
           </button>
         ) : (
           <button onClick={() => onCopyLink(form)} style={secondaryBtn} title="Copy share link">
-            <LinkIcon style={{ width: 13, height: 13 }} />
-            Copy link
+            <LinkIcon style={btnIcon} />
+            <span style={btnLabel}>Copy link</span>
           </button>
         )}
 
@@ -529,8 +529,13 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
 }
 
 // ─── Card button + menu styling shared by all states ─────────────
+// minWidth: 0 lets flex: 1 shrink below the natural content size so
+// the wrapped <span> label can truncate. Without it, text + icons +
+// chevron would push the button wider than the card on narrow
+// viewports.
 const primaryBtn = {
   flex: 1,
+  minWidth: 0,
   background: 'var(--color-text)',
   color: 'var(--color-bg)',
   border: 'none',
@@ -543,6 +548,7 @@ const primaryBtn = {
 };
 const secondaryBtn = {
   flex: 1,
+  minWidth: 0,
   background: 'var(--color-surface)',
   color: 'var(--color-text)',
   border: '1px solid var(--color-border)',
@@ -552,6 +558,24 @@ const secondaryBtn = {
   fontWeight: 600, fontSize: 12,
   cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+};
+// Label wrapper shared by every primary/secondary button — truncates
+// with an ellipsis when the card is too narrow for the full text.
+const btnLabel = {
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  flexShrink: 1,
+  minWidth: 0,
+};
+const btnIcon = {
+  width: 13, height: 13,
+  flexShrink: 0,
+};
+const btnChevron = {
+  width: 12, height: 12,
+  marginLeft: 'auto',
+  flexShrink: 0,
 };
 const iconBtn = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -1227,13 +1251,23 @@ export default function ProjectLibrary() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
+    <div style={{
+      height: '100%',
+      overflowY: 'auto',
+      // Clip horizontal overflow at the page level so the swipe
+      // board's own overflowX scroller is the only horizontal
+      // scrollbar in town. Without this, the AppShell sidebar
+      // sliding in/out on tablet was nudging the page width and
+      // triggering body-level horizontal scroll.
+      overflowX: 'hidden',
+      background: 'var(--color-bg)',
+    }}>
       <div style={{
         width: '100%', boxSizing: 'border-box',
-        // Fluid page padding scales smoothly from mobile to desktop
-        // instead of stepping at hard breakpoints (which left
-        // awkward in-between widths cramped).
-        padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 48px)',
+        // Fluid page padding. Tighter on small viewports so the
+        // swipe board has more room before the next column has to
+        // peek into uncomfortable territory.
+        padding: 'clamp(16px, 3vw, 40px) clamp(12px, 3vw, 48px)',
       }}>
 
         {/* Header */}
@@ -1510,7 +1544,9 @@ export default function ProjectLibrary() {
           //     the next column "peeks" past the right edge so the
           //     user knows to scroll.
           const useHorizontalScroll = isMobile || isTablet;
-          const columnWidth = isMobile ? 280 : 320;
+          // Slimmer columns on mobile so the next column peeks
+          // clearly past the right edge; a bit roomier on tablet.
+          const columnWidth = isMobile ? 260 : 300;
           const sharedColumnProps = {
             onView: handleViewForm,
             onCopyLink: handleCopyLink,
@@ -1544,23 +1580,24 @@ export default function ProjectLibrary() {
                 className="intake-board"
                 style={useHorizontalScroll ? {
                   display: 'flex',
-                  gap: 14,
+                  gap: 12,
                   overflowX: 'auto',
                   overflowY: 'visible',
                   // Snap each column into view as the user swipes
                   // instead of free-scrolling between two halves.
                   scrollSnapType: 'x mandatory',
-                  // Negative margin lets the columns bleed past the
-                  // page padding so the user can swipe all the way
-                  // to either edge cleanly.
-                  marginLeft: -8,
-                  marginRight: -8,
-                  paddingLeft: 8,
-                  paddingRight: 8,
-                  paddingBottom: 8,
-                  // Mask the native scrollbar; the peek + snap
-                  // already telegraph scrollability.
+                  scrollPaddingLeft: 4,
+                  paddingBottom: 12,
+                  // iOS momentum scrolling.
                   WebkitOverflowScrolling: 'touch',
+                  // Contain horizontal overflow inside this swipe
+                  // area so the page itself never scrolls
+                  // horizontally — the sidebar slide-in on tablet
+                  // was bumping the page width and triggering a
+                  // body-level horizontal scroll.
+                  maxWidth: '100%',
+                  width: '100%',
+                  boxSizing: 'border-box',
                 } : {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
