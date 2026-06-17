@@ -17,7 +17,7 @@
 // like it came from the designer's studio, not from DesignBrief AI.
 // ────────────────────────────────────────────────────────────────────
 
-import { Resend } from 'resend'
+import { sendEmail } from './lib/sendEmail.js'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -25,7 +25,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   { auth: { persistSession: false } }
 )
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -151,7 +150,7 @@ export default async function handler(req, res) {
 
   // ── Send ─────────────────────────────────────────────────────────
   try {
-    const { error: sendErr } = await resend.emails.send({
+    const { error: sendErr } = await sendEmail({
       from: 'DesignBrief AI <onboarding@resend.dev>',
       // Resend requires a verified domain to send on the designer's
       // behalf; for now we use the shared DesignBrief sender and let

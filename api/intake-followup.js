@@ -23,7 +23,7 @@
 //   { action: 'notify-response', token }
 // ────────────────────────────────────────────────────────────────────
 
-import { Resend } from 'resend'
+import { sendEmail } from './lib/sendEmail.js'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -31,7 +31,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   { auth: { persistSession: false } }
 )
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -135,10 +134,10 @@ async function handleSend(req, res) {
   const text = `${context_text ? context_text + '\n\n' : ''}Question: ${question_text}\n\nReply: ${responseUrl}\n\nSent on behalf of ${designerName}.`
 
   try {
-    if (!resend) {
+    if (!process.env.RESEND_API_KEY) {
       console.warn('[followup send] RESEND_API_KEY missing; skipping email but row is saved')
     } else {
-      const { error: sendErr } = await resend.emails.send({
+      const { error: sendErr } = await sendEmail({
         from: 'DesignBrief AI <onboarding@resend.dev>',
         reply_to: designerEmail || undefined,
         to: recipient,
@@ -185,7 +184,7 @@ async function handleNotifyResponse(req, res) {
 
   const { data: designerAuth } = await supabase.auth.admin.getUserById(form.user_id).catch(() => ({ data: null }))
   const designerEmail = designerAuth?.user?.email
-  if (!designerEmail || !resend) {
+  if (!designerEmail || !process.env.RESEND_API_KEY) {
     return res.status(200).json({ ok: true, sent: false, reason: 'no_email_or_resend' })
   }
 
@@ -201,13 +200,14 @@ async function handleNotifyResponse(req, res) {
   })
 
   try {
-    await resend.emails.send({
+    const { error: sendErr } = await sendEmail({
       from: 'DesignBrief AI <onboarding@resend.dev>',
       to: designerEmail,
       subject: `Your client answered: ${form.project_name || 'follow-up'}`,
       html,
       text: `Q: ${row.question_text}\nA: ${row.answer_text || ''}\n\nReview: ${reviewUrl}`,
     })
+    if (sendErr) throw sendErr
     return res.status(200).json({ ok: true })
   } catch (e) {
     console.error('[followup notify] failed', e)

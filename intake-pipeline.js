@@ -25,7 +25,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
-import { Resend } from 'resend'
+import { sendEmail } from './api/lib/sendEmail.js'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const supabase = createClient(
@@ -33,7 +33,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   { auth: { persistSession: false } },
 )
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 const MODEL = 'claude-sonnet-4-5'
 
@@ -648,7 +647,7 @@ function aggregateFlags(v2) {
 // 4h — notification
 // ────────────────────────────────────────────────────────────────────
 async function notifyDesigner(form, submission, v2Result, flags) {
-  if (!resend) {
+  if (!process.env.RESEND_API_KEY) {
     console.warn('[pipeline] RESEND_API_KEY missing; skipping notification')
     return
   }
@@ -691,13 +690,14 @@ async function notifyDesigner(form, submission, v2Result, flags) {
   <tr><td style="padding:18px 30px 28px;border-top:1px solid #eeeef0;font-size:11px;color:#9ca3af;">Submitted ${new Date(submission.submitted_at || Date.now()).toLocaleString()}</td></tr>
 </table></body></html>`
 
-  await resend.emails.send({
+  const { error: sendErr } = await sendEmail({
     from: 'DesignBrief AI <onboarding@resend.dev>',
     to: designerEmail,
     subject,
     html,
     text: `${eyebrow}\n\n${projectTitle}\n\n${summary}\n\n${flagCount > 0 ? `${flagCount} flag${flagCount === 1 ? '' : 's'} to review.\n\n` : ''}Review: ${reviewUrl}`,
   })
+  if (sendErr) console.warn('[pipeline] notification email failed', sendErr)
 }
 
 function summaryFromV2(v2) {

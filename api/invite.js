@@ -1,13 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
-import { Resend } from 'resend'
+import { sendEmail } from './lib/sendEmail.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false, autoRefreshToken: false } }
 )
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 const APP_URL = process.env.APP_URL || 'https://designbrief-vert.vercel.app'
 
@@ -304,7 +302,7 @@ export default async function handler(req, res) {
       res.json({ success: true, message: 'Invite sent to ' + email, inviteUrl })
 
       // Fire-and-forget email — never blocks the response
-      resend.emails.send({
+      sendEmail({
         from: 'DesignBrief AI <onboarding@resend.dev>',
         to: email,
         subject: inviterName + ' invited you to join ' + workspace.name + ' on DesignBrief AI',
@@ -524,7 +522,7 @@ export default async function handler(req, res) {
       const inviterName = inviterUser?.user_metadata?.name || inviterUser?.user_metadata?.full_name || inviterUser?.email?.split('@')[0] || 'Someone'
       const inviterEmail = inviterUser?.email || ''
 
-      resend.emails.send({
+      sendEmail({
         from: 'DesignBrief AI <onboarding@resend.dev>',
         to: invite.invited_email,
         subject: inviterName + ' invited you to join ' + invite.workspace.name + ' on DesignBrief AI',
@@ -822,7 +820,7 @@ export default async function handler(req, res) {
         'Someone'
       const inviterEmail = inviterUser?.email || ''
 
-      resend.emails.send({
+      sendEmail({
         from: 'DesignBrief AI <onboarding@resend.dev>',
         to: invite.invitee_email,
         subject: inviterName + ' invited you to ' + (project.title || 'a project') + ' on DesignBrief',
@@ -1318,7 +1316,7 @@ export default async function handler(req, res) {
       })
 
       // Fire-and-forget email
-      resend.emails.send({
+      sendEmail({
         from: 'DesignBrief AI <onboarding@resend.dev>',
         to: email,
         subject: inviterName + ' invited you to ' + (project.title || 'a project') + ' on DesignBrief',
