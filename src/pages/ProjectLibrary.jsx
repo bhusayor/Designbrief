@@ -1544,19 +1544,24 @@ export default function ProjectLibrary() {
           //     the next column "peeks" past the right edge so the
           //     user knows to scroll.
           const useHorizontalScroll = isMobile || isTablet;
-          // Generous column widths so every card has room for the
-          // full title, the meta-chip row on one line, and the
-          // primary CTA + ellipsis button side-by-side without any
-          // text truncation. Horizontal scroll guarantees the
-          // designer can swipe to reach every column regardless of
-          // viewport width.
-          //   Tablet — 380px: typical 768-1023 viewport shows one
-          //                   full column + a wide peek of the
-          //                   next, signalling swipe affordance.
-          //   Mobile — 290px: phone-sized, still wide enough that
-          //                   nothing wraps awkwardly inside the
-          //                   card.
-          const columnWidth = isMobile ? 290 : 380;
+          // Column widths sized to the longest single-line content
+          // any card can hold: a multi-chip meta row, status pill +
+          // approved badge + "30m ago" timestamp inline, business
+          // name in the header. Horizontal scroll guarantees every
+          // column is reachable regardless of viewport.
+          //   Tablet — 440px: a typical 768-1023 viewport shows
+          //                   roughly one full column plus a
+          //                   half-column peek. Cards have ~408px
+          //                   of content width after padding,
+          //                   which fits every chip row + button
+          //                   row on a single line without
+          //                   truncation, even for long business
+          //                   names + 4-5 meta chips.
+          //   Mobile — 320px: phone-sized; still wide enough for
+          //                   typical card content on one line,
+          //                   with overflow chips truncating
+          //                   cleanly rather than wrapping.
+          const columnWidth = isMobile ? 320 : 440;
           const sharedColumnProps = {
             onView: handleViewForm,
             onCopyLink: handleCopyLink,
