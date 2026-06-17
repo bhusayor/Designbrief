@@ -807,8 +807,14 @@ function buildFormUrl(form) {
   return `${origin}/intake/${form?.id || ''}`;
 }
 function buildMailto(email, subject, body) {
-  const params = new URLSearchParams({ subject, body });
-  return `mailto:${email}?${params.toString()}`;
+  // Use encodeURIComponent, NOT URLSearchParams. URLSearchParams is
+  // form-urlencoded (spaces → "+"), which mail clients render
+  // literally instead of as spaces. Mailto wants percent-encoding
+  // (spaces → "%20"), and encodeURIComponent also handles newlines
+  // (\n → %0A) and punctuation cleanly.
+  const s = encodeURIComponent(subject);
+  const b = encodeURIComponent(body);
+  return `mailto:${email}?subject=${s}&body=${b}`;
 }
 
 // Shared menu render. Pulled out so the early-return for the In
