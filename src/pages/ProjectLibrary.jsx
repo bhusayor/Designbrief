@@ -1544,9 +1544,19 @@ export default function ProjectLibrary() {
           //     the next column "peeks" past the right edge so the
           //     user knows to scroll.
           const useHorizontalScroll = isMobile || isTablet;
-          // Slimmer columns on mobile so the next column peeks
-          // clearly past the right edge; a bit roomier on tablet.
-          const columnWidth = isMobile ? 260 : 300;
+          // Generous column widths so every card has room for the
+          // full title, the meta-chip row on one line, and the
+          // primary CTA + ellipsis button side-by-side without any
+          // text truncation. Horizontal scroll guarantees the
+          // designer can swipe to reach every column regardless of
+          // viewport width.
+          //   Tablet — 380px: typical 768-1023 viewport shows one
+          //                   full column + a wide peek of the
+          //                   next, signalling swipe affordance.
+          //   Mobile — 290px: phone-sized, still wide enough that
+          //                   nothing wraps awkwardly inside the
+          //                   card.
+          const columnWidth = isMobile ? 290 : 380;
           const sharedColumnProps = {
             onView: handleViewForm,
             onCopyLink: handleCopyLink,
