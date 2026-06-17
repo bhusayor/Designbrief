@@ -645,7 +645,6 @@ function QuestionsEditor({ questions, setQuestions }) {
 
   return (
     <div className="ib-qedit">
-      <PageZeroPreview />
       <p className="ib-section-tip">
         Questions are grouped into sections. Click a section to expand and edit. The final question is locked because the translator relies on it.
       </p>
@@ -704,29 +703,6 @@ function QuestionsEditor({ questions, setQuestions }) {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-// Read-only preview card that surfaces the 3 system fields the
-// client fills on Page 0 of the public form, before any custom
-// questions render. The designer needs to know these get collected
-// up-front so they don't add duplicate questions for name + email.
-function PageZeroPreview() {
-  return (
-    <div className="ib-pz-card">
-      <div className="ib-pz-head">
-        <span className="ib-pz-chip">Page 0</span>
-        <div>
-          <div className="ib-pz-title">Collected before your questions</div>
-          <div className="ib-pz-sub">Every client fills these three fields on the welcome screen. You don't need to ask them again below.</div>
-        </div>
-      </div>
-      <ul className="ib-pz-list">
-        <li><span className="ib-pz-dot ib-pz-dot-req" />Your name <span className="ib-pz-tag">required</span></li>
-        <li><span className="ib-pz-dot ib-pz-dot-req" />Business or product name <span className="ib-pz-tag">required</span></li>
-        <li><span className="ib-pz-dot" />Your email <span className="ib-pz-tag ib-pz-tag-opt">optional</span></li>
-      </ul>
     </div>
   )
 }
@@ -1426,56 +1402,6 @@ function ResponsiveStyles() {
       .ib-pane { flex: 1; overflow-y: auto; padding: 22px 24px 120px; background: var(--color-surface); }
 
       .ib-section-tip { font-size: 12px; color: var(--color-text-muted); margin: 0 0 14px; }
-
-      /* ── Page 0 preview card (read-only) ────────────────────── */
-      .ib-pz-card {
-        margin-bottom: 18px;
-        padding: 14px 16px;
-        background: var(--color-card);
-        border: 1px solid var(--color-border);
-        border-radius: 12px;
-        border-left: 3px solid var(--color-accent);
-      }
-      .ib-pz-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
-      .ib-pz-chip {
-        font: 700 10px 'JetBrains Mono', monospace;
-        letter-spacing: 0.08em; text-transform: uppercase;
-        color: var(--color-accent);
-        background: rgba(139,92,246,0.10);
-        border: 1px solid rgba(139,92,246,0.25);
-        border-radius: 100px;
-        padding: 4px 10px;
-        flex-shrink: 0;
-        line-height: 1;
-      }
-      .ib-pz-title { font: 800 14px 'Urbanist', sans-serif; color: var(--color-text); margin: 1px 0 2px; }
-      .ib-pz-sub { font: 500 12px 'Urbanist', sans-serif; color: var(--color-text-muted); line-height: 1.5; }
-      .ib-pz-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-      .ib-pz-list li {
-        display: flex; align-items: center; gap: 10px;
-        padding: 8px 10px;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: 8px;
-        font: 600 13px 'Urbanist', sans-serif;
-        color: var(--color-text);
-      }
-      .ib-pz-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
-      .ib-pz-dot-req { background: var(--color-accent); }
-      .ib-pz-tag {
-        margin-left: auto;
-        font: 700 10px 'JetBrains Mono', monospace;
-        letter-spacing: 0.06em; text-transform: uppercase;
-        color: var(--color-accent);
-        background: rgba(139,92,246,0.10);
-        padding: 2px 8px;
-        border-radius: 100px;
-      }
-      .ib-pz-tag-opt {
-        color: var(--color-text-muted);
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-      }
 
       /* ── Collapsible section block ──────────────────────────── */
       .ib-section-block {
