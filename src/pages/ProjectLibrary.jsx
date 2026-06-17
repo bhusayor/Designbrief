@@ -483,15 +483,6 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete }) {
           </button>
         )}
 
-        <button
-          onClick={() => onOpenPublic?.(form)}
-          style={iconBtn}
-          title="Open public form in a new tab"
-          aria-label="Open public form in a new tab"
-        >
-          <ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />
-        </button>
-
         <div style={{ position: 'relative' }} data-card-menu>
           <button
             onClick={() => setMenuOpen(v => !v)}
