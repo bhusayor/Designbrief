@@ -35,45 +35,12 @@ import {
 } from '@heroicons/react/24/outline'
 
 export default function IntakeDelivery({ form, onEdit, designerName }) {
-  const { showToast, navigate } = useContext(AppContext)
+  const { showToast } = useContext(AppContext)
   const formUrl = `${window.location.origin}/intake/${form.id}`
-  const [submissions, setSubmissions] = useState([])
-  const [loadingSubs, setLoadingSubs] = useState(true)
-  const [counts, setCounts] = useState({ opens: 0, submissions: 0 })
-
-  // ── Load submissions + counts ───────────────────────────────────
-  useEffect(() => {
-    if (!form?.id) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const [{ data: subs, error: subErr }, { data: row }] = await Promise.all([
-          supabase
-            .from('intake_submissions')
-            .select('*')
-            .eq('intake_form_id', form.id)
-            .order('submitted_at', { ascending: false }),
-          supabase
-            .from('intake_forms')
-            .select('open_count, submission_count')
-            .eq('id', form.id)
-            .maybeSingle(),
-        ])
-        if (cancelled) return
-        if (subErr) console.warn('[intake-delivery] subs load', subErr)
-        setSubmissions(subs || [])
-        setCounts({
-          opens: row?.open_count || 0,
-          submissions: row?.submission_count || (subs?.length || 0),
-        })
-      } catch (e) {
-        console.warn('[intake-delivery] load failed', e)
-      } finally {
-        if (!cancelled) setLoadingSubs(false)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [form?.id])
+  // The submission/open counts + submissions list state used to
+  // power the now-removed StatusPanel. Dropped entirely so this
+  // view no longer pings Supabase on mount just to show numbers
+  // the Project Library already surfaces.
 
   return (
     <div className="id-root">
@@ -99,14 +66,11 @@ export default function IntakeDelivery({ form, onEdit, designerName }) {
           <EmailTile form={form} designerName={designerName} showToast={showToast} />
           <QrTile url={formUrl} formName={form.project_name} />
         </div>
-
-        <StatusPanel
-          form={form}
-          counts={counts}
-          submissions={submissions}
-          loading={loadingSubs}
-          showToast={showToast}
-        />
+        {/* StatusPanel removed — the Link opens / Submissions /
+            Expires stats + submissions list lived here. Designers
+            who want submission state read it from the Project
+            Library card now, which surfaces the same pipeline
+            stages with column-bucketed cards. */}
       </div>
     </div>
   )
