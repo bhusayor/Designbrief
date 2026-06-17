@@ -807,29 +807,21 @@ export function AppProvider({ children }) {
     setLoadingForms(true);
     let result = [];
     try {
-      const { data } = await supabase
+      // Wildcard on intake_submissions so the query never fails when a
+      // newer pipeline column hasn't been applied to this DB yet
+      // (e.g. translated_result / approved_at / failure_* / flags /
+      // client_name / business_name). Missing columns are just absent
+      // from the row — the IntakeFormCard already falls back gracefully.
+      const { data, error: selErr } = await supabase
         .from('intake_forms')
-        .select(`
-          *,
-          intake_submissions (
-            id,
-            status,
-            result,
-            translated_result,
-            scoring,
-            flags,
-            client_name,
-            business_name,
-            client_email,
-            approved_at,
-            failure_step,
-            failure_message,
-            submitted_at,
-            created_at
-          )
-        `)
+        .select('*, intake_submissions(*)')
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
+      if (selErr) {
+        console.error('[AppContext] loadIntakeForms select error:', selErr.message);
+        setLoadingForms(false);
+        return [];
+      }
 
       // Scope to the active workspace. Legacy rows (workspace_id=null) belong
       // to the user's earliest workspace by the backfill convention.

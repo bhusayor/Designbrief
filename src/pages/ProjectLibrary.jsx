@@ -914,44 +914,56 @@ export default function ProjectLibrary() {
         )}
 
         {/* ── Client Intakes tab ───────────────────────────────────────────── */}
-        {activeTab === 'intakes' && (
-          <div>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 1fr 1fr',
-              gap: 16,
-            }}>
-              <StatusColumn
-                title="Awaiting Client"
-                color="#d97706"
-                icon={ClockIcon}
-                forms={intakeForms.filter(f =>
-                  f.status === 'sent' ||
-                  f.status === 'pending' ||
-                  !f.status
-                )}
-                onView={handleViewForm}
-                onCopyLink={handleCopyLink}
-              />
-              <StatusColumn
-                title="Ready to Review"
-                color="#16a34a"
-                icon={SparklesIcon}
-                forms={intakeForms.filter(f => f.status === 'complete')}
-                onView={handleViewForm}
-                onCopyLink={handleCopyLink}
-              />
-              <StatusColumn
-                title="In Progress"
-                color="var(--color-blue)"
-                icon={BoltIcon}
-                forms={intakeForms.filter(f => f.status === 'in_progress')}
-                onView={handleViewForm}
-                onCopyLink={handleCopyLink}
-              />
+        {activeTab === 'intakes' && (() => {
+          // Bucket each form by the same progress-tone the card uses
+          // so columns reflect actual pipeline state, not just the
+          // form's raw status. Without this, "active" (published +
+          // awaiting client) didn't match any column and forms went
+          // missing from the UI entirely.
+          const buckets = { awaiting: [], processing: [], ready: [] };
+          for (const f of intakeForms) {
+            const subs = (f.intake_submissions || []).slice()
+              .sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at));
+            const prog = deriveIntakeProgress(f, subs[0]);
+            if (prog.tone === 'success')      buckets.ready.push(f);
+            else if (prog.tone === 'accent')  buckets.processing.push(f);
+            else                              buckets.awaiting.push(f); // covers neutral (draft), awaiting, danger
+          }
+          return (
+            <div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 1fr 1fr',
+                gap: 16,
+              }}>
+                <StatusColumn
+                  title="Awaiting Client"
+                  color="#d97706"
+                  icon={ClockIcon}
+                  forms={buckets.awaiting}
+                  onView={handleViewForm}
+                  onCopyLink={handleCopyLink}
+                />
+                <StatusColumn
+                  title="In Progress"
+                  color="var(--color-blue)"
+                  icon={BoltIcon}
+                  forms={buckets.processing}
+                  onView={handleViewForm}
+                  onCopyLink={handleCopyLink}
+                />
+                <StatusColumn
+                  title="Ready to Review"
+                  color="#16a34a"
+                  icon={SparklesIcon}
+                  forms={buckets.ready}
+                  onView={handleViewForm}
+                  onCopyLink={handleCopyLink}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
       </div>
     </div>
