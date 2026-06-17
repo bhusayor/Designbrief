@@ -47,9 +47,19 @@ export default async function handler(req, res) {
   if (userErr || !user) return res.status(401).json({ error: 'invalid_session' })
 
   // ── Validate body ────────────────────────────────────────────────
-  const { form_id, recipients, subject, body } = req.body || {}
-  if (!form_id || !Array.isArray(recipients) || !recipients.length || !subject || !body) {
-    return res.status(400).json({ error: 'form_id, recipients[], subject, body required' })
+  // Two modes:
+  //   mode='invite' (default) — designer-composed invite email.
+  //                             Requires recipients, subject, body.
+  //   mode='brief-ready'      — auto-composed "your brief is ready"
+  //                             notification. recipients optional
+  //                             (falls back to the freshest
+  //                             submission's client_email); subject
+  //                             + body auto-generated from the form
+  //                             + recipient business name.
+  const { form_id, recipients, subject, body, mode = 'invite', submission_id } = req.body || {}
+  if (!form_id) return res.status(400).json({ error: 'form_id required' })
+  if (mode === 'invite' && (!Array.isArray(recipients) || !recipients.length || !subject || !body)) {
+    return res.status(400).json({ error: 'recipients[], subject, body required for invite mode' })
   }
 
   // ── Verify the form belongs to the caller ────────────────────────
@@ -87,15 +97,57 @@ export default async function handler(req, res) {
     : 0
   const estMinutes = Math.max(1, Math.round((required * 45) / 60))
 
+  // ── Mode-specific composition ────────────────────────────────────
+  let finalRecipients = recipients
+  let finalSubject = subject
+  let finalBody = body
+
+  if (mode === 'brief-ready') {
+    // Look up the submission we're announcing. Either the supplied
+    // submission_id or the freshest submission on the form.
+    let subQ = supabase
+      .from('intake_submissions')
+      .select('client_email, client_name, business_name')
+      .eq('intake_form_id', form_id)
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+    if (submission_id) subQ = subQ.eq('id', submission_id)
+    const { data: subRows } = await subQ
+    const sub = subRows?.[0]
+    const clientEmail = (Array.isArray(recipients) && recipients[0]) || sub?.client_email || form.client_email
+    if (!clientEmail) {
+      return res.status(400).json({
+        error: 'no_recipient',
+        message: 'No client email on file. Add one in the form settings or pass recipients[].',
+      })
+    }
+    const clientFirst = (sub?.client_name || form.settings?.recipient?.client_name || '').trim().split(/\s+/)[0] || 'there'
+    const business    = (sub?.business_name || form.settings?.recipient?.business_name || '').trim()
+    finalRecipients = [clientEmail]
+    finalSubject = business
+      ? `Your brief for ${business} is ready`
+      : 'Your brief is ready'
+    finalBody = [
+      `Hi ${clientFirst},`,
+      '',
+      `${designerName} has finished the design brief${business ? ` for ${business}` : ''}.`,
+      '',
+      "We'll be in touch shortly with next steps on the design phase. In the meantime, if anything in the brief needs adjusting just reply to this email and let us know.",
+      '',
+      'Thanks for the great inputs.',
+    ].join('\n')
+  }
+
   const html = renderHtml({
     designerName,
-    body,
+    body: finalBody,
     formUrl,
     primary,
     logo,
     estMinutes,
+    mode,
   })
-  const text = renderText({ designerName, body, formUrl, estMinutes })
+  const text = renderText({ designerName, body: finalBody, formUrl, estMinutes, mode })
 
   // ── Send ─────────────────────────────────────────────────────────
   try {
@@ -106,13 +158,13 @@ export default async function handler(req, res) {
       // Resend handle the reply-to so client replies go to the
       // designer's email.
       reply_to: profile?.email || user.email || undefined,
-      to: recipients,
-      subject,
+      to: finalRecipients,
+      subject: finalSubject,
       html,
       text,
     })
     if (sendErr) throw sendErr
-    return res.status(200).json({ ok: true, sent: recipients.length })
+    return res.status(200).json({ ok: true, sent: finalRecipients.length })
   } catch (e) {
     console.error('[send-intake-email] failed', e)
     return res.status(500).json({ error: 'send_failed', message: e?.message || String(e) })
@@ -122,7 +174,7 @@ export default async function handler(req, res) {
 // ────────────────────────────────────────────────────────────────────
 // Templates
 // ────────────────────────────────────────────────────────────────────
-function renderHtml({ designerName, body, formUrl, primary, logo, estMinutes }) {
+function renderHtml({ designerName, body, formUrl, primary, logo, estMinutes, mode = 'invite' }) {
   const esc = (s) => String(s || '').replace(/[&<>"]/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
   }[c]))
@@ -154,6 +206,7 @@ function renderHtml({ designerName, body, formUrl, primary, logo, estMinutes }) 
               ${bodyHtml}
             </td>
           </tr>
+          ${mode === 'brief-ready' ? '' : `
           <tr>
             <td align="center" style="padding:18px 36px 6px;">
               <a href="${esc(formUrl)}" style="display:inline-block;background:${esc(primary)};color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:700;font-size:15px;">
@@ -165,7 +218,9 @@ function renderHtml({ designerName, body, formUrl, primary, logo, estMinutes }) 
             <td align="center" style="padding:4px 36px 28px;">
               <p style="margin:0;font-size:12px;color:#6b7280;">Takes about ${estMinutes} ${estMinutes === 1 ? 'minute' : 'minutes'}. Mobile friendly.</p>
             </td>
-          </tr>
+          </tr>`}
+          ${mode === 'brief-ready' ? `
+          <tr><td style="padding:8px 36px 24px;"></td></tr>` : ''}
           <tr>
             <td style="padding:18px 36px 30px;border-top:1px solid #eeeef0;">
               <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">
@@ -181,7 +236,10 @@ function renderHtml({ designerName, body, formUrl, primary, logo, estMinutes }) 
 </html>`
 }
 
-function renderText({ designerName, body, formUrl, estMinutes }) {
+function renderText({ designerName, body, formUrl, estMinutes, mode = 'invite' }) {
+  if (mode === 'brief-ready') {
+    return [body, '', `Sent on behalf of ${designerName}.`].join('\n')
+  }
   return [
     body,
     '',

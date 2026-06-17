@@ -16,6 +16,7 @@ function useWindowWidth() {
 import { Button, Badge } from '../components/ui';
 import { ROLE_META } from '../lib/constants';
 import { supabase } from '../lib/supabase';
+import SubmissionAnswersModal from '../components/intake/SubmissionAnswersModal';
 import {
   ClockIcon,
   SparklesIcon,
@@ -288,7 +289,7 @@ function SearchEmpty({ query }) {
 
 // ─── IntakeFormCard ───────────────────────────────────────────────────────────
 
-function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRenew }) {
+function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite }) {
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!menuOpen) return;
@@ -475,9 +476,10 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
             <ChevronRightIcon style={{ width: 12, height: 12, marginLeft: 'auto' }} />
           </button>
         ) : progress.tone === 'accent' ? (
-          <button onClick={() => onCopyLink(form)} style={secondaryBtn} title="Copy share link">
-            <LinkIcon style={{ width: 13, height: 13 }} />
-            Copy link
+          <button onClick={() => onViewSubmission?.(form)} style={primaryBtn} title="View what the client submitted">
+            <InboxArrowDownIcon style={{ width: 13, height: 13 }} />
+            View submission
+            <ChevronRightIcon style={{ width: 12, height: 12, marginLeft: 'auto' }} />
           </button>
         ) : form.status === 'draft' ? (
           <button onClick={() => onCopyLink(form)} style={secondaryBtn} title="Copy share link">
@@ -511,7 +513,11 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
               onView={() => { setMenuOpen(false); onView?.(form); }}
               onDelete={() => { setMenuOpen(false); onDelete?.(form); }}
               onRenew={() => { setMenuOpen(false); onRenew?.(form); }}
+              onViewSubmission={() => { setMenuOpen(false); onViewSubmission?.(form); }}
+              onShareBrief={() => { setMenuOpen(false); onShareBrief?.(form); }}
+              onResendInvite={() => { setMenuOpen(false); onResendInvite?.(form); }}
               isReady={isReady}
+              hasSubmission={Array.isArray(form.intake_submissions) && form.intake_submissions.length > 0}
             />
           )}
         </div>
@@ -624,10 +630,22 @@ function MetaStatsRow({ form, submission }) {
 // ─── CardMenu ────────────────────────────────────────────────────
 // Small popover anchored to the ellipsis button. Click-outside
 // dismisses (handled by IntakeFormCard's useEffect listener).
-function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, onRenew, isReady }) {
+function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, isReady, hasSubmission }) {
   const items = [];
   if (isReady) {
     items.push({ icon: SparklesIcon, label: 'Review brief', onClick: onView });
+    items.push({ icon: EnvelopeIcon, label: 'Share brief with client', onClick: onShareBrief });
+  }
+  // View raw client answers — useful while waiting (In Progress) and
+  // for catching anything that came in just before expiry.
+  if (hasSubmission) {
+    const lbl = progress?.tone === 'expired' ? 'View past submissions' : 'View submission';
+    items.push({ icon: InboxArrowDownIcon, label: lbl, onClick: onViewSubmission });
+  }
+  // Resend the original invite when the form is waiting for a
+  // client. Only useful when the email is on file.
+  if (!hasSubmission && (form.client_email || form.settings?.recipient?.client_email)) {
+    items.push({ icon: EnvelopeIcon, label: 'Resend invite', onClick: onResendInvite });
   }
   if (progress?.tone === 'expired') {
     items.push({ icon: ArrowPathIcon, label: 'Renew expiry', onClick: onRenew });
@@ -637,13 +655,10 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
   if (form.client_email) {
     items.push({
       icon: EnvelopeIcon,
-      label: 'Email client',
+      label: 'Email client (manual)',
       onClick: () => { window.location.href = `mailto:${form.client_email}`; },
     });
   }
-  // Designers can also manually extend a non-expired form. Useful
-  // when a client is dragging their feet — bump the deadline before
-  // it hits the wall.
   if (progress?.tone !== 'expired' && form.expires_at) {
     items.push({ icon: ArrowPathIcon, label: 'Extend expiry', onClick: onRenew });
   }
@@ -749,7 +764,7 @@ function deriveIntakeProgress(form, submission) {
 
 // ─── StatusColumn ─────────────────────────────────────────────────────────────
 
-function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete, onRenew }) {
+function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite }) {
   return (
     <div>
       {/* Column header */}
@@ -799,6 +814,9 @@ function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onO
           onOpenPublic={onOpenPublic}
           onDelete={onDelete}
           onRenew={onRenew}
+          onViewSubmission={onViewSubmission}
+          onShareBrief={onShareBrief}
+          onResendInvite={onResendInvite}
         />
       ))}
     </div>
@@ -821,6 +839,9 @@ export default function ProjectLibrary() {
 
   const [query, setQuery]       = useState('');
   const [activeTab, setActiveTab] = useState('projects');
+  // Open modal showing raw submission answers. State holds
+  // { form, submissions[] } so we can paginate through multiple.
+  const [answersModal, setAnswersModal] = useState(null);
 
   const pendingCount = intakeForms.filter(f => f.status !== 'complete').length;
 
@@ -914,6 +935,89 @@ export default function ProjectLibrary() {
     } catch (e) {
       console.error('[library] renew failed', e);
       showToast(e?.message || 'Could not renew the form.', 'error');
+    }
+  }
+
+  function handleViewSubmission(form) {
+    const subs = (form.intake_submissions || []).slice()
+      .sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at));
+    if (!subs.length) {
+      showToast('No submissions on this form yet.');
+      return;
+    }
+    setAnswersModal({ form, submissions: subs });
+  }
+
+  async function handleShareBriefWithClient(form) {
+    const subs = (form.intake_submissions || []).slice()
+      .sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at));
+    const submission = subs[0];
+    if (!submission?.translated_result) {
+      showToast('Brief is not ready yet.', 'error');
+      return;
+    }
+    const email = submission.client_email || form.settings?.recipient?.client_email || form.client_email;
+    if (!email) {
+      showToast('No client email on file to send to.', 'error');
+      return;
+    }
+    const ok = window.confirm(`Email ${email} that the brief is ready?`);
+    if (!ok) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/send-intake-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + (session?.access_token || ''),
+        },
+        body: JSON.stringify({
+          form_id: form.id,
+          submission_id: submission.id,
+          mode: 'brief-ready',
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.message || j.error || `HTTP ${res.status}`);
+      showToast(`Sent to ${email}.`);
+    } catch (e) {
+      console.error('[library] share brief failed', e);
+      showToast(e?.message || 'Could not send.', 'error');
+    }
+  }
+
+  async function handleResendInvite(form) {
+    const email = form.settings?.recipient?.client_email || form.client_email;
+    if (!email) {
+      showToast('No client email on file. Use Copy link instead.', 'error');
+      return;
+    }
+    const business = form.settings?.recipient?.business_name || form.project_name || 'your project';
+    const ok = window.confirm(`Resend the invite to ${email}?`);
+    if (!ok) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/send-intake-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + (session?.access_token || ''),
+        },
+        body: JSON.stringify({
+          form_id: form.id,
+          recipients: [email],
+          subject: `Your project intake for ${business}`,
+          body: form.branding?.welcome_message
+            || `Hi, I've put together a short intake form to capture the shape of ${business}. Click the button below to fill it out — takes a few minutes.`,
+          mode: 'invite',
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.message || j.error || `HTTP ${res.status}`);
+      showToast(`Resent to ${email}.`);
+    } catch (e) {
+      console.error('[library] resend invite failed', e);
+      showToast(e?.message || 'Could not resend.', 'error');
     }
   }
 
@@ -1245,6 +1349,9 @@ export default function ProjectLibrary() {
                   onOpenPublic={handleOpenPublic}
                   onDelete={handleDeleteForm}
                   onRenew={handleRenewExpiry}
+                  onViewSubmission={handleViewSubmission}
+                  onShareBrief={handleShareBriefWithClient}
+                  onResendInvite={handleResendInvite}
                 />
                 <StatusColumn
                   title="In Progress"
@@ -1256,6 +1363,9 @@ export default function ProjectLibrary() {
                   onOpenPublic={handleOpenPublic}
                   onDelete={handleDeleteForm}
                   onRenew={handleRenewExpiry}
+                  onViewSubmission={handleViewSubmission}
+                  onShareBrief={handleShareBriefWithClient}
+                  onResendInvite={handleResendInvite}
                 />
                 <StatusColumn
                   title="Ready to Review"
@@ -1267,6 +1377,9 @@ export default function ProjectLibrary() {
                   onOpenPublic={handleOpenPublic}
                   onDelete={handleDeleteForm}
                   onRenew={handleRenewExpiry}
+                  onViewSubmission={handleViewSubmission}
+                  onShareBrief={handleShareBriefWithClient}
+                  onResendInvite={handleResendInvite}
                 />
                 <StatusColumn
                   title="Expired"
@@ -1278,6 +1391,9 @@ export default function ProjectLibrary() {
                   onOpenPublic={handleOpenPublic}
                   onDelete={handleDeleteForm}
                   onRenew={handleRenewExpiry}
+                  onViewSubmission={handleViewSubmission}
+                  onShareBrief={handleShareBriefWithClient}
+                  onResendInvite={handleResendInvite}
                 />
               </div>
             </div>
@@ -1285,6 +1401,15 @@ export default function ProjectLibrary() {
         })()}
 
       </div>
+
+      {/* Modal: raw submission answers (In Progress + Expired). */}
+      {answersModal && (
+        <SubmissionAnswersModal
+          form={answersModal.form}
+          submissions={answersModal.submissions}
+          onClose={() => setAnswersModal(null)}
+        />
+      )}
     </div>
   );
 }
