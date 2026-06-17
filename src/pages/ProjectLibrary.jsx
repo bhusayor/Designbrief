@@ -632,10 +632,21 @@ function MetaStatsRow({ form, submission }) {
 // Small popover anchored to the ellipsis button. Click-outside
 // dismisses (handled by IntakeFormCard's useEffect listener).
 function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, isReady, hasSubmission }) {
+  // Resolve the client email from any source the data might be in.
+  // Page 0 writes to settings.recipient.client_email; the publish
+  // path mirrors to the legacy column; older forms might have only
+  // the legacy column. Pick whichever has a real address.
+  const clientEmail =
+    form?.settings?.recipient?.client_email
+    || form?.client_email
+    || null;
+
   const items = [];
   if (isReady) {
     items.push({ icon: SparklesIcon, label: 'Review brief', onClick: onView });
-    items.push({ icon: EnvelopeIcon, label: 'Share brief with client', onClick: onShareBrief });
+    if (clientEmail) {
+      items.push({ icon: EnvelopeIcon, label: 'Share brief with client', onClick: onShareBrief });
+    }
   }
   // View raw client answers — useful while waiting (In Progress) and
   // for catching anything that came in just before expiry.
@@ -645,7 +656,7 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
   }
   // Resend the original invite when the form is waiting for a
   // client. Only useful when the email is on file.
-  if (!hasSubmission && (form.client_email || form.settings?.recipient?.client_email)) {
+  if (!hasSubmission && clientEmail) {
     items.push({ icon: EnvelopeIcon, label: 'Resend invite', onClick: onResendInvite });
   }
   if (progress?.tone === 'expired') {
@@ -653,11 +664,11 @@ function CardMenu({ form, progress, onCopyLink, onOpenPublic, onView, onDelete, 
   }
   items.push({ icon: LinkIcon, label: 'Copy share link', onClick: onCopyLink });
   items.push({ icon: ArrowTopRightOnSquareIcon, label: 'Open public form', onClick: onOpenPublic });
-  if (form.client_email) {
+  if (clientEmail) {
     items.push({
       icon: EnvelopeIcon,
       label: 'Email client (manual)',
-      onClick: () => { window.location.href = `mailto:${form.client_email}`; },
+      onClick: () => { window.location.href = `mailto:${clientEmail}`; },
     });
   }
   if (progress?.tone !== 'expired' && form.expires_at) {
