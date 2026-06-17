@@ -47,11 +47,15 @@ export default function IntakeDelivery({ form, onEdit, designerName }) {
 
       {/* Topbar — Dashboard back button removed (designers reach
           the dashboard via the sidebar; this view's only forward
-          path is Edit form or sharing the link). */}
+          path is Edit form or sharing the link). Title falls back
+          to the recipient's business name + project-type label if
+          project_name didn't get persisted (older drafts), so the
+          delivery view never reads "Untitled form" once the
+          designer has filled in Page 0. */}
       <header className="id-topbar">
         <div className="id-title">
           <span className="id-eyebrow">Client intake form</span>
-          <span className="id-name">{form.project_name || 'Untitled form'}</span>
+          <span className="id-name">{resolveFormTitle(form)}</span>
         </div>
         <button onClick={onEdit} className="id-btn id-btn-quiet">
           <PencilSquareIcon style={{ width: 14, height: 14 }} /> Edit form
@@ -72,6 +76,36 @@ export default function IntakeDelivery({ form, onEdit, designerName }) {
       </div>
     </div>
   )
+}
+
+// Resolve the form's display title with sensible fallbacks. The
+// builder writes a composed "<Business> - <Type label>" into
+// form.project_name on save/publish, but older drafts (or rows
+// saved before the project_name column existed) may have it
+// missing. Fall through to the recipient's business name + type,
+// then the type label alone, before the generic "Untitled form".
+function resolveFormTitle(form) {
+  if (form?.project_name && String(form.project_name).trim()) {
+    return form.project_name
+  }
+  const business = String(form?.settings?.recipient?.business_name || '').trim()
+  const typeLabel = labelForType(form?.project_type)
+  if (business && typeLabel) return `${business} - ${typeLabel}`
+  if (business) return business
+  if (typeLabel) return typeLabel
+  return 'Client intake form'
+}
+
+function labelForType(id) {
+  const m = {
+    website:   'Website or landing page',
+    mobile:    'Mobile app or SaaS product',
+    brand:     'Brand identity',
+    ecommerce: 'E-commerce',
+    redesign:  'Redesign of existing product',
+    custom:    'Custom',
+  }
+  return m[id] || ''
 }
 
 // ────────────────────────────────────────────────────────────────────

@@ -200,7 +200,16 @@ export default function IntakeBuilder() {
       })
       const { error } = await upsertFormResilient(row, 'Save')
       if (error) throw error
-      setForm(f => ({ ...f, id, workspace_id: row.workspace_id }))
+      setForm(f => ({
+        ...f,
+        id,
+        workspace_id: row.workspace_id,
+        // Keep the computed project name in local state so any
+        // surface that reads form.project_name (delivery view title,
+        // post-save preview, etc.) shows the right label without
+        // needing a refresh.
+        project_name: row.project_name,
+      }))
       // Refresh the library list so the saved draft appears as a card.
       loadIntakeForms?.()
       showToast?.('Draft saved.', 'success')
@@ -242,6 +251,10 @@ export default function IntakeBuilder() {
         status: 'active',
         published_at: row.published_at,
         workspace_id: row.workspace_id,
+        // Mirror the project name we computed in formToRow so the
+        // delivery view's title block reads "Nestiq - Website"
+        // instead of falling back to "Untitled form".
+        project_name: row.project_name,
       }))
       setView('delivery')
       // Refresh the Project Library so the published form lands in
