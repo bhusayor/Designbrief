@@ -694,7 +694,7 @@ function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView
     items.push({
       icon: EnvelopeIcon,
       label: 'Email client',
-      onClick: () => { window.location.href = `mailto:${clientEmail}`; },
+      onClick: () => { window.location.href = buildMailtoForState(clientEmail, form, submission, progress); },
     });
   }
   if (progress?.tone !== 'expired' && form.expires_at) {
@@ -705,20 +705,73 @@ function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView
   return renderMenu(items);
 }
 
+// State-aware mailto dispatcher. Pulls the right preloaded
+// template based on the card's progress tone so the designer
+// doesn't have to write the same gentle nudge / reassurance / etc.
+// every time they want to follow up.
+function buildMailtoForState(email, form, submission, progress) {
+  const tone = progress?.tone;
+  if (tone === 'accent')   return buildInProgressMailto(email, form, submission);
+  if (tone === 'awaiting') return buildAwaitingMailto(email, form, submission);
+  if (tone === 'expired')  return buildExpiredMailto(email, form, submission);
+  // Ready to Review + Draft + Failed → plain mailto. Ready cards
+  // already have "Share brief with client" for the formal
+  // announcement; if the designer hits Email client they probably
+  // want a blank slate.
+  return `mailto:${email}`;
+}
+
+// Awaiting Client mailto. The form is published but the client
+// hasn't filled it yet — pre-fill a gentle reminder with the
+// share link inline so it lands ready to send.
+function buildAwaitingMailto(email, form, submission) {
+  const firstName = pickFirstName(form, submission);
+  const business  = pickBusinessName(form, submission);
+  const formUrl   = buildFormUrl(form);
+  const subject = business
+    ? `Quick reminder about the intake form for ${business}`
+    : 'Quick reminder about your project intake';
+  const body = [
+    `Hi ${firstName},`,
+    '',
+    `Just checking in — did you get a chance to fill out the project intake form${business ? ` for ${business}` : ''}?`,
+    '',
+    "It takes a few minutes and helps me put together a brief that actually reflects what you're trying to build.",
+    '',
+    `Here's the link in case you need it: ${formUrl}`,
+    '',
+    'Let me know if you have any questions.',
+  ].join('\n');
+  return buildMailto(email, subject, body);
+}
+
+// Expired link mailto. Apologetic + offers a fresh link the
+// designer would still need to renew first, but the message
+// sets the expectation cleanly.
+function buildExpiredMailto(email, form, submission) {
+  const firstName = pickFirstName(form, submission);
+  const business  = pickBusinessName(form, submission);
+  const subject = business
+    ? `Refreshing the intake form for ${business}`
+    : 'Refreshing your project intake link';
+  const body = [
+    `Hi ${firstName},`,
+    '',
+    'Quick heads up — the original intake link has expired.',
+    '',
+    `I'll send a fresh link${business ? ` for ${business}` : ''} in a follow-up. Should only take a moment.`,
+    '',
+    'Thanks for your patience.',
+  ].join('\n');
+  return buildMailto(email, subject, body);
+}
+
 // Universal mailto for In Progress cards. Pre-fills a warm
 // reassurance message addressed by first name + business so the
 // designer can fire-and-forget while waiting on the pipeline.
 function buildInProgressMailto(email, form, submission) {
-  const firstName = (
-    submission?.client_name
-    || form?.settings?.recipient?.client_name
-    || ''
-  ).trim().split(/\s+/)[0] || 'there';
-  const business = (
-    submission?.business_name
-    || form?.settings?.recipient?.business_name
-    || ''
-  ).trim();
+  const firstName = pickFirstName(form, submission);
+  const business  = pickBusinessName(form, submission);
   const subject = business
     ? `Got your intake for ${business}`
     : 'Got your project intake';
@@ -731,6 +784,29 @@ function buildInProgressMailto(email, form, submission) {
     '',
     'Thanks for the great inputs.',
   ].join('\n');
+  return buildMailto(email, subject, body);
+}
+
+// ── Shared mailto helpers ───────────────────────────────────────
+function pickFirstName(form, submission) {
+  return (
+    submission?.client_name
+    || form?.settings?.recipient?.client_name
+    || ''
+  ).trim().split(/\s+/)[0] || 'there';
+}
+function pickBusinessName(form, submission) {
+  return (
+    submission?.business_name
+    || form?.settings?.recipient?.business_name
+    || ''
+  ).trim();
+}
+function buildFormUrl(form) {
+  const origin = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '');
+  return `${origin}/intake/${form?.id || ''}`;
+}
+function buildMailto(email, subject, body) {
   const params = new URLSearchParams({ subject, body });
   return `mailto:${email}?${params.toString()}`;
 }
