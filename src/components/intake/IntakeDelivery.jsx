@@ -95,7 +95,7 @@ export default function IntakeDelivery({ form, onEdit, designerName }) {
 
       <div className="id-wrap">
         <div className="id-grid">
-          <CopyLinkTile url={formUrl} showToast={showToast} />
+          <CopyLinkTile url={formUrl} showToast={showToast} expiresAt={form.expires_at} />
           <EmailTile form={form} designerName={designerName} showToast={showToast} />
           <QrTile url={formUrl} formName={form.project_name} />
         </div>
@@ -115,7 +115,7 @@ export default function IntakeDelivery({ form, onEdit, designerName }) {
 // ────────────────────────────────────────────────────────────────────
 // Method 1: Copy link
 // ────────────────────────────────────────────────────────────────────
-function CopyLinkTile({ url, showToast }) {
+function CopyLinkTile({ url, showToast, expiresAt }) {
   const [copied, setCopied] = useState(false)
   async function copy() {
     try {
@@ -131,6 +131,11 @@ function CopyLinkTile({ url, showToast }) {
       <div className="id-tile-head">
         <span className="id-tile-icon"><LinkIcon style={{ width: 16, height: 16 }} /></span>
         <h3>Copy link</h3>
+        {/* Expiry pill in the right edge of the header — replaces
+            the deleted "Share link" section so the designer still
+            sees when the URL will stop working, without a duplicate
+            section taking up real estate. */}
+        <DeliveryExpiryPill expiresAt={expiresAt} />
       </div>
       <p className="id-tile-sub">Share the URL anywhere. The link works on any device.</p>
       <div className="id-link-row">
@@ -357,14 +362,9 @@ function StatusPanel({ form, counts, submissions, loading, showToast }) {
 
   return (
     <section className="id-status">
-      <div className="id-status-head">
-        <h3>Share link</h3>
-        {/* Replaces the previous "Form status" badge (Draft/Active)
-            since the form is by definition active once it lands on
-            this delivery view. Show how long the link stays alive
-            instead — that's the actionable detail. */}
-        <DeliveryExpiryPill expiresAt={form?.expires_at} />
-      </div>
+      {/* "Share link" header + expiry pill moved into the Copy link
+          tile so that information sits next to the URL it relates
+          to. This panel now starts straight at the stats grid. */}
 
       <div className="id-stats">
         <div className="id-stat">
@@ -457,6 +457,8 @@ function Styles() {
       .id-tile { background: var(--color-card); border: 1px solid var(--color-border); border-radius: 14px; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 10px; }
       .id-tile-head { display: flex; align-items: center; gap: 8px; }
       .id-tile-head h3 { font: 800 14px 'Urbanist', sans-serif; margin: 0; }
+      /* Push the expiry pill to the right edge of the Copy-link tile header */
+      .id-tile-head > .id-pill { margin-left: auto; }
       .id-tile-icon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: rgba(139,92,246,0.10); color: var(--color-accent); border-radius: 7px; flex-shrink: 0; }
       .id-tile-sub { font-size: 12px; color: var(--color-text-muted); margin: 0; line-height: 1.55; }
 
