@@ -1,4 +1,5 @@
-import { useState, useContext, useEffect, Component } from 'react';
+import { useState, useContext, useEffect, useRef, Component } from 'react';
+import { createPortal } from 'react-dom';
 import AppContext from '../context/AppContext';
 import useProximity from '../hooks/useProximity';
 import StaggerGrid, { StaggerItem } from '../components/StaggerGrid';
@@ -292,6 +293,26 @@ function SearchEmpty({ query }) {
 
 function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, onReprocess }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState(null);
+  const triggerRef = useRef(null);
+
+  // Recompute the popover position whenever it opens. Anchors the
+  // dropdown's right edge to the trigger's right edge so the menu
+  // pops down-and-left into available space. position: fixed +
+  // these screen coordinates let the menu escape the swipe
+  // board's overflow clipping (overflow-x: auto forces
+  // overflow-y: auto too, which was hiding the dropdown inside
+  // the card on tablet).
+  useEffect(() => {
+    if (!menuOpen) { setMenuPosition(null); return; }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // The dropdown's minWidth is 180. Right-align to the trigger.
+    const left = Math.max(8, rect.right - 180);
+    const top = rect.bottom + 4;
+    setMenuPosition({ top, left });
+  }, [menuOpen]);
+
   useEffect(() => {
     if (!menuOpen) return;
     const onClickAway = (e) => {
@@ -499,8 +520,12 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
           </button>
         )}
 
+        {/* Menu trigger — the more button. Ref captures the
+            rendered button so we can read its bounding rect to
+            position the portalled dropdown. */}
         <div style={{ position: 'relative' }} data-card-menu>
           <button
+            ref={triggerRef}
             onClick={() => setMenuOpen(v => !v)}
             style={iconBtn}
             title="More actions"
@@ -510,27 +535,40 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
           >
             <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
           </button>
-          {menuOpen && (
-            <MenuErrorBoundary onClose={() => setMenuOpen(false)}>
-            <CardMenu
-              form={form}
-              submission={submission}
-              progress={progress}
-              onCopyLink={() => { setMenuOpen(false); onCopyLink?.(form); }}
-              onOpenPublic={() => { setMenuOpen(false); onOpenPublic?.(form); }}
-              onView={() => { setMenuOpen(false); onView?.(form); }}
-              onDelete={() => { setMenuOpen(false); onDelete?.(form); }}
-              onRenew={() => { setMenuOpen(false); onRenew?.(form); }}
-              onViewSubmission={() => { setMenuOpen(false); onViewSubmission?.(form); }}
-              onShareBrief={() => { setMenuOpen(false); onShareBrief?.(form); }}
-              onResendInvite={() => { setMenuOpen(false); onResendInvite?.(form); }}
-              onReprocess={() => { setMenuOpen(false); onReprocess?.(form); }}
-              isReady={isReady}
-              hasSubmission={Array.isArray(form.intake_submissions) && form.intake_submissions.length > 0}
-            />
-            </MenuErrorBoundary>
-          )}
         </div>
+
+        {/* Menu rendered via createPortal to document.body so the
+            popover escapes the swipe board's overflow-x: auto
+            clipping. Position computed from the trigger's
+            bounding rect on each open. */}
+        {menuOpen && menuPosition && createPortal(
+          <MenuErrorBoundary onClose={() => setMenuOpen(false)}>
+            <div data-card-menu style={{
+              position: 'fixed',
+              top: menuPosition.top,
+              left: menuPosition.left,
+              zIndex: 1000,
+            }}>
+              <CardMenu
+                form={form}
+                submission={submission}
+                progress={progress}
+                onCopyLink={() => { setMenuOpen(false); onCopyLink?.(form); }}
+                onOpenPublic={() => { setMenuOpen(false); onOpenPublic?.(form); }}
+                onView={() => { setMenuOpen(false); onView?.(form); }}
+                onDelete={() => { setMenuOpen(false); onDelete?.(form); }}
+                onRenew={() => { setMenuOpen(false); onRenew?.(form); }}
+                onViewSubmission={() => { setMenuOpen(false); onViewSubmission?.(form); }}
+                onShareBrief={() => { setMenuOpen(false); onShareBrief?.(form); }}
+                onResendInvite={() => { setMenuOpen(false); onResendInvite?.(form); }}
+                onReprocess={() => { setMenuOpen(false); onReprocess?.(form); }}
+                isReady={isReady}
+                hasSubmission={Array.isArray(form.intake_submissions) && form.intake_submissions.length > 0}
+              />
+            </div>
+          </MenuErrorBoundary>,
+          document.body,
+        )}
       </div>
     </div>
   );
@@ -898,16 +936,15 @@ function renderMenu(items) {
     <div
       role="menu"
       style={{
-        position: 'absolute',
-        top: 'calc(100% + 4px)',
-        right: 0,
+        // Positioned by the portal wrapper (fixed coords). This
+        // element just renders the styled popover inside that
+        // wrapper — no own positioning.
         minWidth: 180,
         background: 'var(--color-card)',
         border: '1px solid var(--color-border)',
         borderRadius: 10,
         boxShadow: '0 12px 24px rgba(0,0,0,0.12)',
         padding: 4,
-        zIndex: 30,
       }}
     >
       {safeItems.map((it, i) => (
