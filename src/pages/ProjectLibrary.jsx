@@ -296,23 +296,11 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
   const [menuPosition, setMenuPosition] = useState(null);
   const triggerRef = useRef(null);
 
-  // Recompute the popover position whenever it opens. Anchors the
-  // dropdown's right edge to the trigger's right edge so the menu
-  // pops down-and-left into available space. position: fixed +
-  // these screen coordinates let the menu escape the swipe
-  // board's overflow clipping (overflow-x: auto forces
-  // overflow-y: auto too, which was hiding the dropdown inside
-  // the card on tablet).
-  useEffect(() => {
-    if (!menuOpen) { setMenuPosition(null); return; }
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    // The dropdown's minWidth is 180. Right-align to the trigger.
-    const left = Math.max(8, rect.right - 180);
-    const top = rect.bottom + 4;
-    setMenuPosition({ top, left });
-  }, [menuOpen]);
-
+  // Position is computed synchronously in toggleMenu() (below) so
+  // the popover has coords on its FIRST render — useEffect would
+  // have introduced an empty frame where menuOpen=true but
+  // menuPosition was still null, which on some browsers + render
+  // schedules made the menu invisible after the click.
   useEffect(() => {
     if (!menuOpen) return;
     const onClickAway = (e) => {
@@ -321,6 +309,28 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
     document.addEventListener('mousedown', onClickAway);
     return () => document.removeEventListener('mousedown', onClickAway);
   }, [menuOpen]);
+
+  function toggleMenu() {
+    if (menuOpen) {
+      setMenuPosition(null);
+      setMenuOpen(false);
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    // Default to top-left of viewport if we somehow don't have a
+    // rect — the menu still renders + the designer at least sees
+    // it open. Without this fallback a null rect would keep the
+    // portal from rendering at all.
+    if (rect) {
+      setMenuPosition({
+        top: rect.bottom + 4,
+        left: Math.max(8, rect.right - 180),
+      });
+    } else {
+      setMenuPosition({ top: 80, left: 16 });
+    }
+    setMenuOpen(true);
+  }
   // Most recent submission. With many submissions per form (a form
   // can be sent to multiple clients) the others stay accessible via
   // the Delivery view; the card just surfaces the freshest pipeline
@@ -526,14 +536,19 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
         <div style={{ position: 'relative' }} data-card-menu>
           <button
             ref={triggerRef}
-            onClick={() => setMenuOpen(v => !v)}
+            onClick={toggleMenu}
             style={iconBtn}
             title="More actions"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-label="More actions"
           >
-            <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
+            {/* pointerEvents: none on the icon so the click event
+                ALWAYS lands on the button, not the SVG child. Some
+                browsers report e.target as the inner SVG when the
+                user clicks the icon centre, which messed with the
+                click-outside detection's closest() walk. */}
+            <EllipsisHorizontalIcon style={{ width: 14, height: 14, pointerEvents: 'none' }} />
           </button>
         </div>
 
