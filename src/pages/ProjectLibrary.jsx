@@ -290,7 +290,7 @@ function SearchEmpty({ query }) {
 
 // ─── IntakeFormCard ───────────────────────────────────────────────────────────
 
-function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite }) {
+function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, onReprocess }) {
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!menuOpen) return;
@@ -523,6 +523,7 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
               onViewSubmission={() => { setMenuOpen(false); onViewSubmission?.(form); }}
               onShareBrief={() => { setMenuOpen(false); onShareBrief?.(form); }}
               onResendInvite={() => { setMenuOpen(false); onResendInvite?.(form); }}
+              onReprocess={() => { setMenuOpen(false); onReprocess?.(form); }}
               isReady={isReady}
               hasSubmission={Array.isArray(form.intake_submissions) && form.intake_submissions.length > 0}
             />
@@ -690,6 +691,12 @@ function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView
         onClick: () => { window.location.href = buildInProgressMailto(clientEmail, form, submission); },
       });
     }
+    // Re-run translation. The most common reason a card sits in
+    // In Progress for longer than expected is that the pipeline
+    // never fired (env var missing, Render down, the original
+    // fire-and-forget POST didn't reach the server). This kicks
+    // it explicitly.
+    items.push({ icon: ArrowPathIcon, label: 'Re-run translation', onClick: onReprocess });
     items.push({ icon: TrashIcon, label: 'Delete form', onClick: onDelete, danger: true });
     return renderMenu(items);
   }
@@ -714,6 +721,13 @@ function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView
   }
   if (progress?.tone === 'expired') {
     items.push({ icon: ArrowPathIcon, label: 'Renew expiry', onClick: onRenew });
+  }
+  // Rescue path: an Expired or Ready card may carry a submission
+  // that never finished translating. Surface Re-run translation
+  // whenever we have a submission without a translated_result so
+  // the designer can fire the pipeline manually.
+  if (submission && !submission.translated_result && progress?.tone !== 'accent') {
+    items.push({ icon: ArrowPathIcon, label: 'Re-run translation', onClick: onReprocess });
   }
   // Public-form preview. Useful in Awaiting + Ready states (sanity
   // check / verify after edits). Omitted for In Progress above.
@@ -950,7 +964,7 @@ function deriveIntakeProgress(form, submission) {
 
 // ─── StatusColumn ─────────────────────────────────────────────────────────────
 
-function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite }) {
+function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, onReprocess }) {
   return (
     <div>
       {/* Column header */}
@@ -1003,6 +1017,7 @@ function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onO
           onViewSubmission={onViewSubmission}
           onShareBrief={onShareBrief}
           onResendInvite={onResendInvite}
+          onReprocess={onReprocess}
         />
       ))}
     </div>
@@ -1208,6 +1223,41 @@ export default function ProjectLibrary() {
     } catch (e) {
       console.error('[library] resend invite failed', e);
       showToast(e?.message || 'Could not resend.', 'error');
+    }
+  }
+
+  async function handleReprocessPipeline(form) {
+    // Picks the freshest submission and fires the Render pipeline
+    // endpoint with its id. Useful when a submission landed before
+    // the pipeline was working (status: pending forever) or when
+    // a previous run failed mid-step.
+    const subs = (form.intake_submissions || []).slice()
+      .sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at));
+    const submission = subs[0];
+    if (!submission) {
+      showToast('No submission on this form yet.', 'error');
+      return;
+    }
+    const apiUrl = (import.meta.env.VITE_API_URL || '') + '/api/process-intake';
+    if (!import.meta.env.VITE_API_URL) {
+      showToast('Set VITE_API_URL on Vercel to your Render URL first.', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submission_id: submission.id }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.message || j.error || `HTTP ${res.status}`);
+      showToast('Translation kicked off. Refresh in a minute to see the result.', 'success');
+      // Give the pipeline a head start, then refresh the library so
+      // the card moves into the In Progress column.
+      setTimeout(() => loadIntakeForms?.(), 3000);
+    } catch (e) {
+      console.error('[library] reprocess failed', e);
+      showToast(e?.message || 'Could not trigger translation.', 'error');
     }
   }
 
@@ -1579,6 +1629,7 @@ export default function ProjectLibrary() {
             onViewSubmission: handleViewSubmission,
             onShareBrief: handleShareBriefWithClient,
             onResendInvite: handleResendInvite,
+            onReprocess: handleReprocessPipeline,
           };
           const columnDefs = [
             { title: 'Awaiting Client',  color: '#d97706',           icon: ClockIcon,    forms: buckets.awaiting },
