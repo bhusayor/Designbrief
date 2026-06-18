@@ -886,11 +886,13 @@ function buildMailto(email, subject, body) {
 // Progress state stays terse without duplicating the dropdown
 // markup.
 function renderMenu(items) {
-  // Defensively filter out any item whose icon or onClick is
-  // missing — a single undefined icon component crashes the JSX
-  // render with "type is invalid" and blanks the whole page,
-  // which is a terrible failure mode for a dropdown.
-  const safeItems = (items || []).filter(it => it && typeof it.icon === 'function');
+  // Defensively skip any item whose icon is falsy (undefined /
+  // null) — JSX would otherwise blow up with "type is invalid" on
+  // an empty component reference. We DON'T type-check icon against
+  // 'function' because Heroicons are forwardRef components (typeof
+  // === 'object'); the previous version of this filter accidentally
+  // stripped every single item out of every dropdown.
+  const safeItems = (items || []).filter(it => it && it.icon != null);
 
   return (
     <div
