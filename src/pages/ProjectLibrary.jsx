@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect } from 'react';
+import { useState, useContext, useEffect, Component } from 'react';
 import AppContext from '../context/AppContext';
 import useProximity from '../hooks/useProximity';
 import StaggerGrid, { StaggerItem } from '../components/StaggerGrid';
@@ -511,6 +511,7 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
             <EllipsisHorizontalIcon style={{ width: 14, height: 14 }} />
           </button>
           {menuOpen && (
+            <MenuErrorBoundary onClose={() => setMenuOpen(false)}>
             <CardMenu
               form={form}
               submission={submission}
@@ -527,11 +528,33 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
               isReady={isReady}
               hasSubmission={Array.isArray(form.intake_submissions) && form.intake_submissions.length > 0}
             />
+            </MenuErrorBoundary>
           )}
         </div>
       </div>
     </div>
   );
+}
+
+// ─── MenuErrorBoundary ──────────────────────────────────────────
+// Wraps the CardMenu render so a runtime error inside any menu
+// item (undefined icon, broken handler, missing prop) logs to
+// the console + auto-closes the menu instead of blanking the
+// entire library page. React 18+'s default error boundary
+// behaviour is to unmount the tree, which is exactly the
+// "blank page" symptom designers were hitting.
+class MenuErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(error) { return { error } }
+  componentDidCatch(error, info) {
+    console.error('[CardMenu] runtime error:', error, info?.componentStack)
+    // Close the menu so we don't keep rendering the broken state.
+    setTimeout(() => this.props.onClose?.(), 0)
+  }
+  render() {
+    if (this.state.error) return null
+    return this.props.children
+  }
 }
 
 // ─── Card button + menu styling shared by all states ─────────────
@@ -863,6 +886,11 @@ function buildMailto(email, subject, body) {
 // Progress state stays terse without duplicating the dropdown
 // markup.
 function renderMenu(items) {
+  // Defensively filter out any item whose icon or onClick is
+  // missing — a single undefined icon component crashes the JSX
+  // render with "type is invalid" and blanks the whole page,
+  // which is a terrible failure mode for a dropdown.
+  const safeItems = (items || []).filter(it => it && typeof it.icon === 'function');
 
   return (
     <div
@@ -880,7 +908,7 @@ function renderMenu(items) {
         zIndex: 30,
       }}
     >
-      {items.map((it, i) => (
+      {safeItems.map((it, i) => (
         <button
           key={i}
           role="menuitem"
