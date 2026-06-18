@@ -17,7 +17,7 @@
 // like it came from the designer's studio, not from DesignBrief AI.
 // ────────────────────────────────────────────────────────────────────
 
-import { sendEmail } from './lib/sendEmail.js'
+import { sendEmail } from '../server-lib/sendEmail.js'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(

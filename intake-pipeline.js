@@ -25,7 +25,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
-import { sendEmail } from './api/lib/sendEmail.js'
+import { sendEmail } from './server-lib/sendEmail.js'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const supabase = createClient(

@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { WEBSITE_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
-import { mapClaudeError } from './lib/claudeError.js'
+import { mapClaudeError } from '../server-lib/claudeError.js'
 import { MODEL_FOR } from '../src/lib/models.js'
 
 const supabase = createClient(

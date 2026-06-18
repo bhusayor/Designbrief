@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { PER_TASK_PROMPT_SYSTEM, ENHANCE_DESCRIPTION_SYSTEM } from '../src/lib/aiSystemPrompts.js'
-import { mapHttpAnthropicError, mapClaudeError } from './lib/claudeError.js'
+import { mapHttpAnthropicError, mapClaudeError } from '../server-lib/claudeError.js'
 import { MODEL_FOR } from '../src/lib/models.js'
 
 /*

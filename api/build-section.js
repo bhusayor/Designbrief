@@ -25,7 +25,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { SECTION_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
-import { mapHttpAnthropicError, mapClaudeError } from './lib/claudeError.js'
+import { mapHttpAnthropicError, mapClaudeError } from '../server-lib/claudeError.js'
 import { MODEL_FOR } from '../src/lib/models.js'
 
 const supabase = createClient(

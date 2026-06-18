@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { sendEmail } from './lib/sendEmail.js'
+import { sendEmail } from '../server-lib/sendEmail.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,

@@ -31,8 +31,8 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import Anthropic from '@anthropic-ai/sdk'
 
-import { requireAuth, checkRateLimit, logUsage } from './api/lib/authMiddleware.js'
-import { mapClaudeError } from './api/lib/claudeError.js'
+import { requireAuth, checkRateLimit, logUsage } from './server-lib/authMiddleware.js'
+import { mapClaudeError } from './server-lib/claudeError.js'
 import { pickModel } from './src/lib/models.js'
 import { runIntakePipeline } from './intake-pipeline.js'
 

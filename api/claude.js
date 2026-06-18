@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { requireAuth, checkRateLimit, logUsage } from './lib/authMiddleware.js'
-import { mapClaudeError } from './lib/claudeError.js'
+import { requireAuth, checkRateLimit, logUsage } from '../server-lib/authMiddleware.js'
+import { mapClaudeError } from '../server-lib/claudeError.js'
 import { pickModel, ALLOWED_MODELS, DEFAULT_MODEL } from '../src/lib/models.js'
 
 // ────────────────────────────────────────────────────────────────────
