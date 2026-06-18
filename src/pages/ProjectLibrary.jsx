@@ -737,7 +737,7 @@ function MetaStatsRow({ form, submission }) {
 // ─── CardMenu ────────────────────────────────────────────────────
 // Small popover anchored to the ellipsis button. Click-outside
 // dismisses (handled by IntakeFormCard's useEffect listener).
-function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, isReady, hasSubmission }) {
+function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, onReprocess, isReady, hasSubmission }) {
   // Resolve the client email from any source the data might be in.
   // Page 0 writes to settings.recipient.client_email; the publish
   // path mirrors to the legacy column; older forms might have only
