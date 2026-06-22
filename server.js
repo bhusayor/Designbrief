@@ -42,10 +42,17 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 // ── CORS ───────────────────────────────────────────────────────────
-// Comma-separated allowlist via env. Tools that send no Origin
-// header (curl, server-to-server) are always allowed. An origin
-// that's not listed is rejected with a clear error so misconfig
-// surfaces fast instead of silently failing.
+// Comma-separated allowlist via env, on top of two built-in
+// allowances:
+//   1. Tools that send no Origin header (curl, server-to-server)
+//      always pass.
+//   2. Vercel domains (*.vercel.app) always pass. Every Vercel
+//      deployment — preview branches, production — lives on this
+//      domain, so allowing it by default means a freshly deployed
+//      Vercel frontend can talk to Render immediately without any
+//      env-var configuration on the Render side.
+//
+// Anything else needs to be on the explicit CORS_ORIGINS list.
 const allowedOrigins = (
   process.env.CORS_ORIGINS ||
   'http://localhost:5173,http://localhost:3000,http://localhost:4173'
@@ -54,11 +61,23 @@ const allowedOrigins = (
   .map(s => s.trim())
   .filter(Boolean)
 
+function isAllowedOrigin(origin) {
+  if (!origin) return true
+  if (allowedOrigins.includes(origin)) return true
+  // Match any *.vercel.app subdomain (production + preview deploys).
+  // Strictly verifies the protocol + hostname tail; query strings
+  // and ports don't appear in origin values.
+  try {
+    const { hostname, protocol } = new URL(origin)
+    if (protocol === 'https:' && hostname.endsWith('.vercel.app')) return true
+  } catch {}
+  return false
+}
+
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true)
-    if (allowedOrigins.includes(origin)) return cb(null, true)
-    return cb(new Error(`CORS: origin ${origin} not in CORS_ORIGINS allowlist`))
+    if (isAllowedOrigin(origin)) return cb(null, true)
+    return cb(new Error(`CORS: origin ${origin} not allowed. Add it to CORS_ORIGINS on Render.`))
   },
   credentials: true,
 }))
