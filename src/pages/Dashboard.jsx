@@ -392,7 +392,10 @@ export default function Dashboard() {
 
   async function handleTranslate() {
     // Already mid-flight — don't fire twice.
-    if (phase === 'loading') return
+    // Block double-fires while the result is streaming in. The old
+    // 'loading' phase is gone — re-entry during the V2 stream is
+    // gated by v2Streaming instead.
+    if (v2Streaming) return
 
     let fullContext = input.trim()
     attachedFiles.forEach(f => {
@@ -405,15 +408,27 @@ export default function Dashboard() {
       return
     }
 
-    // Optimistically flip to loading IMMEDIATELY so the button shows
-    // the spinner the instant the click registers. consumeCredits
-    // below is a Supabase round-trip that can take ~1-2s; previously
-    // we waited for that before any visual change, which made the
-    // button look dead. If credits fail, we roll the phase back.
-    setPhase('loading')
+    // Pop straight into the result view with skeleton cards. The
+    // V2 translator streams each section in as soon as its call
+    // resolves; BriefV2View handles the skeleton-to-real animation
+    // per item. Skipping the previous "Analysing brief…" loading
+    // screen makes the response feel immediate.
     setStoredBriefText(fullContext)
     setStreamedText('')
-    setStreamDone(false)
+    setStreamDone(true)
+    const earlySkeleton = {
+      schemaVersion: BRIEF_V2_SCHEMA_VERSION,
+      projectTitle: 'Translating brief…',
+      sections: BRIEF_V2_SECTIONS.map(s => ({
+        id: s.id,
+        label: s.label,
+        items: s.items.map(it => ({ ...it, content: null })),
+      })),
+    }
+    setResult(earlySkeleton)
+    setActiveProjectBriefResult(earlySkeleton)
+    setPhase('result')
+    setV2Streaming(true)
 
     // Free-plan credit gate (10 credits per translation). On insufficient
     // credits consumeCredits shows its own toast + opens the upgrade
@@ -427,65 +442,15 @@ export default function Dashboard() {
           showToast?.('Could not start translation. Try again in a moment.', 'error')
         }
         setPhase('input')
+        setV2Streaming(false)
         return
       }
     }
 
-    // Stream display text in background. Routes through the unified
-    // /api/claude with stream:true so we don't need a dedicated
-    // claude-stream function (Hobby plan caps at 12 functions).
-    // Auth: /api/claude is gated by requireAuth, so we pass the
-    // Supabase session JWT — without this the streaming fetch was
-    // 401-ing and dumping a console error on every translation.
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-    const { data: streamSession } = await supabase.auth.getSession().catch(() => ({ data: {} }))
-    const streamAuth = streamSession?.session?.access_token
-      ? { Authorization: 'Bearer ' + streamSession.session.access_token }
-      : {}
-    fetch(API_BASE + '/api/claude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...streamAuth },
-      body: JSON.stringify({
-        task_type: 'brief_chat',
-        stream: true,
-        system: 'You are a senior brand strategist reading a design brief for the first time. Think out loud about what you notice. Write in short punchy sentences. Use plain punctuation only - no dashes, no em dashes, no hyphens between thoughts. Use periods and line breaks instead. Keep it conversational and direct.',
-        message: 'Read this brief and share your first impressions. What is this project really about? Who needs it? What design direction feels right? Write 3 to 4 short paragraphs. Use simple punctuation only.\n\n' + fullContext.slice(0, 800),
-        maxTokens: 600,
-      }),
-    }).then(async res => {
-      if (!res.ok) { setStreamDone(true); return }
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value)
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              if (data.text) {
-                const cleaned = (data.text || '')
-                  .replace(/\s*—\s*/g, ' ')
-                  .replace(/–/g, '-')
-                  .replace(/\u2014/g, ' ')
-                  .replace(/\u2013/g, '-')
-                setStreamedText(prev => prev + cleaned)
-              }
-              if (data.done) setStreamDone(true)
-            } catch (_) {}
-          }
-        }
-      }
-      setStreamDone(true)
-    }).catch(() => setStreamDone(true))
-
-    // Rotate loading messages
-    let msgIdx = 0
-    msgTimerRef.current = setInterval(() => {
-      msgIdx = (msgIdx + 1) % LOAD_MSGS.length
-      setLoadMsg(LOAD_MSGS[msgIdx])
-    }, 2200)
+    // The previous "first impressions" commentary stream that fed
+    // the analysing-brief screen is gone — designers see the
+    // section skeleton populate live now, which is the same
+    // progress signal with zero waiting.
 
     try {
       // Brief-template-style instructions were removed. The website
@@ -529,26 +494,12 @@ export default function Dashboard() {
       // ── V2 translation flow ─────────────────────────────────────
       // 21-item / 5-section framework. Spawns 5 parallel section
       // calls; sections appear in the result the moment their call
-      // returns. We flip phase to 'result' BEFORE any section comes
-      // back so the user sees the section list as skeletons and
-      // cards populate progressively as the AI works.
-      clearInterval(msgTimerRef.current)
+      // returns. The skeleton + setPhase('result') happened at the
+      // top of handleTranslate so the user is already looking at
+      // the streaming view by the time we get here.
       setCreditsUsed(prev => prev + 1)
 
       const fullBrief = fullContext + templateContext + connectorContext
-      const initialSkeleton = {
-        schemaVersion: BRIEF_V2_SCHEMA_VERSION,
-        projectTitle: 'Translating brief…',
-        sections: BRIEF_V2_SECTIONS.map(s => ({
-          id: s.id,
-          label: s.label,
-          items: s.items.map(it => ({ ...it, content: null })),
-        })),
-      }
-      setResult(initialSkeleton)
-      setActiveProjectBriefResult(initialSkeleton)
-      setPhase('result')
-      setV2Streaming(true)
 
       const finalResult = await translateBriefV2(fullBrief, {
         onSection: (sectionId, items, partialResult) => {
@@ -863,11 +814,11 @@ export default function Dashboard() {
     }
   }
 
-  // ── Loading phase ──────────────────────────────────────────────────────────
-
-  if (phase === 'loading') {
-    return <StreamingLoadingView streamedText={streamedText} streamDone={streamDone} />
-  }
+  // The loading phase + StreamingLoadingView render were removed —
+  // handleTranslate now seeds an empty skeleton and flips phase
+  // straight to 'result' so the BriefV2View takes over with its
+  // own per-item skeleton + streaming animation. The Analysing
+  // brief commentary screen no longer renders.
 
   // ── Result phase ───────────────────────────────────────────────────────────
 

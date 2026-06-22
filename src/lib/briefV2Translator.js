@@ -37,6 +37,13 @@ PUNCTUATION RULES (hard constraint):
 
 const BASE_SYSTEM = `You are an expert product design strategist. You translate raw client briefs into a structured 21-item framework that designers use to align on intent, direction, and scope before any pixels move. You write with precision, you do not invent facts the brief doesn't support, and you call out gaps explicitly.
 
+BREVITY RULES (hard constraint):
+- Designers SKIM, they do not read. Every field must earn its length.
+- Default to 1 short sentence per field. Use a second sentence only when the first cannot stand alone.
+- No throat-clearing ("It is clear that…", "This brief suggests…"). Lead with the answer.
+- No defining terms the designer already knows.
+- No repeating context from the brief back to the designer.
+
 ${PUNCTUATION_BAN}
 
 Respond ONLY with valid JSON. No markdown, no preamble, no code fences.`
@@ -53,11 +60,11 @@ Return JSON exactly in this shape:
 {
   "projectTitle": "<concise project name pulled from or implied by the brief>",
   "items": {
-    "core_problem_clarity": "<2-4 sentences. What the client is actually trying to solve, not just what they described. Strip surface-level requests to expose the real design challenge>",
-    "project_intent":        "<2-3 sentences. What this project is meant to accomplish. The why behind the work, not a restatement of the brief>",
-    "business_context":      "<2-3 sentences. The commercial or organisational reason this exists now. What is driving the urgency or pressure>",
-    "deliverables":          ["<one named page, screen, flow, or touchpoint per array entry. Be specific: 'Onboarding screen 1: welcome', not 'onboarding'. 4-12 entries>"],
-    "target_audience":       "<3-5 sentences. Who this is being designed for: behaviours, expectations, goals, frustrations. End with one sentence starting 'Not for:' identifying who this is explicitly NOT for>",
+    "core_problem_clarity": "<1-2 sentences MAX. The real design challenge underneath the surface request. Lead with the answer>",
+    "project_intent":        "<1-2 sentences. What this project is meant to accomplish. The why, in plain words>",
+    "business_context":      "<1-2 sentences. Why this exists now. What's driving the urgency>",
+    "deliverables":          ["<one named page, screen, flow, or touchpoint per entry. Be specific: 'Onboarding step 1: welcome'. 4-12 entries>"],
+    "target_audience":       "<2-3 short sentences. Who this is for: behaviours, goals, frustrations. End with one sentence starting 'Not for:'>",
     "user_journey": [
       {
         "step": 1,
@@ -66,7 +73,7 @@ Return JSON exactly in this shape:
         "emotion": "<single dominant emotion at this step, e.g. 'curious', 'overwhelmed', 'reassured'>"
       }
     ],
-    "success_definition": "<2-3 sentences. What a successful outcome looks like in concrete terms. A metric, behaviour change, feeling, or business result specific enough to design toward>"
+    "success_definition": "<1-2 sentences. A concrete metric, behaviour change, or business result specific enough to design toward>"
   }
 }
 
@@ -128,7 +135,7 @@ Return JSON exactly in this shape:
     "brand_personality": [
       "<trait>: <one-line explanation of what this trait means for design decisions>"
     ],
-    "tone_mood": "<2-3 sentences on the emotional register. What it should FEEL like, and one explicit sentence starting 'Never feel like:' calling out the wrong register>",
+    "tone_mood": "<1 short sentence on what it should FEEL like, plus one sentence starting 'Never feel like:' calling out the wrong register>",
     "emotional_direction": [
       { "step": 1, "stage": "<journey stage name, mirror the user_journey step titles from section 1>", "emotion": "<what the user should feel here>" }
     ],
@@ -146,7 +153,7 @@ Return JSON exactly in this shape:
       "label":   "<UI label style, size behaviour, hierarchy rules>",
       "avoid":   "<what typographic choices would contradict the brand personality>"
     },
-    "moodboard_direction": "<3-4 sentences on aesthetic territories to explore. Cover UI style, visual language, imagery treatment, and layout feel. Include explicit 'Avoid:' clause naming visual directions to stay away from>"
+    "moodboard_direction": "<2 short sentences on aesthetic territories: UI style, imagery treatment, layout feel. End with an 'Avoid:' clause>"
   }
 }
 
@@ -165,7 +172,7 @@ ${briefText}`,
 Return JSON exactly in this shape:
 {
   "items": {
-    "reference_audit": "<3-5 sentences. Analysis of any references the client provided or implied. Extract what they reveal about taste, expectations, and blind spots. If no references appear in the brief, the field must start with: 'No references provided. ' followed by what that absence itself reveals>",
+    "reference_audit": "<1-2 sentences. What any references reveal about taste / expectations / blind spots. If none in the brief, start with: 'No references provided.' then one sentence on what that absence itself reveals>",
     "competitor_analysis": [
       {
         "name": "<competitor name>",

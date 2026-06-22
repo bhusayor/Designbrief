@@ -109,36 +109,11 @@ export default function BriefV2View({
       </nav>
 
       <div className="brief-v2-layout">
-        {/* Desktop sticky side nav — visible only ≥1024 */}
-        <aside className="brief-v2-sidenav" aria-label="Sections">
-          <div className="brief-v2-sidenav-inner">
-            <div className="brief-v2-sidenav-title">Translation map</div>
-            <ol className="brief-v2-sidenav-list">
-              {sections.map((s, idx) => (
-                <li key={s.id}>
-                  <button
-                    onClick={() => scrollToSection(s.id)}
-                    className={`brief-v2-sidenav-link ${activeSectionId === s.id ? 'is-active' : ''}`}
-                  >
-                    <span className="brief-v2-sidenav-step">0{idx + 1}</span>
-                    <span>{s.label}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-            <div className="brief-v2-sidenav-progress">
-              <div className="brief-v2-progress-track">
-                <div className="brief-v2-progress-fill" style={{ width: `${progress * 100}%` }} />
-              </div>
-              <div className="brief-v2-progress-label">
-                {completedItems} of {totalItems} items
-                {designSystemBuilding && <span className="brief-v2-progress-tag">Building design system</span>}
-              </div>
-            </div>
-          </div>
-        </aside>
+        {/* Translation map sidebar removed — designers can use the
+            tablet tab bar at the top for jumping between sections,
+            and the page scrolls naturally for everything else. */}
 
-        {/* Main column — sections + cards */}
+        {/* Main column — sections + cards (now full-width) */}
         <main className="brief-v2-main">
           {result?.projectTitle && (
             <header className="brief-v2-hero">
@@ -663,15 +638,44 @@ function ResponsiveStyles() {
         color: var(--color-text);
       }
 
-      .brief-v2-tabbar { display: none; }
+      /* Tab bar is the universal section nav now (sidebar removed).
+         Sticky to the top so it stays accessible while scrolling. */
+      .brief-v2-tabbar {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 12px clamp(20px, 4vw, 56px);
+        background: var(--color-bg);
+        border-bottom: 1px solid var(--color-border);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        scrollbar-width: thin;
+      }
+      .brief-v2-tab {
+        flex-shrink: 0;
+        padding: 7px 14px;
+        background: transparent;
+        border: 1px solid var(--color-border);
+        border-radius: 100px;
+        font: 600 12px 'Urbanist', sans-serif;
+        color: var(--color-text-soft);
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+      }
+      .brief-v2-tab:hover { border-color: var(--color-text-soft); color: var(--color-text); }
+      .brief-v2-tab.is-active { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); }
 
       .brief-v2-layout {
-        display: grid;
-        grid-template-columns: 260px minmax(0, 1fr);
-        gap: 32px;
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 32px 32px 24px;
+        /* Full-width single column — the Translation map sidebar
+           was removed in favour of the tablet tab bar + natural
+           scroll. The brief card grid below still self-organises
+           into 2 columns ≥1024 via .brief-v2-cards. */
+        display: block;
+        max-width: 100%;
+        margin: 0;
+        padding: 32px clamp(20px, 4vw, 56px) 24px;
       }
 
       .brief-v2-sidenav {
@@ -986,28 +990,8 @@ function ResponsiveStyles() {
 
       /* ── Tablet (768-1023) ───────────────────────────────────── */
       @media (max-width: 1023px) {
-        .brief-v2-layout { grid-template-columns: 1fr; padding: 24px 24px 16px; gap: 0; }
-        .brief-v2-sidenav { display: none; }
-        .brief-v2-tabbar {
-          display: flex; gap: 6px;
-          overflow-x: auto;
-          padding: 12px 24px;
-          position: sticky; top: 0; z-index: 6;
-          background: var(--color-bg);
-          border-bottom: 1px solid var(--color-border);
-          -webkit-overflow-scrolling: touch;
-        }
-        .brief-v2-tab {
-          flex-shrink: 0;
-          padding: 7px 14px; border-radius: 100px;
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          color: var(--color-text-soft);
-          font-family: inherit; font-size: 12px; font-weight: 700;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .brief-v2-tab.is-active { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); }
+        .brief-v2-layout { padding: 24px 24px 16px; }
+        .brief-v2-tabbar { padding: 12px 24px; }
         .brief-v2-card-grid { grid-template-columns: 1fr; }
         .brief-v2-card.is-wide { grid-column: auto; }
         .brief-v2-ds-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
