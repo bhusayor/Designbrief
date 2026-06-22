@@ -807,17 +807,64 @@ export function AppProvider({ children }) {
     setLoadingForms(true);
     let result = [];
     try {
-      // Wildcard on intake_submissions so the query never fails when a
-      // newer pipeline column hasn't been applied to this DB yet
-      // (e.g. translated_result / approved_at / failure_* / flags /
-      // client_name / business_name). Missing columns are just absent
-      // from the row — the IntakeFormCard already falls back gracefully.
+      // Cherry-pick only the submission columns the library card
+      // actually renders. translated_result is a multi-MB JSONB blob
+      // (the V2 brief + kanban + design system); selecting it for
+      // every form in the list multiplied response size + Supabase
+      // serialisation time enormously and was the main reason the
+      // intake tab took ages to load.
+      //
+      // The review screen loads the full submission row separately
+      // when the designer opens it — see IntakeBriefReview.
       const { data, error: selErr } = await supabase
         .from('intake_forms')
-        .select('*, intake_submissions(*)')
+        .select(`
+          *,
+          intake_submissions (
+            id,
+            status,
+            client_name,
+            business_name,
+            client_email,
+            submitted_at,
+            created_at,
+            approved_at,
+            failure_step,
+            failure_message,
+            flags
+          )
+        `)
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
       if (selErr) {
+        // Column-missing tolerance: if any of the newer columns
+        // (approved_at / failure_* / flags / business_name / etc.)
+        // hasn't been migrated to this DB yet, retry with the
+        // minimal column set so older schemas still load.
+        const msg = String(selErr.message || '').toLowerCase();
+        if (msg.includes('does not exist') || msg.includes('could not find')) {
+          console.warn('[AppContext] loadIntakeForms missing column, retrying with minimal select:', selErr.message);
+          const { data: data2 } = await supabase
+            .from('intake_forms')
+            .select('*, intake_submissions(id, status, submitted_at, created_at)')
+            .eq('user_id', authUser.id)
+            .order('created_at', { ascending: false });
+          if (data2) {
+            // Apply the same workspace filter to the fallback set.
+            const primaryWsId = workspaces[0]?.id || null;
+            const activeWsId = workspace?.id || null;
+            const inActiveWorkspace = (f) => {
+              if (!activeWsId) return true;
+              if (f.workspace_id === activeWsId) return true;
+              if (f.workspace_id == null && activeWsId === primaryWsId) return true;
+              return false;
+            };
+            const result = (data2 || []).filter(inActiveWorkspace);
+            setIntakeForms(result);
+            setLoadingForms(false);
+            return result;
+          }
+        }
         console.error('[AppContext] loadIntakeForms select error:', selErr.message);
         setLoadingForms(false);
         return [];

@@ -796,11 +796,12 @@ function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView
   if (progress?.tone === 'expired') {
     items.push({ icon: ArrowPathIcon, label: 'Renew expiry', onClick: onRenew });
   }
-  // Rescue path: an Expired or Ready card may carry a submission
-  // that never finished translating. Surface Re-run translation
-  // whenever we have a submission without a translated_result so
-  // the designer can fire the pipeline manually.
-  if (submission && !submission.translated_result && progress?.tone !== 'accent') {
+  // Rescue path: surface Re-run translation whenever the submission
+  // hasn't completed (any status other than complete/completed),
+  // gated to non-accent tones (the accent branch above handles it
+  // separately). Uses status instead of translated_result because
+  // the list query no longer fetches that JSONB blob.
+  if (submission && progress?.tone !== 'accent' && progress?.tone !== 'success') {
     items.push({ icon: ArrowPathIcon, label: 'Re-run translation', onClick: onReprocess });
   }
   // Public-form preview. Useful in Awaiting + Ready states (sanity
@@ -1017,7 +1018,12 @@ function deriveIntakeProgress(form, submission) {
     return { ...STYLES.success, label: 'Approved' };
   }
   const subStatus = String(submission?.status || '').toLowerCase();
-  if (submission && (subStatus === 'complete' || subStatus === 'completed' || submission.translated_result)) {
+  // Status is the authoritative signal here. We dropped
+  // translated_result from the list query (it's a heavy JSONB blob)
+  // so the card no longer infers readiness from its presence —
+  // status='complete' is set by the pipeline AFTER it writes the
+  // translated_result, so this check is equivalent.
+  if (submission && (subStatus === 'complete' || subStatus === 'completed')) {
     return { ...STYLES.success, label: 'Brief ready' };
   }
 
@@ -1136,6 +1142,51 @@ export default function ProjectLibrary() {
 
   const pendingCount = intakeForms.filter(f => f.status !== 'complete').length;
 
+  // Auto-trigger the pipeline for submissions stuck at status='pending'
+  // for more than 60 seconds. Happens when the public form's
+  // fire-and-forget POST to /api/process-intake on Render failed
+  // (env var missing, transient network, CORS hiccup) so the
+  // submission landed in the DB but the pipeline never started.
+  // Running this once per library mount catches the user up
+  // without them needing to find the Re-run menu item.
+  const autoTriggeredRef = useRef(new Set())
+  useEffect(() => {
+    if (activeTab !== 'intakes') return
+    if (!intakeForms?.length) return
+    const apiUrl = import.meta.env.VITE_API_URL
+    if (!apiUrl) return // no Render endpoint configured; nothing to kick
+    const STALE_MS = 60 * 1000
+    const now = Date.now()
+    const stuckSubs = []
+    for (const form of intakeForms) {
+      const subs = form.intake_submissions || []
+      for (const s of subs) {
+        const status = String(s.status || '').toLowerCase()
+        if (status !== 'pending') continue
+        const submittedAt = new Date(s.submitted_at || s.created_at || 0).getTime()
+        if (now - submittedAt < STALE_MS) continue
+        if (autoTriggeredRef.current.has(s.id)) continue
+        stuckSubs.push(s)
+      }
+    }
+    if (!stuckSubs.length) return
+    stuckSubs.forEach(s => autoTriggeredRef.current.add(s.id))
+    console.log('[library] auto-firing pipeline for', stuckSubs.length, 'stuck submission(s)')
+    Promise.all(stuckSubs.map(s =>
+      fetch(`${apiUrl.replace(/\/$/, '')}/api/process-intake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submission_id: s.id }),
+      })
+        .then(r => r.ok ? null : r.json().catch(() => null).then(j => console.warn('[library] auto-trigger failed', s.id, r.status, j?.message)))
+        .catch(e => console.warn('[library] auto-trigger network error', s.id, e?.message))
+    )).then(() => {
+      // Refresh after a beat so the cards reflect the new state.
+      setTimeout(() => loadIntakeForms?.(), 4000)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intakeForms, activeTab])
+
   // macOS-dock proximity for project cards — scale + tilt only. The
   // box-shadow glow + cursor spotlight were polarising, so cards just
   // magnetise quietly on hover now.
@@ -1156,9 +1207,13 @@ export default function ProjectLibrary() {
       .sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at));
     const submission = subs[0];
 
-    // V2 path: a translated_result + a submission id route straight
-    // to the Phase 5 review screen.
-    if (submission?.translated_result && submission.id) {
+    // V2 path: a completed submission routes straight to the
+    // Phase 5 review screen, which loads the full translated_result
+    // separately. We rely on status instead of translated_result
+    // presence here because the list query no longer fetches the
+    // blob.
+    const subStatus = String(submission?.status || '').toLowerCase();
+    if (submission?.id && (subStatus === 'complete' || subStatus === 'completed' || submission.approved_at)) {
       setActiveIntakeSubmissionId?.(submission.id);
       navigate('intake-review');
       return;
