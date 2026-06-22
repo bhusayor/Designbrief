@@ -117,11 +117,16 @@ export default function BriefV2View({
         <main className="brief-v2-main">
           {result?.projectTitle && (
             <header className="brief-v2-hero">
-              <div className="brief-v2-hero-label">Translated brief</div>
-              <h1 className="brief-v2-hero-title">{result.projectTitle}</h1>
-              <div className="brief-v2-hero-meta">
-                21-item framework · {sections.length} sections
-                {isStreaming && !allDone && <span className="brief-v2-hero-pulse"> · generating…</span>}
+              <div className="brief-v2-hero-row">
+                <div className="brief-v2-hero-text">
+                  <div className="brief-v2-hero-label">Translated brief</div>
+                  <h1 className="brief-v2-hero-title">{result.projectTitle}</h1>
+                  <div className="brief-v2-hero-meta">
+                    21-item framework · {sections.length} sections
+                    {isStreaming && !allDone && <span className="brief-v2-hero-pulse"> · generating…</span>}
+                  </div>
+                </div>
+                {result.score && <BriefScoreBadge score={result.score} />}
               </div>
             </header>
           )}
@@ -222,6 +227,11 @@ function BriefCard({ item }) {
 // Item shape → renderer map
 // ────────────────────────────────────────────────────────────────────
 function ItemContent({ shape, content, item }) {
+  // Key-targeted overrides for items that deserve a visual treatment
+  // distinct from the bare shape renderer.
+  if (item?.key === 'brand_personality') return <BrandPersonalityContent value={content} />
+  if (item?.key === 'tone_mood')         return <ToneMoodContent value={content} />
+
   switch (shape) {
     case 'text':           return <TextContent value={content} />
     case 'list':           return <ListContent value={content} />
@@ -235,6 +245,121 @@ function ItemContent({ shape, content, item }) {
     case 'inventory':      return <InventoryContent value={content} />
     default:               return <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>{JSON.stringify(content, null, 2)}</pre>
   }
+}
+
+// ── Brand personality (chips) ──────────────────────────────────────
+// brand_personality is a list of "Trait: explanation" strings. Split
+// each entry on the first colon so we can render the trait as a
+// chip + the explanation as supporting copy underneath.
+function BrandPersonalityContent({ value }) {
+  const list = Array.isArray(value) ? value : []
+  if (!list.length) return <p className="brief-v2-text">No traits yet.</p>
+  return (
+    <div className="brief-v2-traits">
+      {list.map((entry, i) => {
+        const raw = typeof entry === 'string' ? entry : ''
+        const colon = raw.indexOf(':')
+        const trait = colon > -1 ? raw.slice(0, colon).trim() : raw.trim()
+        const explain = colon > -1 ? raw.slice(colon + 1).trim() : ''
+        return (
+          <div key={i} className="brief-v2-trait">
+            <span className="brief-v2-trait-chip">{trait || 'Trait'}</span>
+            {explain && <span className="brief-v2-trait-text">{explain}</span>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Tone & mood (two visual lanes) ─────────────────────────────────
+// The prompt asks for a single string that looks like:
+//   "Confident and warm. Never feel like: corporate or sterile."
+// We split on "Never feel like:" so we can render the positive
+// register and the wrong register as two separated bands — much
+// easier to scan than a single sentence with a "but…" buried in it.
+function ToneMoodContent({ value }) {
+  const raw = String(value || '').trim()
+  if (!raw) return <p className="brief-v2-text">No tone defined yet.</p>
+  const match = raw.match(/never feel like:?\s*/i)
+  let feels = raw
+  let never = ''
+  if (match) {
+    const cutAt = raw.toLowerCase().indexOf(match[0].toLowerCase())
+    feels = raw.slice(0, cutAt).trim().replace(/[.\s]+$/, '')
+    never = raw.slice(cutAt + match[0].length).trim()
+  }
+  return (
+    <div className="brief-v2-tone">
+      <div className="brief-v2-tone-band brief-v2-tone-band-good">
+        <span className="brief-v2-tone-icon" aria-hidden>✓</span>
+        <div>
+          <div className="brief-v2-tone-label">Feels like</div>
+          <div className="brief-v2-tone-text">{feels || '—'}</div>
+        </div>
+      </div>
+      {never && (
+        <div className="brief-v2-tone-band brief-v2-tone-band-bad">
+          <span className="brief-v2-tone-icon" aria-hidden>✕</span>
+          <div>
+            <div className="brief-v2-tone-label">Never feels like</div>
+            <div className="brief-v2-tone-text">{never}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Brief score badge ──────────────────────────────────────────────
+// Sits in the hero of BriefV2View next to the title. The overall
+// score is the big number; sub-scores fold out into a popover on
+// click so the hero stays compact by default.
+function BriefScoreBadge({ score }) {
+  const [open, setOpen] = useState(false)
+  if (!score || typeof score.overall !== 'number') return null
+  const n = Math.max(0, Math.min(100, Math.round(score.overall)))
+  const tone = n >= 85 ? 'excellent' : n >= 70 ? 'strong' : n >= 55 ? 'good' : n >= 40 ? 'thin' : 'critical'
+  return (
+    <div className="brief-v2-score-wrap">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`brief-v2-score brief-v2-score-${tone}`}
+        aria-expanded={open}
+      >
+        <span className="brief-v2-score-num">{n}</span>
+        <span className="brief-v2-score-meta">
+          <span className="brief-v2-score-label">Brief score</span>
+          <span className="brief-v2-score-rating">{score.rating || '—'}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="brief-v2-score-pop" role="dialog" aria-label="Brief score detail">
+          {Array.isArray(score.sub) && score.sub.length > 0 && (
+            <ul className="brief-v2-score-list">
+              {score.sub.map((s, i) => {
+                const sn = Math.max(0, Math.min(100, Math.round(s.score || 0)))
+                return (
+                  <li key={i} className="brief-v2-score-row">
+                    <div className="brief-v2-score-row-top">
+                      <span className="brief-v2-score-row-label">{s.label}</span>
+                      <span className="brief-v2-score-row-num">{sn}</span>
+                    </div>
+                    <div className="brief-v2-score-bar">
+                      <div className="brief-v2-score-bar-fill" style={{ width: sn + '%' }} />
+                    </div>
+                    {s.note && <div className="brief-v2-score-note">{s.note}</div>}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          {score.summary && <div className="brief-v2-score-summary">{score.summary}</div>}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Text ────────────────────────────────────────────────────────────
@@ -353,60 +478,345 @@ function QuestionsContent({ value }) {
   )
 }
 
-// ── Color roles ────────────────────────────────────────────────────
+// ── Color palette (rich) ───────────────────────────────────────────
+// Renders three things:
+//   1. A swatch grid showing every brand colour with name + hex.
+//      Click-to-copy on the hex chip.
+//   2. A theme toggle (Light / Dark) sitting above…
+//   3. A live brand preview: card + heading + body + button + chip
+//      using the actual primary / surface / text tokens for the
+//      selected theme, so the designer SEES the palette in use.
+//
+// Backwards-compatible: if the old shape (primary/secondary as
+// plain strings) lands, we fall back to a slim hue-name list.
 function RolesContent({ value }) {
   const v = value || {}
-  const rows = [
-    ['Primary',    v.primary],
-    ['Secondary',  v.secondary],
-    ['Accent',     v.accent],
-    ['Background', v.background],
-    ['Surface',    v.surface],
-  ]
+  const [theme, setTheme] = useState('light')
+  const [copied, setCopied] = useState('')
+
+  const swatches = Array.isArray(v.swatches) ? v.swatches : null
+  const tokens = (theme === 'dark' ? v.dark : v.light) || null
+
+  function copyHex(hex) {
+    navigator.clipboard?.writeText(hex).then(() => {
+      setCopied(hex)
+      setTimeout(() => setCopied(c => (c === hex ? '' : c)), 1200)
+    }).catch(() => {})
+  }
+
+  // Legacy shape fallback.
+  if (!swatches && !tokens) {
+    const rows = [
+      ['Primary',    v.primary],
+      ['Secondary',  v.secondary],
+      ['Accent',     v.accent],
+      ['Background', v.background],
+      ['Surface',    v.surface],
+    ]
+    return (
+      <>
+        <ul className="brief-v2-roles">
+          {rows.map(([label, val]) => (
+            <li key={label}>
+              <span className="brief-v2-roles-label">{label}</span>
+              <span className="brief-v2-roles-value">{val || '—'}</span>
+            </li>
+          ))}
+        </ul>
+        {v.avoid && (
+          <div className="brief-v2-roles-avoid">
+            <span className="brief-v2-roles-avoid-label">Never</span> {v.avoid}
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
-    <>
-      <ul className="brief-v2-roles">
-        {rows.map(([label, val]) => (
-          <li key={label}>
-            <span className="brief-v2-roles-label">{label}</span>
-            <span className="brief-v2-roles-value">{val || '—'}</span>
-          </li>
-        ))}
-      </ul>
+    <div className="brief-v2-palette">
+      {/* Swatch grid */}
+      {swatches && swatches.length > 0 && (
+        <div className="brief-v2-swatch-grid">
+          {swatches.map((s, i) => (
+            <div key={i} className="brief-v2-swatch">
+              <div className="brief-v2-swatch-chip" style={{ background: s.hex }} aria-hidden />
+              <div className="brief-v2-swatch-meta">
+                <div className="brief-v2-swatch-role">{s.role}</div>
+                <div className="brief-v2-swatch-name">{s.name}</div>
+                <button
+                  type="button"
+                  onClick={() => copyHex(s.hex)}
+                  className="brief-v2-swatch-hex"
+                  title="Copy hex"
+                >
+                  {copied === s.hex ? 'Copied' : s.hex}
+                </button>
+                {s.intent && <div className="brief-v2-swatch-intent">{s.intent}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Live theme preview */}
+      {tokens && (
+        <div className="brief-v2-theme-preview">
+          <div className="brief-v2-theme-head">
+            <span className="brief-v2-theme-title">Live preview</span>
+            <div className="brief-v2-theme-toggle" role="tablist" aria-label="Theme">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={theme === 'light'}
+                onClick={() => setTheme('light')}
+                className={`brief-v2-theme-tab ${theme === 'light' ? 'is-active' : ''}`}
+              >Light</button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={theme === 'dark'}
+                onClick={() => setTheme('dark')}
+                className={`brief-v2-theme-tab ${theme === 'dark' ? 'is-active' : ''}`}
+              >Dark</button>
+            </div>
+          </div>
+          <div
+            className="brief-v2-theme-stage"
+            style={{ background: tokens.background, borderColor: tokens.border }}
+          >
+            <div
+              className="brief-v2-theme-card"
+              style={{ background: tokens.surface, borderColor: tokens.border }}
+            >
+              <div className="brief-v2-theme-eyebrow" style={{ color: tokens.muted }}>
+                Headline
+              </div>
+              <div className="brief-v2-theme-h" style={{ color: tokens.text }}>
+                The brand in its own colours
+              </div>
+              <div className="brief-v2-theme-p" style={{ color: tokens.muted }}>
+                This card uses your palette tokens. Toggle Light / Dark to see how it holds up in both.
+              </div>
+              <div className="brief-v2-theme-actions">
+                <button
+                  type="button"
+                  className="brief-v2-theme-btn"
+                  style={{ background: tokens.primary, color: tokens.onPrimary }}
+                >
+                  Primary action
+                </button>
+                <button
+                  type="button"
+                  className="brief-v2-theme-btn-ghost"
+                  style={{ borderColor: tokens.border, color: tokens.text }}
+                >
+                  Secondary
+                </button>
+                <span
+                  className="brief-v2-theme-chip"
+                  style={{ background: tokens.primary + '22', color: tokens.primary }}
+                >
+                  Tag
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {v.avoid && (
         <div className="brief-v2-roles-avoid">
           <span className="brief-v2-roles-avoid-label">Never</span> {v.avoid}
         </div>
       )}
-    </>
+    </div>
   )
 }
 
-// ── Typography levels ──────────────────────────────────────────────
+// ── Typography (rich) ──────────────────────────────────────────────
+// Renders four things:
+//   1. A family card per role (display / body / label) showing the
+//      font NAME rendered IN that font, plus weights + tracking.
+//   2. A desktop / mobile toggle.
+//   3. A live type scale preview: each scale token rendered at its
+//      actual px size in the actual family + weight.
+//   4. "Avoid" footer with the wrong-direction warning.
+//
+// Google Fonts get auto-injected into <head> once per family.
+//
+// Legacy fallback: if shape is the old { display: string }, falls
+// back to a slim level list.
 function LevelsContent({ value }) {
   const v = value || {}
-  const rows = [
-    ['Display', v.display],
-    ['Body',    v.body],
-    ['Label',   v.label],
-  ]
+  const [device, setDevice] = useState('desktop')
+
+  const display = isObj(v.display) ? v.display : null
+  const body    = isObj(v.body)    ? v.body    : null
+  const label   = isObj(v.label)   ? v.label   : null
+  const scale = v.scale && (Array.isArray(v.scale.desktop) || Array.isArray(v.scale.mobile)) ? v.scale : null
+
+  // Inject Google Font links once per family on mount + when families change.
+  useEffect(() => {
+    [display, body, label].forEach(f => {
+      if (f?.family && f.google !== false) ensureGoogleFont(f.family, f.weights || [400, 700])
+    })
+  }, [display?.family, body?.family, label?.family])
+
+  // Legacy fallback.
+  if (!display && !body && !label && !scale) {
+    const rows = [
+      ['Display', v.display],
+      ['Body',    v.body],
+      ['Label',   v.label],
+    ]
+    return (
+      <>
+        <ul className="brief-v2-roles">
+          {rows.map(([lab, val]) => (
+            <li key={lab}>
+              <span className="brief-v2-roles-label">{lab}</span>
+              <span className="brief-v2-roles-value">{val || '—'}</span>
+            </li>
+          ))}
+        </ul>
+        {v.avoid && (
+          <div className="brief-v2-roles-avoid">
+            <span className="brief-v2-roles-avoid-label">Avoid</span> {v.avoid}
+          </div>
+        )}
+      </>
+    )
+  }
+
+  const activeScale = scale ? (device === 'mobile' ? scale.mobile : scale.desktop) : null
+  const bodyFam = body?.family || display?.family || 'inherit'
+
   return (
-    <>
-      <ul className="brief-v2-roles">
-        {rows.map(([label, val]) => (
-          <li key={label}>
-            <span className="brief-v2-roles-label">{label}</span>
-            <span className="brief-v2-roles-value">{val || '—'}</span>
-          </li>
-        ))}
-      </ul>
+    <div className="brief-v2-type">
+      {/* Family cards */}
+      <div className="brief-v2-type-families">
+        {display && <FontFamilyCard role="Display" font={display} />}
+        {body    && <FontFamilyCard role="Body"    font={body} />}
+        {label   && <FontFamilyCard role="Label"   font={label} />}
+      </div>
+
+      {/* Type scale */}
+      {activeScale && activeScale.length > 0 && (
+        <div className="brief-v2-type-scale">
+          <div className="brief-v2-type-head">
+            <span className="brief-v2-type-head-title">Type scale</span>
+            <div className="brief-v2-type-toggle" role="tablist" aria-label="Device">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={device === 'desktop'}
+                onClick={() => setDevice('desktop')}
+                className={`brief-v2-type-tab ${device === 'desktop' ? 'is-active' : ''}`}
+              >Desktop</button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={device === 'mobile'}
+                onClick={() => setDevice('mobile')}
+                className={`brief-v2-type-tab ${device === 'mobile' ? 'is-active' : ''}`}
+              >Mobile</button>
+            </div>
+          </div>
+          <ul className="brief-v2-type-list">
+            {activeScale.map((row, i) => {
+              const fam = row.token && /caption|label|meta/i.test(row.token)
+                ? (label?.family || bodyFam)
+                : (row.token && /body|paragraph/i.test(row.token) ? bodyFam : (display?.family || bodyFam))
+              return (
+                <li key={i} className="brief-v2-type-row">
+                  <div className="brief-v2-type-row-meta">
+                    <span className="brief-v2-type-row-token">{row.token}</span>
+                    <span className="brief-v2-type-row-spec">
+                      {row.size}px / {row.lineHeight}px · {row.weight}
+                    </span>
+                    {row.useFor && <span className="brief-v2-type-row-use">{row.useFor}</span>}
+                  </div>
+                  <div
+                    className="brief-v2-type-row-sample"
+                    style={{
+                      fontFamily: `"${fam}", sans-serif`,
+                      fontSize: row.size + 'px',
+                      lineHeight: row.lineHeight + 'px',
+                      fontWeight: row.weight,
+                    }}
+                  >
+                    {sampleFor(row.token)}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
       {v.avoid && (
         <div className="brief-v2-roles-avoid">
           <span className="brief-v2-roles-avoid-label">Avoid</span> {v.avoid}
         </div>
       )}
-    </>
+    </div>
   )
+}
+
+function FontFamilyCard({ role, font }) {
+  if (!font) return null
+  const family = font.family || 'System'
+  const weights = Array.isArray(font.weights) ? font.weights : []
+  return (
+    <div className="brief-v2-type-card">
+      <div className="brief-v2-type-card-role">{role}</div>
+      <div
+        className="brief-v2-type-card-name"
+        style={{
+          fontFamily: `"${family}", sans-serif`,
+          fontWeight: weights[weights.length - 1] || 600,
+          letterSpacing: font.tracking || '0',
+        }}
+      >
+        {family}
+      </div>
+      <div className="brief-v2-type-card-meta">
+        {weights.length ? weights.join(' / ') : '—'}{font.tracking ? ` · ${font.tracking}` : ''}
+      </div>
+      {font.notes && <div className="brief-v2-type-card-notes">{font.notes}</div>}
+    </div>
+  )
+}
+
+function sampleFor(token) {
+  const t = String(token || '').toLowerCase()
+  if (t.includes('display'))  return 'The grand vision'
+  if (t === 'h1')             return 'A page begins'
+  if (t === 'h2')             return 'Sections divide'
+  if (t === 'h3' || t === 'h4') return 'Subsections lead'
+  if (t.includes('caption') || t.includes('label')) return 'METADATA · UI HINT'
+  return 'The quick brown fox jumps over the lazy dog. Reading rhythm matters.'
+}
+
+function isObj(x) { return x && typeof x === 'object' && !Array.isArray(x) }
+
+// Google Fonts injection — one <link> per family, cached so a
+// re-render doesn't spam duplicates. Weights collapse to a single
+// wght axis request.
+const _injectedFonts = new Set()
+function ensureGoogleFont(family, weights) {
+  if (typeof document === 'undefined') return
+  const key = `${family}::${(weights || []).slice().sort().join(',')}`
+  if (_injectedFonts.has(key)) return
+  _injectedFonts.add(key)
+  const fam = family.trim().replace(/\s+/g, '+')
+  const w = (weights && weights.length ? weights : [400, 700]).slice().sort((a, b) => a - b).join(';')
+  const href = `https://fonts.googleapis.com/css2?family=${fam}:wght@${w}&display=swap`
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = href
+  link.dataset.briefV2Font = family
+  document.head.appendChild(link)
 }
 
 // ── Journey / emotional direction ───────────────────────────────────
@@ -752,6 +1162,113 @@ function ResponsiveStyles() {
       .brief-v2-hero-title { font-size: 32px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 10px; }
       .brief-v2-hero-meta  { font-size: 12px; color: var(--color-text-muted); }
       .brief-v2-hero-pulse { color: var(--color-accent); animation: briefv2pulse 1.4s ease-in-out infinite; }
+      .brief-v2-hero-row { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+      .brief-v2-hero-text { flex: 1 1 auto; min-width: 0; }
+
+      /* ── Brief score badge ───────────────────────────────────── */
+      .brief-v2-score-wrap { position: relative; flex-shrink: 0; }
+      .brief-v2-score {
+        display: inline-flex; align-items: center; gap: 12px;
+        padding: 10px 14px 10px 12px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        cursor: pointer;
+        text-align: left;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .brief-v2-score:hover { border-color: var(--color-text-soft); }
+      .brief-v2-score-num {
+        font: 800 28px 'Urbanist', sans-serif;
+        line-height: 1;
+        padding: 8px 10px;
+        border-radius: 10px;
+        color: white;
+      }
+      .brief-v2-score-meta { display: flex; flex-direction: column; gap: 1px; }
+      .brief-v2-score-label {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-score-rating { font: 700 13px 'Urbanist', sans-serif; color: var(--color-text); }
+      .brief-v2-score-excellent .brief-v2-score-num { background: #10b981; }
+      .brief-v2-score-strong    .brief-v2-score-num { background: #3b82f6; }
+      .brief-v2-score-good      .brief-v2-score-num { background: #8b5cf6; }
+      .brief-v2-score-thin      .brief-v2-score-num { background: #f59e0b; }
+      .brief-v2-score-critical  .brief-v2-score-num { background: #ef4444; }
+
+      .brief-v2-score-pop {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        z-index: 20;
+        width: 320px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+      }
+      .brief-v2-score-list { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-direction: column; gap: 10px; }
+      .brief-v2-score-row-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+      .brief-v2-score-row-label { font: 700 12px 'Urbanist', sans-serif; color: var(--color-text); }
+      .brief-v2-score-row-num   { font: 800 13px 'JetBrains Mono', monospace; color: var(--color-text); }
+      .brief-v2-score-bar { height: 5px; background: var(--color-surface); border-radius: 100px; overflow: hidden; }
+      .brief-v2-score-bar-fill { height: 100%; background: var(--color-accent); border-radius: 100px; }
+      .brief-v2-score-note { font-size: 11px; color: var(--color-text-muted); margin-top: 4px; line-height: 1.4; }
+      .brief-v2-score-summary {
+        margin-top: 10px; padding-top: 10px;
+        border-top: 1px solid var(--color-border);
+        font-size: 12px; line-height: 1.5; color: var(--color-text-soft);
+      }
+
+      /* ── Brand personality chips ─────────────────────────────── */
+      .brief-v2-traits { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v2-trait {
+        display: flex; align-items: baseline; gap: 12px;
+        padding: 10px 12px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+      }
+      .brief-v2-trait-chip {
+        flex-shrink: 0;
+        padding: 4px 10px;
+        background: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(124,58,237,0.10));
+        color: var(--color-accent);
+        border: 1px solid rgba(139,92,246,0.30);
+        border-radius: 100px;
+        font: 700 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .brief-v2-trait-text { font-size: 12px; line-height: 1.55; color: var(--color-text-soft); }
+
+      /* ── Tone & mood lanes ───────────────────────────────────── */
+      .brief-v2-tone { display: flex; flex-direction: column; gap: 8px; }
+      .brief-v2-tone-band {
+        display: grid; grid-template-columns: 24px 1fr; gap: 12px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--color-border);
+      }
+      .brief-v2-tone-band-good { background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.30); }
+      .brief-v2-tone-band-bad  { background: rgba(239,68,68,0.05);  border-color: rgba(239,68,68,0.30); }
+      .brief-v2-tone-icon {
+        width: 22px; height: 22px; border-radius: 999px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font: 800 12px 'JetBrains Mono', monospace;
+        color: white;
+      }
+      .brief-v2-tone-band-good .brief-v2-tone-icon { background: #10b981; }
+      .brief-v2-tone-band-bad  .brief-v2-tone-icon { background: #ef4444; }
+      .brief-v2-tone-label {
+        font: 800 9px 'Urbanist', sans-serif; letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--color-text-muted);
+        margin-bottom: 3px;
+      }
+      .brief-v2-tone-text { font-size: 13px; line-height: 1.55; color: var(--color-text); }
 
       .brief-v2-section { margin-bottom: 36px; scroll-margin-top: 80px; }
       .brief-v2-section-header {
@@ -880,6 +1397,155 @@ function ResponsiveStyles() {
         display: inline-block;
         font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
         color: #ef4444; margin-right: 6px;
+      }
+
+      /* ── Colour palette renderer ─────────────────────────────── */
+      .brief-v2-palette { display: flex; flex-direction: column; gap: 16px; }
+      .brief-v2-swatch-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px;
+      }
+      .brief-v2-swatch {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex; flex-direction: column;
+      }
+      .brief-v2-swatch-chip {
+        height: 76px;
+        border-bottom: 1px solid var(--color-border);
+      }
+      .brief-v2-swatch-meta { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 3px; }
+      .brief-v2-swatch-role {
+        font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-swatch-name { font-size: 13px; font-weight: 700; color: var(--color-text); }
+      .brief-v2-swatch-hex {
+        align-self: flex-start;
+        margin-top: 3px; padding: 3px 8px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 5px;
+        font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+        color: var(--color-text);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+      }
+      .brief-v2-swatch-hex:hover { background: var(--color-text); color: var(--color-bg); }
+      .brief-v2-swatch-intent { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; margin-top: 3px; }
+
+      .brief-v2-theme-preview {
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .brief-v2-theme-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 14px;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+      }
+      .brief-v2-theme-title {
+        font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-theme-toggle { display: inline-flex; gap: 2px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 100px; padding: 2px; }
+      .brief-v2-theme-tab {
+        padding: 4px 12px; border-radius: 100px; background: transparent; border: none;
+        font: 700 11px 'Urbanist', sans-serif; color: var(--color-text-muted); cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+      }
+      .brief-v2-theme-tab.is-active { background: var(--color-text); color: var(--color-bg); }
+      .brief-v2-theme-stage { padding: 24px; border-top: none; }
+      .brief-v2-theme-card {
+        padding: 22px 22px 18px;
+        border: 1px solid;
+        border-radius: 14px;
+        max-width: 560px;
+      }
+      .brief-v2-theme-eyebrow {
+        font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .brief-v2-theme-h { font-size: 22px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+      .brief-v2-theme-p { font-size: 13px; line-height: 1.55; margin-bottom: 16px; }
+      .brief-v2-theme-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .brief-v2-theme-btn {
+        padding: 9px 18px; border: none; border-radius: 8px;
+        font: 700 13px 'Urbanist', sans-serif; cursor: pointer;
+      }
+      .brief-v2-theme-btn-ghost {
+        padding: 9px 18px; background: transparent; border: 1px solid;
+        border-radius: 8px;
+        font: 700 13px 'Urbanist', sans-serif; cursor: pointer;
+      }
+      .brief-v2-theme-chip {
+        padding: 5px 11px; border-radius: 100px;
+        font: 700 10px 'Urbanist', sans-serif; letter-spacing: 0.06em; text-transform: uppercase;
+      }
+
+      /* ── Typography renderer ─────────────────────────────────── */
+      .brief-v2-type { display: flex; flex-direction: column; gap: 18px; }
+      .brief-v2-type-families {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+      }
+      .brief-v2-type-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        padding: 14px 14px 12px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v2-type-card-role {
+        font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-type-card-name { font-size: 22px; color: var(--color-text); line-height: 1.1; }
+      .brief-v2-type-card-meta { font-size: 11px; color: var(--color-text-muted); font-family: 'JetBrains Mono', monospace; }
+      .brief-v2-type-card-notes { font-size: 11px; color: var(--color-text-soft); line-height: 1.45; margin-top: 3px; }
+
+      .brief-v2-type-scale {
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .brief-v2-type-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 14px;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+      }
+      .brief-v2-type-head-title {
+        font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-type-toggle { display: inline-flex; gap: 2px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 100px; padding: 2px; }
+      .brief-v2-type-tab {
+        padding: 4px 12px; border-radius: 100px; background: transparent; border: none;
+        font: 700 11px 'Urbanist', sans-serif; color: var(--color-text-muted); cursor: pointer;
+      }
+      .brief-v2-type-tab.is-active { background: var(--color-text); color: var(--color-bg); }
+      .brief-v2-type-list { list-style: none; padding: 0; margin: 0; }
+      .brief-v2-type-row {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 16px;
+        padding: 14px 16px;
+        border-top: 1px solid var(--color-border);
+      }
+      .brief-v2-type-row:first-child { border-top: none; }
+      .brief-v2-type-row-meta { display: flex; flex-direction: column; gap: 3px; padding-top: 4px; }
+      .brief-v2-type-row-token { font-size: 13px; font-weight: 800; color: var(--color-text); }
+      .brief-v2-type-row-spec { font-size: 11px; color: var(--color-text-muted); font-family: 'JetBrains Mono', monospace; }
+      .brief-v2-type-row-use { font-size: 11px; color: var(--color-text-soft); }
+      .brief-v2-type-row-sample { color: var(--color-text); overflow: hidden; min-width: 0; word-break: break-word; }
+      @media (max-width: 767px) {
+        .brief-v2-type-row { grid-template-columns: 1fr; gap: 8px; }
       }
 
       .brief-v2-journey { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }

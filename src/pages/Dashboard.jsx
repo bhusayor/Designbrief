@@ -17,7 +17,7 @@ import {
   callJSON,
   generateSubtasks,
 } from '../lib/api'
-import { translateBriefV2, isV2Result } from '../lib/briefV2Translator'
+import { translateBriefV2, isV2Result, scoreBriefV2 } from '../lib/briefV2Translator'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
 import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
@@ -525,6 +525,16 @@ export default function Dashboard() {
       setInspirations([])
       setInspiSearched(false)
       setLoadingInspi(false)
+
+      // Post-translation brief-quality scoring. Fire and forget so
+      // a failure doesn't block the brief view from rendering. The
+      // hero badge in BriefV2View reads result.score and hides
+      // itself if score is null.
+      scoreBriefV2(fullBrief, finalResult).then(score => {
+        if (!score) return
+        setResult(prev => prev ? { ...prev, score } : prev)
+        setActiveProjectBriefResult(prev => prev ? { ...prev, score } : prev)
+      }).catch(() => {})
 
       // Phase 2 — async design-system extraction. Reads items 12-17
       // and compiles a single shared object every kanban card +

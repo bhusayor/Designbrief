@@ -127,7 +127,9 @@ ${briefText}`,
     system: BASE_SYSTEM,
     user: (briefText) => `Translate the strategic direction in this brief into items 12-17.
 
-No specific font names. No hex codes. Describe direction in plain language with intent per role.
+COLOR: propose an actual palette with names + hex codes that match the brand personality. The "swatches" array is the brand palette. The "light" and "dark" maps are full surface tokens for a live preview in each theme.
+
+TYPOGRAPHY: name actual fonts (prefer Google Fonts so they render in-browser). Specify weights, letter-spacing, and a full type scale for desktop + mobile.
 
 Return JSON exactly in this shape:
 {
@@ -140,18 +142,45 @@ Return JSON exactly in this shape:
       { "step": 1, "stage": "<journey stage name, mirror the user_journey step titles from section 1>", "emotion": "<what the user should feel here>" }
     ],
     "color_direction": {
-      "primary":    "<hue family + emotional intent for the primary brand colour>",
-      "secondary":  "<hue family + intent for secondary>",
-      "accent":     "<hue family + intent for accent>",
-      "background": "<background behaviour: warm / cool / neutral, light / dark, intent>",
-      "surface":    "<surface behaviour for cards, panels: subtle elevation hint>",
-      "avoid":      "<colours that must never appear, with reason>"
+      "swatches": [
+        { "role": "Primary",    "name": "<descriptive colour name, e.g. Indigo Violet>", "hex": "#RRGGBB", "intent": "<one short line on where this is used>" },
+        { "role": "Secondary",  "name": "<...>", "hex": "#RRGGBB", "intent": "<...>" },
+        { "role": "Accent",     "name": "<...>", "hex": "#RRGGBB", "intent": "<...>" },
+        { "role": "Neutral 900","name": "<...>", "hex": "#RRGGBB", "intent": "Primary text" },
+        { "role": "Neutral 500","name": "<...>", "hex": "#RRGGBB", "intent": "Muted text + dividers" },
+        { "role": "Neutral 100","name": "<...>", "hex": "#RRGGBB", "intent": "Soft surface" }
+      ],
+      "light": {
+        "background": "#RRGGBB", "surface": "#RRGGBB", "text": "#RRGGBB", "muted": "#RRGGBB", "border": "#RRGGBB", "primary": "#RRGGBB", "onPrimary": "#RRGGBB"
+      },
+      "dark": {
+        "background": "#RRGGBB", "surface": "#RRGGBB", "text": "#RRGGBB", "muted": "#RRGGBB", "border": "#RRGGBB", "primary": "#RRGGBB", "onPrimary": "#RRGGBB"
+      },
+      "avoid": "<one short line. Colours that must never appear, with reason>"
     },
     "typography_direction": {
-      "display": "<display type personality, weight behaviour, character>",
-      "body":    "<body type feel, line height intent, reading rhythm>",
-      "label":   "<UI label style, size behaviour, hierarchy rules>",
-      "avoid":   "<what typographic choices would contradict the brand personality>"
+      "display": { "family": "<actual font name>", "google": true, "weights": [600, 700], "tracking": "<e.g. -0.02em>", "notes": "<one short line on character / when to use>" },
+      "body":    { "family": "<actual font name>", "google": true, "weights": [400, 500], "tracking": "<e.g. 0>", "notes": "<short line>" },
+      "label":   { "family": "<actual font name>", "google": true, "weights": [500],      "tracking": "<e.g. 0.04em>", "notes": "<short line>" },
+      "scale": {
+        "desktop": [
+          { "token": "Display", "size": 64, "lineHeight": 72, "weight": 700, "useFor": "Hero" },
+          { "token": "H1",      "size": 48, "lineHeight": 56, "weight": 700, "useFor": "Page titles" },
+          { "token": "H2",      "size": 32, "lineHeight": 40, "weight": 600, "useFor": "Section headers" },
+          { "token": "H3",      "size": 24, "lineHeight": 32, "weight": 600, "useFor": "Subsections" },
+          { "token": "Body",    "size": 16, "lineHeight": 24, "weight": 400, "useFor": "Long-form" },
+          { "token": "Caption", "size": 12, "lineHeight": 16, "weight": 500, "useFor": "Metadata" }
+        ],
+        "mobile": [
+          { "token": "Display", "size": 40, "lineHeight": 48, "weight": 700, "useFor": "Hero" },
+          { "token": "H1",      "size": 32, "lineHeight": 40, "weight": 700, "useFor": "Page titles" },
+          { "token": "H2",      "size": 24, "lineHeight": 32, "weight": 600, "useFor": "Section headers" },
+          { "token": "H3",      "size": 20, "lineHeight": 28, "weight": 600, "useFor": "Subsections" },
+          { "token": "Body",    "size": 15, "lineHeight": 24, "weight": 400, "useFor": "Long-form" },
+          { "token": "Caption", "size": 12, "lineHeight": 16, "weight": 500, "useFor": "Metadata" }
+        ]
+      },
+      "avoid": "<short line. Typographic directions that would contradict the brand>"
     },
     "moodboard_direction": "<2 short sentences on aesthetic territories: UI style, imagery treatment, layout feel. End with an 'Avoid:' clause>"
   }
@@ -159,6 +188,8 @@ Return JSON exactly in this shape:
 
 brand_personality: exactly 3-5 traits.
 emotional_direction: one entry per journey step. Mirror the step titles you'd expect from section 1.
+color_direction: ALL hex values are required and must be real 6-digit hex strings starting with #. Use real colour names (not generic ones like "Blue"). Light and dark token maps must use ACTUAL real hex values appropriate for each mode; do not just lighten or invert each other mechanically.
+typography_direction: family names must be real (and on Google Fonts if google=true) so they render in the live preview. Weights must exist on the family. Scale numbers are unit-less px.
 
 Brief:
 ${briefText}`,
@@ -281,6 +312,59 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
 
   await Promise.all(sectionPromises)
   return result
+}
+
+// ────────────────────────────────────────────────────────────────────
+// scoreBriefV2 — runs a short post-translation pass that grades the
+// original brief on five rubrics (clarity, scope, audience, success,
+// constraints) and returns a 0-100 overall score with sub-scores +
+// a one-line summary. The translated result is included as context
+// so the model doesn't have to re-do the strategic reading itself.
+// Returns null on failure (UI just hides the badge).
+// ────────────────────────────────────────────────────────────────────
+export async function scoreBriefV2(briefText, translatedResult) {
+  try {
+    const slim = {
+      projectTitle: translatedResult?.projectTitle,
+      itemKeys: (translatedResult?.sections || []).flatMap(s =>
+        (s.items || []).map(it => ({ key: it.key, hasContent: it.content != null }))
+      ),
+    }
+    const { text } = await callClaude({
+      taskType: 'brief_translation',
+      system: `${BASE_SYSTEM}\n\nYou are scoring a design brief on how well it sets the designer up to do good work. Be calibrated, not flattering. A 100 is rare. A vague brief with no success metric is at most a 50.`,
+      userMessage: `Score this design brief.
+
+Return JSON exactly in this shape:
+{
+  "overall": <integer 0-100>,
+  "rating": "Excellent | Strong | Good | Thin | Critical",
+  "sub": [
+    { "label": "Clarity",     "score": <int 0-100>, "note": "<one short line>" },
+    { "label": "Scope",       "score": <int 0-100>, "note": "<one short line>" },
+    { "label": "Audience",    "score": <int 0-100>, "note": "<one short line>" },
+    { "label": "Success",     "score": <int 0-100>, "note": "<one short line>" },
+    { "label": "Constraints", "score": <int 0-100>, "note": "<one short line>" }
+  ],
+  "summary": "<one sentence on the brief's strongest + weakest point>"
+}
+
+Rating bands: 85+ Excellent, 70-84 Strong, 55-69 Good, 40-54 Thin, <40 Critical.
+
+Brief:
+${briefText.slice(0, 4000)}
+
+Translated coverage (which fields the translator could fill):
+${JSON.stringify(slim).slice(0, 1500)}`,
+      maxTokens: 700,
+    })
+    const parsed = safeJsonParse(text)
+    if (!parsed || typeof parsed.overall !== 'number') return null
+    return scrubDashes(parsed)
+  } catch (e) {
+    console.warn('[scoreBriefV2] failed', e?.message)
+    return null
+  }
 }
 
 // Resilient JSON parsing: AI sometimes wraps in code fences despite
