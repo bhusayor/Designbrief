@@ -19,6 +19,7 @@ import { ROLE_META } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import SubmissionAnswersModal from '../components/intake/SubmissionAnswersModal';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import RenewExpiryModal from '../components/intake/RenewExpiryModal';
 import {
   ClockIcon,
   SparklesIcon,
@@ -291,7 +292,7 @@ function SearchEmpty({ query }) {
 
 // ─── IntakeFormCard ───────────────────────────────────────────────────────────
 
-function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, onReprocess }) {
+function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, onReprocess, hideMenu = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState(null);
   const triggerRef = useRef(null);
@@ -530,33 +531,30 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
           </button>
         )}
 
-        {/* Menu trigger — the more button. Ref captures the
-            rendered button so we can read its bounding rect to
-            position the portalled dropdown. */}
-        <div style={{ position: 'relative' }} data-card-menu>
-          <button
-            ref={triggerRef}
-            onClick={toggleMenu}
-            style={iconBtn}
-            title="More actions"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            aria-label="More actions"
-          >
-            {/* pointerEvents: none on the icon so the click event
-                ALWAYS lands on the button, not the SVG child. Some
-                browsers report e.target as the inner SVG when the
-                user clicks the icon centre, which messed with the
-                click-outside detection's closest() walk. */}
-            <EllipsisHorizontalIcon style={{ width: 14, height: 14, pointerEvents: 'none' }} />
-          </button>
-        </div>
+        {/* Menu trigger — the more button. Hidden entirely when
+            `hideMenu` is set (Expired column doesn't surface a
+            menu because the Renew primary CTA is the only useful
+            action and a styled modal owns the rest). */}
+        {!hideMenu && (
+          <div style={{ position: 'relative' }} data-card-menu>
+            <button
+              ref={triggerRef}
+              onClick={toggleMenu}
+              style={iconBtn}
+              title="More actions"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="More actions"
+            >
+              <EllipsisHorizontalIcon style={{ width: 14, height: 14, pointerEvents: 'none' }} />
+            </button>
+          </div>
+        )}
 
         {/* Menu rendered via createPortal to document.body so the
             popover escapes the swipe board's overflow-x: auto
-            clipping. Position computed from the trigger's
-            bounding rect on each open. */}
-        {menuOpen && menuPosition && createPortal(
+            clipping. Skipped when hideMenu is true. */}
+        {!hideMenu && menuOpen && menuPosition && createPortal(
           <MenuErrorBoundary onClose={() => setMenuOpen(false)}>
             <div data-card-menu style={{
               position: 'fixed',
@@ -1046,7 +1044,7 @@ function deriveIntakeProgress(form, submission) {
 
 // ─── StatusColumn ─────────────────────────────────────────────────────────────
 
-function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, onReprocess }) {
+function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onOpenPublic, onDelete, onRenew, onViewSubmission, onShareBrief, onResendInvite, onReprocess, hideMenu = false }) {
   return (
     <div>
       {/* Column header */}
@@ -1100,6 +1098,7 @@ function StatusColumn({ title, color, icon: Icon, forms, onView, onCopyLink, onO
           onShareBrief={onShareBrief}
           onResendInvite={onResendInvite}
           onReprocess={onReprocess}
+          hideMenu={hideMenu}
         />
       ))}
     </div>
@@ -1129,6 +1128,11 @@ export default function ProjectLibrary() {
   // deleted + a busy flag while the supabase delete is in flight.
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  // Renew-expiry modal target. State holds the form being renewed
+  // + a busy flag that disables the modal's inputs while the
+  // supabase update is in flight.
+  const [renewTarget, setRenewTarget] = useState(null);
+  const [renewing, setRenewing] = useState(false);
 
   const pendingCount = intakeForms.filter(f => f.status !== 'complete').length;
 
@@ -1198,18 +1202,21 @@ export default function ProjectLibrary() {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
-  async function handleRenewExpiry(form) {
-    // Simple prompt for the extension window. 30 days is the default
-    // — matches what most designers want for a follow-up. Cancel
-    // returns immediately so a stray click doesn't extend by some
-    // garbage number.
-    const daysStr = window.prompt('Extend this form for how many days?', '30');
-    if (daysStr == null) return;
-    const days = parseInt(daysStr, 10);
+  // Card-level handler — opens the styled RenewExpiryModal.
+  // The actual supabase update runs in confirmRenewExpiry(days)
+  // after the user picks a duration and hits Renew.
+  function handleRenewExpiry(form) {
+    setRenewTarget(form);
+  }
+
+  async function confirmRenewExpiry(days) {
+    const form = renewTarget;
+    if (!form || renewing) return;
     if (!Number.isFinite(days) || days < 1 || days > 365) {
       showToast('Enter a number between 1 and 365.', 'error');
       return;
     }
+    setRenewing(true);
     const newExpiry = new Date(Date.now() + days * 86400000).toISOString();
     try {
       const { error } = await supabase
@@ -1219,9 +1226,12 @@ export default function ProjectLibrary() {
       if (error) throw error;
       showToast(`Form extended by ${days} day${days === 1 ? '' : 's'}.`);
       loadIntakeForms?.();
+      setRenewTarget(null);
     } catch (e) {
       console.error('[library] renew failed', e);
       showToast(e?.message || 'Could not renew the form.', 'error');
+    } finally {
+      setRenewing(false);
     }
   }
 
@@ -1717,7 +1727,7 @@ export default function ProjectLibrary() {
             { title: 'Awaiting Client',  color: '#d97706',           icon: ClockIcon,    forms: buckets.awaiting },
             { title: 'In Progress',      color: 'var(--color-blue)', icon: BoltIcon,     forms: buckets.processing },
             { title: 'Ready to Review',  color: '#16a34a',           icon: SparklesIcon, forms: buckets.ready },
-            { title: 'Expired',          color: '#b91c1c',           icon: NoSymbolIcon, forms: buckets.expired },
+            { title: 'Expired',          color: '#b91c1c',           icon: NoSymbolIcon, forms: buckets.expired, hideMenu: true },
           ];
           return (
             <div>
@@ -1772,6 +1782,7 @@ export default function ProjectLibrary() {
                       color={c.color}
                       icon={c.icon}
                       forms={c.forms}
+                      hideMenu={c.hideMenu}
                       {...sharedColumnProps}
                     />
                   </div>
@@ -1821,6 +1832,17 @@ export default function ProjectLibrary() {
         busy={deleting}
         onCancel={() => { if (!deleting) setDeleteTarget(null); }}
         onConfirm={confirmDeleteForm}
+      />
+
+      {/* Renew expiry — styled modal with preset durations.
+          Replaces the previous window.prompt() that fired from the
+          Expired card's primary CTA. */}
+      <RenewExpiryModal
+        open={!!renewTarget}
+        form={renewTarget}
+        busy={renewing}
+        onCancel={() => { if (!renewing) setRenewTarget(null); }}
+        onRenew={confirmRenewExpiry}
       />
     </div>
   );
