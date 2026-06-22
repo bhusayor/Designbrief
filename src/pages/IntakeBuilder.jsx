@@ -222,19 +222,33 @@ export default function IntakeBuilder() {
   }
 
   async function handlePublish() {
-    if (publishing) return
+    // Hard-log on every click so the console always has a marker
+    // even when an early guard returns. Helps diagnose "nothing
+    // happens" reports.
+    console.log('[intake publish] click', {
+      publishing,
+      hasAuth: !!authUser?.id,
+      hasId: !!form.id,
+      status: form.status,
+      published_at: form.published_at,
+    })
+    if (publishing) {
+      console.warn('[intake publish] guarded — already publishing')
+      showToast?.('Publish already in progress.', 'success')
+      return
+    }
     if (!authUser?.id) { showToast?.('Sign in to publish.', 'error'); return }
-    console.log('[intake publish] click — existing id?', !!form.id, 'status:', form.status)
+    const wasPublished = !!form.published_at
     setPublishing(true)
     try {
       const id = form.id || ('intake_' + slug())
       const row = formToRow(form, authUser.id, {
         id,
         status: 'active',
-        // published_at: only set on FIRST publish. Re-publishes (the
-        // designer hit Edit form, made changes, hit Publish again)
-        // preserve the original publish date so the library shows
-        // when the link first went out, not the most recent edit.
+        // First publish writes a new timestamp; re-publishes (Edit
+        // form → make changes → click Publish) preserve the
+        // original one so the library + expiry pill keep reading
+        // when the link first went out.
         published_at: form.published_at || new Date().toISOString(),
         workspace_id: form.workspace_id || workspace?.id || null,
       })
@@ -251,19 +265,17 @@ export default function IntakeBuilder() {
         status: 'active',
         published_at: row.published_at,
         workspace_id: row.workspace_id,
-        // Mirror the project name we computed in formToRow so the
-        // delivery view's title block reads "Nestiq - Website"
-        // instead of falling back to "Untitled form".
         project_name: row.project_name,
       }))
       setView('delivery')
-      // Refresh the Project Library so the published form lands in
-      // the active workspace's intake tab right away.
       loadIntakeForms?.()
-      showToast?.(form.published_at ? 'Form updated.' : 'Published. Share the link with your client.', 'success')
+      showToast?.(wasPublished ? 'Form updated.' : 'Published. Share the link with your client.', 'success')
     } catch (e) {
-      console.error('[intake publish]', e)
-      showToast?.(explainError(e), 'error')
+      console.error('[intake publish] caught', e)
+      // Surface a real error message — don't let any failure mode
+      // present as silent "nothing happens".
+      const msg = e?.message || explainError(e) || 'Publish failed.'
+      showToast?.(`Publish failed: ${msg}`, 'error')
     } finally {
       setPublishing(false)
     }
