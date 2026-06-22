@@ -232,10 +232,15 @@ export default function IntakeBuilder() {
       status: form.status,
       published_at: form.published_at,
     })
+    // Soft guard. If publishing got stuck true from a previous run
+    // (network hang, rejected promise outside the try-catch, etc.)
+    // a second click resets it instead of being permanently
+    // blocked. Worst case: two simultaneous upserts of the same
+    // row, which Supabase handles fine via the onConflict: 'id'
+    // upsert path.
     if (publishing) {
-      console.warn('[intake publish] guarded — already publishing')
-      showToast?.('Publish already in progress.', 'success')
-      return
+      console.warn('[intake publish] state was already publishing — resetting and continuing')
+      setPublishing(false)
     }
     if (!authUser?.id) { showToast?.('Sign in to publish.', 'error'); return }
     const wasPublished = !!form.published_at
