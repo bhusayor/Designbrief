@@ -57,8 +57,21 @@ export default async function handler(req, res) {
   //                             + recipient business name.
   const { form_id, recipients, subject, body, mode = 'invite', submission_id } = req.body || {}
   if (!form_id) return res.status(400).json({ error: 'form_id required' })
-  if (mode === 'invite' && (!Array.isArray(recipients) || !recipients.length || !subject || !body)) {
-    return res.status(400).json({ error: 'recipients[], subject, body required for invite mode' })
+  if (mode === 'invite') {
+    if (!Array.isArray(recipients) || !recipients.length || !subject || !body) {
+      return res.status(400).json({ error: 'recipients[], subject, body required for invite mode' })
+    }
+    // Hard cap at one recipient. Multiple clients filling the same
+    // form produces multiple separate translations for what's
+    // supposed to be ONE project — confusing data, confusing review
+    // screen. Enforce server-side so the UI restriction can't be
+    // bypassed.
+    if (recipients.length > 1) {
+      return res.status(400).json({
+        error: 'too_many_recipients',
+        message: 'Send to one client at a time. Create a second form if you need to capture a second brief.',
+      })
+    }
   }
 
   // ── Verify the form belongs to the caller ────────────────────────
@@ -100,6 +113,16 @@ export default async function handler(req, res) {
   let finalRecipients = recipients
   let finalSubject = subject
   let finalBody = body
+
+  // Always make sure the form URL is in the invite body. Designers
+  // can edit the message text freely, but if they remove the link
+  // we add it back here before sending so the client can never
+  // miss it. (The HTML template also renders a CTA button, but
+  // some mail clients hide the button styling and a plain URL is
+  // the safety net.)
+  if (mode === 'invite' && typeof finalBody === 'string' && !finalBody.includes(formUrl)) {
+    finalBody = `${finalBody.trim()}\n\nOpen the form here: ${formUrl}`
+  }
 
   if (mode === 'brief-ready') {
     // Look up the submission we're announcing. Either the supplied
@@ -148,14 +171,21 @@ export default async function handler(req, res) {
   })
   const text = renderText({ designerName, body: finalBody, formUrl, estMinutes, mode })
 
+  // ── Sender composition ───────────────────────────────────────────
+  // Resend requires a verified domain to use a non-shared address.
+  // Until the designer verifies their own domain we send from the
+  // shared onboarding@resend.dev address — BUT we set the From
+  // display name to the designer's actual name so the recipient
+  // sees "Amaka Okafor" in their inbox rather than "DesignBrief
+  // AI", which significantly improves both perceived legitimacy
+  // and Gmail's spam scoring.
+  const safeName = String(designerName || 'Your designer').replace(/[<>"]/g, '').trim() || 'Your designer'
+  const fromHeader = `${safeName} <onboarding@resend.dev>`
+
   // ── Send ─────────────────────────────────────────────────────────
   try {
     const { error: sendErr } = await sendEmail({
-      from: 'DesignBrief AI <onboarding@resend.dev>',
-      // Resend requires a verified domain to send on the designer's
-      // behalf; for now we use the shared DesignBrief sender and let
-      // Resend handle the reply-to so client replies go to the
-      // designer's email.
+      from: fromHeader,
       reply_to: profile?.email || user.email || undefined,
       to: finalRecipients,
       subject: finalSubject,

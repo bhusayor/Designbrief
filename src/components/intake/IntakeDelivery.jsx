@@ -150,12 +150,25 @@ function CopyLinkTile({ url, showToast, expiresAt }) {
 // Method 2: Email composer
 // ────────────────────────────────────────────────────────────────────
 function EmailTile({ form, designerName, showToast }) {
-  const [to, setTo] = useState('')
+  // Pre-fill the To field with the client_email captured on Page 0
+  // (or the legacy column) so the designer doesn't have to retype
+  // what they already entered while building the form.
+  const presetEmail =
+    form?.settings?.recipient?.client_email
+    || form?.client_email
+    || ''
+
+  const [to, setTo] = useState(presetEmail)
   const [subject, setSubject] = useState(
     `Your project questionnaire from ${designerName || 'your designer'}`
   )
   const welcome = form?.branding?.welcome_message || ''
   const est = estimatedMinutes(form?.questions)
+
+  // Compose the form URL once + include it directly in the default
+  // body so it's visible inline alongside the styled CTA button.
+  const formUrl = `${window.location.origin}/intake/${form?.id}`
+
   const [bodyText, setBodyText] = useState(() =>
 `Hi,
 
@@ -163,7 +176,7 @@ ${welcome || 'Thanks for the call.'} I put together a short questionnaire to cap
 
 It takes about ${est} ${est === 1 ? 'minute' : 'minutes'}. You can save and come back later if you need to.
 
-Tap the button in this email when you are ready. No login required.
+Open the form here: ${formUrl}
 
 Looking forward to it.`
   )
@@ -171,29 +184,39 @@ Looking forward to it.`
 
   async function send() {
     if (sending) return
-    const recipients = to.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
-    if (!recipients.length) {
-      showToast?.('Add at least one recipient email.', 'error')
+    const recipient = to.trim()
+    if (!recipient) {
+      showToast?.("Add the client's email.", 'error')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      showToast?.('That email looks malformed.', 'error')
       return
     }
     if (!subject.trim()) { showToast?.('Subject is required.', 'error'); return }
     if (!bodyText.trim()) { showToast?.('Message body is required.', 'error'); return }
-    if (recipients.some(r => !/^.+@.+\..+$/.test(r))) {
-      showToast?.('One of the email addresses looks malformed.', 'error')
-      return
+
+    // Always include the form URL in the body. If the designer
+    // edited the default and removed it, append before sending so
+    // the client can never miss the link.
+    let finalBody = bodyText
+    if (!finalBody.includes(formUrl)) {
+      finalBody = `${finalBody.trim()}\n\nOpen the form here: ${formUrl}`
     }
+
     setSending(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/send-intake-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (session?.access_token || '') },
-        body: JSON.stringify({ form_id: form.id, recipients, subject, body: bodyText }),
+        // Pass as a single-entry array so the server's existing
+        // recipients[] contract stays unchanged.
+        body: JSON.stringify({ form_id: form.id, recipients: [recipient], subject, body: finalBody }),
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j.message || j.error || `HTTP ${res.status}`)
-      showToast?.(`Sent to ${recipients.length} recipient${recipients.length === 1 ? '' : 's'}.`, 'success')
-      setTo('')
+      showToast?.(`Sent to ${recipient}.`, 'success')
     } catch (e) {
       console.error('[send email]', e)
       showToast?.(e.message || 'Could not send the email. Try again.', 'error')
@@ -208,17 +231,18 @@ Looking forward to it.`
         <span className="id-tile-icon"><EnvelopeIcon style={{ width: 16, height: 16 }} /></span>
         <h3>Send via email</h3>
       </div>
-      <p className="id-tile-sub">Branded email with your logo and primary colour. Recipients open the form with one tap.</p>
+      <p className="id-tile-sub">Branded email with your logo and primary colour. The client opens the form with one tap.</p>
 
       <label className="id-field">
-        <span className="id-label">To</span>
+        <span className="id-label">Client email</span>
         <input
+          type="email"
           value={to}
           onChange={e => setTo(e.target.value)}
-          placeholder="client@company.com, second@company.com"
+          placeholder="client@company.com"
           className="id-input"
         />
-        <span className="id-help">Comma-separated for multiple recipients.</span>
+        <span className="id-help">One client per form. Multiple submissions would produce different briefs for the same project.</span>
       </label>
 
       <label className="id-field">
@@ -228,12 +252,23 @@ Looking forward to it.`
 
       <label className="id-field">
         <span className="id-label">Message</span>
-        <textarea value={bodyText} onChange={e => setBodyText(e.target.value)} rows={8} className="id-textarea" />
+        <textarea value={bodyText} onChange={e => setBodyText(e.target.value)} rows={9} className="id-textarea" />
+        <span className="id-help">The form link is included in the message + as a button. If you remove it from the text we'll add it back automatically before sending.</span>
       </label>
 
       <button onClick={send} disabled={sending} className="id-btn id-btn-primary id-btn-block">
         {sending ? 'Sending…' : <><PaperAirplaneIcon style={{ width: 14, height: 14 }} /> Send</>}
       </button>
+
+      {/* Deliverability hint — emails sent through the shared
+          Resend sender (onboarding@resend.dev) often land in spam.
+          Verifying a custom domain in Resend (and updating
+          server-lib/sendEmail.js with the verified sender) is the
+          long-term fix. Until then, ask clients to whitelist the
+          designer's reply-to address. */}
+      <p className="id-deliverability">
+        Not arriving? Ask your client to check their spam folder + add your reply-to address to their contacts. Verify a custom domain in Resend for the highest deliverability.
+      </p>
     </section>
   )
 }
@@ -473,6 +508,16 @@ function Styles() {
       .id-field { display: flex; flex-direction: column; gap: 5px; }
       .id-label { font: 700 11px 'Urbanist', sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-muted); }
       .id-help { font: 500 11px 'Urbanist', sans-serif; color: var(--color-text-muted); }
+      .id-deliverability {
+        font: 500 11px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        line-height: 1.55;
+        margin: 12px 0 0;
+        padding: 10px 12px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+      }
 
       .id-qr-frame { background: white; border: 1px solid var(--color-border); border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: center; min-height: 200px; }
       .id-qr-loading { font-size: 12px; color: #9ca3af; }
