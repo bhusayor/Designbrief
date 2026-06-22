@@ -182,7 +182,18 @@ Return JSON exactly in this shape:
       },
       "avoid": "<short line. Typographic directions that would contradict the brand>"
     },
-    "moodboard_direction": "<2 short sentences on aesthetic territories: UI style, imagery treatment, layout feel. End with an 'Avoid:' clause>"
+    "moodboard_direction": {
+      "summary": "<1-2 short sentences on aesthetic territories: UI style, imagery treatment, layout feel>",
+      "avoid": "<1 short sentence. Visual directions to stay away from>",
+      "references": [
+        {
+          "label": "<descriptive label, e.g. 'Linear marketing site' or 'Stripe Press editorial layout'>",
+          "type":  "Site | Product | Designer | Article | Pattern",
+          "url":   "<best-guess URL where this reference lives, e.g. https://linear.app or https://mobbin.com/apps/linear-web>",
+          "note":  "<1 short line on what to study about it (layout? colour? motion?)>"
+        }
+      ]
+    }
   }
 }
 
@@ -190,6 +201,7 @@ brand_personality: exactly 3-5 traits.
 emotional_direction: one entry per journey step. Mirror the step titles you'd expect from section 1.
 color_direction: ALL hex values are required and must be real 6-digit hex strings starting with #. Use real colour names (not generic ones like "Blue"). Light and dark token maps must use ACTUAL real hex values appropriate for each mode; do not just lighten or invert each other mechanically.
 typography_direction: family names must be real (and on Google Fonts if google=true) so they render in the live preview. Weights must exist on the family. Scale numbers are unit-less px.
+moodboard_direction.references: 4-8 entries. Mix product sites (Linear, Stripe, Vercel, Notion, etc), pattern libraries (Mobbin, Dribbble shots, Awwwards winners), and individual designers/studios where relevant. Every URL must be a plausible real homepage or specific page — do not invent fake URLs. If you are not confident a URL is real, omit the reference rather than guessing wildly.
 
 Brief:
 ${briefText}`,
@@ -207,9 +219,12 @@ Return JSON exactly in this shape:
     "competitor_analysis": [
       {
         "name": "<competitor name>",
-        "positioning": "<how they present strategically. 1 sentence>",
-        "layout": "<their dominant layout pattern, plain language, e.g. 'split hero with feature grid below' or 'full-bleed hero with stacked benefit blocks'>",
-        "differentiation": "<the specific opportunity to diverge from them>"
+        "url": "<best-guess homepage URL, e.g. https://linear.app — omit the field entirely if not confident>",
+        "positioning": "<how they present strategically. 1 short sentence>",
+        "layout": "<their dominant layout pattern, plain language, e.g. 'split hero with feature grid below'>",
+        "strength": "<one short sentence on what they do best>",
+        "weakness": "<one short sentence on where they fall short>",
+        "differentiation": "<the specific opportunity for us to diverge from them>"
       }
     ]
   }
@@ -312,6 +327,61 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
 
   await Promise.all(sectionPromises)
   return result
+}
+
+// ────────────────────────────────────────────────────────────────────
+// enrichCompetitorUrls — for each competitor without a URL, fire a
+// /api/web-search query against Brave and adopt the top result's
+// URL. Failure is silent (the card just renders without a link).
+// Returns a new result object with the enriched competitor list;
+// the original input isn't mutated.
+// ────────────────────────────────────────────────────────────────────
+export async function enrichCompetitorUrls(result) {
+  try {
+    if (!result?.sections) return result
+    const landscapeSection = result.sections.find(s => s.id === 'landscape')
+    if (!landscapeSection) return result
+    const compItem = landscapeSection.items.find(i => i.key === 'competitor_analysis')
+    if (!compItem || !Array.isArray(compItem.content)) return result
+
+    const apiBase = (import.meta.env?.VITE_API_URL || import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/, '')
+    if (!apiBase) return result // no Render endpoint configured
+
+    const list = compItem.content
+    const needsLookup = list.filter(c => c?.name && !c.url)
+    if (!needsLookup.length) return result
+
+    const enriched = await Promise.all(list.map(async (c) => {
+      if (!c?.name || c.url) return c
+      try {
+        const r = await fetch(`${apiBase}/api/web-search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: `${c.name} official site`, count: 3 }),
+        })
+        if (!r.ok) return c
+        const { results } = await r.json()
+        const best = (results || []).find(x => x.url && !/wikipedia|reddit|youtube|facebook|twitter|instagram/i.test(x.url)) || results?.[0]
+        if (best?.url) return { ...c, url: best.url }
+        return c
+      } catch { return c }
+    }))
+
+    // Build a new result object with the enriched competitor item.
+    return {
+      ...result,
+      sections: result.sections.map(s => {
+        if (s.id !== 'landscape') return s
+        return {
+          ...s,
+          items: s.items.map(i => i.key === 'competitor_analysis' ? { ...i, content: enriched } : i),
+        }
+      }),
+    }
+  } catch (e) {
+    console.warn('[enrichCompetitorUrls] failed', e?.message)
+    return result
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────

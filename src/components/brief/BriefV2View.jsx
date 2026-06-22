@@ -147,7 +147,7 @@ export default function BriefV2View({
               ref={el => (sectionRefs.current[section.id] = el)}
               className="brief-v2-section"
             >
-              <SectionHeader index={sections.indexOf(section) + 1} label={section.label} />
+              <SectionHeader index={sections.indexOf(section) + 1} label={section.label} sectionId={section.id} />
               <div className="brief-v2-card-grid">
                 {section.items.map(item => (
                   <BriefCard key={item.id} item={item} />
@@ -157,7 +157,7 @@ export default function BriefV2View({
           ))}
 
           {(result?.designSystem || designSystemBuilding) && (
-            <DesignSystemPanel ds={result?.designSystem} building={designSystemBuilding} />
+            <DesignSystemPanel ds={result?.designSystem} briefResult={result} building={designSystemBuilding} />
           )}
 
           <div style={{ height: 80 }} />
@@ -187,12 +187,35 @@ export default function BriefV2View({
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Section header — section number chip + title
+// Section header — circular section icon + title chip
 // ────────────────────────────────────────────────────────────────────
-function SectionHeader({ index, label }) {
+const SECTION_GLYPHS = {
+  understand:  '01',
+  interrogate: '02',
+  direction:   '03',
+  landscape:   '04',
+  boundaries:  '05',
+}
+const SECTION_TONES = {
+  understand:  { tint: 'rgba(59,130,246,0.10)',  ink: '#3b82f6' },
+  interrogate: { tint: 'rgba(245,158,11,0.10)',  ink: '#d97706' },
+  direction:   { tint: 'rgba(139,92,246,0.10)',  ink: '#8b5cf6' },
+  landscape:   { tint: 'rgba(16,185,129,0.10)',  ink: '#10b981' },
+  boundaries:  { tint: 'rgba(239,68,68,0.10)',   ink: '#ef4444' },
+}
+
+function SectionHeader({ index, label, sectionId }) {
+  const tone = SECTION_TONES[sectionId] || SECTION_TONES.understand
+  const glyph = SECTION_GLYPHS[sectionId] || String(index).padStart(2, '0')
   return (
     <div className="brief-v2-section-header">
-      <span className="brief-v2-section-chip">Section {index}</span>
+      <span
+        className="brief-v2-section-glyph"
+        style={{ background: tone.tint, color: tone.ink, borderColor: tone.tint }}
+        aria-hidden
+      >
+        {glyph}
+      </span>
       <h2 className="brief-v2-section-title">{label}</h2>
     </div>
   )
@@ -243,6 +266,7 @@ function ItemContent({ shape, content, item }) {
     case 'journey':        return <JourneyContent value={content} />
     case 'competitors':    return <CompetitorsContent value={content} />
     case 'inventory':      return <InventoryContent value={content} />
+    case 'moodboard':      return <MoodboardContent value={content} />
     default:               return <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>{JSON.stringify(content, null, 2)}</pre>
   }
 }
@@ -842,22 +866,164 @@ function JourneyContent({ value }) {
 }
 
 // ── Competitor analysis ────────────────────────────────────────────
+// Renders three things stacked:
+//   1. A list of competitor cards with name + URL link, positioning,
+//      layout, strength, weakness, divergence opportunity.
+//   2. A side-by-side comparison table that lets the designer scan
+//      one row per attribute across all competitors.
+//
+// Backwards-compatible: rows that don't have the new strength /
+// weakness / url fields just hide those cells.
 function CompetitorsContent({ value }) {
   const list = Array.isArray(value) ? value : []
   if (!list.length) return <p className="brief-v2-text">No competitors detected.</p>
+
   return (
-    <ul className="brief-v2-competitors">
-      {list.map((c, i) => (
-        <li key={i} className="brief-v2-competitor">
-          <div className="brief-v2-competitor-head">
-            <span className="brief-v2-competitor-name">{c.name || '—'}</span>
-          </div>
-          {c.positioning && <p className="brief-v2-competitor-line"><strong>Positioning.</strong> {c.positioning}</p>}
-          {c.layout      && <p className="brief-v2-competitor-line"><strong>Layout.</strong> {c.layout}</p>}
-          {c.differentiation && <p className="brief-v2-competitor-line"><strong>Where to diverge.</strong> {c.differentiation}</p>}
-        </li>
-      ))}
-    </ul>
+    <div className="brief-v2-comp">
+      {/* Cards */}
+      <ul className="brief-v2-competitors">
+        {list.map((c, i) => (
+          <li key={i} className="brief-v2-competitor">
+            <div className="brief-v2-competitor-head">
+              <span className="brief-v2-competitor-name">{c.name || '—'}</span>
+              {c.url && (
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="brief-v2-competitor-link"
+                >
+                  {prettyHost(c.url)} ↗
+                </a>
+              )}
+            </div>
+            {c.positioning && <p className="brief-v2-competitor-line"><strong>Positioning.</strong> {c.positioning}</p>}
+            {c.layout      && <p className="brief-v2-competitor-line"><strong>Layout.</strong> {c.layout}</p>}
+            {(c.strength || c.weakness) && (
+              <div className="brief-v2-competitor-sw">
+                {c.strength && (
+                  <div className="brief-v2-competitor-sw-cell brief-v2-competitor-sw-good">
+                    <span className="brief-v2-competitor-sw-label">Strength</span>
+                    <span className="brief-v2-competitor-sw-text">{c.strength}</span>
+                  </div>
+                )}
+                {c.weakness && (
+                  <div className="brief-v2-competitor-sw-cell brief-v2-competitor-sw-bad">
+                    <span className="brief-v2-competitor-sw-label">Weakness</span>
+                    <span className="brief-v2-competitor-sw-text">{c.weakness}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {c.differentiation && <p className="brief-v2-competitor-line"><strong>Where to diverge.</strong> {c.differentiation}</p>}
+          </li>
+        ))}
+      </ul>
+
+      {/* Comparison table (only show if we have ≥2 competitors and ≥2 fields to compare) */}
+      {list.length >= 2 && <CompetitorMatrix list={list} />}
+    </div>
+  )
+}
+
+function CompetitorMatrix({ list }) {
+  const ROWS = [
+    { key: 'positioning',     label: 'Positioning' },
+    { key: 'layout',          label: 'Dominant layout' },
+    { key: 'strength',        label: 'Strength' },
+    { key: 'weakness',        label: 'Weakness' },
+    { key: 'differentiation', label: 'How to diverge' },
+  ]
+  // Only include rows where at least 2 competitors have content.
+  const visibleRows = ROWS.filter(r => list.filter(c => c[r.key]).length >= 2)
+  if (!visibleRows.length) return null
+  return (
+    <div className="brief-v2-comp-matrix-wrap">
+      <div className="brief-v2-comp-matrix-head">Side-by-side</div>
+      <div className="brief-v2-comp-matrix-scroll">
+        <table className="brief-v2-comp-matrix">
+          <thead>
+            <tr>
+              <th></th>
+              {list.map((c, i) => (
+                <th key={i}>
+                  <div className="brief-v2-comp-matrix-name">{c.name || '—'}</div>
+                  {c.url && (
+                    <a
+                      href={c.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="brief-v2-comp-matrix-link"
+                    >{prettyHost(c.url)} ↗</a>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRows.map((r) => (
+              <tr key={r.key}>
+                <th scope="row">{r.label}</th>
+                {list.map((c, i) => (
+                  <td key={i}>{c[r.key] || '—'}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function prettyHost(url) {
+  try {
+    const u = new URL(url)
+    return u.hostname.replace(/^www\./, '')
+  } catch { return url }
+}
+
+// ── Moodboard direction (references) ───────────────────────────────
+function MoodboardContent({ value }) {
+  // Backwards-compatible: old shape was a plain string.
+  if (typeof value === 'string') {
+    return <p className="brief-v2-text">{value.trim() || '—'}</p>
+  }
+  const v = value || {}
+  const refs = Array.isArray(v.references) ? v.references : []
+  return (
+    <div className="brief-v2-mood">
+      {v.summary && <p className="brief-v2-text">{v.summary}</p>}
+      {refs.length > 0 && (
+        <div className="brief-v2-mood-refs">
+          <div className="brief-v2-mood-refs-head">Look here</div>
+          <ul className="brief-v2-mood-list">
+            {refs.map((r, i) => (
+              <li key={i} className="brief-v2-mood-ref">
+                <div className="brief-v2-mood-ref-top">
+                  {r.type && <span className="brief-v2-mood-ref-type">{r.type}</span>}
+                  <span className="brief-v2-mood-ref-label">{r.label || 'Reference'}</span>
+                </div>
+                {r.url && (
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="brief-v2-mood-ref-url"
+                  >{prettyHost(r.url)} ↗</a>
+                )}
+                {r.note && <div className="brief-v2-mood-ref-note">{r.note}</div>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {v.avoid && (
+        <div className="brief-v2-roles-avoid">
+          <span className="brief-v2-roles-avoid-label">Avoid</span> {v.avoid}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -889,12 +1055,40 @@ function InventoryContent({ value }) {
 // was compiled. Renders six pillar cards (color / typography /
 // spacing / component / motion / visual language). Shimmers while
 // the extraction is in flight; populated once the result arrives.
-function DesignSystemPanel({ ds, building }) {
+function DesignSystemPanel({ ds, briefResult, building }) {
+  // Pull richer source data from the original brief for the visual
+  // pillars. The DS extractor produces descriptive strings (for the
+  // kanban / builder pipeline downstream); these brief items carry
+  // structured values (hex codes, font names, scale arrays) we can
+  // render as actual visuals.
+  const direction = briefResult?.sections?.find(s => s.id === 'direction')
+  const colorItem = direction?.items?.find(i => i.key === 'color_direction')
+  const typeItem  = direction?.items?.find(i => i.key === 'typography_direction')
+
+  const colorRich = colorItem?.content && Array.isArray(colorItem.content.swatches) ? colorItem.content : null
+  const typeRich  = typeItem?.content && (isObj(typeItem.content.display) || isObj(typeItem.content.body)) ? typeItem.content : null
+
   const pillars = [
-    { key: 'color',           label: 'Color',           lines: ds?.color           ? colorLines(ds.color)           : null },
-    { key: 'typography',      label: 'Typography',      lines: ds?.typography      ? typographyLines(ds.typography) : null },
-    { key: 'spacing',         label: 'Spacing',         lines: ds?.spacing         ? spacingLines(ds.spacing)       : null },
-    { key: 'component',       label: 'Components',      lines: ds?.component       ? componentLines(ds.component)   : null },
+    {
+      key: 'color', label: 'Color',
+      visual: colorRich ? <DSColorVisual color={colorRich} /> : null,
+      lines: ds?.color ? colorLines(ds.color) : null,
+    },
+    {
+      key: 'typography', label: 'Typography',
+      visual: typeRich ? <DSTypeVisual type={typeRich} /> : null,
+      lines: ds?.typography ? typographyLines(ds.typography) : null,
+    },
+    {
+      key: 'spacing', label: 'Spacing',
+      visual: ds?.spacing ? <DSSpacingVisual spacing={ds.spacing} /> : null,
+      lines: ds?.spacing ? spacingLines(ds.spacing) : null,
+    },
+    {
+      key: 'component', label: 'Components',
+      visual: ds?.component ? <DSComponentVisual component={ds.component} color={colorRich} /> : null,
+      lines: ds?.component ? componentLines(ds.component) : null,
+    },
     { key: 'motion',          label: 'Motion',          lines: ds?.motion          ? motionLines(ds.motion)         : null },
     { key: 'visual_language', label: 'Visual language', lines: ds?.visual_language ? visualLines(ds.visual_language) : null },
   ]
@@ -911,6 +1105,7 @@ function DesignSystemPanel({ ds, building }) {
         {pillars.map(p => (
           <div key={p.key} className="brief-v2-ds-card">
             <div className="brief-v2-ds-label">{p.label}</div>
+            {p.visual}
             {p.lines ? (
               <ul className="brief-v2-ds-list">
                 {p.lines.map((l, i) => (
@@ -920,7 +1115,7 @@ function DesignSystemPanel({ ds, building }) {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : !p.visual && (
               <div className="brief-v2-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="brief-v2-skeleton-line" style={{ width: `${55 + ((i * 17) % 38)}%` }} />
@@ -931,6 +1126,127 @@ function DesignSystemPanel({ ds, building }) {
         ))}
       </div>
     </section>
+  )
+}
+
+// ── Design system mini visuals ─────────────────────────────────────
+function DSColorVisual({ color }) {
+  const chips = (color.swatches || []).slice(0, 6)
+  return (
+    <div className="brief-v2-ds-visual brief-v2-ds-colorvis">
+      <div className="brief-v2-ds-colorvis-row">
+        {chips.map((c, i) => (
+          <div key={i} className="brief-v2-ds-colorvis-chip" title={`${c.name} ${c.hex}`}>
+            <div className="brief-v2-ds-colorvis-swatch" style={{ background: c.hex }} />
+            <div className="brief-v2-ds-colorvis-meta">
+              <div className="brief-v2-ds-colorvis-name">{c.name || c.role}</div>
+              <div className="brief-v2-ds-colorvis-hex">{c.hex}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function DSTypeVisual({ type }) {
+  const display = isObj(type.display) ? type.display : null
+  const body    = isObj(type.body)    ? type.body    : null
+  useEffect(() => {
+    if (display?.family && display.google !== false) ensureGoogleFont(display.family, display.weights || [400, 700])
+    if (body?.family    && body.google    !== false) ensureGoogleFont(body.family,    body.weights    || [400, 600])
+  }, [display?.family, body?.family])
+  return (
+    <div className="brief-v2-ds-visual brief-v2-ds-typevis">
+      {display && (
+        <div
+          className="brief-v2-ds-typevis-display"
+          style={{
+            fontFamily: `"${display.family}", sans-serif`,
+            fontWeight: (display.weights || [700])[(display.weights || []).length - 1] || 700,
+            letterSpacing: display.tracking || '-0.02em',
+          }}
+        >
+          {display.family}
+        </div>
+      )}
+      {body && (
+        <div
+          className="brief-v2-ds-typevis-body"
+          style={{
+            fontFamily: `"${body.family}", sans-serif`,
+            fontWeight: (body.weights || [400])[0] || 400,
+          }}
+        >
+          The quick brown fox in {body.family}.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DSSpacingVisual({ spacing }) {
+  const scale = String(spacing.scale || '').toLowerCase()
+  const SCALES = {
+    compact:   [4, 8, 12, 16, 20, 24],
+    standard:  [4, 8, 12, 16, 24, 32, 48],
+    generous:  [8, 16, 24, 32, 48, 64, 96],
+  }
+  const stops = SCALES[scale] || SCALES.standard
+  return (
+    <div className="brief-v2-ds-visual brief-v2-ds-spacevis">
+      {stops.map((px, i) => (
+        <div key={i} className="brief-v2-ds-space-col">
+          <div className="brief-v2-ds-space-bar" style={{ height: px + 'px' }} />
+          <div className="brief-v2-ds-space-num">{px}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DSComponentVisual({ component, color }) {
+  const radiusMap = { 'sharp': 2, 'slightly-rounded': 8, 'soft': 16 }
+  const radius = radiusMap[String(component.corner_radius || '').toLowerCase()] ?? 8
+  const borderMap = { 'present': '1.5px solid', 'subtle': '1px solid', 'absent': '0 solid' }
+  const border = borderMap[String(component.borders || '').toLowerCase()] || '1px solid'
+  // Use brand primary if available; fall back to neutral text colour.
+  const primary = color?.light?.primary || color?.swatches?.[0]?.hex || 'var(--color-text)'
+  const onPrimary = color?.light?.onPrimary || '#fff'
+  return (
+    <div className="brief-v2-ds-visual brief-v2-ds-compvis">
+      <button
+        type="button"
+        className="brief-v2-ds-compvis-btn"
+        style={{
+          background: primary,
+          color: onPrimary,
+          borderRadius: radius,
+          border: 'none',
+        }}
+      >
+        Primary
+      </button>
+      <button
+        type="button"
+        className="brief-v2-ds-compvis-btn-ghost"
+        style={{
+          borderRadius: radius,
+          border: `${border} var(--color-border)`,
+        }}
+      >
+        Ghost
+      </button>
+      <div
+        className="brief-v2-ds-compvis-card"
+        style={{
+          borderRadius: radius,
+          border: `${border} var(--color-border)`,
+        }}
+      >
+        Card
+      </div>
+    </div>
   )
 }
 function colorLines(c) {
@@ -1272,11 +1588,20 @@ function ResponsiveStyles() {
 
       .brief-v2-section { margin-bottom: 36px; scroll-margin-top: 80px; }
       .brief-v2-section-header {
-        display: flex; align-items: baseline; gap: 12px;
+        display: flex; align-items: center; gap: 12px;
         margin-bottom: 18px;
         position: sticky; top: 0; z-index: 4;
         background: linear-gradient(to bottom, var(--color-bg) 60%, transparent);
         padding: 10px 0;
+      }
+      .brief-v2-section-glyph {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        border: 1px solid;
+        font: 800 12px 'JetBrains Mono', monospace;
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
       }
       .brief-v2-section-chip {
         font-family: 'JetBrains Mono', monospace;
@@ -1570,6 +1895,117 @@ function ResponsiveStyles() {
       .brief-v2-competitor-line { font-size: 12px; line-height: 1.55; margin: 4px 0; color: var(--color-text-soft); }
       .brief-v2-competitor-line strong { color: var(--color-text); font-weight: 700; }
 
+      .brief-v2-comp { display: flex; flex-direction: column; gap: 18px; }
+      .brief-v2-competitor-link {
+        font: 600 11px 'JetBrains Mono', monospace;
+        color: var(--color-accent);
+        text-decoration: none;
+        padding: 2px 7px;
+        border: 1px solid rgba(139,92,246,0.30);
+        border-radius: 6px;
+        transition: background 0.15s;
+      }
+      .brief-v2-competitor-link:hover { background: rgba(139,92,246,0.10); }
+      .brief-v2-competitor-sw {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        margin: 8px 0 4px;
+      }
+      @media (max-width: 600px) { .brief-v2-competitor-sw { grid-template-columns: 1fr; } }
+      .brief-v2-competitor-sw-cell { padding: 8px 10px; border-radius: 8px; border: 1px solid; }
+      .brief-v2-competitor-sw-good { background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.25); }
+      .brief-v2-competitor-sw-bad  { background: rgba(239,68,68,0.05);  border-color: rgba(239,68,68,0.25); }
+      .brief-v2-competitor-sw-label {
+        display: block;
+        font: 800 9px 'Urbanist', sans-serif; letter-spacing: 0.1em; text-transform: uppercase;
+        color: var(--color-text-muted);
+        margin-bottom: 3px;
+      }
+      .brief-v2-competitor-sw-text { font-size: 12px; line-height: 1.5; color: var(--color-text); }
+
+      .brief-v2-comp-matrix-wrap {
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .brief-v2-comp-matrix-head {
+        padding: 10px 14px;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        font: 800 10px 'Urbanist', sans-serif; letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-comp-matrix-scroll { overflow-x: auto; }
+      .brief-v2-comp-matrix {
+        width: 100%;
+        border-collapse: separate; border-spacing: 0;
+        font-size: 12px;
+      }
+      .brief-v2-comp-matrix th,
+      .brief-v2-comp-matrix td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--color-border);
+        vertical-align: top;
+        line-height: 1.5;
+        min-width: 160px;
+      }
+      .brief-v2-comp-matrix thead th { background: var(--color-bg); position: sticky; top: 0; }
+      .brief-v2-comp-matrix tbody th[scope="row"] {
+        font: 800 10px 'Urbanist', sans-serif; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--color-text-muted);
+        background: var(--color-surface);
+        min-width: 130px;
+      }
+      .brief-v2-comp-matrix-name { font-weight: 800; color: var(--color-text); }
+      .brief-v2-comp-matrix-link {
+        display: inline-block; margin-top: 2px;
+        font: 600 10px 'JetBrains Mono', monospace;
+        color: var(--color-accent);
+        text-decoration: none;
+      }
+      .brief-v2-comp-matrix tr:last-child td,
+      .brief-v2-comp-matrix tr:last-child th { border-bottom: none; }
+
+      /* ── Moodboard refs ──────────────────────────────────────── */
+      .brief-v2-mood { display: flex; flex-direction: column; gap: 14px; }
+      .brief-v2-mood-refs {
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .brief-v2-mood-refs-head {
+        padding: 9px 14px;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        font: 800 10px 'Urbanist', sans-serif; letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-mood-list { list-style: none; padding: 0; margin: 0; }
+      .brief-v2-mood-ref {
+        padding: 12px 14px;
+        border-top: 1px solid var(--color-border);
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v2-mood-ref:first-child { border-top: none; }
+      .brief-v2-mood-ref-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+      .brief-v2-mood-ref-type {
+        font: 700 9px 'Urbanist', sans-serif; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--color-accent);
+        padding: 2px 7px;
+        background: rgba(139,92,246,0.10);
+        border: 1px solid rgba(139,92,246,0.25);
+        border-radius: 100px;
+      }
+      .brief-v2-mood-ref-label { font-size: 13px; font-weight: 700; color: var(--color-text); }
+      .brief-v2-mood-ref-url {
+        font: 600 11px 'JetBrains Mono', monospace;
+        color: var(--color-accent);
+        text-decoration: none;
+        align-self: flex-start;
+      }
+      .brief-v2-mood-ref-url:hover { text-decoration: underline; }
+      .brief-v2-mood-ref-note { font-size: 12px; line-height: 1.5; color: var(--color-text-soft); }
+
       .brief-v2-inventory { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
       .brief-v2-inventory-row { padding: 10px 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; }
       .brief-v2-inventory-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-bottom: 6px; }
@@ -1642,6 +2078,64 @@ function ResponsiveStyles() {
       }
       .brief-v2-ds-key { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); padding-top: 2px; }
       .brief-v2-ds-val { color: var(--color-text); }
+
+      /* DS mini visuals */
+      .brief-v2-ds-visual { margin-bottom: 12px; }
+
+      .brief-v2-ds-colorvis-row { display: flex; flex-wrap: wrap; gap: 6px; }
+      .brief-v2-ds-colorvis-chip {
+        display: flex; flex-direction: column;
+        flex: 1 1 calc(33.33% - 6px); min-width: 70px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .brief-v2-ds-colorvis-swatch { height: 32px; }
+      .brief-v2-ds-colorvis-meta { padding: 5px 7px; }
+      .brief-v2-ds-colorvis-name { font-size: 10px; font-weight: 700; color: var(--color-text); line-height: 1.2; }
+      .brief-v2-ds-colorvis-hex  { font: 600 9px 'JetBrains Mono', monospace; color: var(--color-text-muted); }
+
+      .brief-v2-ds-typevis { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--color-surface); border-radius: 10px; }
+      .brief-v2-ds-typevis-display { font-size: 22px; line-height: 1.1; color: var(--color-text); }
+      .brief-v2-ds-typevis-body    { font-size: 13px; line-height: 1.4; color: var(--color-text-soft); }
+
+      .brief-v2-ds-spacevis {
+        display: flex; align-items: flex-end; gap: 6px; padding: 10px 8px 4px;
+        background: var(--color-surface); border-radius: 10px;
+        min-height: 110px;
+      }
+      .brief-v2-ds-space-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+      .brief-v2-ds-space-bar {
+        width: 100%;
+        background: linear-gradient(180deg, var(--color-accent), rgba(139,92,246,0.50));
+        border-radius: 3px 3px 0 0;
+        min-height: 4px;
+      }
+      .brief-v2-ds-space-num { font: 600 9px 'JetBrains Mono', monospace; color: var(--color-text-muted); }
+
+      .brief-v2-ds-compvis {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+        padding: 12px; background: var(--color-surface); border-radius: 10px;
+      }
+      .brief-v2-ds-compvis-btn {
+        padding: 7px 14px;
+        font: 700 11px 'Urbanist', sans-serif;
+        cursor: pointer;
+      }
+      .brief-v2-ds-compvis-btn-ghost {
+        padding: 7px 14px;
+        background: transparent;
+        color: var(--color-text);
+        font: 700 11px 'Urbanist', sans-serif;
+        cursor: pointer;
+      }
+      .brief-v2-ds-compvis-card {
+        padding: 8px 14px;
+        background: var(--color-bg);
+        font: 600 11px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+      }
 
       .brief-v2-bottombar { display: none; }
 

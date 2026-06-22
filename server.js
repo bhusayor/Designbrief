@@ -401,6 +401,59 @@ app.post('/api/process-intake', async (req, res) => {
   })
 })
 
+// ────────────────────────────────────────────────────────────────────
+// POST /api/web-search — Brave Search proxy. Used by the brief
+// translator to enrich competitor analysis with real homepage URLs
+// (so the comparison table renders working links instead of name-
+// only chips).
+//
+// Body: { query, count? }
+// Returns: { results: [{ title, url, description }] }
+//
+// Gracefully degrades to an empty result list (200, results: [])
+// when BRAVE_API_KEY isn't configured, so the brief still renders
+// without competitor URLs.
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/web-search', async (req, res) => {
+  const { query, count = 3 } = req.body || {}
+  if (!query || typeof query !== 'string') {
+    return res.status(400).json({ error: 'bad_request', message: 'query (string) is required' })
+  }
+  if (!process.env.BRAVE_API_KEY) {
+    // Soft failure: caller treats empty results as "no link found"
+    // and renders the competitor without a link. This means the
+    // brief never blocks on missing search credentials.
+    return res.status(200).json({ results: [], degraded: 'no_api_key' })
+  }
+  const cleaned = query.trim().slice(0, 200)
+  const capped = Math.max(1, Math.min(10, Number(count) || 3))
+  try {
+    const r = await fetch(
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(cleaned)}&count=${capped}`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X-Subscription-Token': process.env.BRAVE_API_KEY,
+        },
+      }
+    )
+    if (!r.ok) {
+      console.warn('[web-search] brave upstream', r.status)
+      return res.status(200).json({ results: [], degraded: 'upstream_' + r.status })
+    }
+    const data = await r.json()
+    const results = (data?.web?.results || []).slice(0, capped).map(x => ({
+      title: x.title,
+      url: x.url,
+      description: x.description,
+    }))
+    return res.status(200).json({ results })
+  } catch (e) {
+    console.error('[web-search] failed', e?.message || e)
+    return res.status(200).json({ results: [], degraded: 'exception' })
+  }
+})
+
 // ── Unhandled-error fallback ───────────────────────────────────────
 app.use((err, _req, res, _next) => {
   console.error('[server] unhandled error', err)

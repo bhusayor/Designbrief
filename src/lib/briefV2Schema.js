@@ -61,7 +61,7 @@ export const BRIEF_V2_SECTIONS = [
       { id: 14, key: 'emotional_direction',  title: 'Emotional Direction',   shape: 'journey' },
       { id: 15, key: 'color_direction',      title: 'Color Direction',       shape: 'roles' },
       { id: 16, key: 'typography_direction', title: 'Typography Direction',  shape: 'levels' },
-      { id: 17, key: 'moodboard_direction',  title: 'Moodboard Direction',   shape: 'text' },
+      { id: 17, key: 'moodboard_direction',  title: 'Moodboard Direction',   shape: 'moodboard' },
     ],
   },
   {
