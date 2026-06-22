@@ -544,39 +544,64 @@ function IntroField({ label, sublabel, value, onChange, placeholder, type = 'tex
 function CompletionScreen({ form, t, clientName, businessName }) {
   const b = form.branding || {}
   const firstName = (clientName || '').trim().split(/\s+/)[0]
-  const greeting = firstName ? `${t.thanksWithName} ${firstName}.` : t.thankYou
+  const greeting = firstName
+    ? `${t.thanksWithName || 'Thanks,'} ${firstName}!`
+    : (t.thankYouHero || "That's a wrap.")
+
   return (
     <div className="ci-done-stage">
       <div className="ci-done-card">
         {b.logo_url && <img src={b.logo_url} alt="" className="ci-done-logo" />}
+
+        {/* Animated check badge — rings in on mount via CSS keyframes. */}
         <div className="ci-done-check" aria-hidden>
-          <CheckIcon style={{ width: 30, height: 30 }} />
+          <span className="ci-done-check-ring" />
+          <CheckIcon className="ci-done-check-icon" style={{ width: 36, height: 36 }} />
         </div>
+
         <h1 className="ci-done-h1">{greeting}</h1>
-        <p className="ci-done-lead">
-          {b.completion_message || t.defaultDone}
-        </p>
+
         {businessName?.trim() && (
-          <div className="ci-done-meta">
-            <span className="ci-done-meta-label">{t.briefForLabel}</span>
-            <span className="ci-done-meta-value">{businessName.trim()}</span>
-          </div>
+          <p className="ci-done-subheading">
+            {t.doneSubheading
+              ? t.doneSubheading.replace('{business}', businessName.trim())
+              : `Your brief for ${businessName.trim()} is in motion.`}
+          </p>
         )}
+
+        <p className="ci-done-lead">
+          {b.completion_message || t.defaultDoneLong || t.defaultDone}
+        </p>
+
+        <div className="ci-done-divider" aria-hidden>
+          <span className="ci-done-divider-label">{t.whatHappensNext || "What happens next"}</span>
+        </div>
+
         <ol className="ci-done-next">
           <li>
             <span className="ci-done-next-num">1</span>
-            <span>{t.nextStep1}</span>
+            <div className="ci-done-next-body">
+              <span className="ci-done-next-title">{t.nextStep1Title || 'Heading to your designer'}</span>
+              <span className="ci-done-next-sub">{t.nextStep1 || 'Your answers go straight to your designer.'}</span>
+            </div>
           </li>
           <li>
             <span className="ci-done-next-num">2</span>
-            <span>{t.nextStep2}</span>
+            <div className="ci-done-next-body">
+              <span className="ci-done-next-title">{t.nextStep2Title || 'Brief being assembled'}</span>
+              <span className="ci-done-next-sub">{t.nextStep2 || 'A first draft of the brief is being prepared in the background.'}</span>
+            </div>
           </li>
           <li>
             <span className="ci-done-next-num">3</span>
-            <span>{t.nextStep3}</span>
+            <div className="ci-done-next-body">
+              <span className="ci-done-next-title">{t.nextStep3Title || 'You\'ll hear back soon'}</span>
+              <span className="ci-done-next-sub">{t.nextStep3 || "You'll hear back with next steps shortly."}</span>
+            </div>
           </li>
         </ol>
-        <p className="ci-done-close">{t.youCanClose}</p>
+
+        <p className="ci-done-close">{t.youCanClose || 'You can safely close this tab.'}</p>
       </div>
     </div>
   )
@@ -592,9 +617,9 @@ function QuestionInput({ q, value, onChange, uploadsAllowed, t, formId }) {
     case 'long_text':
       return <LongText value={value} onChange={onChange} />
     case 'single_choice':
-      return <SingleChoice options={q.options || []} value={value} onChange={onChange} />
+      return <SingleChoice options={q.options || []} value={value} onChange={onChange} t={t} />
     case 'multi_choice':
-      return <MultiChoice options={q.options || []} value={Array.isArray(value) ? value : []} onChange={onChange} />
+      return <MultiChoice options={q.options || []} value={Array.isArray(value) ? value : []} onChange={onChange} t={t} />
     case 'scale':
       return <Scale low={q.scale_low_label} high={q.scale_high_label} value={value} onChange={onChange} />
     case 'reference_upload':
@@ -647,48 +672,125 @@ function LongText({ value, onChange }) {
   )
 }
 
-function SingleChoice({ options, value, onChange }) {
+// Detect "Other" / "Others" / "Custom" / "Something else" so the
+// component can render a free-text input alongside the option pill.
+function isOtherOption(opt) {
+  return /^(other|others|custom|something else)$/i.test(String(opt || '').trim())
+}
+
+// Pull a custom "Other" value out of a saved answer. We store
+// custom text as "Other: <text>" so the original option label is
+// preserved alongside the user's free text. This helper recovers
+// the user's text portion when re-rendering a previously answered
+// question.
+function extractCustom(val) {
+  if (typeof val !== 'string') return ''
+  const m = val.match(/^(?:other|others|custom|something else)\s*:\s*(.+)$/i)
+  return m ? m[1] : ''
+}
+
+function SingleChoice({ options, value, onChange, t }) {
+  const otherOpt = options.find(isOtherOption)
+  const otherChosen = typeof value === 'string' && (isOtherOption(value) || /^(?:other|others|custom|something else)\s*:/i.test(value))
+  const customText = extractCustom(value)
   return (
-    <div className="ci-pills">
-      {options.map((opt, i) => {
-        const active = value === opt
-        return (
-          <button
-            key={i}
-            onClick={() => onChange(opt)}
-            className={`ci-pill ${active ? 'is-active' : ''}`}
-            type="button"
-          >
-            {active && <CheckIcon style={{ width: 12, height: 12, marginRight: 6, flexShrink: 0 }} />}
-            {opt}
-          </button>
-        )
-      })}
+    <div className="ci-choice">
+      <div className="ci-choice-hint">{t?.pickOne || 'Pick one'}</div>
+      <div className="ci-pills">
+        {options.map((opt, i) => {
+          // For "Other" option, treat it active if the saved value
+          // is "Other" OR "Other: <anything>" so the pill stays
+          // highlighted while the user types a custom value.
+          const active = isOtherOption(opt) ? otherChosen : value === opt
+          return (
+            <button
+              key={i}
+              onClick={() => onChange(opt)}
+              className={`ci-pill ${active ? 'is-active' : ''}`}
+              type="button"
+            >
+              {active && <CheckIcon style={{ width: 12, height: 12, marginRight: 6, flexShrink: 0 }} />}
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+      {otherOpt && otherChosen && (
+        <input
+          type="text"
+          value={customText}
+          onChange={(e) => {
+            const text = e.target.value
+            onChange(text.trim() ? `${otherOpt}: ${text}` : otherOpt)
+          }}
+          placeholder={t?.otherPlaceholder || 'Tell us more…'}
+          className="ci-input ci-input-other"
+          autoFocus
+        />
+      )}
     </div>
   )
 }
 
-function MultiChoice({ options, value, onChange }) {
+function MultiChoice({ options, value, onChange, t }) {
+  const arr = Array.isArray(value) ? value : []
+  const otherOpt = options.find(isOtherOption)
+  // The "Other" slot is active when ANY saved value matches the
+  // Other label or starts with the Other: <text> prefix.
+  const otherEntry = arr.find(v => isOtherOption(v) || /^(?:other|others|custom|something else)\s*:/i.test(v))
+  const otherChosen = Boolean(otherEntry)
+  const customText = otherEntry ? extractCustom(otherEntry) : ''
+
   function toggle(opt) {
-    if (value.includes(opt)) onChange(value.filter(v => v !== opt))
-    else onChange([...value, opt])
+    if (isOtherOption(opt)) {
+      // Toggling Other: remove every "Other..." entry on un-pick,
+      // add a bare "Other" on pick.
+      if (otherChosen) {
+        onChange(arr.filter(v => !isOtherOption(v) && !/^(?:other|others|custom|something else)\s*:/i.test(v)))
+      } else {
+        onChange([...arr, opt])
+      }
+      return
+    }
+    if (arr.includes(opt)) onChange(arr.filter(v => v !== opt))
+    else onChange([...arr, opt])
   }
+
+  function updateOtherText(text) {
+    const withoutOther = arr.filter(v => !isOtherOption(v) && !/^(?:other|others|custom|something else)\s*:/i.test(v))
+    const newEntry = text.trim() ? `${otherOpt}: ${text}` : otherOpt
+    onChange([...withoutOther, newEntry])
+  }
+
   return (
-    <div className="ci-pills">
-      {options.map((opt, i) => {
-        const active = value.includes(opt)
-        return (
-          <button
-            key={i}
-            onClick={() => toggle(opt)}
-            className={`ci-pill ${active ? 'is-active' : ''}`}
-            type="button"
-          >
-            {active && <CheckIcon style={{ width: 12, height: 12, marginRight: 6, flexShrink: 0 }} />}
-            {opt}
-          </button>
-        )
-      })}
+    <div className="ci-choice">
+      <div className="ci-choice-hint">{t?.pickMany || 'Pick one or more'}</div>
+      <div className="ci-pills">
+        {options.map((opt, i) => {
+          const active = isOtherOption(opt) ? otherChosen : arr.includes(opt)
+          return (
+            <button
+              key={i}
+              onClick={() => toggle(opt)}
+              className={`ci-pill ${active ? 'is-active' : ''}`}
+              type="button"
+            >
+              {active && <CheckIcon style={{ width: 12, height: 12, marginRight: 6, flexShrink: 0 }} />}
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+      {otherOpt && otherChosen && (
+        <input
+          type="text"
+          value={customText}
+          onChange={(e) => updateOtherText(e.target.value)}
+          placeholder={t?.otherPlaceholder || 'Tell us more…'}
+          className="ci-input ci-input-other"
+          autoFocus
+        />
+      )}
     </div>
   )
 }
@@ -720,49 +822,80 @@ function FileDrop({ accept, valueArr, onChange, t, kind, formId }) {
   const files = Array.isArray(valueArr) ? valueArr : []
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  // Track the file names currently uploading so each file's row
+  // in the list can show a spinner + label while it's in flight.
+  // Names are added when the upload starts and removed when it
+  // resolves (success or failure).
+  const [uploadingNames, setUploadingNames] = useState([])
 
   async function addFiles(list) {
     if (!list?.length) return
     setError(null)
     setBusy(true)
+    // Track which files in this batch we're about to upload so we
+    // can place placeholder entries in the list — gives the client
+    // immediate feedback that the upload started.
+    const toUpload = []
+    for (const f of list) {
+      if (files.length + toUpload.length >= 5) break
+      if (f.size > 8 * 1024 * 1024) {
+        setError(t.fileTooBig.replace('{name}', f.name))
+        continue
+      }
+      toUpload.push(f)
+    }
+    if (!toUpload.length) { setBusy(false); return }
+
+    // Append placeholder rows so the file list shows the names
+    // immediately with an "uploading" spinner.
+    const placeholders = toUpload.map(f => ({
+      name: f.name, size: f.size, type: f.type, uploading: true,
+    }))
+    onChange([...files, ...placeholders])
+    setUploadingNames(prev => [...prev, ...toUpload.map(f => f.name)])
+
+    // Track results so we can swap each placeholder for the real
+    // uploaded entry in one final onChange when the batch is done.
+    const results = []
     try {
-      const next = [...files]
-      for (const f of list) {
-        if (next.length >= 5) break
-        if (f.size > 8 * 1024 * 1024) {
-          setError(t.fileTooBig.replace('{name}', f.name))
-          continue
-        }
+      for (const f of toUpload) {
         try {
-          // Upload to the intake-uploads Storage bucket. Path is
-          // namespaced under the form id so the designer can see at
-          // a glance in the Supabase dashboard which form a file
-          // came from. Timestamp + random suffix prevent collisions
-          // on double-submits + keep the URL unguessable.
           const cleanName = f.name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 60)
           const path = `${formId || 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${cleanName}`
           const { error: upErr } = await supabase.storage
             .from('intake-uploads')
             .upload(path, f, { cacheControl: '3600', contentType: f.type })
           if (upErr) {
-            // Bucket missing or policy not in place — fall back to a
-            // data URL so the form still works during the migration
-            // window before the storage SQL is run.
+            // Bucket missing or policy not in place — fall back to
+            // a data URL so the form still works during the
+            // migration window.
             console.warn('[upload] storage failed, falling back to data URL', upErr?.message)
             const dataUrl = await fileToDataUrl(f)
-            next.push({ name: f.name, size: f.size, type: f.type, data: dataUrl })
-            continue
+            results.push({ name: f.name, size: f.size, type: f.type, data: dataUrl })
+          } else {
+            const { data: pub } = supabase.storage.from('intake-uploads').getPublicUrl(path)
+            results.push({ name: f.name, size: f.size, type: f.type, url: pub.publicUrl, path })
           }
-          const { data: pub } = supabase.storage.from('intake-uploads').getPublicUrl(path)
-          next.push({ name: f.name, size: f.size, type: f.type, url: pub.publicUrl, path })
         } catch (e) {
           console.warn('[upload]', e?.message)
           setError(t.fileFailed)
+          // Mark this file's placeholder as failed by simply not
+          // pushing a real result — the dedupe below removes it.
+        } finally {
+          setUploadingNames(prev => prev.filter(n => n !== f.name))
         }
       }
-      onChange(next)
     } finally {
       setBusy(false)
+      // Replace placeholders with real results in the existing
+      // file list. Match by name + size to avoid mixing two files
+      // with the same name on different rows.
+      const real = [...files]
+      for (const f of toUpload) {
+        const result = results.find(r => r && r.name === f.name && r.size === f.size)
+        if (result) real.push(result)
+      }
+      onChange(real)
     }
   }
 
@@ -812,22 +945,35 @@ function FileDrop({ accept, valueArr, onChange, t, kind, formId }) {
 
       {files.length > 0 && (
         <ul className="ci-file-list">
-          {files.map((f, i) => (
-            <li key={i} className="ci-file-row">
-              {isImage(f) ? (
-                <img src={f.url || f.data} alt="" className="ci-file-thumb" />
-              ) : (
-                <span className="ci-file-icon">📎</span>
-              )}
-              <div className="ci-file-meta">
-                <span className="ci-file-name">{f.name}</span>
-                <span className="ci-file-size">{prettySize(f.size)}</span>
-              </div>
-              <button onClick={() => remove(i)} className="ci-x" aria-label="Remove">
-                <XMarkIcon style={{ width: 12, height: 12 }} />
-              </button>
-            </li>
-          ))}
+          {files.map((f, i) => {
+            const isUploading = f.uploading || uploadingNames.includes(f.name)
+            return (
+              <li key={i} className={`ci-file-row ${isUploading ? 'is-uploading' : ''}`}>
+                {isUploading ? (
+                  <span className="ci-file-spinner" aria-hidden>
+                    <span className="ci-file-spinner-ring" />
+                  </span>
+                ) : isImage(f) ? (
+                  <img src={f.url || f.data} alt="" className="ci-file-thumb" />
+                ) : (
+                  <span className="ci-file-icon">📎</span>
+                )}
+                <div className="ci-file-meta">
+                  <span className="ci-file-name">{f.name}</span>
+                  <span className="ci-file-size">
+                    {isUploading
+                      ? <span className="ci-file-uploading-label">{t.uploadingFile || 'Uploading…'}</span>
+                      : prettySize(f.size)}
+                  </span>
+                </div>
+                {!isUploading && (
+                  <button onClick={() => remove(i)} className="ci-x" aria-label="Remove">
+                    <XMarkIcon style={{ width: 12, height: 12 }} />
+                  </button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
@@ -988,6 +1134,18 @@ function translations(lang) {
     fileTooBig: '{name} is too large (max 8MB).',
     fileFailed: 'Could not read the file. Try a different one.',
     restored: 'Welcome back — continuing where you left off.',
+    pickOne: 'Pick one',
+    pickMany: 'Pick one or more',
+    otherPlaceholder: 'Tell us more…',
+    uploadingFile: 'Uploading…',
+    // Redesigned completion screen
+    thankYouHero: "That's a wrap.",
+    doneSubheading: "Your brief for {business} is in motion.",
+    defaultDoneLong: "Your answers are in good hands. Your designer is putting together a thoughtful brief that captures everything you shared.",
+    whatHappensNext: "What happens next",
+    nextStep1Title: 'Heading to your designer',
+    nextStep2Title: 'Brief being assembled',
+    nextStep3Title: "You'll hear back soon",
     // Page 0
     beforeWeStart: 'Before we start',
     tellUsTitle: 'Tell us about your project',
@@ -1023,6 +1181,10 @@ function translations(lang) {
     fileTooBig: '{name} est trop volumineux (max 8 Mo).',
     fileFailed: 'Impossible de lire le fichier.',
     restored: 'Bon retour. Reprenons où vous en étiez.',
+    pickOne: 'Choisissez un',
+    pickMany: 'Choisissez un ou plusieurs',
+    otherPlaceholder: 'Dites-nous en plus…',
+    uploadingFile: 'Téléversement…',
     beforeWeStart: 'Avant de commencer',
     tellUsTitle: 'Parlez-nous de votre projet',
     tellUsSub: 'Cela nous aide à personnaliser vos questions et à rédiger un brief qui ressemble vraiment à votre marque.',
@@ -1056,6 +1218,10 @@ function translations(lang) {
     fileTooBig: '{name} es demasiado grande (máx 8 MB).',
     fileFailed: 'No se pudo leer el archivo.',
     restored: 'Bienvenido de vuelta. Continuamos donde lo dejaste.',
+    pickOne: 'Elige una',
+    pickMany: 'Elige una o más',
+    otherPlaceholder: 'Cuéntanos más…',
+    uploadingFile: 'Subiendo…',
     beforeWeStart: 'Antes de empezar',
     tellUsTitle: 'Cuéntanos sobre tu proyecto',
     tellUsSub: 'Esto nos ayuda a personalizar tus preguntas y generar un brief que suene a tu marca.',
@@ -1089,6 +1255,10 @@ function translations(lang) {
     fileTooBig: '{name} é muito grande (máx 8 MB).',
     fileFailed: 'Não foi possível ler o arquivo.',
     restored: 'Bem-vindo de volta. Continuando de onde parou.',
+    pickOne: 'Escolha um',
+    pickMany: 'Escolha um ou mais',
+    otherPlaceholder: 'Conte-nos mais…',
+    uploadingFile: 'Enviando…',
     beforeWeStart: 'Antes de começar',
     tellUsTitle: 'Conte-nos sobre o seu projeto',
     tellUsSub: 'Isso nos ajuda a personalizar suas perguntas e gerar um brief com a cara da sua marca.',
@@ -1175,6 +1345,22 @@ function Styles() {
       .ci-textarea { resize: vertical; min-height: 120px; line-height: 1.55; }
       .ci-counter-line { text-align: right; font: 600 11px 'JetBrains Mono', monospace; color: var(--color-text-muted); margin-top: 4px; }
 
+      .ci-choice { display: flex; flex-direction: column; gap: 10px; }
+      .ci-choice-hint {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .ci-input-other {
+        margin-top: 4px;
+        animation: ci-other-in 0.2s ease-out;
+      }
+      @keyframes ci-other-in {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
       .ci-pills { display: flex; flex-direction: column; gap: 8px; }
       .ci-pill {
         display: inline-flex; align-items: center;
@@ -1221,6 +1407,24 @@ function Styles() {
 
       .ci-file-list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 6px; }
       .ci-file-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 9px; }
+      .ci-file-row.is-uploading { background: rgba(139,92,246,0.05); border-color: rgba(139,92,246,0.25); }
+      .ci-file-spinner {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px;
+        flex-shrink: 0;
+      }
+      .ci-file-spinner-ring {
+        width: 18px; height: 18px;
+        border-radius: 50%;
+        border: 2px solid rgba(139,92,246,0.20);
+        border-top-color: var(--accent);
+        animation: ci-spin 0.7s linear infinite;
+      }
+      .ci-file-uploading-label {
+        font: 600 11px 'Urbanist', sans-serif;
+        color: var(--accent);
+        letter-spacing: 0.02em;
+      }
       .ci-file-thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
       .ci-file-icon { font-size: 22px; line-height: 1; flex-shrink: 0; padding: 4px 8px; }
       .ci-file-meta { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -1361,76 +1565,133 @@ function Styles() {
         box-sizing: border-box;
       }
       .ci-done-card {
-        width: 100%; max-width: 480px;
+        width: 100%; max-width: 520px;
         display: flex; flex-direction: column; align-items: center;
         text-align: center;
+        animation: ci-done-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .ci-done-logo { max-height: 44px; max-width: 200px; margin-bottom: 24px; }
+      @keyframes ci-done-card-in {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .ci-done-logo { max-height: 40px; max-width: 180px; margin-bottom: 28px; }
+
       .ci-done-check {
+        position: relative;
         display: inline-flex; align-items: center; justify-content: center;
-        width: 64px; height: 64px;
-        background: rgba(16,185,129,0.12);
-        color: #10b981;
-        border: 1px solid rgba(16,185,129,0.30);
+        width: 76px; height: 76px;
+        background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+        color: white;
         border-radius: 50%;
-        margin-bottom: 24px;
+        margin-bottom: 28px;
+        box-shadow: 0 8px 24px rgba(16,185,129,0.32);
+        animation: ci-done-check-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
+      .ci-done-check-ring {
+        position: absolute; inset: -8px;
+        border-radius: 50%;
+        border: 2px solid rgba(16,185,129,0.30);
+        animation: ci-done-check-ring 1.4s ease-out 0.2s both;
+      }
+      .ci-done-check-icon { animation: ci-done-check-icon-pop 0.5s ease-out 0.15s both; }
+      @keyframes ci-done-check-pop {
+        0% { transform: scale(0.5); opacity: 0; }
+        70% { transform: scale(1.05); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes ci-done-check-icon-pop {
+        0% { transform: scale(0); }
+        70% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+      }
+      @keyframes ci-done-check-ring {
+        0% { opacity: 0.8; transform: scale(0.9); }
+        100% { opacity: 0; transform: scale(1.4); }
+      }
+
       .ci-done-h1 {
-        font: 800 clamp(26px, 4.2vw, 36px) 'Urbanist', sans-serif;
-        letter-spacing: -0.03em;
+        font: 800 clamp(28px, 5vw, 42px) 'Urbanist', sans-serif;
+        letter-spacing: -0.035em;
         color: var(--color-text);
-        margin: 0 0 10px;
-        line-height: 1.15;
+        margin: 0 0 8px;
+        line-height: 1.1;
       }
-      .ci-done-lead {
-        font: 500 15px 'Urbanist', sans-serif;
-        color: var(--color-text-muted);
-        margin: 0 0 24px;
-        line-height: 1.6;
+      .ci-done-subheading {
+        font: 600 16px 'Urbanist', sans-serif;
+        color: var(--color-text);
+        margin: 0 0 18px;
+        line-height: 1.4;
         max-width: 420px;
       }
-      .ci-done-meta {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 8px 14px;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: 100px;
-        margin-bottom: 28px;
+      .ci-done-lead {
+        font: 500 14.5px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        margin: 0 0 36px;
+        line-height: 1.65;
+        max-width: 420px;
       }
-      .ci-done-meta-label {
-        font: 700 10px 'JetBrains Mono', monospace;
-        letter-spacing: 0.08em; text-transform: uppercase;
+
+      .ci-done-divider {
+        position: relative;
+        width: 100%;
+        margin: 4px 0 18px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .ci-done-divider::before {
+        content: '';
+        position: absolute;
+        left: 0; right: 0; top: 50%;
+        height: 1px;
+        background: var(--color-border);
+      }
+      .ci-done-divider-label {
+        position: relative;
+        z-index: 1;
+        padding: 0 14px;
+        background: var(--color-bg);
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
         color: var(--color-text-muted);
       }
-      .ci-done-meta-value {
-        font: 700 13px 'Urbanist', sans-serif;
-        color: var(--color-text);
-      }
+
       .ci-done-next {
-        list-style: none; padding: 0; margin: 0 0 28px;
-        display: flex; flex-direction: column; gap: 12px;
+        list-style: none; padding: 0; margin: 0 0 36px;
+        display: flex; flex-direction: column; gap: 8px;
         width: 100%;
         text-align: left;
+        counter-reset: nextstep;
       }
       .ci-done-next li {
-        display: flex; align-items: flex-start; gap: 12px;
-        padding: 12px 14px;
-        background: var(--color-surface);
+        display: flex; align-items: flex-start; gap: 14px;
+        padding: 14px 16px;
+        background: var(--color-card);
         border: 1px solid var(--color-border);
-        border-radius: 10px;
-        font: 500 13.5px 'Urbanist', sans-serif;
-        color: var(--color-text);
-        line-height: 1.55;
+        border-radius: 12px;
+        transition: border-color 0.2s ease;
       }
+      .ci-done-next li:hover { border-color: var(--color-text-soft); }
       .ci-done-next-num {
         flex-shrink: 0;
-        width: 22px; height: 22px;
+        width: 28px; height: 28px;
         display: inline-flex; align-items: center; justify-content: center;
         background: var(--accent); color: white;
         border-radius: 50%;
-        font: 700 11px 'JetBrains Mono', monospace;
+        font: 800 12px 'JetBrains Mono', monospace;
         line-height: 1;
       }
+      .ci-done-next-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+      .ci-done-next-title {
+        font: 700 14px 'Urbanist', sans-serif;
+        color: var(--color-text);
+        line-height: 1.35;
+      }
+      .ci-done-next-sub {
+        font: 500 13px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        line-height: 1.5;
+      }
+
       .ci-done-close {
         font: 500 12px 'Urbanist', sans-serif;
         color: var(--color-text-muted);
