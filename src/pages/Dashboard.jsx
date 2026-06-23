@@ -391,56 +391,6 @@ export default function Dashboard() {
 
   // ── Translation ───────────────────────────────────────────────────────────
 
-  // ── Inline brief editing ──────────────────────────────────────────
-  // Each card in BriefV2View can be edited in place. We update the
-  // result in local state immediately (optimistic) and debounce a
-  // saveHistory call so rapid edits don't spam Supabase. The
-  // existing entry is upserted under the same id (activeChat) so
-  // we never create duplicate history rows.
-  const persistEditTimerRef = useRef(null)
-
-  function handleEditBriefItem(sectionId, itemKey, newContent) {
-    setResult(prev => {
-      if (!prev?.sections) return prev
-      const nextSections = prev.sections.map(s => {
-        if (s.id !== sectionId) return s
-        return {
-          ...s,
-          items: s.items.map(it => it.key === itemKey ? { ...it, content: newContent } : it),
-        }
-      })
-      const nextEdits = {
-        ...(prev.edits || {}),
-        [itemKey]: { editedAt: new Date().toISOString(), by: authUser?.id || null },
-      }
-      const nextResult = { ...prev, sections: nextSections, edits: nextEdits }
-      setActiveProjectBriefResult(nextResult)
-
-      // Debounced persistence. activeChat holds the existing project
-      // row's id (set by saveHistory after the initial translation
-      // or by the history-click hydration). Without it we can't
-      // upsert against a known row, so we skip the DB write — the
-      // edit still lives in local state.
-      if (persistEditTimerRef.current) clearTimeout(persistEditTimerRef.current)
-      persistEditTimerRef.current = setTimeout(() => {
-        if (!activeChat) return
-        try {
-          saveHistory({
-            id: activeChat,
-            section: 'translator',
-            title: nextResult.projectTitle || 'Untitled Brief',
-            ts: Date.now(),
-            pinned: false,
-            data: { brief: storedBriefText || '', result: nextResult },
-          })
-        } catch (e) {
-          console.warn('[brief edit] persist failed', e?.message)
-        }
-      }, 600)
-
-      return nextResult
-    })
-  }
 
   async function handleTranslate() {
     // Already mid-flight — don't fire twice.
@@ -906,7 +856,6 @@ export default function Dashboard() {
             designSystemBuilding={designSystemBuilding}
             projectId={activeChat}
             onJumpToKanban={() => navigate('team')}
-            onEditItem={handleEditBriefItem}
             onExportPdf={handleDownload}
             onBuildBoard={() => navigate('team')}
           />

@@ -28,7 +28,6 @@ import {
   ChevronDownIcon,
   ExclamationTriangleIcon,
   PaperAirplaneIcon,
-  PencilSquareIcon,
   QuestionMarkCircleIcon,
   ShareIcon,
   CheckBadgeIcon,
@@ -37,7 +36,6 @@ import {
   BRIEF_V2_SECTIONS,
   emptyContentForShape,
 } from '../../lib/briefV2Schema.js'
-import { EditorForShape } from './BriefV2Edit.jsx'
 import BriefV2ShareModal from './BriefV2ShareModal.jsx'
 
 // ────────────────────────────────────────────────────────────────────
@@ -47,8 +45,6 @@ export default function BriefV2View({
   result,
   isStreaming = false,
   onJumpToKanban,
-  onReviewTranslation, // legacy no-op; replaced by inline edit
-  onEditItem,
   projectId,
   intakeSubmissionId,
   defaultClientEmail,
@@ -157,12 +153,7 @@ export default function BriefV2View({
               <SectionHeader index={sections.indexOf(section) + 1} label={section.label} sectionId={section.id} />
               <div className="brief-v2-card-grid">
                 {section.items.map(item => (
-                  <BriefCard
-                    key={item.id}
-                    item={item}
-                    edited={!!result?.edits?.[item.key]}
-                    onEdit={onEditItem ? (newContent) => onEditItem(section.id, item.key, newContent) : null}
-                  />
+                  <BriefCard key={item.id} item={item} />
                 ))}
               </div>
             </section>
@@ -245,7 +236,7 @@ function SectionHeader({ index, label, sectionId }) {
 // ────────────────────────────────────────────────────────────────────
 // Generic card chrome + content router
 // ────────────────────────────────────────────────────────────────────
-function BriefCard({ item, edited = false, onEdit = null }) {
+function BriefCard({ item }) {
   const isLoading = item.content === null || item.content === undefined
   const isError   = item.content && typeof item.content === 'object' && item.content.__error === true
   // Rich/wide shapes get a full-row card. The colour palette, type
@@ -260,45 +251,13 @@ function BriefCard({ item, edited = false, onEdit = null }) {
     item.shape === 'levels' ||
     item.shape === 'moodboard'
 
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(null)
-  const canEdit = !!onEdit && !isLoading && !isError
-
-  function startEdit() {
-    setDraft(structuredClone ? structuredClone(item.content) : JSON.parse(JSON.stringify(item.content)))
-    setEditing(true)
-  }
-  function cancelEdit() {
-    setEditing(false)
-    setDraft(null)
-  }
-  function saveEdit() {
-    onEdit?.(draft)
-    setEditing(false)
-    setDraft(null)
-  }
-
   return (
-    <article className={`brief-v2-card ${isFullWidth ? 'is-wide' : ''} ${isLoading ? 'is-loading' : ''} ${isError ? 'is-error' : ''} ${editing ? 'is-editing' : ''}`}>
+    <article className={`brief-v2-card ${isFullWidth ? 'is-wide' : ''} ${isLoading ? 'is-loading' : ''} ${isError ? 'is-error' : ''}`}>
       <div className="brief-v2-card-head">
         <span className="brief-v2-card-num">{String(item.id).padStart(2, '0')}</span>
         <h3 className="brief-v2-card-title">{item.title}</h3>
-        {edited && !editing && (
-          <span className="brief-v2-card-edited" title="Edited">Edited</span>
-        )}
-        {item.key === 'questions' && Array.isArray(item.content) && !editing && (
+        {item.key === 'questions' && Array.isArray(item.content) && (
           <span className="brief-v2-card-badge">{item.content.length}</span>
-        )}
-        {canEdit && !editing && (
-          <button
-            type="button"
-            onClick={startEdit}
-            className="brief-v2-card-edit-btn"
-            aria-label={`Edit ${item.title}`}
-            title="Edit"
-          >
-            <PencilSquareIcon style={{ width: 14, height: 14 }} />
-          </button>
         )}
       </div>
       <div className="brief-v2-card-body">
@@ -313,21 +272,8 @@ function BriefCard({ item, edited = false, onEdit = null }) {
           </div>
         ) : isLoading ? (
           <Skeleton shape={item.shape} />
-        ) : editing ? (
-          <EditorForShape
-            shape={item.shape}
-            itemKey={item.key}
-            value={draft}
-            onChange={setDraft}
-          />
         ) : (
           <ItemContent shape={item.shape} content={item.content} item={item} />
-        )}
-        {editing && (
-          <div className="brief-v2-card-edit-actions">
-            <button type="button" onClick={cancelEdit} className="brief-v2-card-edit-cancel">Cancel</button>
-            <button type="button" onClick={saveEdit} className="brief-v2-card-edit-save">Save</button>
-          </div>
         )}
       </div>
     </article>
@@ -1734,201 +1680,6 @@ function ResponsiveStyles() {
         border-radius: 100px; padding: 2px 9px;
         flex-shrink: 0;
       }
-      .brief-v2-card-edited {
-        font: 800 9px 'Urbanist', sans-serif;
-        letter-spacing: 0.08em; text-transform: uppercase;
-        color: #047857;
-        background: rgba(16,185,129,0.10);
-        border: 1px solid rgba(16,185,129,0.35);
-        padding: 2px 7px;
-        border-radius: 100px;
-        flex-shrink: 0;
-      }
-      .brief-v2-card-edit-btn {
-        background: transparent;
-        border: 1px solid var(--color-border);
-        color: var(--color-text-muted);
-        border-radius: 7px;
-        width: 26px; height: 26px;
-        display: inline-flex; align-items: center; justify-content: center;
-        cursor: pointer;
-        flex-shrink: 0;
-        transition: background 0.15s, border-color 0.15s, color 0.15s;
-      }
-      .brief-v2-card-edit-btn:hover { background: var(--color-surface); color: var(--color-text); border-color: var(--color-text-soft); }
-      .brief-v2-card.is-editing { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(139,92,246,0.10); }
-      .brief-v2-card-body { font-size: 13px; line-height: 1.6; color: var(--color-text-soft); }
-
-      .brief-v2-card-edit-actions {
-        display: flex; justify-content: flex-end; gap: 8px;
-        margin-top: 14px; padding-top: 12px;
-        border-top: 1px solid var(--color-border);
-      }
-      .brief-v2-card-edit-cancel {
-        padding: 7px 14px;
-        background: transparent; border: 1px solid var(--color-border);
-        color: var(--color-text-soft);
-        border-radius: 7px;
-        font: 700 12px 'Urbanist', sans-serif;
-        cursor: pointer;
-      }
-      .brief-v2-card-edit-save {
-        padding: 7px 16px;
-        background: var(--color-accent); border: none; color: white;
-        border-radius: 7px;
-        font: 700 12px 'Urbanist', sans-serif;
-        cursor: pointer;
-      }
-      .brief-v2-card-edit-save:hover { opacity: 0.92; }
-
-      .brief-v2-approved-banner {
-        display: flex; align-items: center; gap: 12px;
-        padding: 14px 18px;
-        margin-bottom: 18px;
-        background: linear-gradient(135deg, rgba(16,185,129,0.10), rgba(16,185,129,0.04));
-        border: 1px solid rgba(16,185,129,0.40);
-        border-radius: 14px;
-      }
-      .brief-v2-approved-title { font: 800 14px 'Urbanist', sans-serif; color: #047857; }
-      .brief-v2-approved-sub   { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
-
-      /* Editor primitives (used by BriefV2Edit components) */
-      .briefv2-edit-stack { display: flex; flex-direction: column; gap: 12px; }
-      .briefv2-edit-card {
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: 10px;
-        padding: 12px;
-        display: flex; flex-direction: column; gap: 10px;
-      }
-      .briefv2-edit-section-label {
-        font: 800 9px 'Urbanist', sans-serif; letter-spacing: 0.1em; text-transform: uppercase;
-        color: var(--color-text-muted);
-      }
-      .briefv2-edit-hint { font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px; }
-      .briefv2-edit-textarea {
-        width: 100%;
-        background: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: 8px;
-        padding: 10px 12px;
-        font: 400 13px 'Urbanist', sans-serif;
-        line-height: 1.55;
-        color: var(--color-text);
-        resize: vertical;
-        outline: none;
-      }
-      .briefv2-edit-textarea:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(139,92,246,0.12); }
-      .briefv2-edit-textarea-mono {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 12px;
-      }
-      .briefv2-edit-input {
-        width: 100%;
-        background: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: 7px;
-        padding: 7px 10px;
-        font: 400 13px 'Urbanist', sans-serif;
-        color: var(--color-text);
-        outline: none;
-      }
-      .briefv2-edit-input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(139,92,246,0.12); }
-      .briefv2-edit-input-narrow { max-width: 110px; }
-      .briefv2-edit-input-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-      .briefv2-edit-error {
-        margin-top: 6px;
-        padding: 7px 10px;
-        background: rgba(239,68,68,0.08);
-        border: 1px solid rgba(239,68,68,0.30);
-        border-radius: 7px;
-        font: 600 11px 'JetBrains Mono', monospace;
-        color: #b91c1c;
-      }
-      .briefv2-edit-swatch-row {
-        display: grid;
-        grid-template-columns: 36px 1fr 1.5fr 1fr 28px;
-        gap: 6px;
-        align-items: center;
-      }
-      @media (max-width: 640px) {
-        .briefv2-edit-swatch-row { grid-template-columns: 1fr 1fr; gap: 6px; }
-      }
-      .briefv2-edit-color {
-        width: 36px; height: 32px;
-        border: 1px solid var(--color-border);
-        border-radius: 7px;
-        background: var(--color-bg);
-        cursor: pointer;
-        padding: 2px;
-      }
-      .briefv2-edit-color-small {
-        width: 28px; height: 28px;
-        border: 1px solid var(--color-border);
-        border-radius: 6px;
-        background: var(--color-bg);
-        cursor: pointer;
-        padding: 1px;
-      }
-      .briefv2-edit-icon-btn {
-        background: transparent;
-        border: 1px solid var(--color-border);
-        color: var(--color-text-muted);
-        border-radius: 7px;
-        width: 28px; height: 28px;
-        display: inline-flex; align-items: center; justify-content: center;
-        cursor: pointer;
-      }
-      .briefv2-edit-icon-btn:hover { background: rgba(239,68,68,0.08); color: #b91c1c; border-color: rgba(239,68,68,0.30); }
-      .briefv2-edit-icon-btn-trail {
-        width: auto;
-        padding: 4px 10px;
-        gap: 6px;
-        font: 600 11px 'Urbanist', sans-serif;
-        align-self: flex-start;
-      }
-      .briefv2-edit-add {
-        align-self: flex-start;
-        background: transparent;
-        border: 1px dashed var(--color-border);
-        color: var(--color-text);
-        border-radius: 7px;
-        padding: 7px 12px;
-        font: 700 11px 'Urbanist', sans-serif;
-        display: inline-flex; align-items: center; gap: 6px;
-        cursor: pointer;
-      }
-      .briefv2-edit-add:hover { border-color: var(--color-accent); color: var(--color-accent); }
-      .briefv2-edit-grid-2 {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-      }
-      .briefv2-edit-grid-3 {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;
-      }
-      @media (max-width: 640px) {
-        .briefv2-edit-grid-2 { grid-template-columns: 1fr; }
-      }
-      .briefv2-edit-field { display: flex; flex-direction: column; gap: 4px; }
-      .briefv2-edit-field-span { grid-column: 1 / -1; }
-      .briefv2-edit-field-label {
-        font: 700 10px 'Urbanist', sans-serif; letter-spacing: 0.06em; text-transform: uppercase;
-        color: var(--color-text-muted);
-      }
-      .briefv2-edit-field-label-loud { color: var(--color-text); letter-spacing: 0.1em; }
-      .briefv2-edit-token-row { display: flex; align-items: center; gap: 6px; }
-      .briefv2-edit-details {
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: 8px;
-        padding: 8px 12px;
-      }
-      .briefv2-edit-details summary {
-        cursor: pointer;
-        font: 700 11px 'Urbanist', sans-serif;
-        letter-spacing: 0.04em; text-transform: uppercase;
-        color: var(--color-text-soft);
-      }
-
       .brief-v2-text { margin: 0; }
       .brief-v2-list { padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 6px; }
       .brief-v2-list li::marker { color: var(--color-text-muted); }
