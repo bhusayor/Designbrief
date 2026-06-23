@@ -18,14 +18,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- NOTE on foreign-key column types:
 --   projects.id           is text (designer-side projects use string ids
 --                         like 'translator_<ts>_<rand>' from uid()).
---   intake_submissions.id is uuid (server-generated on insert).
+--   intake_submissions.id is text (the client form generates string ids
+--                         like 'intake_<12 chars>' on submit).
 --   auth.users.id         is uuid.
 -- The FK column type here MUST match the referenced PK exactly, or
 -- Postgres rejects the constraint with "incompatible types".
 CREATE TABLE IF NOT EXISTS public.brief_reviews (
   id                    uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   project_id            text REFERENCES public.projects(id) ON DELETE CASCADE,
-  intake_submission_id  uuid REFERENCES public.intake_submissions(id) ON DELETE CASCADE,
+  intake_submission_id  text REFERENCES public.intake_submissions(id) ON DELETE CASCADE,
   user_id               uuid NOT NULL REFERENCES auth.users(id),
   share_token           text UNIQUE NOT NULL,
   client_email          text NOT NULL,
