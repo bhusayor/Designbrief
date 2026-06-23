@@ -267,7 +267,7 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
       currency: 'USD',
       payment_options: 'card,ussd,banktransfer',
       // The v3 inline modal in production routinely skips the JS
-      // callback — Flutterwave expects a redirect_url and sends the
+      // callback, Flutterwave expects a redirect_url and sends the
       // user back with tx_ref + transaction_id + status in the query
       // string. App.jsx picks the params up and calls verify_payment.
       redirect_url: window.location.origin + '/?flw_callback=1',
@@ -281,7 +281,7 @@ export default function UpgradeModal({ reason, open, onClose, onUpgrade }) {
         logo: 'https://designbrief-vert.vercel.app/favicon.svg',
       },
       meta: { user_id: authUser.id, plan, billing_cycle: cycle },
-      // Belt-and-braces — these fire on browsers that don't take the
+      // Belt-and-braces, these fire on browsers that don't take the
       // redirect path. Whichever runs first wins; activatePlan is
       // idempotent because billing_events.tx_ref is unique.
       callback: async (data) => {
@@ -502,7 +502,7 @@ function CycleToggle({ value, onChange }) {
 function PlanCard({ name, price, interval, subPrice, features, ctaLabel, ctaVariant, mostPopular, onClick, creditTiers, selectedCredits, onSelectCredits }) {
   const isPro = ctaVariant === 'primary'
   // Skip the first feature line ("300 credits / month" etc) when the
-  // card already shows a credit dropdown — the dropdown is the source
+  // card already shows a credit dropdown, the dropdown is the source
   // of truth for that number and a static "300 credits/mo" line below
   // it would conflict with whatever the user has picked.
   const featuresToRender = creditTiers && creditTiers.length > 1
@@ -667,7 +667,7 @@ function CreditTierPicker({ tiers, selected, onSelect, isPro }) {
       {open && (
         <div style={{
           position: 'absolute', left: 0, right: 0, top: 'calc(100% + 6px)',
-          // Same reasoning as the trigger above — solid card surface
+          // Same reasoning as the trigger above, solid card surface
           // so the popover reads as a distinct floating element
           // against the glass modal behind it.
           background: 'var(--color-card)',

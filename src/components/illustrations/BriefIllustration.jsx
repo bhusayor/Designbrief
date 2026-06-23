@@ -1,4 +1,4 @@
-// AI-written document — page floats while lines reveal sequentially
+// AI-written document, page floats while lines reveal sequentially
 // left-to-right, a sparkle wand orbits the top edge, and an AI dot
 // pulses overhead. Class names namespaced with `brief-` so the inline
 // <style> block can't collide with other illustrations in the DOM.

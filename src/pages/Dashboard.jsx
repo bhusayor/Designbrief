@@ -321,7 +321,7 @@ export default function Dashboard() {
 
   // When something else (Sidebar history click, Project Library card
   // click) loads a brief into context, lift it into Dashboard's
-  // local state and switch straight into result phase — the same
+  // local state and switch straight into result phase, the same
   // ResultView that renders a fresh translation. Cleared once
   // consumed so navigating away and back doesn't re-trap into
   // result view.
@@ -331,7 +331,7 @@ export default function Dashboard() {
     setScoring(activeProjectScoring || null)
     // Hydrate inspirations from the saved result. Briefs created
     // before inspirations were persisted have no array here, so
-    // fall back to [] — the empty state then keeps inspiSearched
+    // fall back to [], the empty state then keeps inspiSearched
     // false so the Find Inspiration button still appears as a
     // one-time backfill. New briefs persist inspirations on the
     // result object, so this path skips the fallback entirely.
@@ -390,7 +390,7 @@ export default function Dashboard() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
 
-  // ── Brief revision (Path 2 — AI re-translation with feedback) ────
+  // ── Brief revision (Path 2, AI re-translation with feedback) ────
   // Snapshots the current brief into result.revisions[], then runs
   // reviseBriefV2() with the feedback as context. The new sections
   // replace the current ones; design system + score get recomputed
@@ -541,7 +541,7 @@ export default function Dashboard() {
 
   // Restore a snapshot from revisions[] back to the live latest
   // (swap with the current). Used by the per-version "Restore"
-  // button — escape hatch if a revision went off the rails.
+  // button, escape hatch if a revision went off the rails.
   function handleRestoreRevision(snapshotId) {
     if (!result || !Array.isArray(result.revisions)) return
     const snap = result.revisions.find(s => s.id === snapshotId)
@@ -616,9 +616,9 @@ export default function Dashboard() {
 
 
   async function handleTranslate() {
-    // Already mid-flight — don't fire twice.
+    // Already mid-flight, don't fire twice.
     // Block double-fires while the result is streaming in. The old
-    // 'loading' phase is gone — re-entry during the V2 stream is
+    // 'loading' phase is gone, re-entry during the V2 stream is
     // gated by v2Streaming instead.
     if (v2Streaming) return
 
@@ -628,7 +628,7 @@ export default function Dashboard() {
         fullContext += '\n\n--- Attached: ' + f.name + ' ---\n' + f.content
     })
     if (!fullContext.trim()) {
-      // Silent return hid the reason from the user — surface it.
+      // Silent return hid the reason from the user, surface it.
       showToast?.('Paste a brief or attach a file first', 'warning')
       return
     }
@@ -657,7 +657,7 @@ export default function Dashboard() {
 
     // Free-plan credit gate (10 credits per translation). On insufficient
     // credits consumeCredits shows its own toast + opens the upgrade
-    // modal. For any OTHER failure reason it just console.errors —
+    // modal. For any OTHER failure reason it just console.errors -
     // we surface a generic retry toast so the click is always
     // acknowledged.
     if (consumeCredits) {
@@ -673,7 +673,7 @@ export default function Dashboard() {
     }
 
     // The previous "first impressions" commentary stream that fed
-    // the analysing-brief screen is gone — designers see the
+    // the analysing-brief screen is gone, designers see the
     // section skeleton populate live now, which is the same
     // progress signal with zero waiting.
 
@@ -764,12 +764,12 @@ export default function Dashboard() {
       // Competitor URL enrichment was previously a second pass that
       // hit /api/web-search to verify Claude's URL guesses. Pulled
       // because the underlying search APIs are no longer free at
-      // any usable tier. The brief still gets URLs — Claude's
-      // first-pass output includes them — they're just not
+      // any usable tier. The brief still gets URLs, Claude's
+      // first-pass output includes them, they're just not
       // verified against a live search index. The server route
       // stays mounted in case a paid key gets added later.
 
-      // Phase 2 — async design-system extraction. Reads items 12-17
+      // Phase 2, async design-system extraction. Reads items 12-17
       // and compiles a single shared object every kanban card +
       // every AI builder run reads. We flip the building flag on so
       // the V2View shows the "Building design system" pill, then
@@ -791,7 +791,7 @@ export default function Dashboard() {
       }
       setDesignSystemBuilding(false)
 
-      // Phase 3 — derive kanban cards from item 4 (Deliverables)
+      // Phase 3, derive kanban cards from item 4 (Deliverables)
       // with rich descriptions composed from items 1/2/5/6/7/14/20/21
       // and blocked detection from items 9/10/11. Deterministic, no
       // AI call. Stored on result.kanbanCards so TeamCollab can
@@ -885,7 +885,7 @@ export default function Dashboard() {
       const url = `${window.location.origin}/share/${data.token}`
       try {
         await navigator.clipboard.writeText(url)
-        showToast?.('Share link copied — anyone with the link can view this brief.', 'success')
+        showToast?.('Share link copied, anyone with the link can view this brief.', 'success')
       } catch {
         // Clipboard write blocked (older browser / iframe). Still
         // surface the URL so the user can manually copy it.
@@ -894,7 +894,7 @@ export default function Dashboard() {
     } catch (e) {
       console.error('[share] failed', e)
       const msg = e?.code === '42P01'
-        ? 'Sharing isn\'t set up — run supabase/shared-briefs.sql first.'
+        ? 'Sharing isn\'t set up, run supabase/shared-briefs.sql first.'
         : (e?.message || 'Could not create share link. Try again.')
       showToast?.(msg, 'error')
     }
@@ -951,7 +951,7 @@ export default function Dashboard() {
       return
     }
 
-    // ── Legacy V1 path — html2canvas snapshot ─────────────────────
+    // ── Legacy V1 path, html2canvas snapshot ─────────────────────
     const root = document.querySelector('.brief-result-root')
     if (!root) {
       showToast?.('Brief content not ready yet.', 'error')
@@ -961,7 +961,7 @@ export default function Dashboard() {
     setDownloadingPdf(true)
     showToast?.('Preparing PDF…', 'success')
 
-    // .brief-result-root has `height: 100% + overflow: auto` — a
+    // .brief-result-root has `height: 100% + overflow: auto`, a
     // fixed-viewport scroll container. html2canvas defaults to
     // measuring the element's clientHeight (the viewport-visible
     // portion), so without expanding the element first only the
@@ -983,7 +983,7 @@ export default function Dashboard() {
     void root.offsetHeight
 
     try {
-      // Dynamic import — keeps html2canvas + jspdf (~600KB combined)
+      // Dynamic import, keeps html2canvas + jspdf (~600KB combined)
       // out of the initial bundle. They're only loaded when the user
       // actually clicks Download.
       const [{ default: html2canvas }, jspdfModule] = await Promise.all([
@@ -1008,7 +1008,7 @@ export default function Dashboard() {
         // layout passes inside the clone don't trip on a small
         // window height.
         windowHeight: root.scrollHeight,
-        // Exclude the sticky header — it'd appear at the top of the
+        // Exclude the sticky header, it'd appear at the top of the
         // PDF and the action buttons aren't relevant in a saved file.
         ignoreElements: (el) =>
           !!(el.classList && el.classList.contains('brief-result-sticky')),
@@ -1023,7 +1023,7 @@ export default function Dashboard() {
 
       // Multi-page split: drop the same full-height image on each
       // page with a negative y-offset so the page window walks down
-      // the canvas. Cleaner than slicing the canvas — the PDF stays
+      // the canvas. Cleaner than slicing the canvas, the PDF stays
       // a single embedded image stream.
       let heightLeft = imgHeight
       let position = 0
@@ -1057,7 +1057,7 @@ export default function Dashboard() {
     }
   }
 
-  // The loading phase + StreamingLoadingView render were removed —
+  // The loading phase + StreamingLoadingView render were removed -
   // handleTranslate now seeds an empty skeleton and flips phase
   // straight to 'result' so the BriefV2View takes over with its
   // own per-item skeleton + streaming animation. The Analysing
@@ -1130,7 +1130,7 @@ export default function Dashboard() {
       padding: isMobile ? '64px 16px 32px' : 'clamp(32px, 6vh, 60px) clamp(16px, 5vw, 40px)',
       position: 'relative',
     }}>
-      {/* Mobile Upgrade to Pro button — top right */}
+      {/* Mobile Upgrade to Pro button, top right */}
       {isMobile && workspace?.plan === 'free' && (
         <button
           onClick={() => alert('Pro plan coming soon! 500 credits/day for $19/mo.')}
@@ -1161,7 +1161,7 @@ export default function Dashboard() {
         </button>
       )}
 
-      {/* Liquid blob background — sits behind the grid texture for
+      {/* Liquid blob background, sits behind the grid texture for
           a subtle living-canvas feel under the hero copy. */}
       <LiquidBackground opacity={0.08} />
 
@@ -1234,7 +1234,7 @@ export default function Dashboard() {
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 14px', borderTop: '1px solid var(--color-divider)' }}>
             {/* Left: attach only */}
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              {/* Attach button — no border, icon-only */}
+              {/* Attach button, no border, icon-only */}
               <div style={{ position: 'relative' }} ref={plusMenuRef}>
 
                 <button
@@ -1259,14 +1259,14 @@ export default function Dashboard() {
                 <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx,.md" style={{ display: 'none' }} onChange={e => { handleFileAttach(e.target.files[0]); e.target.value = '' }} />
               </div>
 
-              {/* end left group — template + send are on the right */}
+              {/* end left group, template + send are on the right */}
             </div>
 
             {/* Right: send button (brief-template picker was removed
-                — every translation now produces the same default
+               , every translation now produces the same default
                 strategic brief). */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {/* Send button — square. Disabled when no content OR
+            {/* Send button, square. Disabled when no content OR
                 while a translation is already in flight (prevents
                 the "looks dead → click again → fires twice" pattern
                 that was eating extra credits). */}
@@ -1306,7 +1306,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Active connector badges — hidden from live site for now.
+        {/* Active connector badges, hidden from live site for now.
             Re-enable by uncommenting the block below.
         {(connectorData?.figma || connectorData?.github) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
@@ -1385,7 +1385,7 @@ export function ResultView({
       // into the brief's own scroll container. In the SharedBrief
       // viewer (hideStickyHeader) we sit inside a page-level wrapper
       // that only has minHeight, so the same rule resolves to a
-      // 100dvh-tall trap — only the first viewport-worth of content
+      // 100dvh-tall trap, only the first viewport-worth of content
       // would render and the rest would scroll inside this div while
       // the page above stayed put. Switching to auto/visible in that
       // mode lets the page scroll normally and the full brief shows.
@@ -1404,9 +1404,9 @@ export function ResultView({
           props as kebab-case in the DOM, so [style*="1fr 1fr"]
           reliably matches the grid declarations).
           Breakpoints:
-            ≤ 700px  — mobile: stack everything, shrink padding
-            701-1024 — tablet: keep grids, ease padding
-            ≥ 1025px — desktop: original layout
+            ≤ 700px , mobile: stack everything, shrink padding
+            701-1024, tablet: keep grids, ease padding
+            ≥ 1025px, desktop: original layout
       */}
       <style>{`
         @media (max-width: 1024px) {
@@ -1452,7 +1452,7 @@ export function ResultView({
           /* Score card: drop sticky positioning when stacked */
           .brief-result-root .brief-result-score-card { position: static !important; padding: 20px !important; }
           /* Any 2-col / 3-col / fractional-col grid stacks to 1 column.
-             [style*="1fr 1fr"] also catches "1fr 1fr 1fr" — that's
+             [style*="1fr 1fr"] also catches "1fr 1fr 1fr", that's
              desired (3-col stacks on mobile too). [style*="2fr 1fr"]
              catches the Hero + Issues banner; [style*="repeat(3"]
              catches the deliverables / clarity grids. The type-scale
@@ -1502,7 +1502,7 @@ export function ResultView({
         }
       `}</style>
 
-      {/* Sticky header — owner only. The shared-brief viewer renders
+      {/* Sticky header, owner only. The shared-brief viewer renders
           its own header outside ResultView, so we skip this when the
           host wraps us in a read-only context. */}
       {!hideStickyHeader && (
@@ -1555,7 +1555,7 @@ export function ResultView({
       </div>
       )}
 
-      {/* Sections — priority order */}
+      {/* Sections, priority order */}
       <HeroSection r={r} s={s} />
       {r.creativeConceptStatement && <CreativeConceptSection statement={r.creativeConceptStatement} />}
       <IssuesBannerSection r={r} scoring={s} />
@@ -1569,7 +1569,7 @@ export function ResultView({
       {r.deliverables?.length > 0 && <DeliverablesSection deliverables={r.deliverables} />}
       {/* Deep analysis (features, techStack, userFlow) is bundled
           into translateAndAnalyse now, so every result has these.
-          Saved briefs from before the bundle change may not — render
+          Saved briefs from before the bundle change may not, render
           each section conditionally so old briefs degrade gracefully
           instead of showing empty headers. */}
       {r.features?.length > 0 && <FeaturesSection features={r.features} discipline={r.discipline} />}
@@ -1888,7 +1888,7 @@ function IssuesBannerSection({ r, scoring }) {
       {/* Two-column body */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'flex-start' }}>
 
-        {/* Left — issues grid */}
+        {/* Left, issues grid */}
         <div>
           {hasIssues && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
@@ -1933,7 +1933,7 @@ function IssuesBannerSection({ r, scoring }) {
           )}
         </div>
 
-        {/* Right — recommended fixes card */}
+        {/* Right, recommended fixes card */}
         {hasFixes && (
           <div style={{
             background: 'var(--color-card)',
@@ -1991,8 +1991,8 @@ function DesignDirectionSection({ r, showToast }) {
   const accent  = colors[1]?.hex || '#E94560'
   const bg      = colors[2]?.hex || '#F9FAFB'
 
-  const dispFontName = safeTypoStr(r?.typography?.displayFont || r?.typography?.display).split('—')[0].trim() || 'Urbanist'
-  const bodyFontName = safeTypoStr(r?.typography?.bodyFont || r?.typography?.body).split('—')[0].trim() || 'Urbanist'
+  const dispFontName = safeTypoStr(r?.typography?.displayFont || r?.typography?.display).split('-')[0].trim() || 'Urbanist'
+  const bodyFontName = safeTypoStr(r?.typography?.bodyFont || r?.typography?.body).split('-')[0].trim() || 'Urbanist'
 
   const AXIS_COLORS = ['#FF4D6A', '#6C63FF', '#4DAAFF', '#4CAF82', '#FFB84D']
 
@@ -2086,7 +2086,7 @@ function DesignDirectionSection({ r, showToast }) {
 
             return (
               <div style={{ border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden', opacity: revealed ? 1 : 0, transition: 'opacity 0.4s ease' }}>
-                {/* Mock nav — always uses primary colour */}
+                {/* Mock nav, always uses primary colour */}
                 <div style={{ background: primary, padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', gap: 5 }}>
                     {['#FF5F57', '#FFBD2E', '#28CA41'].map((c, ci) => (
@@ -2145,7 +2145,7 @@ function DesignDirectionSection({ r, showToast }) {
           )}
         </div>
 
-        {/* Brand Personality — coloured axis sliders */}
+        {/* Brand Personality, coloured axis sliders */}
         <div>
           <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase' }}>Brand Personality</div>
           {(r?.brandAxes ?? []).map((axis, i) => {
@@ -2212,7 +2212,7 @@ function TypographyMoodboardSection({ r }) {
             return (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '170px 115px 105px', gap: 10 }}>
 
-                {/* Tile 1 — Hero gradient (col 1-2, row 1) */}
+                {/* Tile 1, Hero gradient (col 1-2, row 1) */}
                 <div style={{ gridColumn: '1 / 3', gridRow: '1', borderRadius: 14, overflow: 'hidden', background: `linear-gradient(135deg, ${c0} 0%, ${c3} 55%, ${c1} 100%)`, position: 'relative', display: 'flex', alignItems: 'flex-end', padding: '20px 22px' }}>
                   {/* noise texture overlay */}
                   <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.75\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.04\'/%3E%3C/svg%3E")', backgroundSize: 'cover', opacity: 0.4 }}/>
@@ -2231,7 +2231,7 @@ function TypographyMoodboardSection({ r }) {
                   )}
                 </div>
 
-                {/* Tile 2 — Primary color swatch (col 3, row 1) */}
+                {/* Tile 2, Primary color swatch (col 3, row 1) */}
                 <div style={{ gridColumn: '3', gridRow: '1', borderRadius: 14, overflow: 'hidden', background: c0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '16px 14px', position: 'relative' }}>
                   <div style={{ position: 'absolute', bottom: -20, right: -20, width: 90, height: 90, borderRadius: '50%', background: c1, opacity: 0.2, filter: 'blur(20px)' }}/>
                   <div>
@@ -2250,7 +2250,7 @@ function TypographyMoodboardSection({ r }) {
                   </div>
                 </div>
 
-                {/* Tile 3 — Concentric rings / geometry (col 1, row 2) */}
+                {/* Tile 3, Concentric rings / geometry (col 1, row 2) */}
                 <div style={{ gridColumn: '1', gridRow: '2', borderRadius: 14, overflow: 'hidden', background: c3, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                   <svg width="90" height="90" viewBox="0 0 90 90">
                     {[40, 30, 20, 11].map((rv, ri) => (
@@ -2262,14 +2262,14 @@ function TypographyMoodboardSection({ r }) {
                   </svg>
                 </div>
 
-                {/* Tile 4 — Typography preview (col 2, row 2) */}
+                {/* Tile 4, Typography preview (col 2, row 2) */}
                 <div style={{ gridColumn: '2', gridRow: '2', borderRadius: 14, overflow: 'hidden', background: 'var(--color-card)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', padding: '14px 16px', gap: 4 }}>
                   <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 8, color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>typography</div>
                   <div style={{ fontFamily: "'Urbanist',sans-serif", fontWeight: 800, fontSize: 32, color: c0, lineHeight: 1, letterSpacing: '-0.03em' }}>Aa</div>
                   <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 8, color: 'var(--color-text-muted)' }}>Display · Body</div>
                 </div>
 
-                {/* Tile 5 — Keywords (col 3, rows 2-3) */}
+                {/* Tile 5, Keywords (col 3, rows 2-3) */}
                 <div style={{ gridColumn: '3', gridRow: '2 / 4', borderRadius: 14, overflow: 'hidden', background: c1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px 14px', gap: 7, position: 'relative' }}>
                   <div style={{ position: 'absolute', top: -10, left: -10, width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', filter: 'blur(10px)' }}/>
                   <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 8, color: isDark(c1) ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>keywords</div>
@@ -2280,7 +2280,7 @@ function TypographyMoodboardSection({ r }) {
                   ))}
                 </div>
 
-                {/* Tile 6 — Color palette strip (col 1-2, row 3) */}
+                {/* Tile 6, Color palette strip (col 1-2, row 3) */}
                 <div style={{ gridColumn: '1 / 3', gridRow: '3', borderRadius: 14, overflow: 'hidden', background: 'var(--color-card)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'stretch' }}>
                   {mColors.map((color, ci) => (
                     <div key={ci} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 0 10px 10px', background: color.hex, position: 'relative' }}>
@@ -2311,17 +2311,17 @@ function TypographyMoodboardSection({ r }) {
 function TypographySection({ typography, discipline }) {
   if (!typography || typeof typography !== 'object') return null
 
-  const displayFont = safeTypoStr(typography.displayFont || typography.display).split('—')[0].trim() || 'Urbanist'
-  const bodyFont    = safeTypoStr(typography.bodyFont || typography.body).split('—')[0].trim() || 'Urbanist'
+  const displayFont = safeTypoStr(typography.displayFont || typography.display).split('-')[0].trim() || 'Urbanist'
+  const bodyFont    = safeTypoStr(typography.bodyFont || typography.body).split('-')[0].trim() || 'Urbanist'
 
   const displayUse = safeTypoStr(typography.displayUse) || (
-    safeTypoStr(typography.display).includes('—')
-      ? safeTypoStr(typography.display).split('—').slice(1).join('—').trim()
+    safeTypoStr(typography.display).includes('-')
+      ? safeTypoStr(typography.display).split('-').slice(1).join('-').trim()
       : 'Headings, hero text, brand name'
   )
   const bodyUse = safeTypoStr(typography.bodyUse) || (
-    safeTypoStr(typography.body).includes('—')
-      ? safeTypoStr(typography.body).split('—').slice(1).join('—').trim()
+    safeTypoStr(typography.body).includes('-')
+      ? safeTypoStr(typography.body).split('-').slice(1).join('-').trim()
       : 'Body copy, UI labels, navigation'
   )
 
@@ -2337,7 +2337,7 @@ function TypographySection({ typography, discipline }) {
       label:      safeTypoStr(s.label || s.name || ''),
       size:       safeTypoStr(s.size || s.fontSize || '16px'),
       weight:     safeTypoStr(s.weight || s.fontWeight || '400'),
-      lineHeight: safeTypoStr(s.lineHeight || s.line_height || '—'),
+      lineHeight: safeTypoStr(s.lineHeight || s.line_height || '-'),
       spacing:    safeTypoStr(s.letterSpacing || s.letter_spacing || s.spacing || '0'),
     })).filter(s => s.label)
   }
@@ -2347,7 +2347,7 @@ function TypographySection({ typography, discipline }) {
 
   if (typography.scale) {
     if (Array.isArray(typography.scale)) {
-      // Old flat array format — assign to active platform
+      // Old flat array format, assign to active platform
       if (platform === 'mobile') {
         mobileScale = normaliseScaleArray(typography.scale)
       } else {
@@ -2365,7 +2365,7 @@ function TypographySection({ typography, discipline }) {
             label,
             size:       safeTypoStr(val).split('/')[0]?.trim() || safeTypoStr(val),
             weight:     safeTypoStr(val).split('/')[1]?.trim() || '400',
-            lineHeight: '—',
+            lineHeight: '-',
             spacing:    '0',
           }))
         }
@@ -2478,7 +2478,7 @@ function TypographySection({ typography, discipline }) {
         <div className="brief-result-scale-block" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '20px 22px', height: 'fit-content' }}>
           <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Type Scale</div>
 
-          {/* Platform tabs — show only when both exist */}
+          {/* Platform tabs, show only when both exist */}
           {hasWeb && hasMobile && (
             <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
               {[{ id: 'web', label: '🖥 Web' }, { id: 'mobile', label: '📱 Mobile' }].map(tab => (
@@ -2776,7 +2776,7 @@ function BudgetSection({ budgetRange: br }) {
       return 0
     }
     const cleaned = String(cost).replace(/[$,\s]/g, '')
-    const nums = cleaned.split(/[-–to]+/).map(Number).filter(n => n > 0)
+    const nums = cleaned.split(/[--to]+/).map(Number).filter(n => n > 0)
     if (nums.length === 2) return (nums[0] + nums[1]) / 2
     if (nums.length === 1) return nums[0]
     const anyNum = String(cost).replace(/[^0-9]/g, ' ').trim().split(/\s+/).map(Number).filter(Boolean)
@@ -2788,8 +2788,8 @@ function BudgetSection({ budgetRange: br }) {
     if (typeof cost === 'number') return '$' + cost.toLocaleString()
     if (typeof cost === 'string') {
       if (cost.includes('$')) return cost
-      const nums = cost.replace(/[^0-9\-–]/g, '').split(/[-–]/).map(Number).filter(Boolean)
-      if (nums.length === 2) return '$' + nums[0].toLocaleString() + '–$' + nums[1].toLocaleString()
+      const nums = cost.replace(/[^0-9\--]/g, '').split(/[--]/).map(Number).filter(Boolean)
+      if (nums.length === 2) return '$' + nums[0].toLocaleString() + '-$' + nums[1].toLocaleString()
       if (nums.length === 1) return '$' + nums[0].toLocaleString()
     }
     return String(cost)
@@ -2821,7 +2821,7 @@ function BudgetSection({ budgetRange: br }) {
         <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '20px', color: 'var(--color-text)' }}>Budget Estimate</span>
       </div>
       <div style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '32px', letterSpacing: '-0.02em', color: 'var(--color-text)', marginBottom: '6px' }}>
-        {br.low} – {br.high}
+        {br.low}-{br.high}
       </div>
 
       {breakdown.length > 0 && total > 0 && (
@@ -2960,8 +2960,8 @@ function TechStackSection({ techStack, discipline }) {
 
   function parseTool(t) {
     if (!t) return ''
-    if (typeof t === 'string') return t.split('—')[0].split('(')[0].trim()
-    if (typeof t === 'object') return (t.name || t.tool || t.label || JSON.stringify(t)).split('—')[0].trim()
+    if (typeof t === 'string') return t.split('-')[0].split('(')[0].trim()
+    if (typeof t === 'object') return (t.name || t.tool || t.label || JSON.stringify(t)).split('-')[0].trim()
     return String(t)
   }
 
@@ -3290,11 +3290,11 @@ function UserFlowSection({ userFlow, discipline }) {
         <div style={{ position: 'absolute', left: 0, top: 0, transformOrigin: '0 0', transform: `translate(${offset.x}px,${offset.y + 20}px) scale(${viewScale})`, width: TOTAL_W, height: CANVAS_H }}>
           <svg width={TOTAL_W} height={CANVAS_H} style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible' }}>
             <defs>
-              {/* Main flow arrow — grey */}
+              {/* Main flow arrow, grey */}
               <marker id="fc-arr" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
                 <path d="M1,1 L8,4 L1,7" stroke="#94A3B8" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
               </marker>
-              {/* Branch arrow — blue */}
+              {/* Branch arrow, blue */}
               <marker id="fc-arr-blue" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
                 <path d="M1,1 L8,4 L1,7" stroke={BLUE} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
               </marker>
@@ -3704,9 +3704,9 @@ function CompetitorsSection({ result, loadingCompetitors, onLoad }) {
                           ))}
                         </div>
                       </td>
-                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.pricing || '—'}</td>
-                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.marketShare || '—'}</td>
-                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.userBase || '—'}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.pricing || '-'}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.marketShare || '-'}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text-soft)' }}>{c.userBase || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

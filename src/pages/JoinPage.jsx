@@ -43,7 +43,7 @@ export default function JoinPage() {
       localStorage.setItem('db-join-token', joinToken)
 
       try {
-        // Prefer the server-side check_project endpoint — it returns the
+        // Prefer the server-side check_project endpoint, it returns the
         // linked project (title etc.) which the public anon Supabase client
         // typically can't read for shared projects due to RLS.
         let serverInvite = null
@@ -70,7 +70,7 @@ export default function JoinPage() {
           setAuthName(data.invitee_name || '')
           setPhase('invite')
         } else {
-          // The token couldn't be resolved — wipe it so the user isn't sent
+          // The token couldn't be resolved, wipe it so the user isn't sent
           // back here on the next sign-in.
           try { localStorage.removeItem('db-join-token') } catch {}
           try {
@@ -102,12 +102,12 @@ export default function JoinPage() {
     setWaitingForAuth(false)
 
     if (!workspace) {
-      // New user — needs their own workspace first. Navigate away from the public 'join'
+      // New user, needs their own workspace first. Navigate away from the public 'join'
       // section so App.jsx's workspace gate kicks in and shows WorkspaceSetup.
       // App.jsx's onComplete will navigate back here once workspace is created.
       navigate('dashboard')
     } else {
-      // Existing user with workspace — accept the invite immediately.
+      // Existing user with workspace, accept the invite immediately.
       handleAcceptInvite()
     }
   }, [waitingForAuth, authUser, workspace, workspaceLoading])
@@ -127,7 +127,7 @@ export default function JoinPage() {
         console.error('[JoinPage] acceptInvite failed:', err)
         throw new Error(
           'Could not join the project. ' + (err.message || 'Unknown error') +
-          ' — If this keeps happening, run the SQL block from supabase/team-members-setup.sql in the Supabase SQL editor.'
+          ', If this keeps happening, run the SQL block from supabase/team-members-setup.sql in the Supabase SQL editor.'
         )
       }
       localStorage.removeItem('db-join-token')
@@ -164,7 +164,7 @@ export default function JoinPage() {
         }
 
         // Inject into TeamCollab's own project list so it persists across
-        // navigations. For a BRAND-NEW user the list is empty — we must seed a
+        // navigations. For a BRAND-NEW user the list is empty, we must seed a
         // placeholder "My Project" too, otherwise their own default project
         // gets silently replaced by the invited one and "every account comes
         // with a new project" no longer holds.
@@ -182,7 +182,7 @@ export default function JoinPage() {
         localStorage.setItem('teamcollab-active-project', project.id)
 
         // Pre-seed per-project state so TeamCollab's loadProjectStateById
-        // finds data — INCLUDING the project's tasks. Without this the
+        // finds data, INCLUDING the project's tasks. Without this the
         // invitee briefly sees an empty board ("No tasks yet") before the
         // async loadTasksFromDB resolves and fills it. The accept API
         // returns the tasks alongside the project so we can hydrate the
@@ -207,13 +207,13 @@ export default function JoinPage() {
         }
       } catch {}
 
-      // Land the invitee on the project board immediately — no "Open
+      // Land the invitee on the project board immediately, no "Open
       // Project Board" intermediate step. The activeProject is already
       // set above, so TeamCollab will pick it up on render.
       setPhase('done')
       navigate('team')
     } catch (err) {
-      // A failed accept is terminal for this token — clear it so the user
+      // A failed accept is terminal for this token, clear it so the user
       // isn't permanently bounced back to the join screen.
       try { localStorage.removeItem('db-join-token') } catch {}
       try {

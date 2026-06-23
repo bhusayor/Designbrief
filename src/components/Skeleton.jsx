@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// Skeleton.jsx — shimmer placeholders for loading states. The base
+// Skeleton.jsx, shimmer placeholders for loading states. The base
 // SkeletonBox runs a CSS keyframe shimmer (defined in index.css as
 // @keyframes shimmer), so adding more variants is just composition.
 //

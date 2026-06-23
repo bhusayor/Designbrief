@@ -16,7 +16,7 @@ function downloadBrief(r, s, opts = {}) {
   if (!r) return;
   const isFree = opts.plan === 'free';
   const lines = [
-    `TRANSLATED BRIEF — ${r.projectTitle ?? 'Untitled'}`,
+    `TRANSLATED BRIEF, ${r.projectTitle ?? 'Untitled'}`,
     '='.repeat(60),
     '',
     s ? `BRIEF SCORE: ${s.overall}/10  (${s.verdict})` : '',
@@ -36,14 +36,14 @@ function downloadBrief(r, s, opts = {}) {
       ? r.typography
       : (r.typography
           ? [r.typography.displayFont, r.typography.bodyFont].filter(Boolean).join(' + ') +
-            (r.typography.rationale ? ' — ' + r.typography.rationale : '')
+            (r.typography.rationale ? ', ' + r.typography.rationale : '')
           : ''),
     '',
     '─── MOODBOARD KEYWORDS ───',
     (r.moodboardKeywords ?? []).join(', '),
     '',
     '─── BUDGET RANGE ───',
-    r.budgetRange ? `${r.budgetRange.low} – ${r.budgetRange.high}` : '',
+    r.budgetRange ? `${r.budgetRange.low}-${r.budgetRange.high}` : '',
     ...(r.budgetRange?.breakdown
       ? Object.entries(r.budgetRange.breakdown).map(([k, v]) => `  ${k}: ${v}`)
       : []),
@@ -63,10 +63,10 @@ function downloadBrief(r, s, opts = {}) {
     ) : []),
     '',
     '─── FEATURES ───',
-    ...(r.features ?? []).map(f => `  [${f.priority}] ${f.name} — ${f.description}`),
+    ...(r.features ?? []).map(f => `  [${f.priority}] ${f.name}, ${f.description}`),
     '',
     '─── USER FLOW ───',
-    ...(r.userFlow ?? []).map(s => `  Step ${s.step}: ${s.title} — ${s.description}`),
+    ...(r.userFlow ?? []).map(s => `  Step ${s.step}: ${s.title}, ${s.description}`),
     '',
     '─── QUESTIONS TO ASK ───',
     ...(r.questionsToAsk ?? []).map((q, i) => `  ${String(i + 1).padStart(2, '0')}. ${q}`),
@@ -401,7 +401,7 @@ export default function ProjectDocument() {
           )}
         </div>
 
-        {/* Centre — tab switcher */}
+        {/* Centre, tab switcher */}
         <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
           {['brief', 'approval'].map(tab => {
             const active = activeTab === tab;
@@ -434,7 +434,7 @@ export default function ProjectDocument() {
           })}
         </div>
 
-        {/* Right — actions */}
+        {/* Right, actions */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
           <Button
             variant="secondary"
@@ -444,7 +444,7 @@ export default function ProjectDocument() {
             ⬇ {userPlan === 'free' ? 'Export PDF (Free)' : 'Export PDF'}
           </Button>
 
-          {/* DOCX — Pro only */}
+          {/* DOCX, Pro only */}
           {userPlan !== 'pro' && (
             <Button
               variant="secondary"
@@ -455,7 +455,7 @@ export default function ProjectDocument() {
             </Button>
           )}
 
-          {/* White-label — Pro only */}
+          {/* White-label, Pro only */}
           {userPlan !== 'pro' && (
             <Button
               variant="secondary"
@@ -483,7 +483,7 @@ export default function ProjectDocument() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ maxWidth: '860px', margin: '0 auto', padding: '32px 40px 80px' }}>
 
-          {/* ══ TAB 1 — BRIEF ══ */}
+          {/* ══ TAB 1, BRIEF ══ */}
           {activeTab === 'brief' && (
             <>
               {/* Locked banner */}
@@ -573,7 +573,7 @@ export default function ProjectDocument() {
                 </Card>
               ))}
 
-              {/* Typography — older briefs saved typography as a string;
+              {/* Typography, older briefs saved typography as a string;
                   current briefs save it as an object with displayFont /
                   bodyFont / rationale. Rendering the object directly as
                   a React child threw "Objects are not valid as a React
@@ -715,7 +715,7 @@ export default function ProjectDocument() {
             </>
           )}
 
-          {/* ══ TAB 2 — APPROVAL ══ */}
+          {/* ══ TAB 2, APPROVAL ══ */}
           {activeTab === 'approval' && (
             <>
               {/* Stats row */}

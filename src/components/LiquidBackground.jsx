@@ -1,7 +1,7 @@
 import { LIQUID_DEFAULTS } from '../lib/motion'
 
 // ────────────────────────────────────────────────────────────────────
-// LiquidBackground — three slow-moving blobs you drop behind hero
+// LiquidBackground, three slow-moving blobs you drop behind hero
 // content. Pure CSS, no scripts, no Pexels round-trip. Default palette
 // uses the DesignBrief purple gradient; pass color1 / color2 to match
 // a brief's brand.

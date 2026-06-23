@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 // ────────────────────────────────────────────────────────────────────
-// BuilderChat — the assistant that sits inside AIBuilder. The user can
+// BuilderChat, the assistant that sits inside AIBuilder. The user can
 // ask it to change anything about the currently-reviewing section:
 //
 //   "add a video"        → swap in a Pexels video matching the brief
@@ -40,7 +40,7 @@ const QUICK_CHIPS = [
 export default function BuilderChat({
   section,            // current build_section row (must have generated_code)
   briefContext,
-  designSystem,       // null OK — when present, threaded into chatRefinement
+  designSystem,       // null OK, when present, threaded into chatRefinement
   projectName,
   onSectionUpdate,    // (newHtml: string) => void
   collapsed,
@@ -50,7 +50,7 @@ export default function BuilderChat({
 
   const [messages, setMessages] = useState(() => [{
     role: 'assistant',
-    content: `Hi! I'm your AI design assistant for ${projectName || 'this project'}. Tell me what to change — colors, layout, copy, animations, or media. I'll update the preview in place.`,
+    content: `Hi! I'm your AI design assistant for ${projectName || 'this project'}. Tell me what to change, colors, layout, copy, animations, or media. I'll update the preview in place.`,
   }])
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
@@ -148,7 +148,7 @@ export default function BuilderChat({
       pushAssistant(reply)
     } catch (e) {
       showAIError?.(e, () => send())
-      pushAssistant('Something interrupted that. Your work is safe — try again.')
+      pushAssistant('Something interrupted that. Your work is safe, try again.')
     } finally {
       setThinking(false)
     }
@@ -409,14 +409,14 @@ function detectCssTemplate(message, briefContext = {}) {
 function responseFor(intent) {
   const r = {
     make_darker:     "Done. Darker, moodier, brand overlay deeper. Want me to push it further?",
-    make_lighter:    "Lightened it up — feels more open. Happy with the direction?",
+    make_lighter:    "Lightened it up, feels more open. Happy with the direction?",
     change_headline: "Updated the headline. Does the new copy land for you?",
-    change_cta:      "CTA refreshed — verb-first, outcome-focused. Want to tweak the wording?",
+    change_cta:      "CTA refreshed, verb-first, outcome-focused. Want to tweak the wording?",
     change_color:    "Colors updated. Still inside your brand palette.",
     change_font:     "Typography swapped. Type scale and weight pairing should feel right now.",
-    make_minimal:    "Simplified — removed visual noise, gave the content more breathing room. Better?",
+    make_minimal:    "Simplified, removed visual noise, gave the content more breathing room. Better?",
     make_bolder:     "Pushed scale and contrast up. Should feel more commanding now.",
-    general_change:  "Done. Check the preview — want to keep refining?",
+    general_change:  "Done. Check the preview, want to keep refining?",
   }
   return r[intent] || r.general_change
 }
@@ -465,7 +465,7 @@ function swapMediaBackground(currentHtml, newMediaHtml) {
     return null
   }
 
-  // Also strip any prior <style> ABOVE the media block when present —
+  // Also strip any prior <style> ABOVE the media block when present -
   // CSS animation templates pack a <style> right before the wrapper.
   const stylePrefix = (html, cls) => {
     const rx = new RegExp(`<style[\\s\\S]*?<\\/style>\\s*<(div|section)[^>]*class=["'][^"']*\\b${cls}\\b`, 'i')

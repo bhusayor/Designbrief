@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// animations.js — CSS/GSAP templates the AI Builder uses when a hero
+// animations.js, CSS/GSAP templates the AI Builder uses when a hero
 // section doesn't need stock video or imagery (tech / SaaS / minimal /
 // design-studio briefs).
 //

@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// BriefV2ReviseModal — designer-facing modal that captures feedback
+// BriefV2ReviseModal, designer-facing modal that captures feedback
 // and triggers an AI revision of the brief. Auto-prefills the
 // textarea with the client's note when there's an outstanding
 // brief_review with status='changes_requested', so the designer
@@ -128,7 +128,7 @@ export default function BriefV2ReviseModal({
               <strong style={{ fontWeight: 800 }}>
                 {pendingReview.client_name ? `${pendingReview.client_name} ` : 'Your client '}
               </strong>
-              requested changes. Their note is pre-filled below — edit or rewrite as you like.
+              requested changes. Their note is pre-filled below, edit or rewrite as you like.
             </div>
           )}
 
@@ -146,7 +146,7 @@ export default function BriefV2ReviseModal({
             ref={taRef}
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
-            placeholder="e.g. The audience is too broad — we only target independent designers, not agencies. Tone should feel more practical, less aspirational."
+            placeholder="e.g. The audience is too broad, we only target independent designers, not agencies. Tone should feel more practical, less aspirational."
             rows={7}
             disabled={submitting}
             style={{

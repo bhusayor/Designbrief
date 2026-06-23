@@ -1,12 +1,12 @@
 // ────────────────────────────────────────────────────────────────────
-// briefV2Schema.js — single source of truth for the 21-item brief
+// briefV2Schema.js, single source of truth for the 21-item brief
 // translation framework.
 //
 // 5 sections, 21 items. Each item has:
-//   id      — its global item number (1..21) shown on the card chip
-//   key     — stable identifier the AI must echo back in its JSON
-//   title   — human-readable card title
-//   shape   — what the AI returns for this item's `content`:
+//   id     , its global item number (1..21) shown on the card chip
+//   key    , stable identifier the AI must echo back in its JSON
+//   title  , human-readable card title
+//   shape  , what the AI returns for this item's `content`:
 //             'text'           plain prose paragraph
 //             'list'           simple bulleted list of strings
 //             'rows'           two-column rows ({ left, right })
@@ -18,7 +18,7 @@
 //             'journey'        ordered steps with emotional state
 //             'competitors'    list of { name, positioning, layout }
 //             'inventory'      per-page content + asset breakdown
-//   statuses (optional) — allowed status tags for `badged_list` rows
+//   statuses (optional), allowed status tags for `badged_list` rows
 //
 // The renderer in BriefV2View reads this map at runtime, so adding /
 // renaming an item is one entry here + one mini renderer per shape.
@@ -102,9 +102,12 @@ export function itemsForSection(sectionId) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Em-dash + en-dash scrub. User-mandated: NEVER let an em (—) or en
-// (–) dash appear in AI-generated output. Walk every string in the
-// shape and replace. Numbers / booleans / null pass through.
+// scrubDashes. User-mandated: NEVER let an em (U+2014) or en (U+2013)
+// dash appear in AI-generated output. Walk every string in the shape
+// and replace. Numbers / booleans / null pass through.
+//
+// Regexes use \u escapes so the bytes can't be mass-replaced by a
+// codebase-wide dash purge.
 // ────────────────────────────────────────────────────────────────────
 export function scrubDashes(v) {
   if (v == null) return v
@@ -125,7 +128,7 @@ export function scrubDashes(v) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Empty content factories — used by the renderer to stub items that
+// Empty content factories, used by the renderer to stub items that
 // haven't streamed in yet so the layout doesn't jump when they land.
 // ────────────────────────────────────────────────────────────────────
 export function emptyContentForShape(shape) {

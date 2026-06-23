@@ -122,8 +122,8 @@ class UsageTracker {
 const tracker = new UsageTracker();
 
 // ── Streaming helper ──────────────────────────────────────────────────────────
-// onChunk(newText, fullTextSoFar) — called as each piece arrives
-// onDone(fullText) — called when stream completes
+// onChunk(newText, fullTextSoFar), called as each piece arrives
+// onDone(fullText), called when stream completes
 async function streamRequest(url, body, onChunk, onDone) {
   const response = await fetch(`${API_BASE_URL}${url}`, {
     method: 'POST',

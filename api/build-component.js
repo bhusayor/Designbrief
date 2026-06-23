@@ -84,7 +84,7 @@ Generate a complete, polished React component for this task. The component shoul
   }
 }
 
-// build-component is bring-your-own-key — the user pasted their own key in
+// build-component is bring-your-own-key, the user pasted their own key in
 // Project Builder. A 401 means THEIR key is bad, so we tell them that
 // instead of falling through to mapClaudeError's "temporarily unavailable"
 // (which is for platform-key failures).

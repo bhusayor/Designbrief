@@ -1,28 +1,28 @@
 // ────────────────────────────────────────────────────────────────────
-// IntakeBuilder — Phase 1 of the Client Intake Form rebuild.
+// IntakeBuilder, Phase 1 of the Client Intake Form rebuild.
 //
 // Replaces the legacy 3-screen wizard with a richer builder:
 //
 //   1. Project-type card grid (first run only). Selecting a type
 //      loads the default question set + branding + settings.
 //   2. Builder screen with three tabs:
-//        Questions   — drag/duplicate/delete/inline-edit cards,
+//        Questions  , drag/duplicate/delete/inline-edit cards,
 //                      conditional-logic rule builder per card,
 //                      Add Question button.
-//        Branding    — logo upload, primary colour picker, welcome
+//        Branding   , logo upload, primary colour picker, welcome
 //                      and completion messages (200 char each).
-//        Settings    — expiry, file uploads on/off, language
+//        Settings   , expiry, file uploads on/off, language
 //                      (en/fr/es/pt), progress bar, confirmation +
 //                      designer notification emails, live estimated
 //                      completion time.
-//   3. Sticky bottom bar — Save Draft / Preview Form / Publish.
-//   4. Live preview — desktop side panel, tablet drawer, mobile
+//   3. Sticky bottom bar, Save Draft / Preview Form / Publish.
+//   4. Live preview, desktop side panel, tablet drawer, mobile
 //      modal. Always reflects the latest builder state.
 //
 // Responsive:
-//   ≥1024 desktop  — two-column: tabs+content | sticky preview
-//   768-1023 tablet — single column + Preview FAB → modal
-//   <768  mobile    — single column + Preview FAB → modal
+//   ≥1024 desktop , two-column: tabs+content | sticky preview
+//   768-1023 tablet, single column + Preview FAB → modal
+//   <768  mobile   , single column + Preview FAB → modal
 // ────────────────────────────────────────────────────────────────────
 
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -86,12 +86,12 @@ export default function IntakeBuilder() {
   const isTablet = w >= 768 && w < 1024
 
   // Two-step gate for new forms:
-  //   1. Start screen — one page with the recipient form (name +
+  //   1. Start screen, one page with the recipient form (name +
   //      business + email) AND the project-type cards. The designer
   //      enters everything in a single scroll, then clicks a type
   //      card to proceed; the card click validates the fields. No
   //      back button on this screen.
-  //   2. Builder — full editor. A "Change type" back button on its
+  //   2. Builder, full editor. A "Change type" back button on its
   //      topbar returns to the start screen (recipient pre-filled
   //      from form.settings.recipient).
   const recipient = form.settings?.recipient || {}
@@ -239,7 +239,7 @@ export default function IntakeBuilder() {
     // row, which Supabase handles fine via the onConflict: 'id'
     // upsert path.
     if (publishing) {
-      console.warn('[intake publish] state was already publishing — resetting and continuing')
+      console.warn('[intake publish] state was already publishing, resetting and continuing')
       setPublishing(false)
     }
     if (!authUser?.id) { showToast?.('Sign in to publish.', 'error'); return }
@@ -263,7 +263,7 @@ export default function IntakeBuilder() {
         console.error('[intake publish] upsert error:', error)
         throw error
       }
-      console.log('[intake publish] success — switching to delivery view')
+      console.log('[intake publish] success, switching to delivery view')
       setForm(f => ({
         ...f,
         id,
@@ -277,7 +277,7 @@ export default function IntakeBuilder() {
       showToast?.(wasPublished ? 'Form updated.' : 'Published. Share the link with your client.', 'success')
     } catch (e) {
       console.error('[intake publish] caught', e)
-      // Surface a real error message — don't let any failure mode
+      // Surface a real error message, don't let any failure mode
       // present as silent "nothing happens".
       const msg = e?.message || explainError(e) || 'Publish failed.'
       showToast?.(`Publish failed: ${msg}`, 'error')
@@ -290,7 +290,7 @@ export default function IntakeBuilder() {
     <div className="ib-root">
       <ResponsiveStyles />
 
-      {/* Topbar — title block + expiry pill. Draft/Active status was
+      {/* Topbar, title block + expiry pill. Draft/Active status was
           removed (not useful once published) in favour of the
           expires_at countdown so the designer sees how long the
           shareable link stays alive. */}
@@ -392,10 +392,10 @@ export default function IntakeBuilder() {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// IntakeStartScreen — the single first-screen the designer lands on
+// IntakeStartScreen, the single first-screen the designer lands on
 // when they click Client Intake in the sidebar. Combines the client
 // recipient form (name + business + email) and the project-type
-// picker into one continuous page. No back button — they came from
+// picker into one continuous page. No back button, they came from
 // the sidebar; the sidebar is how they leave.
 //
 // Interaction:
@@ -420,7 +420,7 @@ export default function IntakeBuilder() {
 function ExpiryPill({ expiresAt }) {
   if (!expiresAt) {
     return (
-      <span className="ib-expiry-pill ib-expiry-none" title="No expiry set — the link never expires">
+      <span className="ib-expiry-pill ib-expiry-none" title="No expiry set, the link never expires">
         No expiry
       </span>
     )
@@ -461,7 +461,7 @@ function IntakeStartScreen({ initialRecipient = {}, onSubmit }) {
 
   // Always render the recipient form. When the designer arrives
   // here from the builder's Back button, the fields are simply
-  // pre-filled with whatever they entered before — they can edit
+  // pre-filled with whatever they entered before, they can edit
   // name, business, or email in-place and pick a (new) type
   // without losing their place in the flow.
   const recipientPrefilled = false
@@ -501,7 +501,7 @@ function IntakeStartScreen({ initialRecipient = {}, onSubmit }) {
     <div className="ib-root ib-pt-root">
       <ResponsiveStyles />
 
-      {/* No back affordance — this is the entry point from the
+      {/* No back affordance, this is the entry point from the
           sidebar; users navigate away via the sidebar itself. */}
 
       <main className="ib-start-stage">
@@ -642,7 +642,7 @@ function SbField({ fieldRef, label, sublabel, value, onChange, placeholder, type
 // Questions editor
 // ────────────────────────────────────────────────────────────────────
 // Sections live in code (not the DB) so they stay consistent across
-// every form. Order matters — sections render top-to-bottom.
+// every form. Order matters, sections render top-to-bottom.
 const QUESTION_SECTIONS = [
   { id: 'basics',      label: 'Project basics',       hint: 'What this project is, what it has to do.' },
   { id: 'audience',    label: 'Audience + goals',     hint: "Who it's for and what success looks like." },
@@ -683,7 +683,7 @@ function QuestionsEditor({ questions, setQuestions, disabledSections = [], setDi
   const toggleSection = (id) => setOpenSections(prev => ({ ...prev, [id]: !prev[id] }))
 
   // Backfill section_id on every question so the rest of the editor
-  // can operate on it. Idempotent — only writes if at least one
+  // can operate on it. Idempotent, only writes if at least one
   // question is missing the field.
   useEffect(() => {
     const total = questions.length
@@ -808,7 +808,7 @@ function QuestionsEditor({ questions, setQuestions, disabledSections = [], setDi
                 aria-label={isEnabled ? `Disable section ${section.label}` : `Enable section ${section.label}`}
                 onClick={(e) => { e.stopPropagation(); toggleSectionEnabled(section.id); }}
                 className={`ib-section-switch ${isEnabled ? 'is-on' : ''}`}
-                title={isEnabled ? 'On — clients will see this section' : 'Off — clients will not see this section'}
+                title={isEnabled ? 'On, clients will see this section' : 'Off, clients will not see this section'}
               >
                 <span className="ib-section-switch-knob" />
               </button>
@@ -1378,7 +1378,7 @@ function IconBtn({ children, onClick, disabled, title, danger }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Styles — single block scoped to .ib-root via prefix class names.
+// Styles, single block scoped to .ib-root via prefix class names.
 // ────────────────────────────────────────────────────────────────────
 function ResponsiveStyles() {
   return (
@@ -1451,7 +1451,7 @@ function ResponsiveStyles() {
       .ib-intro-continue:active { transform: translateY(1px); }
       .ib-intro-foot { font: 600 11px 'JetBrains Mono', monospace; color: var(--color-text-muted); text-align: center; margin: 4px 0 0; letter-spacing: 0.02em; }
 
-      /* ── IntakeStartScreen — recipient form + type picker ──── */
+      /* ── IntakeStartScreen, recipient form + type picker ──── */
       .ib-start-stage {
         /* Full-bleed inside AppShell's bounded main. Content blocks
            below the stage keep their own readable max-widths, but
@@ -1854,7 +1854,7 @@ function ResponsiveStyles() {
         display: block;
       }
 
-      /* Custom card: blank-slate variant — dashed border, no fill,
+      /* Custom card: blank-slate variant, dashed border, no fill,
          hover ramps to a faint accent wash + solid border. */
       .ib-pt-card-custom {
         background: transparent;

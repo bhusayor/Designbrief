@@ -9,7 +9,7 @@ const supabase = createClient(
 // ─── Flutterwave webhook helpers ──────────────────────────────────────────────
 //
 // We piggy-back the webhook on this endpoint to stay under the 12-function
-// Vercel limit. Flutterwave sends a verif-hash header — we check that
+// Vercel limit. Flutterwave sends a verif-hash header, we check that
 // BEFORE the auth gate so the webhook can call without a Supabase JWT.
 const FLW_PLAN_CREDITS = { starter: 300, pro: 1000 }
 // Valid credit caps the client can request via tx_ref. Anything outside
@@ -66,8 +66,8 @@ async function grantPlanFromTransaction(tx) {
   }
 
   // Best-effort audit rows. Tables come from
-  //   supabase/flutterwave-billing.sql  (billing_events — idempotency)
-  //   supabase/billing-page.sql          (billing_history — user-facing)
+  //   supabase/flutterwave-billing.sql  (billing_events, idempotency)
+  //   supabase/billing-page.sql          (billing_history, user-facing)
   // If either is missing the catch keeps the webhook responding 200.
   try {
     await supabase.from('billing_events').insert({
@@ -207,7 +207,7 @@ export default async function handler(req, res) {
     // ── REMOVE AVATAR ─────────────────────────────────────────────────────────
     // Body: { action:'remove_avatar' }
     // Clears the avatar_url from user_metadata. The file in storage is left
-    // behind — cheap to keep, and avoids races with old URLs still in flight.
+    // behind, cheap to keep, and avoids races with old URLs still in flight.
     if (action === 'remove_avatar') {
       const next = { ...user.user_metadata }
       delete next.avatar_url
@@ -313,7 +313,7 @@ export default async function handler(req, res) {
 
     // ── DELETE ACCOUNT ────────────────────────────────────────────────────────
     if (action === 'delete_account') {
-      // Best-effort DB cleanup — wrap each step individually so one missing
+      // Best-effort DB cleanup, wrap each step individually so one missing
       // table / wrong column never silently blocks account deletion.
       try { await supabase.from('workspace_members').delete().eq('user_id', user.id) } catch {}
       try { await supabase.from('team_members').delete().eq('user_id', user.id) } catch {}
@@ -328,7 +328,7 @@ export default async function handler(req, res) {
 
       try { await supabase.from('profiles').delete().eq('id', user.id) } catch {}
 
-      // This is the authoritative step — if it errors, surface it to the client.
+      // This is the authoritative step, if it errors, surface it to the client.
       const { error } = await supabase.auth.admin.deleteUser(user.id)
       if (error) throw error
       return res.json({ success: true })

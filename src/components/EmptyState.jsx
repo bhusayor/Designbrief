@@ -13,7 +13,7 @@ import {
 } from './illustrations'
 
 // ────────────────────────────────────────────────────────────────────
-// EmptyState — drop-in zero-data placeholder for any list/grid. Pick a
+// EmptyState, drop-in zero-data placeholder for any list/grid. Pick a
 // type to get the right animated illustration + default copy, or pass
 // title/message/action to override. The illustration container floats
 // gently with a 3s up-down loop on top of each SVG's own internal
@@ -78,7 +78,7 @@ const DEFAULTS = {
   },
   upgrade: {
     title: 'Unlock Pro',
-    message: 'More credits, more projects, unlimited workspaces — designed for serious creative work.',
+    message: 'More credits, more projects, unlimited workspaces, designed for serious creative work.',
     action: 'Upgrade',
   },
   success: {
@@ -117,7 +117,7 @@ export default function EmptyState({
         gap: 16,
       }}
     >
-      {/* Illustration container — transparent so the animated SVG
+      {/* Illustration container, transparent so the animated SVG
           breathes. The outer float-up loop runs on top of each SVG's
           own internal keyframes. */}
       <motion.div

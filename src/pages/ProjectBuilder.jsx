@@ -17,11 +17,11 @@ import {
 // ── Tips that rotate during build ─────────────────────────────────────────────
 const TIPS = [
   ['Component isolation', 'Each task becomes a self-contained React component you can drop anywhere in your codebase.'],
-  ['Tailwind CSS', 'All styles use utility classes — no extra CSS files, works with any Tailwind project.'],
+  ['Tailwind CSS', 'All styles use utility classes, no extra CSS files, works with any Tailwind project.'],
   ['Approve & iterate', 'Not happy with the output? Regenerate the current task before moving on.'],
   ['ZIP download', 'At the end you get a ZIP with every component as its own file, ready to import.'],
-  ['Use the context', 'The AI reads your task title and description — the more detail you add in TeamCollab, the better the output.'],
-  ['Stack agnostic', 'Components use standard React patterns — easy to adapt to Next.js, Remix, or Vite.'],
+  ['Use the context', 'The AI reads your task title and description, the more detail you add in TeamCollab, the better the output.'],
+  ['Stack agnostic', 'Components use standard React patterns, easy to adapt to Next.js, Remix, or Vite.'],
   ['Preview accuracy', 'The preview uses Babel + Tailwind CDN, so what you see is close to the real render.'],
 ]
 
@@ -135,7 +135,7 @@ export default function ProjectBuilder() {
 
     try {
       const headers = await getAuthHeader()
-      if (!headers) { setError('Session expired — please refresh.'); setPhase('idle'); return }
+      if (!headers) { setError('Session expired, please refresh.'); setPhase('idle'); return }
 
       const res = await fetch('/api/build-component', {
         method: 'POST',
@@ -442,7 +442,7 @@ export default function ProjectBuilder() {
               <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--color-card)' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} />
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: "'Urbanist', sans-serif" }}>
-                  {currentTask?.title} — preview
+                  {currentTask?.title}, preview
                 </span>
               </div>
               <iframe

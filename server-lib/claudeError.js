@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// mapClaudeError — turn an Anthropic SDK exception (or any thrown
+// mapClaudeError, turn an Anthropic SDK exception (or any thrown
 // error from a Claude proxy) into a user-safe { status, body } response.
 //
 // Goals:
@@ -20,7 +20,7 @@
 const LOW_BALANCE_RX = /credit balance is too low|insufficient.*credit|billing/i
 
 export function mapClaudeError(error, tag = '[ai]') {
-  // Log the raw error for our own debugging — NEVER returned to the user.
+  // Log the raw error for our own debugging, NEVER returned to the user.
   try {
     console.error(tag, 'AI proxy error:', {
       message: error?.message,
@@ -33,7 +33,7 @@ export function mapClaudeError(error, tag = '[ai]') {
   const raw = String(error?.message || '') + ' ' +
     String(error?.error?.error?.message || error?.error?.message || '')
 
-  // Out of credits / billing issue — Anthropic returns 400 with a
+  // Out of credits / billing issue, Anthropic returns 400 with a
   // specific message. Surface as 503 high demand so the user just
   // tries again later (and never sees billing language).
   if (error?.status === 402 || LOW_BALANCE_RX.test(raw)) {
@@ -57,7 +57,7 @@ export function mapClaudeError(error, tag = '[ai]') {
     }
   }
 
-  // Rate limited (429) — pass through with a retry hint.
+  // Rate limited (429), pass through with a retry hint.
   if (error?.status === 429) {
     return {
       status: 429,
@@ -75,12 +75,12 @@ export function mapClaudeError(error, tag = '[ai]') {
       status: 503,
       body: {
         error: 'high_demand',
-        message: "More designers than usual are using DesignBrief AI right now. You're in good hands — try again shortly.",
+        message: "More designers than usual are using DesignBrief AI right now. You're in good hands, try again shortly.",
       },
     }
   }
 
-  // Timeout — both abort and ETIMEDOUT show up here.
+  // Timeout, both abort and ETIMEDOUT show up here.
   if (
     error?.name === 'AbortError' ||
     error?.code === 'ETIMEDOUT' ||
@@ -100,7 +100,7 @@ export function mapClaudeError(error, tag = '[ai]') {
     status: 500,
     body: {
       error: 'unexpected',
-      message: 'Something interrupted the AI. Your work is safe — please try again.',
+      message: 'Something interrupted the AI. Your work is safe, please try again.',
     },
   }
 }
@@ -112,7 +112,7 @@ export function streamErrorFrame(error, tag = '[ai-stream]') {
   return body
 }
 
-// For Anthropic HTTP responses that aren't OK — turn the body into an
+// For Anthropic HTTP responses that aren't OK, turn the body into an
 // SDK-shaped error before mapping.
 export function mapHttpAnthropicError(status, bodyText, tag = '[ai]') {
   let parsed = null

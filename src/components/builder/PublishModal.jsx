@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 // ────────────────────────────────────────────────────────────────────
-// PublishModal — runs the publish flow:
+// PublishModal, runs the publish flow:
 //   1. Type a slug, we check ai_builds.slug uniqueness live.
 //   2. Optional SEO title + meta description.
 //   3. On submit, assemble the full HTML (approved sections only),
@@ -86,7 +86,7 @@ export default function PublishModal({ open, onClose, build, briefContext, secti
     if (!sections?.length) return ''
     const html = assembleWebsite(sections, briefContext)
     if (!seoTitle && !metaDescription) return html
-    // Inject SEO into <head>. Cheap string splice — the assembled html
+    // Inject SEO into <head>. Cheap string splice, the assembled html
     // always has a single <title>...</title> we can replace, and the
     // meta description goes right after it.
     let out = html

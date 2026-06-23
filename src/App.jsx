@@ -11,7 +11,7 @@ import ProjectDocument from './pages/ProjectDocument';
 import ProjectOverview from './pages/ProjectOverview';
 import TeamCollab from './pages/TeamCollab';
 import ProjectLibrary from './pages/ProjectLibrary';
-// Connectors hidden from the live site for now — re-enable by
+// Connectors hidden from the live site for now, re-enable by
 // uncommenting this import + the route entry below.
 // import Connectors from './pages/Connectors';
 import ProjectBuilder from './pages/ProjectBuilder';
@@ -74,7 +74,7 @@ function AppRouter() {
         } else {
           showToast?.('Plan activated 🎉', 'success');
           // refreshAuthUser re-pulls auth.users; refreshUserPlan re-pulls
-          // profiles.plan / credits — the auth-user fetch alone does NOT
+          // profiles.plan / credits, the auth-user fetch alone does NOT
           // see the column updates the webhook just wrote.
           try { await Promise.all([refreshAuthUser?.(), refreshUserPlan?.()]) } catch {}
         }
@@ -99,7 +99,7 @@ function AppRouter() {
   useEffect(() => {
     const path = window.location.pathname;
 
-    // /intake/<form-id> — the new builder generates IDs as
+    // /intake/<form-id>, the new builder generates IDs as
     // "intake_<12 chars>", so the matcher has to allow underscores
     // alongside alphanumeric + hyphen. Legacy IDs that only used
     // hyphens still match. Case-insensitive for hand-typed URLs.
@@ -124,7 +124,7 @@ function AppRouter() {
       return;
     }
 
-    // Public follow-up response page — /followup/<token>. Token is
+    // Public follow-up response page, /followup/<token>. Token is
     // up to 24 char alphanumeric per the SQL column. Public, no
     // auth required.
     const followupMatch = path.match(/^\/followup\/([A-Za-z0-9_-]+)$/);
@@ -135,7 +135,7 @@ function AppRouter() {
     }
 
     // Public share viewer: /share/<uuid> → render SharedBrief
-    // without requiring auth. UUID format only — the SQL column is
+    // without requiring auth. UUID format only, the SQL column is
     // typed uuid so anything else would 400 the supabase call.
     const shareMatch = path.match(/^\/share\/([a-f0-9-]{30,})$/i);
     if (shareMatch) {
@@ -144,7 +144,7 @@ function AppRouter() {
       return;
     }
 
-    // Public client review page — /review/<token>. Tokens are 32 hex
+    // Public client review page, /review/<token>. Tokens are 32 hex
     // chars (128 bits of entropy) per server-lib/briefReviews.js.
     // No auth required; the page hits the public token-gated API.
     const reviewMatch = path.match(/^\/review\/([a-f0-9]{16,64})$/i);
@@ -207,7 +207,7 @@ function AppRouter() {
     return <Auth />;
   }
 
-  // Workspace DB error — show retry screen instead of WorkspaceSetup.
+  // Workspace DB error, show retry screen instead of WorkspaceSetup.
   // This fires when the workspaces query failed (RLS misconfigured, table
   // missing, network blip) so we never falsely ask a returning user to create
   // a workspace they already have.
@@ -254,7 +254,7 @@ function AppRouter() {
     );
   }
 
-  // Workspace gate — only show setup when the DB query succeeded and confirmed
+  // Workspace gate, only show setup when the DB query succeeded and confirmed
   // zero workspaces exist for this user. Never shown on DB errors (above).
   if (authUser && !workspaceLoading && !workspace && !workspaceLoadError && !publicSections.includes(activeSection)) {
     return (
@@ -274,23 +274,23 @@ function AppRouter() {
     );
   }
 
-  // Client intake is public — no AppShell
+  // Client intake is public, no AppShell
   if (activeSection === 'client-intake') {
     return <ClientIntakePage />;
   }
 
-  // Client brief review (/review/<token>) is public — no AppShell.
+  // Client brief review (/review/<token>) is public, no AppShell.
   // The page hits the token-gated server endpoint directly.
   if (activeSection === 'client-review') {
     return <ClientBriefReview />;
   }
 
-  // Join page is public — no AppShell
+  // Join page is public, no AppShell
   if (activeSection === 'join') {
     return <JoinPage />;
   }
 
-  // Accept invite is public — no AppShell
+  // Accept invite is public, no AppShell
   if (activeSection === 'accept-invite') {
     return <AcceptInvite />;
   }
@@ -305,7 +305,7 @@ function AppRouter() {
     return <SharedBrief />;
   }
 
-  // Public client follow-up response — always renders bare (no
+  // Public client follow-up response, always renders bare (no
   // AppShell). The client never has an account; even if they
   // somehow do, they shouldn't see app chrome on this page.
   if (activeSection === 'client-followup') {

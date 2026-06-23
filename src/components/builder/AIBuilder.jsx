@@ -36,7 +36,7 @@ import { BuilderIllustration } from '../illustrations'
 import BuilderChat from './BuilderChat'
 
 // ────────────────────────────────────────────────────────────────────
-// AIBuilder — full-screen overlay that drives the AI Builder loop:
+// AIBuilder, full-screen overlay that drives the AI Builder loop:
 //   - Left: build queue with per-task status
 //   - Right top: live preview iframe (streams the current section)
 //   - Right bottom: approval panel (Approve / Request Changes / Skip)
@@ -61,7 +61,7 @@ export default function AIBuilder({ build, project, onClose }) {
   const { authUser, workspace, showToast, showAIError, saveProject } = useContext(AppContext)
   const [sections, setSections] = useState([])
   const [briefContext, setBriefContext] = useState(null)
-  // Saved project design-system tokens — null until loaded / nothing
+  // Saved project design-system tokens, null until loaded / nothing
   // saved yet. Both buildSection and the BuilderChat assistant
   // honour these tokens when present.
   const [designSystem, setDesignSystem] = useState(null)
@@ -73,7 +73,7 @@ export default function AIBuilder({ build, project, onClose }) {
   const [changeRequestText, setChangeRequestText] = useState('')
   const [showPublish, setShowPublish] = useState(false)
   const [skipConfirm, setSkipConfirm] = useState(null)
-  // BuilderChat — collapsible AI assistant under the approval panel.
+  // BuilderChat, collapsible AI assistant under the approval panel.
 
   // macOS-dock proximity for the queue rows on the left rail.
   useProximity('.build-queue-item', {
@@ -109,11 +109,11 @@ export default function AIBuilder({ build, project, onClose }) {
 
       // Resume from where the user left off: any sections that were
       // stuck in 'building' from a previous session (no live stream
-      // here yet — that one will only set after runNextSection fires)
+      // here yet, that one will only set after runNextSection fires)
       // get flipped back to 'queued' so the auto-run picks them up.
       // Without this, a closed-mid-build section sits in 'building'
       // forever and the auto-loop skips past it. 'approved' and
-      // 'review' sections are left alone — those are real progress.
+      // 'review' sections are left alone, those are real progress.
       const stuck = sec.filter(s => s.status === 'building')
       if (stuck.length > 0) {
         try {
@@ -147,7 +147,7 @@ export default function AIBuilder({ build, project, onClose }) {
           setSections(prev => prev.some(s => s.id === payload.new.id) ? prev : [...prev, payload.new].sort((a, b) => a.position - b.position))
           if (payload.new.task_id) seenTaskIdsRef.current.add(payload.new.task_id)
         } else if (payload.eventType === 'UPDATE') {
-          // Skip realtime echoes for the section we're actively streaming —
+          // Skip realtime echoes for the section we're actively streaming -
           // our local liveHtml is the source of truth there.
           if (payload.new.id === streamingId) {
             // still merge non-code fields
@@ -426,7 +426,7 @@ export default function AIBuilder({ build, project, onClose }) {
   // (from the PAGE.crossfade variant). `filter` creates a containing
   // block for `position: fixed`, which means our overlay would only
   // cover the page area (next to the sidebar) instead of the full
-  // viewport — and the sidebar leaks through on the left. Portalling
+  // viewport, and the sidebar leaks through on the left. Portalling
   // to body escapes that containing block so inset:0 means the actual
   // viewport edges.
   return createPortal((
@@ -463,12 +463,12 @@ export default function AIBuilder({ build, project, onClose }) {
         </div>
       </div>
 
-      {/* Body — 3-column layout:
+      {/* Body, 3-column layout:
             LEFT  = build queue
             MID   = device toggle + iframe (full height) + approval (bottom strip)
             RIGHT = AI assistant chat (always visible, same shell as TeamCollab) */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* LEFT — queue */}
+        {/* LEFT, queue */}
         <aside style={leftPanelStyle}>
           <div style={{ marginBottom: 14 }}>
             <div style={{
@@ -528,7 +528,7 @@ export default function AIBuilder({ build, project, onClose }) {
           </StaggerGrid>
         </aside>
 
-        {/* MIDDLE — preview + approval (preview fills, approval pinned bottom) */}
+        {/* MIDDLE, preview + approval (preview fills, approval pinned bottom) */}
         <main style={midPanelStyle}>
           {/* Device toggle */}
           <div style={{
@@ -541,7 +541,7 @@ export default function AIBuilder({ build, project, onClose }) {
             <DeviceBtn active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={DevicePhoneMobileIcon} label="Mobile" />
           </div>
 
-          {/* Preview iframe — fills available middle height. */}
+          {/* Preview iframe, fills available middle height. */}
           <div style={{
             flex: 1,
             padding: 16,
@@ -574,7 +574,7 @@ export default function AIBuilder({ build, project, onClose }) {
             </div>
           </div>
 
-          {/* Approval panel — pinned to the bottom of the middle column,
+          {/* Approval panel, pinned to the bottom of the middle column,
               under the iframe. Only renders while there's a section in
               review (queued / building / changes-requested). */}
           {sectionInReview && (
@@ -593,7 +593,7 @@ export default function AIBuilder({ build, project, onClose }) {
           )}
         </main>
 
-        {/* RIGHT — always-on AI assistant chat. Same shell BuilderChat
+        {/* RIGHT, always-on AI assistant chat. Same shell BuilderChat
             uses elsewhere; just permanently mounted instead of toggle-
             collapsed so it reads as part of the workspace, not a
             popover. Speaks for the in-review section, or the last
@@ -931,14 +931,14 @@ const leftPanelStyle = {
   flexShrink: 0,
 }
 
-// Middle column — preview + approval. flex:1 absorbs whatever space
+// Middle column, preview + approval. flex:1 absorbs whatever space
 // is left between the left queue and right chat rails.
 const midPanelStyle = {
   flex: 1, display: 'flex', flexDirection: 'column',
   minWidth: 0,
 }
 
-// Right rail — always-on chat panel. 340px gives BuilderChat room
+// Right rail, always-on chat panel. 340px gives BuilderChat room
 // to breathe (input, message bubbles, header) without crowding
 // the iframe. Collapses to 0 on viewports too narrow for it
 // (handled inline; see the body conditional rendering).

@@ -82,7 +82,7 @@ export default function LeanCanvasRenderer({ result }) {
     {
       title: 'Cost Structure',
       content: r.budgetRange
-        ? '$' + (r.budgetRange.low || '?') + ' – $' + (r.budgetRange.high || '?')
+        ? '$' + (r.budgetRange.low || '?') + '-$' + (r.budgetRange.high || '?')
         : 'Design + development + hosting',
     },
     {

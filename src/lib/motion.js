@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// motion.js — single source of truth for every animation value in
+// motion.js, single source of truth for every animation value in
 // DesignBrief AI. SPRINGS, EASE, DUR, STAGGER variants, PAGE / MODAL
 // variants, and PROXIMITY tunings live here. Never hard-code these
 // values in components.
@@ -33,7 +33,7 @@ export const DUR = {
   cinematic: 0.8,
 }
 
-// Stagger variants — pair `container*` on the parent with `item*` on
+// Stagger variants, pair `container*` on the parent with `item*` on
 // each child. Variants drive opacity + transform via Framer Motion.
 export const STAGGER = {
   container: {
@@ -77,7 +77,7 @@ export const STAGGER = {
   },
 }
 
-// Page transition variants — apply to whichever wrapper sits under
+// Page transition variants, apply to whichever wrapper sits under
 // AnimatePresence and changes its `key` on route change.
 export const PAGE = {
   crossfade: {
@@ -115,7 +115,7 @@ export const PAGE = {
   },
 }
 
-// Modal variants — pair `overlay` on the backdrop with `content` on
+// Modal variants, pair `overlay` on the backdrop with `content` on
 // the dialog box, or `bottomSheet` on mobile.
 export const MODAL = {
   overlay: {
@@ -152,7 +152,7 @@ export const MODAL = {
 
 // Proximity tunings keyed by surface kind.
 export const PROXIMITY = {
-  // sidebar intentionally absent — see src/components/layout/Sidebar.jsx
+  // sidebar intentionally absent, see src/components/layout/Sidebar.jsx
   // for why nav items are NOT magnetised.
   cards:   { distance: 140, maxScale: 1.04, maxLift: -8, speed: 0.3,  glow: true,  tilt: true  },
   kanban:  { distance: 90,  maxScale: 1.03, maxLift: -3, speed: 0.2,  glow: false, tilt: false },
@@ -162,7 +162,7 @@ export const PROXIMITY = {
   queue:   { distance: 90,  maxScale: 1.03, maxLift: -2, speed: 0.2,  glow: false, tilt: false },
 }
 
-// LiquidBackground default palette — kept here so the dashboard /
+// LiquidBackground default palette, kept here so the dashboard /
 // hero surfaces stay consistent until a brief overrides them.
 export const LIQUID_DEFAULTS = {
   color1: '#8B5CF6',

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 
 // ────────────────────────────────────────────────────────────────────
-// useSpotlight — cursor-following radial gradient on every element
+// useSpotlight, cursor-following radial gradient on every element
 // matching `selector`. Writes CSS custom properties (--spotlight-x /
 // -y / -opacity) so the actual rendering is a ::before pseudo defined
 // in index.css. That keeps the element's own background intact and
@@ -12,7 +12,7 @@ import { useEffect } from 'react'
 //   the MutationObserver scan re-runs without re-attaching listeners.
 //   (The spec's version leaked listeners exponentially on every DOM
 //   change.)
-// - mousemove is passive. mouseleave just zeroes the opacity var —
+// - mousemove is passive. mouseleave just zeroes the opacity var -
 //   no layout writes.
 // - Coexists with the proximity engine: if proximity marks the
 //   element with `data-transitioning`, spotlight skips that frame.
@@ -71,7 +71,7 @@ export default function useSpotlight(selector, options = {}) {
 
     scan()
 
-    // Re-scan when the DOM changes — newly-rendered cards pick up
+    // Re-scan when the DOM changes, newly-rendered cards pick up
     // the listeners without us needing to know about them. WeakSet
     // makes the rescan a no-op for elements we've already bound.
     const observer = new MutationObserver(scan)

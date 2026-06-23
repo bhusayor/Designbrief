@@ -9,7 +9,7 @@ import AppContext from '../../context/AppContext'
 
 const TIPS = [
   ['Component isolation', 'Each task becomes a self-contained React component you can drop anywhere in your codebase.'],
-  ['Tailwind CSS', 'All styles use utility classes — no extra CSS files, works with any Tailwind project.'],
+  ['Tailwind CSS', 'All styles use utility classes, no extra CSS files, works with any Tailwind project.'],
   ['Approve & iterate', 'Not happy with the output? Regenerate the current task before moving on.'],
   ['ZIP download', 'At the end you get a ZIP with every component as its own file, ready to import.'],
   ['Use the context', 'The AI reads your task title and description. The more detail you add, the better the output.'],
@@ -392,7 +392,7 @@ export default function BuildInterface({ tasks: rawTasks, projectName, onClose }
               background: 'rgba(124,58,237,0.04)', flexShrink: 0,
             }}>
               <div style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 9, letterSpacing: '0.08em', color: '#7C3AED', marginBottom: 4 }}>
-                TIP — {TIPS[tipIndex][0].toUpperCase()}
+                TIP, {TIPS[tipIndex][0].toUpperCase()}
               </div>
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
                 {TIPS[tipIndex][1]}

@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// intakeQuestionSets.js — default question sets per project type.
+// intakeQuestionSets.js, default question sets per project type.
 //
 // Each set is an array of question objects with the shape stored in
 // the intake_forms.questions jsonb column. The builder lets the
@@ -19,7 +19,7 @@
 // The final question on every form is the locked global one:
 //   "If this project goes perfectly, what changes for your business
 //    or for you personally?"
-// — appended automatically by the builder, not stored in these
+//, appended automatically by the builder, not stored in these
 // per-type sets.
 // ────────────────────────────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ const COMMON_TIMELINE_BUDGET = [
   q('When do you need this delivered?', {
     type: 'single_choice',
     options: [
-      'ASAP — within 2 weeks',
+      'ASAP, within 2 weeks',
       'Within a month',
       '2-3 months',
       '3+ months',
@@ -136,7 +136,7 @@ function setWebsite() {
     q('How would you describe the personality of your brand?', {
       type: 'multi_choice',
       options: ['Bold', 'Calm', 'Premium', 'Playful', 'Editorial', 'Minimal', 'Tech-forward', 'Warm', 'Trustworthy', 'Disruptive'],
-      helper_text: 'Pick a few — they should sound like the same person.',
+      helper_text: 'Pick a few, they should sound like the same person.',
     }),
     ...COMMON_TIMELINE_BUDGET,
     ...COMMON_REFERENCES,
@@ -261,7 +261,7 @@ function setRedesign() {
     }),
     q('What is the single most important metric this redesign should move?', {
       type: 'long_text',
-      helper_text: 'Conversion, retention, NPS, time-on-task, brand perception — pick one.',
+      helper_text: 'Conversion, retention, NPS, time-on-task, brand perception, pick one.',
     }),
     q('How much of the existing visual language stays vs goes?', {
       type: 'single_choice',

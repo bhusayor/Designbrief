@@ -25,7 +25,7 @@ import {
 //   • Change Plan (3-up comparison + upgrade/downgrade)
 //   • Cancel Subscription (multi-step modal)
 //
-// Fully responsive: mobile (≤480), tablet (481–768), desktop (769+).
+// Fully responsive: mobile (≤480), tablet (481-768), desktop (769+).
 // ─────────────────────────────────────────────────────────────────────
 
 const PLAN_NAMES = { free: 'Free', starter: 'Starter', pro: 'Pro' }
@@ -97,7 +97,7 @@ export default function Billing() {
   const [usageRows, setUsageRows] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [showAllHistory, setShowAllHistory] = useState(false)
-  // payment_method_removed_at — when the user clicks Remove card, we set
+  // payment_method_removed_at, when the user clicks Remove card, we set
   // it to now(). The Payment Method card flips to "No payment method"
   // until a newer billing_history.created_at exists.
   const [paymentMethodRemovedAt, setPaymentMethodRemovedAt] = useState(null)
@@ -107,7 +107,7 @@ export default function Billing() {
   const [removeCardOpen, setRemoveCardOpen] = useState(false)
   const [removingCard, setRemovingCard] = useState(false)
 
-  // Plan comparison cards stay static — no proximity, no hover lift,
+  // Plan comparison cards stay static, no proximity, no hover lift,
   // no glow. The Change Plan grid reads as a normal pricing layout.
 
   // ── Data fetch ────────────────────────────────────────────────────
@@ -247,7 +247,7 @@ export default function Billing() {
           || /column .* does not exist/i.test(error.message || '')
           || error.code === '42703'
         if (missingColumn) {
-          console.warn('[confirmRemoveCard] payment_method_removed_at column missing — using localStorage fallback. Run supabase/billing-page.sql to enable cross-device removal.')
+          console.warn('[confirmRemoveCard] payment_method_removed_at column missing, using localStorage fallback. Run supabase/billing-page.sql to enable cross-device removal.')
           try { localStorage.setItem('db-payment-method-removed-at:' + authUser.id, nowIso) } catch {}
           setPaymentMethodRemovedAt(nowIso)
           setRemoveCardOpen(false)
@@ -494,7 +494,7 @@ function CurrentPlanCard({ userPlan, planStatus, accessUntil, planStartedAt, isM
             </button>
           )}
           {!cancelled && userPlan === 'pro' && (
-            // Pro is the highest tier — no upgrade button, just a clear
+            // Pro is the highest tier, no upgrade button, just a clear
             // status line so users know they're not missing anything.
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -792,13 +792,13 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
   const isUpgrade = PLANS.indexOf(plan) > PLANS.indexOf(userPlan)
   const pill = PLAN_PILL[plan]
 
-  // Static border — current plan reads with the solid black outline,
+  // Static border, current plan reads with the solid black outline,
   // everything else uses the standard divider.
   const cardBorder = isCurrent
     ? '2px solid var(--color-text)'
     : '1px solid var(--color-border)'
 
-  // Static button styling — no transition, no hover transform, no
+  // Static button styling, no transition, no hover transform, no
   // shadow shift. Reads as a normal pricing button.
   const btnBase = {
     marginTop: 'auto',
@@ -869,12 +869,12 @@ function PlanComparisonCard({ plan, userPlan, onUpgrade, onDowngrade }) {
 function PaymentMethodCard({ history, isMobile, userPlan, paymentMethodRemovedAt, onUpdate, onRemove }) {
   // We can't show full PAN (PCI), but we surface the last payment so the
   // user knows which card / method is on file. Flutterwave returns the
-  // card type + last 4 in the verify payload — when we start saving
+  // card type + last 4 in the verify payload, when we start saving
   // payment instruments, this is where they'll render.
   const last = history?.[0]
   // A card is considered on file when there's a recent successful
   // payment AND the user has NOT removed it since. The next successful
-  // payment naturally re-flips this — its created_at will be greater
+  // payment naturally re-flips this, its created_at will be greater
   // than payment_method_removed_at.
   const lastTime = last ? new Date(last.created_at).getTime() : 0
   const removedTime = paymentMethodRemovedAt ? new Date(paymentMethodRemovedAt).getTime() : 0

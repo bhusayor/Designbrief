@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// /api/send-intake-email — sends a branded intake form invitation
+// /api/send-intake-email, sends a branded intake form invitation
 // email to one or more recipients via Resend.
 //
 // Body (POST):
@@ -7,7 +7,7 @@
 //     form_id:        string (required)
 //     recipients:     string[] (required, comma-separated → array)
 //     subject:        string (required)
-//     body:           string (required) — plain-text body the designer
+//     body:           string (required), plain-text body the designer
 //                                          wrote; embedded inside the
 //                                          branded HTML template.
 //   }
@@ -47,9 +47,9 @@ export default async function handler(req, res) {
 
   // ── Validate body ────────────────────────────────────────────────
   // Two modes:
-  //   mode='invite' (default) — designer-composed invite email.
+  //   mode='invite' (default), designer-composed invite email.
   //                             Requires recipients, subject, body.
-  //   mode='brief-ready'      — auto-composed "your brief is ready"
+  //   mode='brief-ready'     , auto-composed "your brief is ready"
   //                             notification. recipients optional
   //                             (falls back to the freshest
   //                             submission's client_email); subject
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
     }
     // Hard cap at one recipient. Multiple clients filling the same
     // form produces multiple separate translations for what's
-    // supposed to be ONE project — confusing data, confusing review
+    // supposed to be ONE project, confusing data, confusing review
     // screen. Enforce server-side so the UI restriction can't be
     // bypassed.
     if (recipients.length > 1) {
@@ -174,7 +174,7 @@ export default async function handler(req, res) {
   // ── Sender composition ───────────────────────────────────────────
   // Resend requires a verified domain to use a non-shared address.
   // Until the designer verifies their own domain we send from the
-  // shared onboarding@resend.dev address — BUT we set the From
+  // shared onboarding@resend.dev address, BUT we set the From
   // display name to the designer's actual name so the recipient
   // sees "Amaka Okafor" in their inbox rather than "DesignBrief
   // AI", which significantly improves both perceived legitimacy

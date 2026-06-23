@@ -372,7 +372,7 @@ export function BudgetSection({ budgetRange, accent }) {
   const symbol = currency === 'NGN' ? '₦' : '$'
 
   function formatMoney(num) {
-    if (!num && num !== 0) return '—'
+    if (!num && num !== 0) return '-'
     const n = Number(num)
     if (n >= 1000000) return symbol + (n / 1000000).toFixed(1) + 'M'
     if (n >= 1000) return symbol + Math.round(n / 1000) + 'K'
@@ -393,7 +393,7 @@ export function BudgetSection({ budgetRange, accent }) {
             Budget Range
           </div>
           <div style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.03em', color: 'var(--color-text)' }}>
-            {formatMoney(budgetRange.low)}{' — '}{formatMoney(budgetRange.high)}
+            {formatMoney(budgetRange.low)}{', '}{formatMoney(budgetRange.high)}
           </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>
             {currency}
@@ -418,7 +418,7 @@ export function BudgetSection({ budgetRange, accent }) {
                 </div>
                 {(item.low || item.high) && (
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-soft)', textAlign: 'right' }}>
-                    {formatMoney(item.low)}{item.high && item.high !== item.low ? ' – ' + formatMoney(item.high) : ''}
+                    {formatMoney(item.low)}{item.high && item.high !== item.low ? '-' + formatMoney(item.high) : ''}
                   </div>
                 )}
               </div>

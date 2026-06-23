@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-// Daily request limit per user — generous for now, tighten when billing exists
+// Daily request limit per user, generous for now, tighten when billing exists
 const DAILY_LIMIT = 50
 
 export async function requireAuth(req, res) {
@@ -49,7 +49,7 @@ export async function checkRateLimit(supabase, userId, res) {
 
   if (error) {
     console.error('[rate limit check]', error)
-    // Fail open — don't block on DB error
+    // Fail open, don't block on DB error
     return true
   }
 
@@ -76,7 +76,7 @@ export async function logUsage(supabase, userId, endpoint, tokensUsed) {
         tokens_used: tokensUsed || 0,
       })
   } catch (e) {
-    // Non-fatal — don't crash the request
+    // Non-fatal, don't crash the request
     console.error('[log usage]', e)
   }
 }

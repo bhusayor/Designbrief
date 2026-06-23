@@ -184,7 +184,7 @@ export default function HistoryItem({
             >
               {item.title}
             </span>
-            {/* Origin tag — Client (intake) / Team Collab / Brief */}
+            {/* Origin tag, Client (intake) / Team Collab / Brief */}
             <OriginPill item={item} />
           </>
         )}
@@ -277,7 +277,7 @@ export default function HistoryItem({
                     background: 'none',
                     border: 'none',
                     textAlign: 'left',
-                    // Roomier touch target — same vertical rhythm as Heroicons docs.
+                    // Roomier touch target, same vertical rhythm as Heroicons docs.
                     padding: '9px 12px',
                     fontSize: 13,
                     fontWeight: 500,
@@ -297,7 +297,7 @@ export default function HistoryItem({
                     e.currentTarget.style.color = mi.danger ? 'var(--color-red)' : 'var(--color-text-soft)';
                   }}
                 >
-                  {/* Bigger, clearer icon — 16px reads cleanly next to
+                  {/* Bigger, clearer icon, 16px reads cleanly next to
                       13px label without dominating. strokeWidth nudged
                       up so outline icons match the visual weight of
                       the label. */}

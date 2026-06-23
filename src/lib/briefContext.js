@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// briefContext — pull the translated brief result for a project and
+// briefContext, pull the translated brief result for a project and
 // normalise it into a single design-system snapshot that the AI
 // builder hands to every buildSection() call. Same shape across all
 // renderers so the model never has to guess where the colours live.

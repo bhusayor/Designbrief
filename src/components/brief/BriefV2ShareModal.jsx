@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// BriefV2ShareModal — designer-facing modal for sending a brief to
+// BriefV2ShareModal, designer-facing modal for sending a brief to
 // the client for review/approval. Renders the form, hits
 // /api/brief-reviews to create the share + send the email, then
 // switches to a success state with a copy-link affordance.
@@ -35,7 +35,7 @@ export default function BriefV2ShareModal({
     if (open) {
       setEmail(defaultClientEmail)
       setName(defaultClientName)
-      // Restored the friendly default — designers can edit or wipe
+      // Restored the friendly default, designers can edit or wipe
       // it. If left as-is, it shows in the blockquote on the
       // client's review page as the personal message.
       setMessage(defaultMessage || defaultMessageBody({ name: defaultClientName }))
@@ -49,7 +49,7 @@ export default function BriefV2ShareModal({
       // Auto-generate the shareable URL in the background so the
       // designer sees the link the moment the modal renders.
       // Errors are swallowed here so a transient backend hiccup
-      // doesn't show a red banner on a successful modal open —
+      // doesn't show a red banner on a successful modal open -
       // the Copy button will retry on click and surface any error
       // then.
       ;(async () => {
@@ -68,7 +68,7 @@ export default function BriefV2ShareModal({
           })
           const body = await res.json().catch(() => ({}))
           if (res.ok && body?.share_url) setShareUrl(body.share_url)
-        } catch { /* swallow — retry on Copy click */ }
+        } catch { /* swallow, retry on Copy click */ }
       })()
     }
   }, [open, defaultClientEmail, defaultClientName, defaultMessage, projectId, intakeSubmissionId])
@@ -169,7 +169,7 @@ export default function BriefV2ShareModal({
         setShareUrl(url)
       }
       // navigator.clipboard requires HTTPS / localhost. Fall back
-      // silently if it throws — the toast still tells the user
+      // silently if it throws, the toast still tells the user
       // the link exists.
       try { await navigator.clipboard.writeText(url) } catch {}
       setLinkToast('Review link copied. Share it anywhere you like.')
@@ -250,7 +250,7 @@ export default function BriefV2ShareModal({
         {/* Body */}
         {!emailStatus ? (
           <form onSubmit={handleSend} style={{ padding: '18px 24px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Shareable link — auto-loaded on modal open. Designer
+            {/* Shareable link, auto-loaded on modal open. Designer
                 can copy + send via any channel without filling the
                 form. */}
             <Field label="Shareable link">
@@ -393,7 +393,7 @@ export default function BriefV2ShareModal({
                 <div style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.5 }}>
                   Sent to <strong>{email}</strong>.{' '}
                   <span style={{ color: 'var(--color-text-muted)' }}>
-                    If it doesn't arrive in 1-2 minutes, check the spam folder — and copy the link below as a backup.
+                    If it doesn't arrive in 1-2 minutes, check the spam folder, and copy the link below as a backup.
                   </span>
                 </div>
               </div>
@@ -408,7 +408,7 @@ export default function BriefV2ShareModal({
                 <span style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>⚠</span>
                 <div style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.5 }}>
                   Email didn't go out: <strong>{emailStatus.error || 'unknown error'}</strong>.
-                  The review link below still works — copy and send it manually.
+                  The review link below still works, copy and send it manually.
                 </div>
               </div>
             )}

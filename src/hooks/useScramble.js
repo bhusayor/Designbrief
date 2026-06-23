@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 // ────────────────────────────────────────────────────────────────────
-// useScramble — typewriter-style text reveal that scrambles random
+// useScramble, typewriter-style text reveal that scrambles random
 // characters into the target string left-to-right.
 //
 // Designed for AI surfaces ("Building hero section…", "Translating

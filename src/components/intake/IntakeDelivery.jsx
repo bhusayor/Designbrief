@@ -1,14 +1,14 @@
 // ────────────────────────────────────────────────────────────────────
-// IntakeDelivery — Phase 2 of the Client Intake Form rebuild.
+// IntakeDelivery, Phase 2 of the Client Intake Form rebuild.
 //
 // Renders after a form is published. Three delivery methods + a
 // live status panel:
 //
-//   1. Copy link  — readonly URL + Copy button with confirmation.
-//   2. Send email — composer (recipients, subject, body) → POSTs to
+//   1. Copy link , readonly URL + Copy button with confirmation.
+//   2. Send email, composer (recipients, subject, body) → POSTs to
 //                   /api/send-intake-email which formats a branded
 //                   email and sends via Resend.
-//   3. QR code    — generated client-side via the qrcode library;
+//   3. QR code   , generated client-side via the qrcode library;
 //                   downloadable as PNG and SVG.
 //
 // Status panel:
@@ -45,7 +45,7 @@ export default function IntakeDelivery({ form, onEdit, designerName }) {
     <div className="id-root">
       <Styles />
 
-      {/* Topbar — Dashboard back button removed (designers reach
+      {/* Topbar, Dashboard back button removed (designers reach
           the dashboard via the sidebar; this view's only forward
           path is Edit form or sharing the link). Title falls back
           to the recipient's business name + project-type label if
@@ -68,7 +68,7 @@ export default function IntakeDelivery({ form, onEdit, designerName }) {
           <EmailTile form={form} designerName={designerName} showToast={showToast} />
           <QrTile url={formUrl} formName={form.project_name} />
         </div>
-        {/* StatusPanel removed — the Link opens / Submissions /
+        {/* StatusPanel removed, the Link opens / Submissions /
             Expires stats + submissions list lived here. Designers
             who want submission state read it from the Project
             Library card now, which surfaces the same pipeline
@@ -119,7 +119,7 @@ function CopyLinkTile({ url, showToast, expiresAt }) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      showToast?.('Copy failed. URL is in the field — select and copy manually.', 'error')
+      showToast?.('Copy failed. URL is in the field, select and copy manually.', 'error')
     }
   }
   return (
@@ -127,7 +127,7 @@ function CopyLinkTile({ url, showToast, expiresAt }) {
       <div className="id-tile-head">
         <span className="id-tile-icon"><LinkIcon style={{ width: 16, height: 16 }} /></span>
         <h3>Copy link</h3>
-        {/* Expiry pill in the right edge of the header — replaces
+        {/* Expiry pill in the right edge of the header, replaces
             the deleted "Share link" section so the designer still
             sees when the URL will stop working, without a duplicate
             section taking up real estate. */}
@@ -260,7 +260,7 @@ Looking forward to it.`
         {sending ? 'Sending…' : <><PaperAirplaneIcon style={{ width: 14, height: 14 }} /> Send</>}
       </button>
 
-      {/* Deliverability hint — emails sent through the shared
+      {/* Deliverability hint, emails sent through the shared
           Resend sender (onboarding@resend.dev) often land in spam.
           Verifying a custom domain in Resend (and updating
           server-lib/sendEmail.js with the verified sender) is the
@@ -351,13 +351,13 @@ function QrTile({ url, formName }) {
 // ────────────────────────────────────────────────────────────────────
 // Expiry pill rendered inside the delivery view's "Share link"
 // header. Same colour ladder as the builder topbar's pill:
-//   ok      — accent text, neutral background. Plenty of time.
-//   warn    — amber, within 3 days of dying.
-//   expired — red, past the timestamp.
-//   none    — muted, when expires_at is not set.
+//   ok     , accent text, neutral background. Plenty of time.
+//   warn   , amber, within 3 days of dying.
+//   expired, red, past the timestamp.
+//   none   , muted, when expires_at is not set.
 function DeliveryExpiryPill({ expiresAt }) {
   if (!expiresAt) {
-    return <span className="id-pill id-pill-none" title="No expiry — the link never expires">No expiry</span>
+    return <span className="id-pill id-pill-none" title="No expiry, the link never expires">No expiry</span>
   }
   const ts = new Date(expiresAt).getTime()
   const days = Math.ceil((ts - Date.now()) / 86400000)
@@ -379,7 +379,7 @@ function StatusPanel({ form, counts, submissions, loading, showToast }) {
       const s = String(sub?.status || 'pending')
       const pending = ['pending', 'enriching', 'translating', 'extracting_design_system', 'building_kanban', 'notifying']
       if (pending.includes(s)) {
-        showToast?.('Still processing — check back in a minute.', 'success')
+        showToast?.('Still processing, check back in a minute.', 'success')
       } else if (s === 'failed') {
         showToast?.('Processing failed for this submission. ' + (sub.failure_message || ''), 'error')
       } else {
@@ -409,7 +409,7 @@ function StatusPanel({ form, counts, submissions, loading, showToast }) {
         <div className="id-stat">
           <span className="id-stat-num">{form?.expires_at
             ? new Date(form.expires_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-            : '—'}</span>
+            : '-'}</span>
           <span className="id-stat-label">Expires</span>
         </div>
       </div>
@@ -461,12 +461,12 @@ function prettyStatus(s) {
   return capitalise(v)
 }
 function prettyDate(iso) {
-  if (!iso) return '—'
+  if (!iso) return '-'
   try {
     return new Date(iso).toLocaleDateString(undefined, {
       year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
     })
-  } catch { return '—' }
+  } catch { return '-' }
 }
 
 // ────────────────────────────────────────────────────────────────────

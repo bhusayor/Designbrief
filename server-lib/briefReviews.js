@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// briefReviews.js — endpoints for the client-facing brief review
+// briefReviews.js, endpoints for the client-facing brief review
 // flow. Mounted under /api/brief-reviews/* in server.js.
 //
 // Endpoints:
@@ -40,7 +40,7 @@ function appUrl(req) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/brief-reviews/quick-link — designer wants a shareable
+// POST /api/brief-reviews/quick-link, designer wants a shareable
 // review URL without going through the email flow at all. Creates a
 // brief_reviews row with NULL client_email + status='pending' and
 // returns the URL. Used by the share modal's "Copy link" button so
@@ -119,7 +119,7 @@ export async function createQuickLink(req, res) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/brief-reviews — designer creates a share link
+// POST /api/brief-reviews, designer creates a share link
 // Auth: Bearer token (designer's Supabase JWT)
 // Body: { project_id, client_email, client_name?, designer_message? }
 // ────────────────────────────────────────────────────────────────────
@@ -181,8 +181,8 @@ export async function createBriefReview(req, res) {
     return res.status(500).json({ error: 'insert_failed', message: insErr?.message })
   }
 
-  // Send the invite email. Failure here is non-fatal — the review
-  // row exists and the designer can copy the link manually — but we
+  // Send the invite email. Failure here is non-fatal, the review
+  // row exists and the designer can copy the link manually, but we
   // capture the failure mode so the API response tells the designer
   // exactly what went wrong instead of leaving them guessing.
   // The dedicated /quick-link endpoint above covers the link-only
@@ -251,7 +251,7 @@ export async function createBriefReview(req, res) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// GET /api/brief-reviews/by-token/:token — public read of a brief
+// GET /api/brief-reviews/by-token/:token, public read of a brief
 // for the client's review page. Returns the brief result + review
 // metadata + existing comments. Also stamps opened_at the first
 // time it's hit so the designer can see "client opened the link".
@@ -333,7 +333,7 @@ export async function getBriefReviewByToken(req, res) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/brief-reviews/by-token/:token/section-decision — client
+// POST /api/brief-reviews/by-token/:token/section-decision, client
 // approves OR requests changes on a SINGLE section.
 //
 // Body: { section_id, status: 'approved' | 'changes_requested', note? }
@@ -353,7 +353,7 @@ export async function submitSectionDecision(req, res) {
 
   // Load existing decisions so we can merge atomically. Postgres
   // jsonb_set would be more elegant but the Supabase JS client
-  // doesn't expose it cleanly — read-merge-write is fine here
+  // doesn't expose it cleanly, read-merge-write is fine here
   // since concurrent edits from the same review token are rare.
   const { data: existing, error: readErr } = await supabase
     .from('brief_reviews')
@@ -384,7 +384,7 @@ export async function submitSectionDecision(req, res) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/brief-reviews/by-token/:token/decision — client decides
+// POST /api/brief-reviews/by-token/:token/decision, client decides
 // Body: { status: 'approved' | 'changes_requested', note? }
 // ────────────────────────────────────────────────────────────────────
 export async function submitBriefReviewDecision(req, res) {
@@ -412,7 +412,7 @@ export async function submitBriefReviewDecision(req, res) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/brief-reviews/by-token/:token/comments — client comment
+// POST /api/brief-reviews/by-token/:token/comments, client comment
 // Body: { section_id, item_key?, body }
 // ────────────────────────────────────────────────────────────────────
 export async function addBriefReviewComment(req, res) {
@@ -445,7 +445,7 @@ export async function addBriefReviewComment(req, res) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// GET /api/brief-reviews/by-project/:projectId — designer view
+// GET /api/brief-reviews/by-project/:projectId, designer view
 // Returns the review row + all comments. Auth required.
 // ────────────────────────────────────────────────────────────────────
 export async function getBriefReviewByProject(req, res) {
@@ -475,7 +475,7 @@ export async function getBriefReviewByProject(req, res) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Email templates — keep in this file so the entire brief-review
+// Email templates, keep in this file so the entire brief-review
 // surface area is one read.
 // ────────────────────────────────────────────────────────────────────
 function esc(s) {

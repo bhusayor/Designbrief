@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// server.js — DesignBrief AI API server (Express).
+// server.js, DesignBrief AI API server (Express).
 //
 // Deployment target: Render (https://render.com). The Vercel deploy
 // continues to host the frontend; this server handles the AI proxy
@@ -11,12 +11,12 @@
 //   POST /api/pexels  → media search proxy   (ports api/pexels.js)
 //
 // Env required:
-//   PORT                       — Render injects; falls back to 3001
-//   ANTHROPIC_API_KEY          — Anthropic key
-//   PEXELS_API_KEY             — Pexels free-tier key
-//   VITE_SUPABASE_URL          — used by requireAuth in api/lib/
-//   SUPABASE_SERVICE_ROLE_KEY  — used by requireAuth in api/lib/
-//   CORS_ORIGINS               — comma-separated allowlist (frontend
+//   PORT                      , Render injects; falls back to 3001
+//   ANTHROPIC_API_KEY         , Anthropic key
+//   PEXELS_API_KEY            , Pexels free-tier key
+//   VITE_SUPABASE_URL         , used by requireAuth in api/lib/
+//   SUPABASE_SERVICE_ROLE_KEY , used by requireAuth in api/lib/
+//   CORS_ORIGINS              , comma-separated allowlist (frontend
 //                                Vercel URL + any preview/test URLs).
 //                                Defaults to localhost dev origins.
 //
@@ -56,7 +56,7 @@ const PORT = process.env.PORT || 3001
 //   1. Tools that send no Origin header (curl, server-to-server)
 //      always pass.
 //   2. Vercel domains (*.vercel.app) always pass. Every Vercel
-//      deployment — preview branches, production — lives on this
+//      deployment, preview branches, production, lives on this
 //      domain, so allowing it by default means a freshly deployed
 //      Vercel frontend can talk to Render immediately without any
 //      env-var configuration on the Render side.
@@ -101,7 +101,7 @@ app.get('/health', (_req, res) => {
 })
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/claude — full port of api/claude.js
+// POST /api/claude, full port of api/claude.js
 //
 // Unified Claude proxy. One endpoint, four call shapes:
 //   - simple non-streaming (message)
@@ -265,7 +265,7 @@ app.post('/api/claude', async (req, res) => {
 })
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/pexels — full port of api/pexels.js
+// POST /api/pexels, full port of api/pexels.js
 //
 // Body: { query, type='video'|'photo', orientation, per_page, size }
 // Returns the top 3 results in a stable shape the client can drop
@@ -382,14 +382,14 @@ app.post('/api/pexels', async (req, res) => {
 })
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/process-intake — Phase 4 of the Client Intake Form
+// POST /api/process-intake, Phase 4 of the Client Intake Form
 // rebuild. Runs the 8-step pipeline (enrichment → brief assembly →
 // V2 translation → design system → kanban → notification). Returns
 // 202 immediately so the client doesn't wait for the full ~30-60s
 // processing; the pipeline runs asynchronously and updates the
 // submission row's status as each step lands.
 //
-// No auth — the public client form needs to call this right after
+// No auth, the public client form needs to call this right after
 // submit. The pipeline itself reads + writes via the service-role
 // supabase client so RLS isn't a concern. To prevent stranger-
 // triggered runs, the pipeline silently no-ops if the submission
@@ -411,7 +411,7 @@ app.post('/api/process-intake', async (req, res) => {
 })
 
 // ────────────────────────────────────────────────────────────────────
-// POST /api/web-search — Brave Search proxy. Used by the brief
+// POST /api/web-search, Brave Search proxy. Used by the brief
 // translator to enrich competitor analysis with real homepage URLs
 // (so the comparison table renders working links instead of name-
 // only chips).
@@ -464,7 +464,7 @@ app.post('/api/web-search', async (req, res) => {
 })
 
 // ────────────────────────────────────────────────────────────────────
-// Brief reviews — client-facing approval flow
+// Brief reviews, client-facing approval flow
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/brief-reviews', createBriefReview)
 app.post('/api/brief-reviews/quick-link', createQuickLink)

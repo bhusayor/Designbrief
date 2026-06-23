@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// aiBuildEngine — client-side orchestrator for Phase 2 AI Builder.
+// aiBuildEngine, client-side orchestrator for Phase 2 AI Builder.
 //
 // Drives one section build at a time:
 //   1. Call /api/build-section with the current task + brief context
@@ -10,7 +10,7 @@
 //      surface the stream
 //
 // Persistence (status flips, approved_code, etc) is owned by the
-// server endpoint and the realtime subscription in AIBuilder.jsx —
+// server endpoint and the realtime subscription in AIBuilder.jsx -
 // this module is a pure thin streaming client.
 // ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ import {
   GSAP_REVEALS,
 } from './animations.js'
 
-// User-mandated: NEVER let an em dash (—) or en dash (–) end up in
+// User-mandated: NEVER let an em dash (-) or en dash (-) end up in
 // any AI-generated copy. Sonnet leans on them in marketing prose and
 // they read awkwardly in app UI. Same scrub used by the Dashboard
 // streaming impressions panel. Replace patterns so we don't leave
@@ -38,11 +38,11 @@ import {
 function stripDashes(s) {
   if (!s) return s
   return String(s)
-    .replace(/\s*—\s*/g, ' ')       // " — " → " "
-    .replace(/\s*—\s*/g, ' ')   // unicode em dash with surrounding spaces
-    .replace(/–/g, '-')              // en dash → hyphen
-    .replace(/–/g, '-')         // unicode en dash → hyphen
-    .replace(/  +/g, ' ')            // collapse any double-spaces created above
+    .replace(/\s*—\s*/g, ' ')    // em dash with spaces → single space
+    .replace(/\s*–\s*/g, ' ')    // en dash with spaces → single space
+    .replace(/—/g, '-')           // bare em → hyphen
+    .replace(/–/g, '-')           // bare en → hyphen
+    .replace(/  +/g, ' ')         // collapse any double-spaces created above
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -51,7 +51,7 @@ export async function buildSection({
   section,            // { id, task_id, task_title, position }
   task,               // raw task row (description + ai_prompt)
   briefContext,
-  designSystem,       // result of fetchDesignSystem(projectId) — null OK
+  designSystem,       // result of fetchDesignSystem(projectId), null OK
   previousSections,   // already-approved sections, in order
   totalTasks,
   buildId,
@@ -65,7 +65,7 @@ export async function buildSection({
 
   const previousTitles = (previousSections || []).map(s => s.task_title || s.title || '')
 
-  // Decide if this section is the hero (or hero-like) — only hero
+  // Decide if this section is the hero (or hero-like), only hero
   // sections get a video/image/CSS background prepared up front.
   const lowerTitle = (section.task_title || task?.title || '').toLowerCase()
   const isHero = section.position === 0
@@ -145,7 +145,7 @@ export async function buildSection({
       // (section order from success definition) without re-parsing
       // the brief. Server splices this into the user message.
       v2_card_context: task?.v2 || null,
-      // Rule 6 — refuses to start a build that's blocked by an open
+      // Rule 6, refuses to start a build that's blocked by an open
       // Red Flag / Assumption / Question. The card already carries
       // blocked + blocked_reasons; sending them lets the server
       // surface a clean error before charging tokens.
@@ -163,7 +163,7 @@ export async function buildSection({
   if (!res.ok || !res.body) {
     let body = {}
     try { body = await res.json() } catch {}
-    const err = new Error(body?.message || 'Something interrupted the AI. Your work is safe — please try again.')
+    const err = new Error(body?.message || 'Something interrupted the AI. Your work is safe, please try again.')
     err.code = body?.error || null
     err.status = res.status
     if (body?.retry_after) err.retryAfter = body.retry_after
@@ -203,8 +203,8 @@ export async function buildSection({
           if (json.error && json.message) {
             serverError = { code: json.error, message: json.message, retryAfter: json.retry_after }
           } else if (json.error) {
-            // Legacy / passthrough — wrap as a generic friendly message.
-            serverError = { code: 'unexpected', message: 'Something interrupted the AI. Your work is safe — please try again.' }
+            // Legacy / passthrough, wrap as a generic friendly message.
+            serverError = { code: 'unexpected', message: 'Something interrupted the AI. Your work is safe, please try again.' }
           }
         } catch {}
       }
@@ -217,7 +217,7 @@ export async function buildSection({
     if (serverError.retryAfter) err.retryAfter = serverError.retryAfter
     throw err
   }
-  // Final pass — what gets persisted to build_sections.generated_code
+  // Final pass, what gets persisted to build_sections.generated_code
   // and what every renderer reads is guaranteed dash-free.
   return stripDashes(acc)
 }

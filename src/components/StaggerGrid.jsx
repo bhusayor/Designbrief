@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { STAGGER } from '../lib/motion'
 
 // ────────────────────────────────────────────────────────────────────
-// StaggerGrid + StaggerItem — a thin wrapper over Framer Motion's
+// StaggerGrid + StaggerItem, a thin wrapper over Framer Motion's
 // variants system. Pair them:
 //
 //   <StaggerGrid speed="fast">

@@ -3,7 +3,7 @@ import { designSystemToContext } from './designSystem.js'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-// Cached session helper — getSession() can hang on subsequent calls
+// Cached session helper, getSession() can hang on subsequent calls
 // (we hit this with project rename), so we keep a local cache.
 let cachedToken = null
 supabase.auth.onAuthStateChange((_event, session) => {
@@ -15,7 +15,7 @@ supabase.auth.getSession().then(({ data }) => {
 
 async function apiCall(method, body, timeoutMs = 10000) {
   if (!cachedToken) {
-    // Last-resort fetch — bootstrap missed and listener hasn't fired yet
+    // Last-resort fetch, bootstrap missed and listener hasn't fired yet
     const { data } = await supabase.auth.getSession()
     cachedToken = data?.session?.access_token || null
     if (!cachedToken) throw new Error('No session')
@@ -90,7 +90,7 @@ export async function loadTasksFromDB(projectId) {
       cachedToken = data?.session?.access_token || null
     }
     if (!cachedToken) {
-      // Not signed in — best-effort anon read (will probably be empty
+      // Not signed in, best-effort anon read (will probably be empty
       // for shared projects, but works for owned ones)
       const { data } = await supabase
         .from('tasks')
@@ -256,7 +256,7 @@ export async function logActivity(taskId, projectId, userId, actorName, action, 
 }
 
 // ── AI description enhancement ───────────────────────────────────────────────
-// briefContext is optional — when present, the server feeds it to the
+// briefContext is optional, when present, the server feeds it to the
 // senior-designer prompt so the rewrite can reference the actual brand
 // instead of generic filler.
 // designSystem is the result of fetchDesignSystem(projectId). When
@@ -272,7 +272,7 @@ export async function enhanceDescription(text, title, briefContext = null, desig
 }
 
 // ── AI prompt generation (writes a design/implementation prompt for the task) ─
-// briefContext is optional — when present, the senior-director system
+// briefContext is optional, when present, the senior-director system
 // prompt anchors every section to the actual brand colors, fonts,
 // tone, and personality.
 export async function generateAIPrompt(title, description, briefContext = null, designSystem = null) {

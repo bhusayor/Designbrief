@@ -51,7 +51,7 @@ export default function UpgradeIllustration() {
       {/* Lightning bolt */}
       <path d="M56 82 L50 96 L58 94 L54 110 L70 92 L62 94 Z" fill="rgba(139,92,246,0.3)" stroke="#8B5CF6" strokeWidth="1.5" strokeLinejoin="round" className="upgrade-bolt" />
 
-      {/* Orbiting star — centered on (60,52), drawn at origin so the orbit
+      {/* Orbiting star, centered on (60,52), drawn at origin so the orbit
           translation displaces it cleanly. */}
       <g className="upgrade-star-orbit">
         <path d="M60 46 L61.5 50 L66 50 L62.5 52.5 L64 57 L60 54 L56 57 L57.5 52.5 L54 50 L58.5 50 Z" fill="#C4B5FD" opacity="0.9" />

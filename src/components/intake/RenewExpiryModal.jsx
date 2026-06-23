@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// RenewExpiryModal — designer-facing dialog for extending a form's
+// RenewExpiryModal, designer-facing dialog for extending a form's
 // share-link lifetime. Replaces the previous window.prompt() that
 // fired from the Project Library's Renew expiry action.
 //
@@ -17,11 +17,11 @@
 //     state while the supabase update is in flight.
 //
 // Props:
-//   open       — render when true
-//   form       — { settings?.recipient?.business_name, expires_at, ... }
-//   busy       — disables inputs + flips Renew label to "Renewing…"
-//   onCancel   — fires on Esc, backdrop click, X, or Cancel
-//   onRenew    — fires on Renew with the number of days picked
+//   open      , render when true
+//   form      , { settings?.recipient?.business_name, expires_at, ... }
+//   busy      , disables inputs + flips Renew label to "Renewing…"
+//   onCancel  , fires on Esc, backdrop click, X, or Cancel
+//   onRenew   , fires on Renew with the number of days picked
 // ────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from 'react'
@@ -202,7 +202,7 @@ export default function RenewExpiryModal({ open, form, busy = false, onCancel, o
             </button>
           </div>
 
-          {/* Custom number input — animates in when Custom is picked */}
+          {/* Custom number input, animates in when Custom is picked */}
           {customMode && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <input

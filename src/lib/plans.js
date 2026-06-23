@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// Plan definitions — single source of truth for free / starter / pro
+// Plan definitions, single source of truth for free / starter / pro
 // limits and feature flags. Read this from anywhere via getPlanLimits
 // (preferred) or PLANS[planKey] directly.
 // ────────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ export const PLANS = {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Credit tiers — let users pick how many credits/month they want on
+// Credit tiers, let users pick how many credits/month they want on
 // each paid plan. The first entry is the plan's default (matches the
 // PLANS.credits value above) so the existing flow stays a no-op for
 // users who don't open the dropdown.

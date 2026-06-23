@@ -95,10 +95,10 @@ async function userHasProjectAccess(userId, projectId) {
 }
 
 // Returns the user's role on the project:
-//   'Admin'   — project creator OR active team_member with job_role='Admin'
-//   'Editor'  — active team_member with any other non-Viewer role
-//   'Viewer'  — active team_member with role Viewer/Guest
-//   null      — no access at all
+//   'Admin'  , project creator OR active team_member with job_role='Admin'
+//   'Editor' , active team_member with any other non-Viewer role
+//   'Viewer' , active team_member with role Viewer/Guest
+//   null     , no access at all
 // Normalises legacy roles (Team Member / Collaborator / PM / etc.) into
 // 'Editor', matching the client-side normaliseRole() in AppContext.
 async function userProjectRole(userId, projectId) {
@@ -134,7 +134,7 @@ async function requireEditor(req, res, userId, projectId, opts = {}) {
     res.status(403).json({
       error: opts.label
         ? `Viewers cannot ${opts.label}`
-        : 'Read-only access — Viewers cannot edit this project',
+        : 'Read-only access, Viewers cannot edit this project',
       code: 'VIEWER_FORBIDDEN',
     })
     return { ok: false, role: 'Viewer' }
@@ -187,7 +187,7 @@ export default async function handler(req, res) {
 
       // If the task row exists, verify the caller owns the parent project.
       // If it does NOT exist yet (e.g. user just clicked "+ Add Task" and
-      // the save hasn't landed yet), allow the upsert — the body MUST
+      // the save hasn't landed yet), allow the upsert, the body MUST
       // include project_id in updates for us to be able to create the row.
       if (task) {
         const gate = await requireEditor(req, res, user.id, task.project_id, { label: 'edit tasks' })
@@ -518,7 +518,7 @@ export default async function handler(req, res) {
         return res.json({ removed: true })
       }
       if (existing) {
-        // Different reaction — switch
+        // Different reaction, switch
         const { data, error } = await supabase
           .from('task_comment_reactions')
           .update({ reaction })
@@ -588,7 +588,7 @@ export default async function handler(req, res) {
     }
     try {
       // Activity entries log writes. Viewers don't perform writes, so any
-      // log attempt from a Viewer is suspicious — block it.
+      // log attempt from a Viewer is suspicious, block it.
       const gate = await requireEditor(req, res, user.id, project_id, { label: 'log activity' })
       if (!gate.ok) return
       const { error } = await supabase.from('task_activity').insert({
@@ -623,7 +623,7 @@ export default async function handler(req, res) {
       if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
 
       const briefBlock = briefContext
-        ? `\n\nPROJECT CONTEXT (use to sharpen the description — reference brand or audience where it helps):
+        ? `\n\nPROJECT CONTEXT (use to sharpen the description, reference brand or audience where it helps):
 Project: ${briefContext.projectName || ''}
 Understanding: ${briefContext.projectUnderstanding || ''}
 Tone & mood: ${briefContext.toneAndMood || briefContext.tone || ''}
@@ -632,7 +632,7 @@ Audience: ${briefContext.targetAudience || briefContext.projectUnderstanding || 
         : ''
 
       const dsBlock = designSystemContext
-        ? `\n\nPROJECT DESIGN SYSTEM (honour these tokens — voice, button shape, motion language must align):\n${designSystemContext}`
+        ? `\n\nPROJECT DESIGN SYSTEM (honour these tokens, voice, button shape, motion language must align):\n${designSystemContext}`
         : ''
 
       const userMsg = `Task title: "${title || 'Untitled'}"
@@ -642,7 +642,7 @@ User's rough description:
 ${text || '(empty)'}
 """${briefBlock}${dsBlock}
 
-Rewrite this as a clear, precise, actionable description. 2-4 sentences max. Start with an action verb. Return only the description prose — no quotes, no labels, no preamble.`
+Rewrite this as a clear, precise, actionable description. 2-4 sentences max. Start with an action verb. Return only the description prose, no quotes, no labels, no preamble.`
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -688,7 +688,7 @@ Rewrite this as a clear, precise, actionable description. 2-4 sentences max. Sta
       const briefBlock = briefContext
         ? `
 
-PROJECT BRIEF CONTEXT — anchor every section to these values:
+PROJECT BRIEF CONTEXT, anchor every section to these values:
 Project name: ${briefContext.projectName || 'Not specified'}
 Project type / understanding: ${briefContext.projectUnderstanding || 'Not specified'}
 Tone & mood: ${briefContext.toneAndMood || briefContext.tone || 'Not specified'}
@@ -700,7 +700,7 @@ Moodboard direction: ${briefContext.moodboardDirection || 'Not specified'}`
         : ''
 
       const dsBlock = designSystemContext
-        ? `\n\nPROJECT DESIGN SYSTEM (load-bearing constraints — every section below must reference these tokens):\n${designSystemContext}`
+        ? `\n\nPROJECT DESIGN SYSTEM (load-bearing constraints, every section below must reference these tokens):\n${designSystemContext}`
         : ''
 
       const userMsg = `Generate the world-class structured AI prompt for this design task.
@@ -712,7 +712,7 @@ Description:
 ${description || '(empty)'}
 """${briefBlock}${dsBlock}
 
-Use the EXACT section structure from the system instructions — the ━ dividers around TASK, the 7 section labels (CREATIVE DIRECTION, DESIGN APPROACH, INTERACTIONS & MOTION, COPY DIRECTION, TECHNICAL APPROACH, SUCCESS METRIC, INSPIRATION) in that order. Every section must be specific to THIS task and THIS brief. No generic advice.`
+Use the EXACT section structure from the system instructions, the ━ dividers around TASK, the 7 section labels (CREATIVE DIRECTION, DESIGN APPROACH, INTERACTIONS & MOTION, COPY DIRECTION, TECHNICAL APPROACH, SUCCESS METRIC, INSPIRATION) in that order. Every section must be specific to THIS task and THIS brief. No generic advice.`
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -855,7 +855,7 @@ Use the EXACT section structure from the system instructions — the ━ divider
         }
       }
 
-      // Preserve the original owner on UPDATEs — an Editor patching
+      // Preserve the original owner on UPDATEs, an Editor patching
       // brief / kanban must NOT silently overwrite user_id with their own.
       const upsertRow = existing
         ? { id: project_id, user_id: existing.user_id, ...patch }
@@ -889,7 +889,7 @@ Use the EXACT section structure from the system instructions — the ━ divider
 
     try {
       // Count the caller's workspaces (owned + member). We never let them
-      // drop below 1 — they always need at least one to log into.
+      // drop below 1, they always need at least one to log into.
       const { data: ownedList } = await supabase
         .from('workspaces')
         .select('id')
@@ -984,7 +984,7 @@ Use the EXACT section structure from the system instructions — the ━ divider
       return res.status(401).json({ error: 'Invalid or expired token' })
     }
 
-    // GET ?kind=tasks&project_id=X — return all tasks for a project. Used by
+    // GET ?kind=tasks&project_id=X, return all tasks for a project. Used by
     // invited members whose anon-key SELECT may be blocked by stale or
     // misconfigured RLS. Service-role read bypasses RLS entirely.
     if (req.query?.kind === 'tasks' && req.query?.project_id) {
@@ -1002,7 +1002,7 @@ Use the EXACT section structure from the system instructions — the ━ divider
       return res.json({ tasks: data || [] })
     }
 
-    // GET ?kind=project_settings&project_id=X — kanban_columns + brief etc.
+    // GET ?kind=project_settings&project_id=X, kanban_columns + brief etc.
     // Used so invited members can see the admin's column layout.
     if (req.query?.kind === 'project_settings' && req.query?.project_id) {
       const projectId = String(req.query.project_id)
@@ -1071,7 +1071,7 @@ Use the EXACT section structure from the system instructions — the ━ divider
 
   // For the initial sign-up flow the client posts unauthenticated with the
   // freshly-created userId. For "create another workspace" the request is
-  // authed — in that case we enforce the plan's workspace limit.
+  // authed, in that case we enforce the plan's workspace limit.
   let userId = bodyUserId
   let enforceLimit = false
   const authHeader = req.headers.authorization || req.headers.Authorization

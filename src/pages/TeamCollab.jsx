@@ -176,7 +176,7 @@ const ALL_SUGGESTIONS = [
   },
   {
     label: 'Show project health',
-    prompt: 'Give me an honest summary of this project — what is on track, what is behind, and what needs immediate attention.',
+    prompt: 'Give me an honest summary of this project, what is on track, what is behind, and what needs immediate attention.',
     icon: 'ChartBarIcon',
     category: 'insight',
   },
@@ -384,7 +384,7 @@ function useWindowWidth() {
 // AddTaskModal lives at module scope so React keeps the same component
 // identity across TeamCollab re-renders. When it was declared *inside*
 // TeamCollab, every parent render created a new function reference and
-// React unmounted/remounted the modal — wiping the user's typed input.
+// React unmounted/remounted the modal, wiping the user's typed input.
 function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, initialColumn, defaultData, briefContext, designSystem, showToast }) {
   const [form, setForm] = useState({
     title: '', description: '', assignees: [], dueDate: '', priority: 'MEDIUM',
@@ -489,7 +489,7 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
                 opacity: enhancing ? 0.7 : 1,
               }}
             />
-            {/* Enhance button — bottom-right of textarea. Disabled when
+            {/* Enhance button, bottom-right of textarea. Disabled when
                 empty or no title. Title is needed to give the AI context. */}
             <button
               type="button"
@@ -676,7 +676,7 @@ export default function TeamCollab() {
   })
   const [projectTitle, setProjectTitle] = useState(() => {
     // Seed from the per-project cache so the title shows the instant
-    // TeamCollab remounts after a workspace switch — no blank header
+    // TeamCollab remounts after a workspace switch, no blank header
     // while the DB hydration round-trips.
     try {
       const id = _tcInitialProjectId()
@@ -723,7 +723,7 @@ export default function TeamCollab() {
   // legacy teamcollab-active-project key is ONLY used when the workspace-
   // scoped map doesn't exist yet (true one-time migration); we never fall
   // back to it when the map exists but lacks an entry for this workspace
-  // — that path would re-seed a brand-new workspace with the previous
+  //, that path would re-seed a brand-new workspace with the previous
   // workspace's last project id.
   const [activeProjectId, setActiveProjectId] = useState(() => {
     try {
@@ -769,7 +769,7 @@ export default function TeamCollab() {
   const [activeTab, setActiveTab] = useState('board')
   const [invites, setInvites] = useState([])
   const [viewMode, setViewMode] = useState('board')
-  // Mobile kanban scroll container ref — kept so columns can still
+  // Mobile kanban scroll container ref, kept so columns can still
   // benefit from per-column width sizing via CSS. The previous
   // scroll-snap carousel + tab bar was removed (page already has a
   // title; snap was preventing scroll-to-end / Add group).
@@ -800,7 +800,7 @@ export default function TeamCollab() {
   const [showConnectPanel, setShowConnectPanel] = useState(false)
   const [installedConnectors, setInstalledConnectors] = useState({ figma: false, github: false, linear: false })
 
-  // macOS-dock proximity for kanban task cards. Subtle scale only —
+  // macOS-dock proximity for kanban task cards. Subtle scale only -
   // no tilt or glow, so drag-and-drop still feels precise.
   useProximity('.kanban-task-card', {
     distance: 100,
@@ -815,7 +815,7 @@ export default function TeamCollab() {
   const [aiBuilderOpen, setAiBuilderOpen] = useState(false)
   const [aiBuildModeOpen, setAiBuildModeOpen] = useState(false)
   const [designSystemOpen, setDesignSystemOpen] = useState(false)
-  // Cached design system for the active project — loaded on project
+  // Cached design system for the active project, loaded on project
   // change and re-loaded after the panel closes (since the user may
   // have just edited it). Threaded into every AI helper.
   const [designSystem, setDesignSystem] = useState(null)
@@ -860,7 +860,7 @@ export default function TeamCollab() {
   // Tracks task IDs the server has confirmed at least once. Lets the polling
   // merge tell 'pending save' (never seen) from 'deleted remotely' (seen, gone).
   const confirmedRemoteIdsRef = useRef(new Set())
-  // Same idea for PROJECT IDs in the TC tab list — distinguishes "pending
+  // Same idea for PROJECT IDs in the TC tab list, distinguishes "pending
   // create not yet round-tripped to the DB" from "deleted on another device".
   const seenCtxProjectIdsRef = useRef(new Set())
   // Tracks taskId → timestamp of the most recent LOCAL change. Polling and
@@ -868,14 +868,14 @@ export default function TeamCollab() {
   // last 6 seconds so a column move (or rename) can't flicker back to its
   // old value while the save is still in flight.
   const localChangeAtRef = useRef(new Map())
-  // Ref for draggedTask — always current in event handlers, avoids stale-closure drops
+  // Ref for draggedTask, always current in event handlers, avoids stale-closure drops
   const draggedTaskRef = useRef(null)
 
   const [activeSuggestions, setActiveSuggestions] = useState([])
 
   // Persist the active tab into a workspace-scoped map so each workspace
   // remembers its own tab. The legacy teamcollab-active-project still
-  // gets written by the existing tab switcher (harmless — seeding above
+  // gets written by the existing tab switcher (harmless, seeding above
   // prefers the map). This effect keeps the map in sync on every change.
   useEffect(() => {
     const wsId = workspace?.id || null
@@ -912,7 +912,7 @@ export default function TeamCollab() {
   // from the workspace-scoped maps so the user lands back on the project
   // (and the tab strip) they last had open in that workspace. Also
   // pre-load the kanban / phase / columns / projectTitle from the per-
-  // project cache so the board shows instantly — no flicker while DB
+  // project cache so the board shows instantly, no flicker while DB
   // load catches up.
   const prevWsForActiveTabRef = useRef(workspace?.id)
   useEffect(() => {
@@ -1067,7 +1067,7 @@ export default function TeamCollab() {
 
   // Look up an in-progress AI Builder build for this project so the
   // "Build with AI" button can flip to "Continue Build" automatically.
-  // Same pid resolution as handleAiBuildModeConfirm — prefer the local
+  // Same pid resolution as handleAiBuildModeConfirm, prefer the local
   // activeProjectId because context activeProject can be null when the
   // user lands on TeamCollab from Project Library or via tab switch.
   useEffect(() => {
@@ -1085,12 +1085,12 @@ export default function TeamCollab() {
         .in('status', ['running', 'paused'])
         .order('created_at', { ascending: false })
         .limit(1)
-      // Missing-table errors here are silent — the button just shows
-      // "Build with AI" instead of "Continue Build" — the user only
+      // Missing-table errors here are silent, the button just shows
+      // "Build with AI" instead of "Continue Build", the user only
       // sees the actionable migration message when they actually try
       // to start a build.
       if (error?.code === '42P01') {
-        console.warn('[ai-build] ai_builds table missing — run supabase/ai-builder.sql in Supabase.')
+        console.warn('[ai-build] ai_builds table missing, run supabase/ai-builder.sql in Supabase.')
       }
       if (cancelled) return
       setActiveAiBuild(Array.isArray(data) && data[0] ? data[0] : null)
@@ -1154,14 +1154,14 @@ export default function TeamCollab() {
     setTaskLoadError(false)
     // Reset confirmed-IDs for the new project so polling merge starts clean
     confirmedRemoteIdsRef.current = new Set()
-    // Also reset the dirty-window map — those timestamps belong to the
+    // Also reset the dirty-window map, those timestamps belong to the
     // previous project and would (wrongly) shield stale local tasks here.
     localChangeAtRef.current = new Map()
     loadTasksFromDB(projectId).then(tasks => {
       setTasksLoading(false)
       confirmedRemoteIdsRef.current = new Set(tasks.map(t => t.id))
       console.log('[TC] loadTasksFromDB →', tasks.length, 'tasks for', projectId)
-      // Always replace kanban with the new project's tasks — even when
+      // Always replace kanban with the new project's tasks, even when
       // tasks.length === 0. Previously we skipped the setKanban call for
       // empty results, which left the OLD project's tasks visible after
       // a cross-device project switch.
@@ -1194,7 +1194,7 @@ export default function TeamCollab() {
     }).catch(() => {})
 
     // Fetch project members so we can render their avatars on tasks
-    // they're assigned to. Service-role endpoint — works for owners
+    // they're assigned to. Service-role endpoint, works for owners
     // and invited members alike. Falls back to an empty map on error.
     ;(async () => {
       try {
@@ -1240,7 +1240,7 @@ export default function TeamCollab() {
     })
   }
 
-  // Path 2 + 3 — driven by AppContext's realtime/polling refresh
+  // Path 2 + 3, driven by AppContext's realtime/polling refresh
   useEffect(() => {
     const pid = activeProject?.id
     if (!pid) return
@@ -1249,7 +1249,7 @@ export default function TeamCollab() {
     applyIncomingCols(incoming)
   }, [activeProject?.kanbanColumns, ctxProjects, activeProject?.id])
 
-  // Path 1 — direct broadcast channel for sub-second column updates
+  // Path 1, direct broadcast channel for sub-second column updates
   useEffect(() => {
     const pid = activeProject?.id
     if (!pid || pid === 'default' || !authUser) return
@@ -1268,7 +1268,7 @@ export default function TeamCollab() {
 
   // After a page refresh the activeProjectId is restored from localStorage but
   // activeProject (AppContext) is null. Look the project up in ctxProjects
-  // and SET it WITHOUT changing the active section — openProject() forces
+  // and SET it WITHOUT changing the active section, openProject() forces
   // section='document' which navigates the user away from TeamCollab.
   useEffect(() => {
     if (!activeProjectId || activeProjectId === 'default') return
@@ -1391,7 +1391,7 @@ export default function TeamCollab() {
   // rapid changes.
   //
   // IMPORTANT: this used to also diff against prev state and call
-  // deleteTaskFromDB for any task ID that disappeared from kanban — but that
+  // deleteTaskFromDB for any task ID that disappeared from kanban, but that
   // racy "diff and delete" logic would wrongly nuke the OTHER project's
   // tasks during project switches, because:
   //   - localStorage caches can hold task IDs that don't match the fresh DB
@@ -1454,7 +1454,7 @@ export default function TeamCollab() {
           })
         } else if (payload.eventType === 'UPDATE') {
           const t = mapDBTask(payload.new)
-          // Ignore remote UPDATE if the user just edited this task locally —
+          // Ignore remote UPDATE if the user just edited this task locally -
           // prevents flicker between local optimistic state and the broadcast
           // we triggered ourselves arriving milliseconds later.
           const ts = localChangeAtRef.current.get(t.id)
@@ -1479,7 +1479,7 @@ export default function TeamCollab() {
   }, [activeProject?.id, authUser?.id])
 
   // ── Polling fallback for cross-device task sync ──────────────────────────
-  // MERGE not replace — keep any local tasks the server hasn't seen yet so
+  // MERGE not replace, keep any local tasks the server hasn't seen yet so
   // a poll mid-debounce doesn't wipe a freshly-added task.
   //
   // We also track which task IDs have ever been confirmed on the server so
@@ -1517,12 +1517,12 @@ export default function TeamCollab() {
           }
           const merged = []
           // For tasks present on remote: use LOCAL if recently modified
-          // locally (last 6s) — otherwise the user's column move / edit
+          // locally (last 6s), otherwise the user's column move / edit
           // would flicker back to the stale remote value before the save
           // completes. After 6s the remote is trusted.
           //
           // If a task is dirty BUT not in local, the user just deleted it
-          // locally and the remote hasn't caught up yet — skip it entirely
+          // locally and the remote hasn't caught up yet, skip it entirely
           // so polling doesn't resurrect deleted tasks.
           for (const rt of remoteTasks) {
             if (isDirty(rt.id) && !localById.has(rt.id)) continue // locally deleted, waiting for remote
@@ -1535,7 +1535,7 @@ export default function TeamCollab() {
 
           // Then keep local-only tasks that have NEVER been on the server
           // (pending save). If a local-only task WAS previously confirmed
-          // on the server AND it's NOT dirty, it was deleted remotely — drop it.
+          // on the server AND it's NOT dirty, it was deleted remotely, drop it.
           // If it IS dirty, the user just created/edited it locally, keep it.
           for (const lt of prev.tasks) {
             if (remoteById.has(lt.id)) continue
@@ -1560,7 +1560,7 @@ export default function TeamCollab() {
           return { ...prev, tasks: merged }
         })
       } catch (e) {
-        // transient errors get swallowed — next poll retries
+        // transient errors get swallowed, next poll retries
       }
     }
 
@@ -1643,7 +1643,7 @@ Tasks needing assignment:
 ${JSON.stringify(taskRoleMap, null, 2)}
 
 Available team members:
-${namedMembers.map(m => m.name + ' — ' + m.role).join('\n')}
+${namedMembers.map(m => m.name + ', ' + m.role).join('\n')}
 
 Rules:
 - Match tasks to people based on role alignment
@@ -1733,7 +1733,7 @@ Return JSON:
   // Creates a fresh empty task and opens the TaskDetailModal on it.
   // The card + the modal appear in the SAME React render so the user
   // doesn't see the task pop onto the board before the modal opens.
-  // The DB save happens in the background — the PATCH endpoint upserts
+  // The DB save happens in the background, the PATCH endpoint upserts
   // so subsequent edits work even if the save is still in flight.
   function createAndOpenTask(column) {
     const newTask = {
@@ -1778,7 +1778,7 @@ Return JSON:
 
   // Immediately persists a single task to DB via service-role API (bypasses RLS).
   // Sends the FULL kanban.tasks list (with the new task included if not yet
-  // there) so position indexes stay sequential — saving just the new task in
+  // there) so position indexes stay sequential, saving just the new task in
   // isolation would set its position to 0 and clobber the existing task at 0.
   async function saveTaskNow(task) {
     const projectId = activeProjectId || activeProject?.id
@@ -1820,7 +1820,7 @@ Return JSON:
         ch.subscribe(status => {
           if (status === 'SUBSCRIBED') {
             ch.send({ type: 'broadcast', event: 'kanban_columns', payload: { cols } })
-            // Tear down after sending — re-create per save to avoid leak
+            // Tear down after sending, re-create per save to avoid leak
             setTimeout(() => supabase.removeChannel(ch), 250)
           }
         })
@@ -1918,7 +1918,7 @@ Return JSON:
     if (aiBuildLoading) return
 
     // Source of truth for "which project is the kanban showing" is the
-    // local activeProjectId, NOT context.activeProject — TeamCollab
+    // local activeProjectId, NOT context.activeProject, TeamCollab
     // can have a real project tab open even when context hasn't been
     // synced (e.g. arriving here straight from Project Library). We
     // pull activeProjectId first and fall back to context. 'default'
@@ -1929,7 +1929,7 @@ Return JSON:
       : activeProject?.id
 
     if (!pid || pid === 'default') {
-      showToast?.('Open a project first — pick or create one from the project list.', 'error')
+      showToast?.('Open a project first, pick or create one from the project list.', 'error')
       return
     }
     if (!authUser?.id) {
@@ -1937,7 +1937,7 @@ Return JSON:
       return
     }
 
-    // Build every task that isn't already done — was previously
+    // Build every task that isn't already done, was previously
     // filtering strictly to "To Do" column which broke whenever
     // tasks had been moved (manually or by drag) into other columns
     // before clicking Build. Build with AI's button enables on ANY
@@ -1971,7 +1971,7 @@ Return JSON:
       console.error('[ai-build start]', e)
       // Surface the real reason. The most common failure here is the
       // ai_builds / build_sections migration not having been run on
-      // the live Supabase project — log the exact SQL file path AND
+      // the live Supabase project, log the exact SQL file path AND
       // the SQL itself so the user (and console viewers) have a path
       // forward without context-switching.
       const isMissingTable =
@@ -2058,7 +2058,7 @@ TASK CONTEXT:
   Column: ${col?.label || 'To Do'}
 
 BRIEF-DERIVED DESIGN CONTEXT (use this to ground the Creative Direction and Design Approach sections):
-${designCtx || 'No explicit palette/type set — pick a deliberate one that fits the brief.'}
+${designCtx || 'No explicit palette/type set, pick a deliberate one that fits the brief.'}
 ${overrides ? '\nUSER OVERRIDES (treat as non-negotiable):\n' + overrides : ''}
 
 STRUCTURE SIGNALS (use to shape Design Approach + Technical Approach):
@@ -2080,12 +2080,12 @@ Produce the prompt using the exact 7 section labels from the system instructions
     } catch (e) {
       console.error('[generate prompt]', e)
       const msg = e?.code === 'TIMEOUT'
-        ? 'Request timed out — the server took too long. Showing template prompt instead.'
+        ? 'Request timed out, the server took too long. Showing template prompt instead.'
         : e?.data?.code === 'RATE_LIMITED'
         ? 'Daily AI limit reached. Resets at midnight.'
         : e?.status === 401
-        ? 'Session expired — please refresh the page.'
-        : 'AI unavailable — showing structured template prompt instead.'
+        ? 'Session expired, please refresh the page.'
+        : 'AI unavailable, showing structured template prompt instead.'
       setPromptError(msg)
       const projectNameFb = projects.find(p => p.id === activeProjectId)?.title || 'Project'
       const briefDataFb = getProjectBriefData()
@@ -2147,7 +2147,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
           section: 'Feature illustrations',
           type: 'illustration',
           query: 'abstract geometric shapes gradient',
-          notes: 'Custom illustrations preferred over stock — keep style consistent',
+          notes: 'Custom illustrations preferred over stock, keep style consistent',
         })
       } else if (/team|founder|about/i.test(s)) {
         queries.push({
@@ -2304,12 +2304,12 @@ Produce the prompt using the exact 7 section labels from the system instructions
           name: 'Discovery-first',
           screens: [
             'Splash → quick brand reveal with logo bloom',
-            'Onboarding (3 swipeable cards) — each with a 3D product render',
-            'Home — large discover hero, horizontal category chips, curated rails (New, Trending, For You)',
-            'Product detail — image gallery with parallax, sticky add-to-cart bar, expandable specs',
-            'Cart — drag-to-remove with haptic, animated total counter',
-            'Checkout — single-screen with progressive reveal',
-            'Profile — circular avatar header over gradient',
+            'Onboarding (3 swipeable cards), each with a 3D product render',
+            'Home, large discover hero, horizontal category chips, curated rails (New, Trending, For You)',
+            'Product detail, image gallery with parallax, sticky add-to-cart bar, expandable specs',
+            'Cart, drag-to-remove with haptic, animated total counter',
+            'Checkout, single-screen with progressive reveal',
+            'Profile, circular avatar header over gradient',
             'Wishlist with empty illustration',
           ],
           motion: 'Hero parallax on scroll, shared element transitions between list and detail, spring-physics on add-to-cart',
@@ -2317,7 +2317,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
         {
           name: 'Story-driven',
           screens: [
-            'Splash — typography-only reveal',
+            'Splash, typography-only reveal',
             'Tabbed home with snap-scroll collections',
             'Story-format product browse (full-screen swipeable like Instagram stories)',
             'Quick-buy flow with thumb-reachable controls',
@@ -2330,8 +2330,8 @@ Produce the prompt using the exact 7 section labels from the system instructions
         {
           name: 'Personal shopper',
           screens: [
-            'Onboarding quiz — single-question-per-screen with progress ring',
-            'Personalized home — feed of cards, each with reasoning ("Picked because you liked X")',
+            'Onboarding quiz, single-question-per-screen with progress ring',
+            'Personalized home, feed of cards, each with reasoning ("Picked because you liked X")',
             'Product card flow with swipe-left-to-skip / swipe-right-to-save',
             'Saved items as a magazine grid',
             'Chat-style support with animated typing indicator',
@@ -2348,22 +2348,22 @@ Produce the prompt using the exact 7 section labels from the system instructions
           name: 'Coach-led',
           screens: [
             'Splash with breathing animation',
-            'Goal selection — large illustration cards',
-            'Daily dashboard — circular progress for streaks, today\'s plan, mood check-in',
-            'Workout active screen — full-bleed video with animated timer, large pause/skip',
+            'Goal selection, large illustration cards',
+            'Daily dashboard, circular progress for streaks, today\'s plan, mood check-in',
+            'Workout active screen, full-bleed video with animated timer, large pause/skip',
             'Rest screen with breathing circle animation',
-            'Stats — animated graphs that draw on entry',
+            'Stats, animated graphs that draw on entry',
           ],
           motion: 'Breathing circle pulse, graph line draw-on, count-up numbers',
         },
         {
           name: 'Habit-based',
           screens: [
-            'Onboarding — habit picker grid',
-            'Today screen — habits as tappable rings that fill on completion',
+            'Onboarding, habit picker grid',
+            'Today screen, habits as tappable rings that fill on completion',
             'Detailed habit screen with streak calendar heatmap',
             'Insights with weekly/monthly tabs and animated chart transitions',
-            'Achievements — confetti on unlock',
+            'Achievements, confetti on unlock',
             'Profile with photo, level, badges',
           ],
           motion: 'Ring fill on tap, confetti particle burst, heatmap cell pulse',
@@ -2371,10 +2371,10 @@ Produce the prompt using the exact 7 section labels from the system instructions
         {
           name: 'Class-format',
           screens: [
-            'Browse classes — large hero card, filter pills',
+            'Browse classes, large hero card, filter pills',
             'Class detail with instructor profile, equipment list, preview video',
             'Pre-workout countdown screen (3-2-1)',
-            'Class player — picture-in-picture instructor + main demo',
+            'Class player, picture-in-picture instructor + main demo',
             'Post-class summary with stats and rating prompt',
             'Schedule with calendar strip',
           ],
@@ -2389,7 +2389,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
           name: 'Feed-first',
           screens: [
             'Pull-to-refresh feed with parallax cards',
-            'Compose — full-screen overlay with media options',
+            'Compose, full-screen overlay with media options',
             'Profile with tabbed content (posts, media, likes)',
             'Direct messages with bubble tail animation',
             'Search with trending pills',
@@ -2449,8 +2449,8 @@ Produce the prompt using the exact 7 section labels from the system instructions
           name: 'Editorial commerce',
           sections: [
             'Sticky transparent nav that inverts on scroll',
-            'Editorial hero — full-bleed photo with overlay headline + price tag',
-            'Manifesto strip — large typographic statement on cream background',
+            'Editorial hero, full-bleed photo with overlay headline + price tag',
+            'Manifesto strip, large typographic statement on cream background',
             'Asymmetric product grid (mix of large and small cards)',
             'In-context lifestyle gallery (parallax)',
             'Founder story with portrait and pull-quote',
@@ -2481,7 +2481,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
             'Full-screen hero with product centered, animated entrance',
             'Scroll-driven product story (3-4 pinned sections, each reveals a feature with animation)',
             'Specs comparison table',
-            'Buy section — sticky on right while content scrolls',
+            'Buy section, sticky on right while content scrolls',
             'FAQ accordion',
             'Footer',
           ],
@@ -2511,7 +2511,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
           name: 'Bento-style',
           sections: [
             'Hero with 3-line manifesto + single CTA',
-            'Bento grid (Apple-style) — mixed-size cards each highlighting one feature with illustration',
+            'Bento grid (Apple-style), mixed-size cards each highlighting one feature with illustration',
             'Quote testimonial as full-bleed section',
             'Process / how it works with horizontal scroll-snap',
             'Pricing as 3 cards with one highlighted',
@@ -2525,7 +2525,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
           sections: [
             'Nav',
             'Hero focused on customer outcome (not product)',
-            'Three persona tabs — content morphs based on selection',
+            'Three persona tabs, content morphs based on selection',
             'Customer story carousel with logo + quote + metric',
             'Workflow diagram as animated illustration',
             'Integration grid (logos)',
@@ -2556,7 +2556,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
           name: 'Magazine-style',
           sections: [
             'Editorial nav with fine serif',
-            'Asymmetric hero — large image + overlapping text',
+            'Asymmetric hero, large image + overlapping text',
             'Issue-style table of contents for projects',
             'Each project as a chapter with pull-quote and gallery',
             'Manifesto / approach section',
@@ -2583,7 +2583,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
       {
         name: 'Editorial-modern',
         sections: [
-          'Minimal nav — logo + 4 links + CTA',
+          'Minimal nav, logo + 4 links + CTA',
           'Hero with large headline + supporting paragraph + dual CTA',
           'Visual feature strip (3 columns with illustrations)',
           'Long-form story section with pull-quotes',
@@ -2661,7 +2661,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
 
     // ── STRUCTURE PATTERN ──────────────────────────────────────────────────
     lines.push('━━━ STRUCTURE PATTERN: ' + pattern.name.toUpperCase() + ' ━━━')
-    lines.push('Follow this specific pattern — do not invent a different structure.')
+    lines.push('Follow this specific pattern, do not invent a different structure.')
     lines.push('')
 
     // ── DESIGN DIRECTION ───────────────────────────────────────────────────
@@ -2731,7 +2731,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
     if (isMobile) {
       lines.push('Image guidelines:')
       lines.push('  • Use Image from expo-image with contentFit="cover" and placeholder blurhash')
-      lines.push('  • Avoid loading large images above the fold — use progressive reveal')
+      lines.push('  • Avoid loading large images above the fold, use progressive reveal')
       lines.push('  • All images must have accessible alt/accessibilityLabel text')
     } else {
       lines.push('Image guidelines:')
@@ -2747,11 +2747,11 @@ Produce the prompt using the exact 7 section labels from the system instructions
     lines.push('━━━ COMPONENTS ━━━')
     if (isMobile) {
       lines.push('• Pressable with haptic feedback (Haptics.impactAsync) on all tappable cards')
-      lines.push('• Bottom sheet (react-native-bottom-sheet) for overlays — avoid native modals')
+      lines.push('• Bottom sheet (react-native-bottom-sheet) for overlays, avoid native modals')
       lines.push('• Tab bar: 4-5 items with active indicator pill')
       lines.push('• Swipeable list rows (react-native-gesture-handler)')
       lines.push('• SkeletonPlaceholder for loading states')
-      lines.push('• Toast via react-native-toast-message — top position, auto-dismiss 3s')
+      lines.push('• Toast via react-native-toast-message, top position, auto-dismiss 3s')
     } else if (isDesktop) {
       lines.push('• Menu bar integration with native OS menus')
       lines.push('• Resizable sidebar (drag handle, collapsible)')
@@ -2760,7 +2760,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
       lines.push('• Window chrome: traffic-light controls or custom titlebar')
       lines.push('• Toast: bottom-right, auto-dismiss 4s')
     } else {
-      lines.push('• Button: primary, secondary, ghost — hover/active/disabled states')
+      lines.push('• Button: primary, secondary, ghost, hover/active/disabled states')
       lines.push('• Input: floating label, error state, helper text')
       lines.push('• Modal: backdrop blur, centered card, escape to close')
       lines.push('• Toast: bottom-right, auto-dismiss 4s')
@@ -2773,7 +2773,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
     lines.push('Pattern motion: ' + pattern.motion)
     lines.push('')
     if (isMobile) {
-      lines.push('• Tap: scale 0.97, 80ms — all pressables')
+      lines.push('• Tap: scale 0.97, 80ms, all pressables')
       lines.push('• Screen transitions: shared element (react-navigation sharedElements)')
       lines.push('• Scroll: sticky header collapses with interpolation')
       lines.push('• Pull-to-refresh: custom Lottie animation')
@@ -2963,7 +2963,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
 
   // Create a brand-new TC project. Goes through the service-role API
   // (renameProjectInDB → PATCH /api/create-workspace) which upserts the
-  // row server-side — same path that fixed cross-device rename sync.
+  // row server-side, same path that fixed cross-device rename sync.
   async function handleNewProject() {
     // Plan project limit: free=2, starter=10, pro=Infinity. Counts owned
     // projects only (shared projects don't count against the cap).
@@ -3021,7 +3021,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
     }
     console.log('[TC handleRenameProject]', { projectId, trimmed, isDefault: projectId === 'default' })
 
-    // `default` is the placeholder ID for the first-ever tab — it has never
+    // `default` is the placeholder ID for the first-ever tab, it has never
     // been persisted and the projects PK is global (not per-user) so we can't
     // INSERT id='default'. Promote it to a real UID + migrate local cache.
     if (projectId === 'default') {
@@ -3055,7 +3055,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
       // Write to DB with explicit await + verification fetch
       ;(async () => {
         if (!authUser) {
-          console.error('[TC promote] aborted — no authUser')
+          console.error('[TC promote] aborted, no authUser')
           return
         }
         try {
@@ -3150,7 +3150,7 @@ Produce the prompt using the exact 7 section labels from the system instructions
     if (phase !== 'kanban') setPhase('kanban')
     setNewTaskTitle('')
     setAddingToCol(null)
-    // Persist immediately — optimistic update already applied above
+    // Persist immediately, optimistic update already applied above
     saveTaskNow(newTask).catch(e => {
       console.error('[TC] saveTaskNow:', e)
       if (showToast) showToast('Failed to save task. Please try again.', 'error')
@@ -3387,7 +3387,7 @@ ${(kanban?.tasks || []).map(t => {
     (t.dueDate ? ' | due: ' + t.dueDate : '') +
     (t.description ? ' | desc: ' + t.description.slice(0, 80) : '')
 }).join('\n')}`
-      : 'BOARD IS EMPTY — no tasks yet.'
+      : 'BOARD IS EMPTY, no tasks yet.'
 
     const projectName = projects.find(p => p.id === activeProjectId)?.title || 'Project'
 
@@ -3554,7 +3554,7 @@ STYLE:
       ? Object.entries(analysis.roleReasoning).map(([r, why]) => `${r}: ${why}`).join('\n')
       : (analysis.roleReasoning || '')
     const reply = analysis.isChaos
-      ? '⚡ Chaotic brief — ' + analysis.chaosNote + '\n\nRecommended roles:\n\n' + rolesItemized + '\n\n' + reasoning + '\n\nSelect your team below.'
+      ? '⚡ Chaotic brief, ' + analysis.chaosNote + '\n\nRecommended roles:\n\n' + rolesItemized + '\n\n' + reasoning + '\n\nSelect your team below.'
       : 'For **' + analysis.projectTitle + '**, recommended roles:\n\n' + rolesItemized + '\n\n' + reasoning + '\n\nSelect roles and add names below.'
     addMessage('ai', reply)
     setConversationHistory([
@@ -3573,7 +3573,7 @@ STYLE:
     // cards derived from item 4 (Deliverables) with rich
     // descriptions composed from items 1, 2, 5, 6, 7, 14, 20, 21
     // and blocked detection from items 9, 10, 11. No AI call, no
-    // credit charge — just assign and persist.
+    // credit charge, just assign and persist.
     const v2Result = activeProject?.data?.result || activeProject?.result || null
     const v2Cards = v2Result?.kanbanCards
     if (v2Cards?.tasks?.length) {
@@ -3596,7 +3596,7 @@ STYLE:
       }
       setLoading(false)
       const blocked = tasksWithDates.filter(t => t.blocked).length
-      const msg = '✅ Kanban populated — **' + enrichedTasks.length + ' tasks** from your translated brief.' +
+      const msg = '✅ Kanban populated, **' + enrichedTasks.length + ' tasks** from your translated brief.' +
         (blocked ? '\n\n⚠ **' + blocked + ' cards blocked** by Red Flags, unclear assumptions, or open questions.' : '') +
         '\n\nClick any card to see the rich description, design system, and what is required.'
       addMessage('ai', msg)
@@ -3637,7 +3637,7 @@ STYLE:
     }
 
     const missing = data.missingRoles?.length || 0
-    const msg = '✅ Kanban board ready — **' + enrichedTasks.length + ' tasks** assigned. Timeline: **' + data.projectTimeline + '**.' +
+    const msg = '✅ Kanban board ready, **' + enrichedTasks.length + ' tasks** assigned. Timeline: **' + data.projectTimeline + '**.' +
       (missing ? '\n\n⚠ Missing roles: **' + data.missingRoles.join(', ') + '**' : '') +
       '\n\nDrag cards between columns, click any card to edit, or keep chatting to update the board.'
     addMessage('ai', msg)
@@ -3684,7 +3684,7 @@ STYLE:
         <div style={{
           fontFamily: 'var(--font-mono)', fontSize: 10,
           color: accentCol, marginBottom: 8, letterSpacing: '0.06em',
-        }}>NEW TASK — {col.toUpperCase()}</div>
+        }}>NEW TASK, {col.toUpperCase()}</div>
         <input
           autoFocus
           value={title}
@@ -3763,7 +3763,7 @@ STYLE:
     // back to a name match (case-insensitive) so legacy tasks without
     // a user_id still get a photo when the name matches a member.
     // If the assignee IS the signed-in user, prefer the live
-    // authUser.user_metadata.avatar_url — it updates instantly after
+    // authUser.user_metadata.avatar_url, it updates instantly after
     // upload without waiting for the projectMembers refetch.
     const isSelf = task.assignedUserId && task.assignedUserId === authUser?.id
     const assigneeMember = task.assignedUserId
@@ -3789,7 +3789,7 @@ STYLE:
         onDragStart={e => {
           if (!canEdit) { e.preventDefault(); return }
           e.stopPropagation()
-          draggedTaskRef.current = task   // set ref immediately — no re-render lag
+          draggedTaskRef.current = task   // set ref immediately, no re-render lag
           setDraggedTask(task)
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', task.id)
@@ -3975,7 +3975,7 @@ STYLE:
           </thead>
           <tbody>
             {tasks.map((task, i) => {
-              const col = cols.find(c => c.id === task.column) || { label: task.column || '—', color: '#6B7280' }
+              const col = cols.find(c => c.id === task.column) || { label: task.column || '-', color: '#6B7280' }
               const priorityColor = task.priority === 'HIGH' ? '#EF4444' : task.priority === 'MEDIUM' ? '#F59E0B' : '#6B7280'
               return (
                 <tr key={task.id || i}
@@ -3994,7 +3994,7 @@ STYLE:
                         <span style={{ fontSize: 12, color: 'var(--color-text-soft)' }}>{task.assignedName || task.assignee}</span>
                       </div>
                     ) : (
-                      <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>—</span>
+                      <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>-</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
@@ -4004,7 +4004,7 @@ STYLE:
                         {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </div>
                     ) : (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>—</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-muted)' }}>-</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
@@ -4191,7 +4191,7 @@ STYLE:
 
           {/* Task rows */}
           {ganttTasks.map((task, ti) => {
-            const col = cols?.find(c => c.id === task.column) || { color: '#6B7280', label: task.column || '—' }
+            const col = cols?.find(c => c.id === task.column) || { color: '#6B7280', label: task.column || '-' }
             const dueIdx = dayIndex(task.dueDate)
             const startIdx = Math.max(0, dueIdx - 2)
             const endIdx = Math.min(DAYS - 1, dueIdx)
@@ -4440,7 +4440,7 @@ STYLE:
         background: isMobile ? 'transparent' : 'var(--color-bg)',
         overflowX: 'visible',
       }}>
-        {/* Mobile: project switcher — left side, stroked rectangle */}
+        {/* Mobile: project switcher, left side, stroked rectangle */}
         {isMobile && (
           <div ref={projectMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
@@ -4647,7 +4647,7 @@ STYLE:
           )
         })()}
 
-        {/* Design System — step 3 on the project line, next to Board
+        {/* Design System, step 3 on the project line, next to Board
             + Team. Desktop / tablet render the full labelled pill;
             mobile renders an icon-only square so it fits next to the
             project-switcher pill without crowding the top bar. */}
@@ -4717,7 +4717,7 @@ STYLE:
         {/* ── Team tab ── */}
         {/* ── Board tab ── */}
         {activeTab === 'board' && (<>
-        {/* Phase 5 — blocked-card visualisation + tablet / mobile
+        {/* Phase 5, blocked-card visualisation + tablet / mobile
             kanban overrides. Scoped to the kanban-task-card class
             (added per card above) and the kanban-board-scroll /
             kanban-board-column classes added to the column wrappers
@@ -4748,7 +4748,7 @@ STYLE:
             text-transform: uppercase;
             color: #b45309;
           }
-          /* Tablet card padding by viewport — touch-tier sizing is
+          /* Tablet card padding by viewport, touch-tier sizing is
              a device characteristic, not a container one. */
           @media (max-width: 1023px) and (min-width: 768px) {
             .kanban-task-card { padding: 10px 12px !important; }
@@ -4777,7 +4777,7 @@ STYLE:
             }
           }
           /* Even tighter when the board container shrinks below the
-             standard tablet width — sidebar wide open on a smaller
+             standard tablet width, sidebar wide open on a smaller
              laptop. Just compress more padding so labels stay but
              the row doesn't overflow. */
           @container (max-width: 900px) {
@@ -4895,7 +4895,7 @@ STYLE:
                 )}
               </div>
 
-              {/* View tabs — 2 visible on mobile (+ more), all on desktop */}
+              {/* View tabs, 2 visible on mobile (+ more), all on desktop */}
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, overflowX: isTablet ? 'auto' : 'visible' }}>
                 {[
                   { id: 'board', icon: Squares2X2Icon, label: 'Board' },
@@ -4918,7 +4918,7 @@ STYLE:
                     </button>
                   )
                 })}
-                {/* More views dropdown — mobile only */}
+                {/* More views dropdown, mobile only */}
                 {isMobile && (
                   <div style={{ position: 'relative' }}>
                     <button
@@ -4951,7 +4951,7 @@ STYLE:
 
               {/* Right: Connect + Build with AI + Add Task + Push to Linear */}
               <div className="kanban-toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, minWidth: isMobile ? 'auto' : 120, justifyContent: 'flex-end', marginLeft: 'auto', flexShrink: 0 }}>
-                {/* Connect button hidden from live site for now —
+                {/* Connect button hidden from live site for now -
                     re-enable by uncommenting the block below.
                 {!isMobile && (installedConnectors.figma || installedConnectors.github || installedConnectors.linear) && (
                   <div style={{ position: 'relative' }}>
@@ -4977,7 +4977,7 @@ STYLE:
                 {/* Design System moved to the project-line top bar
                     (next to Board + Team). Not rendered here in the
                     kanban toolbar anymore. */}
-                {/* Build with AI — single unified button. Active any time
+                {/* Build with AI, single unified button. Active any time
                     the kanban has tasks (manually added or from a translated
                     brief). The previous "Build with AI" → BuildInterface
                     component-builder button is gone; this one opens the
@@ -5084,7 +5084,7 @@ STYLE:
                     const roleColor = meta?.color || 'var(--color-text-muted)'
                     const pc = PRIORITY_COLORS[task.priority] || 'var(--color-text-muted)'
                     const dueSt = getDueDateStatus(task.dueDate, task.column)
-                    const dueTxt = !task.dueDate ? '—' : dueSt === 'overdue' ? 'Overdue' : dueSt === 'today' ? 'Today' : formatDueDate(task.dueDate)
+                    const dueTxt = !task.dueDate ? '-' : dueSt === 'overdue' ? 'Overdue' : dueSt === 'today' ? 'Today' : formatDueDate(task.dueDate)
                     const dueColor = !task.dueDate ? 'var(--color-text-muted)' : dueSt === 'overdue' ? 'var(--color-red)' : dueSt === 'today' ? 'var(--color-amber)' : 'var(--color-text-soft)'
                     return (
                       <div key={task.id} onClick={() => setEditingTask(task)} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 100px 100px 60px', gap: 12, padding: '10px 16px', background: 'var(--color-card)', border: '1px solid var(--color-border)', borderLeft: '3px solid ' + pc, borderRadius: 9, marginBottom: 4, cursor: 'pointer', transition: 'all 0.15s', alignItems: 'center' }}
@@ -5278,7 +5278,7 @@ STYLE:
                         <Bars2Icon style={{ width: 14, height: 14 }} />
                       </div>
 
-                      {/* Column title — single-click to rename */}
+                      {/* Column title, single-click to rename */}
                       {editingColId === col.id ? (
                         <input
                           autoFocus
@@ -5451,7 +5451,7 @@ STYLE:
         </div>
         )}
 
-        {/* Bottom bar — only when unassigned tasks exist */}
+        {/* Bottom bar, only when unassigned tasks exist */}
         {kanban?.unassignedTasks?.length > 0 && (
           <div style={{ height: 68, borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 20px', overflowX: 'auto', gap: 8 }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0, marginRight: 4 }}>UNASSIGNED:</span>
@@ -5466,7 +5466,7 @@ STYLE:
 
         </div> {/* closes kanban card */}
 
-        {/* AI panel — full width on mobile, inline right panel on desktop/tablet */}
+        {/* AI panel, full width on mobile, inline right panel on desktop/tablet */}
         {chatOpen && (
           <div style={{
             ...(isMobile
@@ -5546,7 +5546,7 @@ STYLE:
                   </div>
                   <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15, color: 'var(--color-text)', letterSpacing: '-0.02em', marginBottom: 4 }}>What do you need?</div>
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)', lineHeight: 1.6, maxWidth: 220, marginBottom: 16 }}>
-                    Manage tasks, generate plans, prioritise work — just ask.
+                    Manage tasks, generate plans, prioritise work, just ask.
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7, width: '100%' }}>
                     {activeSuggestions.map((s, i) => {
@@ -5833,7 +5833,7 @@ STYLE:
         </div>
       )}
 
-      {/* Floating bubble — only when !chatOpen */}
+      {/* Floating bubble, only when !chatOpen */}
       {!chatOpen && (
         <button
           onPointerDown={(e) => { e.preventDefault(); setChatOpen(true); setUnreadCount(0) }}
@@ -5849,7 +5849,7 @@ STYLE:
         </button>
       )}
 
-      {/* Delete project confirmation — shared destructive modal */}
+      {/* Delete project confirmation, shared destructive modal */}
       <ConfirmDeleteModal
         open={!!confirmDeleteId}
         title="Delete project?"
@@ -5864,7 +5864,7 @@ STYLE:
         }
       />
 
-      {/* Delete kanban column — same shared modal */}
+      {/* Delete kanban column, same shared modal */}
       <ConfirmDeleteModal
         open={!!confirmDeleteColId}
         title="Delete column?"
@@ -5879,7 +5879,7 @@ STYLE:
         }
       />
 
-      {/* Team People overlay — when opened FROM TeamCollab, we pass projectId
+      {/* Team People overlay, when opened FROM TeamCollab, we pass projectId
           so its invite form sends a PROJECT-level invite (not a workspace
           invite). The TeamPage UI itself is unchanged. */}
       {showTeamModal && (
@@ -5890,7 +5890,7 @@ STYLE:
         />
       )}
 
-      {/* Design System panel — portalled modal */}
+      {/* Design System panel, portalled modal */}
       <DesignSystemPanel
         isOpen={designSystemOpen}
         onClose={() => setDesignSystemOpen(false)}
@@ -5899,15 +5899,15 @@ STYLE:
         workspaceId={workspace?.id || null}
       />
 
-      {/* AI Builder — mode picker, then full-screen overlay */}
+      {/* AI Builder, mode picker, then full-screen overlay */}
       <BuildModeModal
         open={aiBuildModeOpen}
-        // Count every buildable task — anything not already Done.
+        // Count every buildable task, anything not already Done.
         // BuildModeModal's "Start Building" button disables when
         // taskCount is 0, so this filter MUST match the one in
         // handleAiBuildModeConfirm. Previously this used a strict
         // 'to do' / 'todo' filter while the handler used the broader
-        // "not done" rule — leading to disabled-button silently-
+        // "not done" rule, leading to disabled-button silently-
         // does-nothing clicks whenever tasks lived in any other
         // column.
         taskCount={(kanban?.tasks || []).filter(t => {

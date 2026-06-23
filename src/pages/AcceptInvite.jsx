@@ -55,7 +55,7 @@ export default function AcceptInvite() {
       setInvite(data.invite)
 
       if (authUser) {
-        // Link-type invites (no specific email) — any signed-in user can accept
+        // Link-type invites (no specific email), any signed-in user can accept
         const isLinkInvite = !data.invite.invitedEmail
         if (isLinkInvite || authUser.email?.toLowerCase() === data.invite.invitedEmail?.toLowerCase()) {
           await doAccept(token, data.invite, session?.access_token)
@@ -76,7 +76,7 @@ export default function AcceptInvite() {
     const controller = new AbortController()
     const tid = setTimeout(() => controller.abort(), 20000)
     try {
-      // Use the token passed directly (from signIn/signUp or context session) — avoids getSession hang
+      // Use the token passed directly (from signIn/signUp or context session), avoids getSession hang
       let bearerToken = accessToken || session?.access_token
       if (!bearerToken) {
         clearTimeout(tid)

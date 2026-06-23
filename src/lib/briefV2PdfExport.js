@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// briefV2PdfExport.js — clean text-based PDF for V2 briefs.
+// briefV2PdfExport.js, clean text-based PDF for V2 briefs.
 //
 // Replaces html2canvas snapshot for V2 results. We walk the
 // 21 items directly through jsPDF.text() and lay them out in a

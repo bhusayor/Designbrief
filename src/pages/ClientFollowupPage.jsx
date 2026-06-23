@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// ClientFollowupPage — Phase 6 of the Client Intake Form rebuild.
+// ClientFollowupPage, Phase 6 of the Client Intake Form rebuild.
 //
 // Public route at /followup/:token. Renders one question + a single
 // long-text input. Submits via the supabase RPC submit_followup_anon
@@ -9,13 +9,13 @@
 // designer gets an email immediately.
 //
 // Five render branches:
-//   loading        — initial load
-//   not-found      — token didn't match anything
-//   already-done   — followup already answered
-//   brief-locked   — parent brief has been approved; spec mandates
+//   loading       , initial load
+//   not-found     , token didn't match anything
+//   already-done  , followup already answered
+//   brief-locked  , parent brief has been approved; spec mandates
 //                    we show a clear "contact your designer" message
-//   ready          — show the question + input + submit
-//   submitted      — show a branded thank-you screen
+//   ready         , show the question + input + submit
+//   submitted     , show a branded thank-you screen
 // ────────────────────────────────────────────────────────────────────
 
 import { useContext, useEffect, useState } from 'react'

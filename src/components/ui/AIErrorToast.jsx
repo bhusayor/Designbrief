@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 // ────────────────────────────────────────────────────────────────────
-// AIErrorToast — bottom-anchored, user-safe AI error banner.
+// AIErrorToast, bottom-anchored, user-safe AI error banner.
 //
 // Driven by AppContext.aiError, which holds:
 //   {
@@ -161,7 +161,7 @@ export default function AIErrorToast({ error, onDismiss }) {
           <div style={{
             fontSize: 11.5, color: variant.accent, marginTop: 3, fontWeight: 600,
           }}>
-            Ready — try again now
+            Ready, try again now
           </div>
         )}
       </div>

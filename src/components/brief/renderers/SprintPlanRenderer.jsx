@@ -177,7 +177,7 @@ export default function SprintPlanRenderer({ result }) {
         </Card>
       )}
 
-      {/* Gantt Timeline — prominent for sprint plan */}
+      {/* Gantt Timeline, prominent for sprint plan */}
       {r.ganttData?.phases?.length > 0 && (
         <Card style={{ marginTop: 16 }}>
           <Label>Brief Timeline · {r.ganttData.totalDays ? r.ganttData.totalDays + ' days' : 'Gantt'}</Label>

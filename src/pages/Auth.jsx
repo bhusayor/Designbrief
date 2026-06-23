@@ -4,7 +4,7 @@ import { Input } from '../components/ui'
 
 export default function Auth() {
   // Default tab honours a one-shot localStorage hint set by other
-  // pages that want to deep-link into a specific mode — e.g. the
+  // pages that want to deep-link into a specific mode, e.g. the
   // Shared brief viewer setting 'signup' before sending an anon
   // viewer here so they land directly on Create account.
   const [tab, setTab] = useState(() => {

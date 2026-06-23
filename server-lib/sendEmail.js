@@ -1,11 +1,11 @@
 // ────────────────────────────────────────────────────────────────────
-// sendEmail — direct POST to Resend's HTTP API.
+// sendEmail, direct POST to Resend's HTTP API.
 //
 // Replaces the previous Resend SDK import (`import { Resend } from 'resend'`)
 // which kept blowing up on Render + Vercel during cold starts with
 // ERR_MODULE_NOT_FOUND on resend/dist/index.mjs. The SDK adds zero
-// value over a single fetch — Resend's send-email endpoint is one
-// POST — so we cut it out and avoid the entire module resolution
+// value over a single fetch, Resend's send-email endpoint is one
+// POST, so we cut it out and avoid the entire module resolution
 // circus.
 //
 // Same shape as Resend's SDK so the call sites stay readable:
@@ -30,7 +30,7 @@ export async function sendEmail(payload) {
   if (!apiKey) {
     return { data: null, error: { message: 'RESEND_API_KEY is not set', statusCode: 0 } }
   }
-  // Normalise to[] — Resend accepts string or array, we always
+  // Normalise to[], Resend accepts string or array, we always
   // send an array so the caller doesn't have to think about it.
   // headers (List-Unsubscribe etc.) are passed straight through;
   // Resend forwards them verbatim into the outbound message.

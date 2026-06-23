@@ -39,7 +39,7 @@
   --color-primary-hover: #2A2A2A;
   --color-primary-text:  #FFFFFF;
 
-  /* Accent — purple */
+  /* Accent, purple */
   --color-accent:        #7C3AED;
   --color-accent-2:      #9333EA;
   --color-accent-soft:   rgba(124,58,237,0.08);
@@ -49,7 +49,7 @@
   --color-active-bg:  #E8E8E8;
   --color-focus-ring: rgba(124,58,237,0.2);
 
-  /* Hero gradient — purple bloom */
+  /* Hero gradient, purple bloom */
   --gradient-hero:
     radial-gradient(
       ellipse 90% 60% at 20% 0%,
@@ -157,7 +157,7 @@
   --color-primary-hover: #FFFFFF;
   --color-primary-text:  #0E0E0E;
 
-  /* Accent — purple adjusted for dark */
+  /* Accent, purple adjusted for dark */
   --color-accent:        #A78BFA;
   --color-accent-2:      #C084FC;
   --color-accent-soft:   rgba(167,139,250,0.10);
@@ -167,7 +167,7 @@
   --color-active-bg:  #303030;
   --color-focus-ring: rgba(167,139,250,0.25);
 
-  /* Hero gradient dark — deep purple cinema feel */
+  /* Hero gradient dark, deep purple cinema feel */
   --gradient-hero:
     radial-gradient(
       ellipse 90% 60% at 15% 0%,
@@ -335,7 +335,7 @@ input, textarea, select {
   color-scheme: dark;
 }
 
-/* Override browser autofill background — browsers paint a white/yellow
+/* Override browser autofill background, browsers paint a white/yellow
    background that ignores CSS variables. The box-shadow inset trick is the
    only reliable way to force our dark surface color underneath. */
 input:-webkit-autofill,
@@ -408,13 +408,13 @@ button, a, [role="button"] {
 }
 
 /* Sidebar nav items intentionally OPT OUT of layer promotion. No
-   will-change, no transform, no perspective — any of those would
+   will-change, no transform, no perspective, any of those would
    composite the label to a separate GPU layer and sub-pixel render
    the text, which reads as a permanent soft "blur". A plain
    background-color hover (handled in NavItem's React state) keeps
    type pixel-perfect. */
 @media (hover: none) {
-  /* Touch devices don't get the proximity effect — use a quick tap
+  /* Touch devices don't get the proximity effect, use a quick tap
      state instead so the surface still feels responsive. */
   .project-card:active,
   .template-card:active,
@@ -429,7 +429,7 @@ button, a, [role="button"] {
   }
 }
 
-/* Default browser cursor everywhere — pointer on interactive
+/* Default browser cursor everywhere, pointer on interactive
    surfaces, text on typeable surfaces. The custom MagneticCursor
    was removed; this keeps explicit affordances so nothing reads
    ambiguous. */
@@ -574,11 +574,11 @@ textarea,
   button:hover { opacity: 1 !important; }
 }
 
-/* ─── PREMIUM UPGRADE — PHASE 1 ─────────────────────────────────────────────
+/* ─── PREMIUM UPGRADE, PHASE 1 ─────────────────────────────────────────────
    Additive design tokens + utility classes. Existing tokens
    (--radius-sm/md/lg/xl, .text-display, .text-heading, ::selection,
    ::-webkit-scrollbar, :focus-visible, html font-smoothing) are
-   intentionally NOT redefined here — the originals above are already
+   intentionally NOT redefined here, the originals above are already
    the right values and changing them would resize every card / button
    across the app. The classes below coexist; pages adopt them as
    they're refactored. */
@@ -600,12 +600,12 @@ textarea,
   --space-20: 80px;
   --space-24: 96px;
 
-  /* Additive — extends existing radius scale, doesn't replace it.
+  /* Additive, extends existing radius scale, doesn't replace it.
      Use --radius-2xl for the largest modal corners. */
   --radius-2xl: 24px;
 }
 
-/* Typography scale — premium hierarchy. Pairs with existing
+/* Typography scale, premium hierarchy. Pairs with existing
    .text-display / .text-heading utilities; these are explicitly named
    for the role they play in a page (title, section, card title, etc.)
    so JSX reads cleanly. */
@@ -661,7 +661,7 @@ textarea,
   color: var(--color-text);
 }
 
-/* Base building blocks — use on new components. The existing
+/* Base building blocks, use on new components. The existing
    componentry already has its own button / card styling, so we don't
    apply these classes globally. */
 .card-base {
@@ -719,7 +719,7 @@ textarea,
   border-color: var(--color-border-strong);
 }
 
-/* Misc global polish — smooth-scroll anchor jumps and crisper bitmaps. */
+/* Misc global polish, smooth-scroll anchor jumps and crisper bitmaps. */
 html {
   scroll-behavior: smooth;
 }
@@ -734,14 +734,14 @@ img {
   outline: none;
 }
 
-/* ─── PREMIUM UPGRADE — PHASE 2 ─────────────────────────────────────────────
+/* ─── PREMIUM UPGRADE, PHASE 2 ─────────────────────────────────────────────
    Surface treatments: glassmorphism, noise grain, ambient glow. All
    classes are opt-in. They coexist with the proximity system because
    none of them animate `transform` (the noise pseudo uses `transform`
    on ::after only, which is its own compositing layer separate from
    the parent's proximity scale). */
 
-/* Theme-aware glass tint — light theme uses white-translucent, dark
+/* Theme-aware glass tint, light theme uses white-translucent, dark
    uses near-black-translucent. */
 :root         { --glass-bg: 255, 255, 255; --glass-border: 0, 0, 0; }
 [data-theme="dark"] { --glass-bg: 15, 15, 20; --glass-border: 255, 255, 255; }
@@ -767,7 +767,7 @@ img {
   border: 1px solid rgba(var(--glass-border), 0.1);
 }
 
-/* Noise grain — a tiled SVG fractalNoise rendered behind content via
+/* Noise grain, a tiled SVG fractalNoise rendered behind content via
    ::after. The data URI is URL-encoded inline so it loads with the
    stylesheet (no extra request). Animated variant (.noise::after) drifts
    the texture so static blocks feel alive. */
@@ -808,7 +808,7 @@ img {
   z-index: 1;
 }
 
-/* Static card grain — same texture but no animation, slightly weaker
+/* Static card grain, same texture but no animation, slightly weaker
    opacity. Applied to project + template cards only; plan-card was
    removed because the "Most popular" badge on the upgrade modal is
    positioned at top: -10 (overflows the card on purpose) and
@@ -839,7 +839,7 @@ img {
   z-index: 1;
 }
 
-/* Ambient glow — purple-themed elevation. Subtle by default, pulse
+/* Ambient glow, purple-themed elevation. Subtle by default, pulse
    variant for attention. Use --color-accent so the glow tracks the
    theme palette. */
 .glow-purple {
@@ -899,7 +899,7 @@ img {
 .glow-pulse         { animation: glowPulse        2.5s ease infinite; }
 .glow-pulse-success { animation: glowPulseSuccess 2s   ease infinite; }
 
-/* Cursor spotlight — paints a radial gradient on the card's ::before
+/* Cursor spotlight, paints a radial gradient on the card's ::before
    pseudo using CSS variables set by the useSpotlight hook. Sits
    beneath the noise ::after (same z-index, earlier in paint order),
    beneath the card content (z-index: 1). The hook clamps

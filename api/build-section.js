@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// /api/build-section — streams ONE HTML section for the AI Builder
+// /api/build-section, streams ONE HTML section for the AI Builder
 // (Phase 2). Server-side so the platform Anthropic API key never
 // reaches the browser. Streams SSE events; the client appends each
 // delta into a srcDoc iframe for the typewriter live preview.
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'build_id, section_id, task_title required' })
   }
 
-  // Phase 4 — refuse blocked cards before billing tokens. The V2
+  // Phase 4, refuse blocked cards before billing tokens. The V2
   // kanban marks a card blocked when a High Red Flag, an Unconfirmed
   // assumption, or an open Question would affect this page.
   if (blocked === true) {
@@ -109,11 +109,11 @@ export default async function handler(req, res) {
 
   const previousList = Array.isArray(previous_titles) && previous_titles.length
     ? previous_titles.map((t, i) => `  ${i + 1}. ${t}`).join('\n')
-    : '  (none — this is the first section)'
+    : '  (none, this is the first section)'
 
   const briefJSON = brief_context ? JSON.stringify(brief_context, null, 2) : '{}'
 
-  // V2 card context — when the card came from a 21-item brief, it
+  // V2 card context, when the card came from a 21-item brief, it
   // carries its mapped journey + emotion stage so the builder can
   // anchor Rule 1 (structure from emotional arc) and Rule 2 (section
   // order from success definition) without re-parsing the brief.
@@ -144,14 +144,14 @@ export default async function handler(req, res) {
   const userPrompt = [
     'You are building a website section by section.',
     '',
-    // Design system block — when the user has saved one for this
+    // Design system block, when the user has saved one for this
     // project via DesignSystemPanel, it sits above the brief context
     // so the AI reads tokens (colors, fonts, button shape, motion,
     // shadow tint, etc.) as load-bearing constraints. Falls through
     // silently when no design system exists yet.
     design_system_context ? design_system_context : null,
     design_system_context ? '' : null,
-    'PROJECT BRIEF CONTEXT (the strategic brief — combine with the design system above):',
+    'PROJECT BRIEF CONTEXT (the strategic brief, combine with the design system above):',
     briefJSON,
     '',
     v2ContextLines.length ? v2ContextLines.join('\n') : null,
@@ -163,10 +163,10 @@ export default async function handler(req, res) {
     task_description ? `Description: ${task_description}` : '',
     task_ai_prompt ? `Creative direction (treat as load-bearing):\n${task_ai_prompt}` : '',
     media_html
-      ? `\nMEDIA ALREADY PREPARED — embed this HTML verbatim in the correct position (do NOT generate your own background; use this as the layered background of the section):\n"""\n${media_html}\n"""\nPlace your hero content with z-index: 2 or higher so it sits above the prepared media.`
+      ? `\nMEDIA ALREADY PREPARED, embed this HTML verbatim in the correct position (do NOT generate your own background; use this as the layered background of the section):\n"""\n${media_html}\n"""\nPlace your hero content with z-index: 2 or higher so it sits above the prepared media.`
       : '',
     gsap_html
-      ? `\nGSAP REVEAL SCRIPT — include this at the END of your section so scroll-triggered animations work. Add these data-* attributes to elements you want animated:\n  data-hero-headline → on-load dramatic reveal\n  data-hero-sub → on-load fade up (delayed)\n  data-hero-cta → on-load scale-in (delayed)\n  data-reveal → scroll fade-up\n  data-stagger → stagger immediate children on scroll\n  data-text-reveal → scroll dramatic reveal\n  data-scale-in → scroll scale-in\nUse the attributes liberally on headlines, CTAs, feature grids, etc.\n\nScript to inject at the bottom of the section:\n"""\n${gsap_html}\n"""`
+      ? `\nGSAP REVEAL SCRIPT, include this at the END of your section so scroll-triggered animations work. Add these data-* attributes to elements you want animated:\n  data-hero-headline → on-load dramatic reveal\n  data-hero-sub → on-load fade up (delayed)\n  data-hero-cta → on-load scale-in (delayed)\n  data-reveal → scroll fade-up\n  data-stagger → stagger immediate children on scroll\n  data-text-reveal → scroll dramatic reveal\n  data-scale-in → scroll scale-in\nUse the attributes liberally on headlines, CTAs, feature grids, etc.\n\nScript to inject at the bottom of the section:\n"""\n${gsap_html}\n"""`
       : '',
     change_request
       ? `\nCHANGE REQUEST FROM DESIGNER (override the previous attempt):\n"""\n${change_request}\n"""\nRebuild this section incorporating these changes. Keep everything else true to the brief.`

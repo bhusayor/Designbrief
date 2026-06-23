@@ -1,12 +1,12 @@
 // ────────────────────────────────────────────────────────────────────
-// pexels.js — client helper for the /api/pexels proxy.
+// pexels.js, client helper for the /api/pexels proxy.
 //
 // Returns either the top result (top-level fetchers) or all 3 results
 // (the `search*` versions), or `null` on failure. Callers are
 // expected to fall back to a CSS animation when null.
 // ────────────────────────────────────────────────────────────────────
 
-// API base — same env var as claudeApi.js. Points at the standalone
+// API base, same env var as claudeApi.js. Points at the standalone
 // Express API server (Render in production, localhost:3001 in dev).
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -49,7 +49,7 @@ export async function searchPexelsImages(query, opts) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Heuristics — decide what kind of media (if any) belongs in the hero
+// Heuristics, decide what kind of media (if any) belongs in the hero
 // of a given brief, and what to search for.
 // ────────────────────────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ export function decideHeroMediaType(briefContext = {}) {
     briefContext.moodboardDirection,
   ].filter(Boolean).join(' ').toLowerCase()
 
-  // Tech / minimal beats video/image — those products read better with
+  // Tech / minimal beats video/image, those products read better with
   // motion design than stock footage.
   if (CSS_SIGNAL.test(combined)) return 'css'
   if (VIDEO_SIGNAL.test(combined)) return 'video'

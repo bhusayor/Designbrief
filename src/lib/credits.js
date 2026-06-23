@@ -3,7 +3,7 @@
 // helper that callers run before invoking the action.
 //
 // We run the read/update directly through the anon client and rely on
-// RLS — the user can only deduct from their own profile row. Service-
+// RLS, the user can only deduct from their own profile row. Service-
 // role isn't needed here, and the round-trip stays fast.
 // ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ export async function deductCredits(supabase, userId, action) {
     }
 
     // Paid plans with unlimited / refreshed credits still go through
-    // this path so we record usage — but never block them on shortage.
+    // this path so we record usage, but never block them on shortage.
     if ((profile.credits ?? 0) < cost && profile.plan === 'free') {
       return {
         success: false,

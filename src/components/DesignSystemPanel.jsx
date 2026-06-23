@@ -25,7 +25,7 @@ import {
 } from '../lib/designSystem'
 
 // ────────────────────────────────────────────────────────────────────
-// DesignSystemPanel — modal that captures the project's design tokens
+// DesignSystemPanel, modal that captures the project's design tokens
 // and saves them to the design_systems table (one row per project).
 //
 // Phase 1 ships three sections: Colors, Typography, Buttons. Phase 2
@@ -38,7 +38,7 @@ import {
 // block (same gotcha that made AIBuilder leak the sidebar through).
 // ────────────────────────────────────────────────────────────────────
 
-// Comprehensive Google Fonts list — the ~200 most-used faces grouped
+// Comprehensive Google Fonts list, the ~200 most-used faces grouped
 // by category, alphabetised within each group so type-to-filter feels
 // predictable. Covers everything a designer reaches for without
 // pulling the full 1500+ catalog into the bundle.
@@ -177,7 +177,7 @@ export default function DesignSystemPanel({
       if (error && error.code !== 'PGRST116') {
         // PGRST116 = no row found; that's expected for first time
         if (error.code === '42P01') {
-          showToast?.('Design system table not set up — run supabase/design-system.sql.', 'error')
+          showToast?.('Design system table not set up, run supabase/design-system.sql.', 'error')
         } else {
           console.warn('[design-system] load failed', error)
         }
@@ -218,7 +218,7 @@ export default function DesignSystemPanel({
       console.error('[design-system] save failed', e)
       const msg =
         e?.code === '42P01'
-          ? 'Design system table not set up — run supabase/design-system.sql.'
+          ? 'Design system table not set up, run supabase/design-system.sql.'
           : (e?.message || 'Could not save. Try again.')
       showToast?.(msg, 'error')
     } finally {
@@ -391,7 +391,7 @@ export default function DesignSystemPanel({
 
         {/* Body */}
         <div className="ds-body" style={bodyStyle}>
-          {/* Left rail — section nav */}
+          {/* Left rail, section nav */}
           <aside className="ds-nav" style={navStyle}>
             {SECTIONS.map(s => {
               const isActive = s.id === activeSection
@@ -420,7 +420,7 @@ export default function DesignSystemPanel({
             })}
           </aside>
 
-          {/* Content — active section */}
+          {/* Content, active section */}
           <main className="ds-content" style={contentStyle}>
             {isLoading ? <SectionLoading /> : (() => {
               switch (activeSection) {
@@ -484,7 +484,7 @@ function ColorsSection({ ds, update }) {
   function addColor() {
     if (!newColor.name.trim()) return
     // For the "custom" choice, write the actual custom name into the
-    // role field — the rest of the app reads role as a free string so
+    // role field, the rest of the app reads role as a free string so
     // this round-trips cleanly through Supabase.
     const finalRole = newColor.role === 'custom'
       ? (newColor.customRole.trim() || 'custom')
@@ -560,7 +560,7 @@ function ColorsSection({ ds, update }) {
       }}>
         <FieldLabel>Add color</FieldLabel>
         <div className="ds-add-color-grid" style={{ display: 'grid', gridTemplateColumns: '52px 1fr 1fr', gap: 10, alignItems: 'end' }}>
-          {/* Picker + hex paired bidirectionally — typing/pasting a
+          {/* Picker + hex paired bidirectionally, typing/pasting a
               valid hex in the text field updates the picker, and
               picking a colour updates the text. */}
           <HexPicker
@@ -737,7 +737,7 @@ function TypographySection({ ds, update }) {
                   wordBreak: 'break-word',
                   overflowWrap: 'anywhere',
                   // Reserve the natural size as the cap, but let it
-                  // shrink with the container — declared as a CSS
+                  // shrink with the container, declared as a CSS
                   // custom prop so the mobile @media clamp can read
                   // it via clamp() without re-hardcoding values.
                   ['--ds-typo-size']: `${size}px`,
@@ -764,7 +764,7 @@ function pickPreviewWeight(list, fallback) {
 
 // Typeahead combobox for the curated FONT_LIST. Filters as the user
 // types; click commits. Lets the user paste a font name not in the
-// list too — the field still saves whatever string they pick.
+// list too, the field still saves whatever string they pick.
 function FontCombobox({ value, onChange, placeholder }) {
   const [draft, setDraft] = useState(value || '')
   const [open, setOpen] = useState(false)
@@ -851,7 +851,7 @@ function FontCombobox({ value, onChange, placeholder }) {
   )
 }
 
-// Tiny helper component — mounts a useGoogleFont hook for the
+// Tiny helper component, mounts a useGoogleFont hook for the
 // dropdown row's font so the preview row renders in the real face.
 function PreviewLoader({ family }) {
   useGoogleFont(family, ['400', '700'])
@@ -859,7 +859,7 @@ function PreviewLoader({ family }) {
 }
 
 // One row in the font combobox dropdown. Lazy-loads its Google Font
-// only after the row scrolls into view — without this, opening the
+// only after the row scrolls into view, without this, opening the
 // dropdown would inject 200 <link> tags into the document head and
 // hammer Google Fonts' CDN. IntersectionObserver disconnects after
 // the first hit so the row stays "loaded" once seen.
@@ -984,7 +984,7 @@ function ButtonsSection({ ds, update }) {
           setWeight={v => update('buttonWeight', v)}
         />
 
-        {/* SECONDARY card — collapsible via the enable toggle */}
+        {/* SECONDARY card, collapsible via the enable toggle */}
         <div style={{
           background: secondaryEnabled ? 'var(--color-surface)' : 'transparent',
           border: `1px solid ${secondaryEnabled ? 'var(--color-border)' : 'var(--color-border-strong, var(--color-border))'}`,
@@ -1290,7 +1290,7 @@ function IconsSection({ ds, update }) {
         </div>
       </div>
 
-      {/* Live preview — three icons rendered at the configured sizes
+      {/* Live preview, three icons rendered at the configured sizes
           so the user can compare them next to each other. The icon
           itself is a generic glyph; the visual point is the SCALE. */}
       <div style={{
@@ -1411,7 +1411,7 @@ function SpacingSection({ ds, update }) {
         </div>
       </div>
 
-      {/* Layout preview — three "cards" laid out at the chosen radius
+      {/* Layout preview, three "cards" laid out at the chosen radius
           + gutter so the spacing language reads instantly. */}
       <div style={{
         marginTop: 22, background: 'var(--color-surface)', borderRadius: 12,
@@ -1555,7 +1555,7 @@ function VoiceSection({ ds, update }) {
         />
       </div>
 
-      {/* Live preview — a sample headline + sub written in the
+      {/* Live preview, a sample headline + sub written in the
           selected copy style. Lets the user feel the voice before
           shipping. */}
       <div style={{
@@ -1637,7 +1637,7 @@ function VoicePreview({ style }) {
 // Section: Imagery
 // ────────────────────────────────────────────────────────────────────
 
-// Per-option Pexels search queries — chosen to land on a
+// Per-option Pexels search queries, chosen to land on a
 // representative image for each style. Image URLs come back from
 // our /api/pexels proxy.
 const PHOTO_QUERIES = {
@@ -1654,7 +1654,7 @@ const ILLUSTRATION_QUERIES = {
   hand_drawn: 'hand drawn sketch illustration',
   mixed:      'mixed media collage illustration',
 }
-// Shared image for the Treatment tiles — same base shot under
+// Shared image for the Treatment tiles, same base shot under
 // different CSS filters so the user sees the actual treatment effect.
 const TREATMENT_BASE_QUERY = 'portrait warm soft light'
 
@@ -1669,7 +1669,7 @@ function useTileImage(query) {
     if (!query) return
     const cached = imageCache.get(query)
     if (cached) { setUrl(cached); return }
-    // Dedupe concurrent fetches for the same query — when the panel
+    // Dedupe concurrent fetches for the same query, when the panel
     // opens for the first time, every visible tile would otherwise
     // fire its own request even though they want the same answer.
     let cancelled = false
@@ -1808,7 +1808,7 @@ function TileGrid({ options, value, onChange, renderArt }) {
   )
 }
 
-// ── Photography style — real Pexels image per style. Loading state
+// ── Photography style, real Pexels image per style. Loading state
 // keeps the tile sized stable so layout never jumps when the image
 // arrives.
 function PhotoArt({ kind }) {
@@ -1825,7 +1825,7 @@ function PhotoArt({ kind }) {
   )
 }
 
-// ── Treatment — same base portrait under each CSS filter. The user
+// ── Treatment, same base portrait under each CSS filter. The user
 // sees the actual look of the treatment on a real face.
 function TreatmentArt({ kind, accent }) {
   const url = useTileImage(TREATMENT_BASE_QUERY)
@@ -1897,7 +1897,7 @@ function hexToHue(hex) {
   return (hue + 360) % 360
 }
 
-// ── Illustration — real Pexels result per style. Pexels indexes a
+// ── Illustration, real Pexels result per style. Pexels indexes a
 // lot of illustration work, so a search query lands on a
 // representative example of each style. Falls back to the placeholder
 // if Pexels returns nothing for an obscure category.
@@ -1980,7 +1980,7 @@ function AnimationSection({ ds, update }) {
         />
       </div>
 
-      {/* Live preview — element enters using the chosen recipe.
+      {/* Live preview, element enters using the chosen recipe.
           Inline <style> defines the keyframe so we don't pollute the
           global CSS namespace. */}
       <div style={{
@@ -2171,10 +2171,10 @@ function FieldLabel({ children }) {
 // Click the swatch → popover with an SV plane, hue slider, and a
 // hex input. The plane updates as you drag, the hex input updates
 // as you drag, and typing into the hex input moves the plane +
-// hue cursor. No native <input type="color"> — that picker's
+// hue cursor. No native <input type="color">, that picker's
 // chrome can't be styled and feels off-brand.
 // ────────────────────────────────────────────────────────────────────
-// RoleDropdown — custom select for the Add color "Role" field.
+// RoleDropdown, custom select for the Add color "Role" field.
 // Replaces the native <select> which renders differently on every
 // platform (macOS Aqua, Windows native, Material on Android, iOS
 // wheel picker). The custom version uses the same panel + chevron
@@ -2247,7 +2247,7 @@ function RoleDropdown({ value, onChange }) {
             transform: `translateY(-50%) ${open ? 'rotate(180deg)' : 'rotate(0)'}`,
             transition: 'transform 0.15s, color 0.15s',
             width: 14, height: 14,
-            // Theme aware — inherits the active text-muted token so
+            // Theme aware, inherits the active text-muted token so
             // it reads naturally on light, dark, or device-matched
             // themes. Picks up the accent on open as the visual cue.
             color: open ? 'var(--color-accent)' : 'var(--color-text-muted)',
@@ -2275,7 +2275,7 @@ function RoleDropdownPanel({ options, value, top, left, width, triggerRef, onPic
   const ref = useRef(null)
   useEffect(() => {
     // Outside-click handler. Crucially we ALSO treat clicks on the
-    // trigger as "inside" — otherwise clicking the trigger to close
+    // trigger as "inside", otherwise clicking the trigger to close
     // would fire this listener on mousedown (closing the panel),
     // then the trigger's own onClick would fire on click (toggling
     // open back to true), and the panel would appear to never close.
@@ -2305,7 +2305,7 @@ function RoleDropdownPanel({ options, value, top, left, width, triggerRef, onPic
       style={{
         position: 'fixed',
         top, left, width,
-        // Theme aware — uses the same surface + border tokens
+        // Theme aware, uses the same surface + border tokens
         // every other panel in the app uses, so this panel reads
         // light in light mode, dark in dark mode, and follows the
         // device when the app is on system-mode.
@@ -2772,7 +2772,7 @@ function PillSelector({ options, value, onChange }) {
   )
 }
 
-// Number input with a static unit suffix — used by Spacing + Icons.
+// Number input with a static unit suffix, used by Spacing + Icons.
 function NumberWithUnit({ value, onChange, unit = 'px', min, max, step = 1 }) {
   return (
     <div style={{

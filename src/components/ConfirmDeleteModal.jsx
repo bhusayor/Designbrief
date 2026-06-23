@@ -6,16 +6,16 @@ import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline'
 // column, Delete project, Remove member, Uninstall connector, …).
 //
 // Props:
-//   open          – render the modal when true
-//   title         – heading, e.g. "Delete project?"
-//   description   – React node shown under the heading. Use <strong> for the
+//   open         -render the modal when true
+//   title        -heading, e.g. "Delete project?"
+//   description  -React node shown under the heading. Use <strong> for the
 //                   thing being deleted so it stands out.
-//   confirmLabel  – button label. Defaults to "Delete".
-//   cancelLabel   – defaults to "Cancel".
-//   busy          – disables buttons + shows pending label while the action
+//   confirmLabel -button label. Defaults to "Delete".
+//   cancelLabel  -defaults to "Cancel".
+//   busy         -disables buttons + shows pending label while the action
 //                   is in flight.
-//   onCancel      – fires on Esc, backdrop click, X, or Cancel.
-//   onConfirm     – fires on the destructive button. Async-safe (parent
+//   onCancel     -fires on Esc, backdrop click, X, or Cancel.
+//   onConfirm    -fires on the destructive button. Async-safe (parent
 //                   controls `busy` while it awaits).
 export default function ConfirmDeleteModal({
   open,

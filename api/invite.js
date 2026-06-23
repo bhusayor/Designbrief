@@ -58,7 +58,7 @@ function projectInviteEmailHTML({ projectName, inviterName, inviterEmail, role, 
         <strong style="color:#A855F7;">${role}</strong>.
       </p>
       <p style="color:#888888;font-size:14px;line-height:1.6;margin:16px 0 28px;">
-        This is a project-level invitation. You will collaborate on this project's brief, tasks, and team — without joining the inviter's workspace. You will keep your own workspace.
+        This is a project-level invitation. You will collaborate on this project's brief, tasks, and team, without joining the inviter's workspace. You will keep your own workspace.
       </p>
       <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr>
         <td style="background:linear-gradient(135deg,#7C3AED,#A855F7);border-radius:10px;">
@@ -178,7 +178,7 @@ export default async function handler(req, res) {
 
   const { action } = req.body
 
-  // Auth — check action is public (invite link visitors are not signed in)
+  // Auth, check action is public (invite link visitors are not signed in)
   const token = req.headers.authorization?.replace('Bearer ', '')
   let user = null
 
@@ -207,7 +207,7 @@ export default async function handler(req, res) {
       if (!emailRegex.test(email))
         return res.status(400).json({ error: 'Invalid email address' })
 
-      // Check sender is owner or admin — also check workspaces.owner_id as fallback
+      // Check sender is owner or admin, also check workspaces.owner_id as fallback
       const [{ data: senderMember }, { data: wsOwnerRow }] = await Promise.all([
         supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).single(),
         supabase.from('workspaces').select('owner_id').eq('id', workspaceId).eq('owner_id', user.id).single(),
@@ -298,10 +298,10 @@ export default async function handler(req, res) {
 
       const inviteUrl = APP_URL + '/invite/' + inviteToken
 
-      // Respond immediately — invite is in the DB regardless of email delivery
+      // Respond immediately, invite is in the DB regardless of email delivery
       res.json({ success: true, message: 'Invite sent to ' + email, inviteUrl })
 
-      // Fire-and-forget email — never blocks the response
+      // Fire-and-forget email, never blocks the response
       sendEmail({
         from: 'DesignBrief AI <onboarding@resend.dev>',
         to: email,
@@ -391,7 +391,7 @@ export default async function handler(req, res) {
       const isLinkInvite = invite.invited_email?.startsWith('link:')
 
       // Verify email match only for email-specific invites
-      // user.email comes directly from getUser(token) — no extra admin call needed
+      // user.email comes directly from getUser(token), no extra admin call needed
       if (!isLinkInvite) {
         if (user.email?.toLowerCase() !== invite.invited_email.toLowerCase())
           return res.status(403).json({
@@ -853,7 +853,7 @@ export default async function handler(req, res) {
       if (!project) return res.status(404).json({ error: 'Project not found' })
       if (!(await isProjectAdmin(user.id, projectId)))
         return res.status(403).json({ error: 'Only the project Admin can change roles' })
-      // The project creator's role is locked even from other Admins —
+      // The project creator's role is locked even from other Admins -
       // they remain the founder Admin and can't be demoted.
       if (userId === project.user_id)
         return res.status(400).json({ error: "The project creator's role cannot be changed" })
@@ -1051,7 +1051,7 @@ export default async function handler(req, res) {
         .from('projects').select('user_id, id').eq('id', invite.project_id).single()
       if (!project) return res.status(404).json({ error: 'Project not found' })
       if (project.user_id === user.id) {
-        // Already the project Admin — just mark invite accepted (if email-specific) and return
+        // Already the project Admin, just mark invite accepted (if email-specific) and return
         if (!isLinkInvite) {
           await supabase
             .from('team_invites')
@@ -1224,7 +1224,7 @@ export default async function handler(req, res) {
     // ── SEND PROJECT-LEVEL INVITE ─────────────────────────────────────────────
     // Body: { action:'send_project', projectId, email, name?, jobRole }
     // Creates a row in team_invites (NOT workspace_invites) so the invitee
-    // joins ONLY this project — they keep / create their own workspace.
+    // joins ONLY this project, they keep / create their own workspace.
     if (action === 'send_project') {
       const { projectId, email, name = '', jobRole = 'Editor' } = req.body
 

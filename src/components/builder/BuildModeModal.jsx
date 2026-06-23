@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { XMarkIcon, HandRaisedIcon, BoltIcon, SparklesIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 
 // ────────────────────────────────────────────────────────────────────
-// BuildModeModal — first step of the AI Builder. User picks how they
+// BuildModeModal, first step of the AI Builder. User picks how they
 // want to review the build:
 //   - task_by_task: AI builds one section, user approves, AI builds the
 //     next. Slower but full control.

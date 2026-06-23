@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// ClientIntakePage — Phase 3 of the Client Intake Form rebuild.
+// ClientIntakePage, Phase 3 of the Client Intake Form rebuild.
 //
 // Public route at /intake/:formId. Requires no authentication. Renders
 // one question per screen, evaluates conditional logic in real time
@@ -8,19 +8,19 @@
 // anonymous Supabase RPC (no service-role server hop needed).
 //
 // Three phases:
-//   1. Opening    — designer logo, welcome message, estimated time,
+//   1. Opening   , designer logo, welcome message, estimated time,
 //                   Start button.
-//   2. Filling    — one-question-per-screen flow with progress bar,
+//   2. Filling   , one-question-per-screen flow with progress bar,
 //                   Back + Continue. Counter shows position over
 //                   visible-questions total (skips conditional
 //                   misses). All 7 question types handled inline.
-//   3. Completion — designer logo, completion message, done.
+//   3. Completion, designer logo, completion message, done.
 //
 // Responsive:
-//   ≥1024 desktop  — centered single-column, max-width 640, generous
+//   ≥1024 desktop , centered single-column, max-width 640, generous
 //                   spacing, Continue button below the input.
-//   768-1023 tablet — same layout, reduced padding.
-//   <768  mobile    — full-width single column, Continue button
+//   768-1023 tablet, same layout, reduced padding.
+//   <768  mobile   , full-width single column, Continue button
 //                   fixed to the bottom of the viewport, Back at
 //                   top-left.
 // ────────────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 
-// Standalone client — no app session is required to read public form
+// Standalone client, no app session is required to read public form
 // rows + call the public RPCs.
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -71,7 +71,7 @@ export default function ClientIntakePage() {
           setState({ status: 'not-found' })
           return
         }
-        // Expired check — drawn on either expires_at being past OR
+        // Expired check, drawn on either expires_at being past OR
         // an explicit status flag the designer set.
         const expired =
           data.status === 'expired' ||
@@ -80,7 +80,7 @@ export default function ClientIntakePage() {
           setState({ status: 'expired', form: data })
           return
         }
-        // Draft / unpublished — only the designer should see them.
+        // Draft / unpublished, only the designer should see them.
         if (data.status === 'draft' && !data.published_at) {
           setState({ status: 'not-published', form: data })
           return
@@ -114,7 +114,7 @@ export default function ClientIntakePage() {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Main form shell — opening / filling / completion
+// Main form shell, opening / filling / completion
 // ────────────────────────────────────────────────────────────────────
 function FormShell({ form }) {
   // Read whatever shape the form uses: new (questions[]) or legacy
@@ -122,7 +122,7 @@ function FormShell({ form }) {
   // questions[]; legacy reads stay supported so old forms still work.
   //
   // Designers can disable whole sections from the builder's
-  // Questions tab — any question whose section_id appears in
+  // Questions tab, any question whose section_id appears in
   // form.settings.disabled_sections is skipped here so the client
   // never sees those questions.
   const allQuestions = useMemo(() => {
@@ -146,13 +146,13 @@ function FormShell({ form }) {
   const [restoredBack, setRestoredBack] = useState(false)
   const [submitError, setSubmitError] = useState(null)
 
-  // Page 0 — collected before any questions render. business_name
+  // Page 0, collected before any questions render. business_name
   // is the most load-bearing: it gets substituted into question
   // text + the assembled brief + the designer's notification
   // subject.
   //
   // Pre-fill from form.settings.recipient when the designer entered
-  // the values on the builder's Page 0 — the actual client can
+  // the values on the builder's Page 0, the actual client can
   // still edit, but they save the typing when the values are right.
   const designerRecipient = form?.settings?.recipient || {}
   const [clientName, setClientName] = useState(designerRecipient.client_name || '')
@@ -257,7 +257,7 @@ function FormShell({ form }) {
     try {
       // Collect mood/reference URLs across all upload questions.
       // After Phase 6 polish, uploaded files are objects
-      // { name, size, type, url, path } — pull the public URL so the
+      // { name, size, type, url, path }, pull the public URL so the
       // pipeline can include them in the brief.
       const moodUrls = Object.entries(answers)
         .flatMap(([_qid, val]) => Array.isArray(val) ? val : [])
@@ -311,7 +311,7 @@ function FormShell({ form }) {
         submissionId = fallbackId
       }
 
-      // Phase 4 — fire-and-forget the processing pipeline. Runs on
+      // Phase 4, fire-and-forget the processing pipeline. Runs on
       // Render with no Vercel timeout ceiling. We don't wait for
       // the response; the client sees the completion screen
       // immediately while the pipeline runs in the background and
@@ -432,7 +432,7 @@ function FormShell({ form }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Page 0 — intro form (replaces the legacy OpeningScreen).
+// Page 0, intro form (replaces the legacy OpeningScreen).
 // Collects client name, business name, optional email before any
 // question is shown. Business name flows through every question +
 // the assembled brief + the designer notification.
@@ -449,7 +449,7 @@ function IntroScreen({
       <div className="ci-intro-card">
         {b.logo_url && <img src={b.logo_url} alt="" className="ci-intro-logo" />}
 
-        {/* Step indicator — 1 of 3, first dot active. Inactive dot
+        {/* Step indicator, 1 of 3, first dot active. Inactive dot
             colour is theme-aware via .ci-step-dot-dim. */}
         <div className="ci-intro-steps">
           <span className="ci-step-dot" />
@@ -539,7 +539,7 @@ function IntroField({ label, sublabel, value, onChange, placeholder, type = 'tex
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Completion screen — redesigned premium thank-you.
+// Completion screen, redesigned premium thank-you.
 // ────────────────────────────────────────────────────────────────────
 function CompletionScreen({ form, t, clientName, businessName }) {
   const b = form.branding || {}
@@ -553,7 +553,7 @@ function CompletionScreen({ form, t, clientName, businessName }) {
       <div className="ci-done-card">
         {b.logo_url && <img src={b.logo_url} alt="" className="ci-done-logo" />}
 
-        {/* Animated check badge — rings in on mount via CSS keyframes. */}
+        {/* Animated check badge, rings in on mount via CSS keyframes. */}
         <div className="ci-done-check" aria-hidden>
           <span className="ci-done-check-ring" />
           <CheckIcon className="ci-done-check-icon" style={{ width: 36, height: 36 }} />
@@ -833,7 +833,7 @@ function FileDrop({ accept, valueArr, onChange, t, kind, formId }) {
     setError(null)
     setBusy(true)
     // Track which files in this batch we're about to upload so we
-    // can place placeholder entries in the list — gives the client
+    // can place placeholder entries in the list, gives the client
     // immediate feedback that the upload started.
     const toUpload = []
     for (const f of list) {
@@ -866,7 +866,7 @@ function FileDrop({ accept, valueArr, onChange, t, kind, formId }) {
             .from('intake-uploads')
             .upload(path, f, { cacheControl: '3600', contentType: f.type })
           if (upErr) {
-            // Bucket missing or policy not in place — fall back to
+            // Bucket missing or policy not in place, fall back to
             // a data URL so the form still works during the
             // migration window.
             console.warn('[upload] storage failed, falling back to data URL', upErr?.message)
@@ -880,7 +880,7 @@ function FileDrop({ accept, valueArr, onChange, t, kind, formId }) {
           console.warn('[upload]', e?.message)
           setError(t.fileFailed)
           // Mark this file's placeholder as failed by simply not
-          // pushing a real result — the dedupe below removes it.
+          // pushing a real result, the dedupe below removes it.
         } finally {
           setUploadingNames(prev => prev.filter(n => n !== f.name))
         }
@@ -1108,7 +1108,7 @@ function prettySize(bytes) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// i18n — system labels only; designer's question text is untouched.
+// i18n, system labels only; designer's question text is untouched.
 // ────────────────────────────────────────────────────────────────────
 function translations(lang) {
   const en = {
@@ -1133,7 +1133,7 @@ function translations(lang) {
     uploading: 'Uploading…',
     fileTooBig: '{name} is too large (max 8MB).',
     fileFailed: 'Could not read the file. Try a different one.',
-    restored: 'Welcome back — continuing where you left off.',
+    restored: 'Welcome back, continuing where you left off.',
     pickOne: 'Pick one',
     pickMany: 'Pick one or more',
     otherPlaceholder: 'Tell us more…',
@@ -1461,7 +1461,7 @@ function Styles() {
       .ci-spinner-ring { width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(0,0,0,0.08); border-top-color: var(--accent); animation: ci-spin 0.8s linear infinite; }
       @keyframes ci-spin { to { transform: rotate(360deg); } }
 
-      /* ── Page 0 — intro form (replaces opening welcome) ──────── */
+      /* ── Page 0, intro form (replaces opening welcome) ──────── */
       .ci-intro-stage {
         flex: 1;
         display: flex; align-items: center; justify-content: center;

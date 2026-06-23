@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// DesignBrief AI — Model Strategy
+// DesignBrief AI, Model Strategy
 //
 // Right model for the right task. Never use one model for everything.
 //
@@ -8,7 +8,7 @@
 // Opus   = highest-quality code output for the AI website builder.
 //          Used only where the cost is justified by user-visible
 //          craft.
-// Haiku  = fastest + cheapest for short interactive turns — chat
+// Haiku  = fastest + cheapest for short interactive turns, chat
 //          refinement, inline edits, quick rewrites.
 //
 // This module is the SINGLE source of truth for model ids. The server
@@ -57,7 +57,7 @@ export const ALLOWED_MODELS = Object.values(MODELS)
 export const DEFAULT_MODEL = MODELS.SONNET
 
 // Helper used by both client and server. Falls back gracefully so an
-// unknown task never blocks the call — just runs on the cheaper model.
+// unknown task never blocks the call, just runs on the cheaper model.
 export function pickModel(taskType, requestedModel) {
   if (requestedModel && ALLOWED_MODELS.includes(requestedModel)) return requestedModel
   if (taskType && MODEL_FOR[taskType]) return MODEL_FOR[taskType]

@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// briefV2DesignSystem.js — async design-system extraction.
+// briefV2DesignSystem.js, async design-system extraction.
 //
 // Phase 2 of the 21-item framework. After the translator returns all
 // 5 sections, we run one focused AI call that reads items
@@ -30,7 +30,7 @@ const SYSTEM_PROMPT = `You are a senior design systems architect. You read the b
 
 HARD RULES:
 - Every field must derive directly from the source items. Do not invent values. If an item is empty or ambiguous, write "Not specified in brief" in that field, never a generic placeholder.
-- Never use em dashes (—), en dashes (–), or ellipses (…). Use commas, semicolons, or short sentences.
+- Never use em dashes (-), en dashes (-), or ellipses (…). Use commas, semicolons, or short sentences.
 - Be concrete and operational. "Tight and dense" is good. "Modern and clean" is not.
 
 Respond ONLY with valid JSON. No markdown, no code fences, no preamble.`
@@ -94,7 +94,7 @@ Allowed enum values (use exactly one from the listed set where the schema requir
 function formatItems(items) {
   const lines = []
   if (items.brand_personality) {
-    lines.push('Item 12 — Brand Personality:')
+    lines.push('Item 12, Brand Personality:')
     if (Array.isArray(items.brand_personality)) {
       items.brand_personality.forEach(t => lines.push(`  - ${t}`))
     } else {
@@ -103,19 +103,19 @@ function formatItems(items) {
   }
   if (items.tone_mood) {
     lines.push('')
-    lines.push('Item 13 — Tone & Mood:')
+    lines.push('Item 13, Tone & Mood:')
     lines.push(`  ${items.tone_mood}`)
   }
   if (items.emotional_direction) {
     lines.push('')
-    lines.push('Item 14 — Emotional Direction:')
+    lines.push('Item 14, Emotional Direction:')
     if (Array.isArray(items.emotional_direction)) {
       items.emotional_direction.forEach(s => lines.push(`  - ${s.stage || s.step}: ${s.emotion || ''}`))
     }
   }
   if (items.color_direction) {
     lines.push('')
-    lines.push('Item 15 — Color Direction:')
+    lines.push('Item 15, Color Direction:')
     const c = items.color_direction
     if (typeof c === 'object') {
       for (const [k, v] of Object.entries(c)) lines.push(`  ${k}: ${v}`)
@@ -123,7 +123,7 @@ function formatItems(items) {
   }
   if (items.typography_direction) {
     lines.push('')
-    lines.push('Item 16 — Typography Direction:')
+    lines.push('Item 16, Typography Direction:')
     const t = items.typography_direction
     if (typeof t === 'object') {
       for (const [k, v] of Object.entries(t)) lines.push(`  ${k}: ${v}`)
@@ -131,14 +131,14 @@ function formatItems(items) {
   }
   if (items.moodboard_direction) {
     lines.push('')
-    lines.push('Item 17 — Moodboard Direction:')
+    lines.push('Item 17, Moodboard Direction:')
     lines.push(`  ${items.moodboard_direction}`)
   }
   return lines.join('\n')
 }
 
 // ────────────────────────────────────────────────────────────────────
-// extractDesignSystem — main entry point. Takes the V2 result,
+// extractDesignSystem, main entry point. Takes the V2 result,
 // extracts items 12-17, sends them to Claude, returns the parsed
 // design-system object. Errors return null so the caller can decide
 // whether to retry or surface the failure.
@@ -194,7 +194,7 @@ function safeJsonParse(text) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// designSystemToContextBlock — Phase 4 (AI builder) reads this. It
+// designSystemToContextBlock, Phase 4 (AI builder) reads this. It
 // formats the design-system object into the prefix system-prompt
 // block every builder call gets. Kept here so Phase 4 doesn't have
 // to know the object's shape.

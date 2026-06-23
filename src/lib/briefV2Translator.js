@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// briefV2Translator.js — produces the 21-item brief framework.
+// briefV2Translator.js, produces the 21-item brief framework.
 //
 // One translateBriefV2(briefText, { onSection }) call spawns 5
 // parallel callClaude calls, one per section. Each call returns its
@@ -10,7 +10,7 @@
 // they run in parallel.
 //
 // Strict JSON rules baked into the system prompt:
-//   - Never use em (—) or en (–) dashes anywhere. Use plain hyphens
+//   - Never use em (-) or en (-) dashes anywhere. Use plain hyphens
 //     or nothing.
 //   - Never include the literal words "Hero", "Features",
 //     "Testimonials", "How It Works", "FAQ", "CTA" as section names
@@ -29,7 +29,7 @@ import {
 
 const PUNCTUATION_BAN = `
 PUNCTUATION RULES (hard constraint):
-- NEVER use em dashes (—) or en dashes (–). Anywhere. Use a comma, a
+- NEVER use em dashes (-) or en dashes (-). Anywhere. Use a comma, a
   semicolon, two short sentences, or a plain hyphen.
 - Do not use ellipses (…).
 - Do not start any field with "In a world where" or "Imagine".
@@ -206,7 +206,7 @@ color_direction:
 - DO NOT use teal, cyan, turquoise, or any hue between #00C7C7 and #1AA899 unless the brief explicitly asks for it. Teal is overused in SaaS / tech brands and reads as default. Lean into less common hue families (warm purples, indigos, deep greens, ochres, terracottas, slates) instead.
 - All foreground / background pairs in light.text on light.background, dark.text on dark.background, and primary / onPrimary must hit at least 4.5:1 contrast ratio (WCAG AA for normal text). Pick onPrimary as the colour that gets >4.5:1 against primary.
 typography_direction: family names must be real (and on Google Fonts if google=true) so they render in the live preview. Weights must exist on the family. Scale numbers are unit-less px.
-moodboard_direction.references: 4-8 entries. Mix product sites (Linear, Stripe, Vercel, Notion, etc), pattern libraries (Mobbin, Dribbble shots, Awwwards winners), and individual designers/studios where relevant. Every URL must be a plausible real homepage or specific page — do not invent fake URLs. If you are not confident a URL is real, omit the reference rather than guessing wildly.
+moodboard_direction.references: 4-8 entries. Mix product sites (Linear, Stripe, Vercel, Notion, etc), pattern libraries (Mobbin, Dribbble shots, Awwwards winners), and individual designers/studios where relevant. Every URL must be a plausible real homepage or specific page, do not invent fake URLs. If you are not confident a URL is real, omit the reference rather than guessing wildly.
 
 Brief:
 ${briefText}`,
@@ -224,7 +224,7 @@ Return JSON exactly in this shape:
     "competitor_analysis": [
       {
         "name": "<competitor name>",
-        "url": "<the company's actual homepage URL if you are confident from training data, e.g. https://linear.app. OMIT THIS FIELD ENTIRELY if you are not certain the URL is real and correct — a missing URL is far better than a wrong or hallucinated one>",
+        "url": "<the company's actual homepage URL if you are confident from training data, e.g. https://linear.app. OMIT THIS FIELD ENTIRELY if you are not certain the URL is real and correct, a missing URL is far better than a wrong or hallucinated one>",
         "positioning": "<how they present strategically. 1 short sentence>",
         "layout": "<their dominant layout pattern, plain language, e.g. 'split hero with feature grid below'>",
         "strength": "<one short sentence on what they do best>",
@@ -272,7 +272,7 @@ ${briefText}`,
 }
 
 // ────────────────────────────────────────────────────────────────────
-// translateBriefV2 — runs all 5 section calls in parallel.
+// translateBriefV2, runs all 5 section calls in parallel.
 // onSection(sectionId, items, partialResult) fires as each call
 // resolves so the UI can render cards progressively.
 // Returns the full v2 result object with schemaVersion stamped.
@@ -294,12 +294,12 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
   // full typography scale (desktop + mobile) + moodboard refs, so
   // it needs significantly more headroom than the others. A truncated
   // response means JSON parse fails silently and the items never
-  // populate — the UI hangs on the skeleton state forever.
+  // populate, the UI hangs on the skeleton state forever.
   const MAX_TOKENS = {
     understand:  3500,
     interrogate: 3500,
-    direction:   6500,   // bumped — colour palette + type scale + moodboard
-    landscape:   4000,   // bumped — competitor URL + strength + weakness
+    direction:   6500,   // bumped, colour palette + type scale + moodboard
+    landscape:   4000,   // bumped, competitor URL + strength + weakness
     boundaries:  3500,
   }
 
@@ -321,7 +321,7 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
       // the response was truncated. Log loudly so we catch it next
       // time instead of letting the UI hang silently.
       if (!parsed || Object.keys(parsed).length === 0) {
-        console.error('[translateBriefV2]', sectionId, 'parse returned empty — likely token truncation. Response length:', text?.length, 'first 200 chars:', String(text || '').slice(0, 200))
+        console.error('[translateBriefV2]', sectionId, 'parse returned empty, likely token truncation. Response length:', text?.length, 'first 200 chars:', String(text || '').slice(0, 200))
         throw new Error('parse_empty')
       }
       const scrubbed = scrubDashes(parsed) || {}
@@ -363,13 +363,13 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// reviseBriefV2 — re-run the 5-section translator with extra context
+// reviseBriefV2, re-run the 5-section translator with extra context
 // so the model addresses client feedback while preserving the parts
 // of the brief that weren't called out.
 //
-//   originalBriefText   — the raw brief the designer typed initially
-//   previousTranslation — the current result (sections + design system)
-//   feedback            — the client's note ("the audience is too broad…")
+//   originalBriefText  , the raw brief the designer typed initially
+//   previousTranslation, the current result (sections + design system)
+//   feedback           , the client's note ("the audience is too broad…")
 //
 // Builds an augmented brief text that includes the previous output as
 // reference + the feedback as direction, then routes through the
@@ -386,7 +386,7 @@ ${slim}
 --- CLIENT FEEDBACK ---
 ${String(feedback || '').trim()}
 
-INSTRUCTIONS: This is a REVISION. The client has reviewed the previous translation and provided the feedback above. Re-translate the brief, addressing the feedback specifically. Maintain accuracy with the original brief and preserve the parts of the previous translation the feedback didn't call out — only change what needs to change. Project title can stay the same unless the feedback explicitly asks for a rename.`
+INSTRUCTIONS: This is a REVISION. The client has reviewed the previous translation and provided the feedback above. Re-translate the brief, addressing the feedback specifically. Maintain accuracy with the original brief and preserve the parts of the previous translation the feedback didn't call out, only change what needs to change. Project title can stay the same unless the feedback explicitly asks for a rename.`
 
   return translateBriefV2(augmentedBrief, { onSection })
 }
@@ -417,7 +417,7 @@ function serializePreviousTranslation(prev) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// snapshotForRevisions — copies the version-specific fields off a
+// snapshotForRevisions, copies the version-specific fields off a
 // brief result into a new object that can be pushed onto the
 // revisions[] history array. We deliberately leave OUT the
 // revisions[] field itself (no nesting) and onSection-related
@@ -443,7 +443,7 @@ function structuredCloneSafe(v) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// enrichCompetitorUrls — for each competitor without a URL, fire a
+// enrichCompetitorUrls, for each competitor without a URL, fire a
 // /api/web-search query against Brave and adopt the top result's
 // URL. Failure is silent (the card just renders without a link).
 // Returns a new result object with the enriched competitor list;
@@ -498,7 +498,7 @@ export async function enrichCompetitorUrls(result) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// scoreBriefV2 — runs a short post-translation pass that grades the
+// scoreBriefV2, runs a short post-translation pass that grades the
 // original brief on five rubrics (clarity, scope, audience, success,
 // constraints) and returns a 0-100 overall score with sub-scores +
 // a one-line summary. The translated result is included as context

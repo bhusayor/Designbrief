@@ -51,7 +51,7 @@ export default function AppShell({ children }) {
   // Remount the page content under a fresh key when workspace.id flips so
   // every child component starts in a clean state AND a CSS animation
   // plays. We flip the key IMMEDIATELY (no fade-out hold) so the user
-  // never sees the previous workspace's content lingering — the new
+  // never sees the previous workspace's content lingering, the new
   // content takes over on the next frame with a quick fadeIn.
   const currentWsKey = workspace?.id || 'none';
 
@@ -105,7 +105,7 @@ export default function AppShell({ children }) {
         position: 'relative',
       }}>
 
-        {/* Mobile expand button — floats over the page gradient, no background bar */}
+        {/* Mobile expand button, floats over the page gradient, no background bar */}
         {isMobile && !mobileSidebarOpen && (
           <button
             onClick={() => setMobileSidebarOpen(true)}

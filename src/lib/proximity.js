@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// proximity.js — macOS Dock-style magnetic interaction.
+// proximity.js, macOS Dock-style magnetic interaction.
 //
 // Coexistence guard: any element marked via markTransitioning(el) (or
 // carrying data-animating / data-transitioning, or nested inside a
@@ -41,7 +41,7 @@ const DEFAULTS = {
   perspective: 600,
 }
 
-// Shared registry — Framer Motion call sites use markTransitioning to
+// Shared registry, Framer Motion call sites use markTransitioning to
 // stop proximity from fighting an in-flight layout / spring animation
 // on the same element.
 const transitioningElements = new WeakSet()
@@ -112,7 +112,7 @@ export function initProximityEffect(selector, options = {}) {
     for (const el of els) {
       applyBase(el)
       const r = el.getBoundingClientRect()
-      // Skip elements that aren't currently visible — keeps the
+      // Skip elements that aren't currently visible, keeps the
       // pointermove loop short.
       if (r.width === 0 || r.height === 0) continue
       rects.push({
@@ -133,7 +133,7 @@ export function initProximityEffect(selector, options = {}) {
     for (let i = 0; i < rects.length; i++) {
       const { el, cx, cy } = rects[i]
 
-      // Conflict guard — Framer Motion is currently driving this
+      // Conflict guard, Framer Motion is currently driving this
       // element; don't write transform on top of its keyframes.
       if (isTransitioning(el)) {
         if (inRange.has(el)) {
@@ -148,7 +148,7 @@ export function initProximityEffect(selector, options = {}) {
       const d2 = dx * dx + dy * dy
 
       if (d2 > distance2) {
-        // Out of range — only write style if we were just in range.
+        // Out of range, only write style if we were just in range.
         if (inRange.has(el)) {
           inRange.delete(el)
           resetElement(el)
@@ -223,7 +223,7 @@ export function initProximityEffect(selector, options = {}) {
     schedule()
   }
 
-  // Periodic rect refresh — covers React state updates that change
+  // Periodic rect refresh, covers React state updates that change
   // layout without firing scroll/resize (e.g. a card animating in).
   const periodicRefresh = setInterval(refreshRects, 600)
 

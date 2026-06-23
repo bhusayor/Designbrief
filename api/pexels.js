@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// /api/pexels — proxy to the Pexels free Search API.
+// /api/pexels, proxy to the Pexels free Search API.
 //
 // Body (POST):
 //   {
@@ -15,7 +15,7 @@
 //
 // Auth: any signed-in app user (we don't expose the Pexels key to the
 // browser). We accept either an Authorization Bearer header or no auth
-// at all — Pexels' free tier is generous so we don't gate this hard.
+// at all, Pexels' free tier is generous so we don't gate this hard.
 // ────────────────────────────────────────────────────────────────────
 
 function setCors(res) {

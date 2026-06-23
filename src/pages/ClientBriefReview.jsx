@@ -1,9 +1,9 @@
 // ────────────────────────────────────────────────────────────────────
-// ClientBriefReview — public page at /review/<token>.
+// ClientBriefReview, public page at /review/<token>.
 //
 // The client opens the share link the designer sent them, reads the
 // translated brief, and either Approves it or Requests Changes with
-// a note. Token-gated — no auth required. Hits the server endpoints
+// a note. Token-gated, no auth required. Hits the server endpoints
 // in server-lib/briefReviews.js.
 //
 // UX
@@ -15,7 +15,7 @@
 //   After:    banner at the top showing the decision state and
 //             timestamp; decision bar disappears
 //
-// We deliberately reuse BriefV2View by omitting onEditItem — the
+// We deliberately reuse BriefV2View by omitting onEditItem, the
 // pencil + edit chrome only show when that prop is wired.
 // ────────────────────────────────────────────────────────────────────
 
@@ -74,10 +74,11 @@ export default function ClientBriefReview() {
     return () => { cancelled = true }
   }, [activeReviewToken])
 
-  // Overall review decision (Approve all / Request changes on the
-  // whole brief). Approve all also fans out to mark every section
-  // approved in section_decisions so the designer's UI shows the
-  // full state.
+  // Overall review decision (Approve / Request changes on the
+  // whole brief). The per-section fan-out was removed: clients
+  // make one decision at the bottom of the page, optionally with
+  // a free-text note. The designer reads the note and decides
+  // how to revise.
   async function submitDecision(status, note = '') {
     if (submitting) return
     setSubmitting(true)
@@ -89,28 +90,6 @@ export default function ClientBriefReview() {
       })
       if (!r.ok) throw new Error(`Could not submit (${r.status})`)
 
-      // When the client hits Approve all, also stamp every section
-      // as approved client-side. Background fan-out fires in
-      // parallel so the section_decisions map on the DB matches the
-      // overall state without making the user wait.
-      const sectionIds = (data?.brief?.sections || []).map(s => s.id)
-      let nextSectionDecisions = data?.review?.section_decisions || {}
-      if (status === 'approved' && sectionIds.length) {
-        const now = new Date().toISOString()
-        const fan = { ...nextSectionDecisions }
-        sectionIds.forEach(id => { fan[id] = { status: 'approved', note: null, decided_at: now } })
-        nextSectionDecisions = fan
-        // Fire-and-forget per-section writes so the designer's view
-        // reflects approved state on each section too.
-        sectionIds.forEach(id => {
-          fetch(`${API_BASE}/api/brief-reviews/by-token/${activeReviewToken}/section-decision`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ section_id: id, status: 'approved' }),
-          }).catch(() => {})
-        })
-      }
-
       setData(prev => prev ? {
         ...prev,
         review: {
@@ -118,7 +97,6 @@ export default function ClientBriefReview() {
           status,
           decision_note: note || null,
           approved_at: status === 'approved' ? new Date().toISOString() : prev.review.approved_at,
-          section_decisions: nextSectionDecisions,
         },
       } : prev)
       setShowChangesModal(false)
@@ -127,33 +105,6 @@ export default function ClientBriefReview() {
       alert(e?.message || 'Could not submit your decision. Please try again.')
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  // Per-section decision (one of the buttons under a section header).
-  // Server-side updates the JSONB map; locally we patch the same map
-  // so the section bar reflects state immediately.
-  async function submitSectionDecision(sectionId, status, note) {
-    try {
-      const r = await fetch(`${API_BASE}/api/brief-reviews/by-token/${activeReviewToken}/section-decision`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section_id: sectionId, status, note: note || null }),
-      })
-      if (!r.ok) throw new Error(`Could not submit (${r.status})`)
-      const body = await r.json().catch(() => ({}))
-      setData(prev => prev ? {
-        ...prev,
-        review: {
-          ...prev.review,
-          section_decisions: body?.section_decisions || {
-            ...(prev.review.section_decisions || {}),
-            [sectionId]: { status, note: note || null, decided_at: new Date().toISOString() },
-          },
-        },
-      } : prev)
-    } catch (e) {
-      alert(e?.message || 'Could not save your decision. Please try again.')
     }
   }
 
@@ -263,20 +214,20 @@ export default function ClientBriefReview() {
         </section>
       </div>
 
-      {/* The brief — read-only (no onEditItem prop) but wired with
-          per-section review handlers so each section gets its own
-          Approve / Request changes UI under its header. */}
+      {/* The brief, read-only. Per-section approve/changes UI was
+          intentionally removed in favour of a single decision at
+          the bottom of the page; most clients won't engage with
+          section-by-section ceremony, a simple Approve all + free-
+          text changes note is enough. */}
       <div style={{ background: 'var(--color-bg)' }}>
         <BriefV2View
           result={brief}
           isStreaming={false}
           showCompletionBanner={false}
-          sectionDecisions={review.section_decisions || {}}
-          onSectionDecision={submitSectionDecision}
         />
       </div>
 
-      {/* Approve-all section — sits at the end of the page, not
+      {/* Approve-all section, sits at the end of the page, not
           fixed/sticky. Gives the client one big affordance for the
           common "everything looks good" case so they don't have to
           tick each section individually. */}
@@ -376,7 +327,7 @@ function ChangesModal({ onCancel, onSubmit, note, setNote, submitting, designerP
 
         <div style={{ padding: '18px 22px' }}>
           <label style={{ display: 'block', fontSize: 13, color: 'var(--color-text-soft)', lineHeight: 1.55, marginBottom: 10 }}>
-            Tell the designer what's not quite right. Be as specific as you can — which section,
+            Tell the designer what's not quite right. Be as specific as you can, which section,
             which line, and what you'd prefer.
           </label>
           <textarea

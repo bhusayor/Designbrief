@@ -11,7 +11,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline'
 
-// Default kanban columns — mirrored from TeamCollab so the swimlane
+// Default kanban columns, mirrored from TeamCollab so the swimlane
 // summary works for projects that haven't yet customised columns.
 const DEFAULT_COLS = [
   { id: 'To Do', label: 'To Do', color: '#6B7280' },
@@ -34,7 +34,7 @@ function useViewport() {
 // Project Overview
 //
 // Single-page "big file" view of a manually-created TeamCollab project.
-// No tabs — every section is stacked on one page, full-width, with a
+// No tabs, every section is stacked on one page, full-width, with a
 // back arrow at the top-left. The ⋯ icon opens a small dropdown menu
 // that exposes Delete (routed through the shared ConfirmDeleteModal).
 // ─────────────────────────────────────────────────────────────────────
@@ -154,7 +154,7 @@ export default function ProjectOverview() {
         </button>
       </div>
 
-      {/* ── Body — true full-width, no horizontal padding ──────── */}
+      {/* ── Body, true full-width, no horizontal padding ──────── */}
       <div style={{
         flex: 1, width: '100%',
         padding: isMobile ? '20px 0 40px' : '32px 0 56px',
@@ -189,7 +189,7 @@ export default function ProjectOverview() {
             </div>
           </div>
 
-          {/* ⋯ dropdown — Delete + future actions */}
+          {/* ⋯ dropdown, Delete + future actions */}
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               title="More"
@@ -312,7 +312,7 @@ export default function ProjectOverview() {
         </Section>
       </div>
 
-      {/* Delete confirmation — shared destructive modal */}
+      {/* Delete confirmation, shared destructive modal */}
       <ConfirmDeleteModal
         open={confirmDelete}
         title="Delete project?"
@@ -466,9 +466,9 @@ function iconBtn(active) {
 
 // ── timeAgo ───────────────────────────────────────────────────────────
 function timeAgo(input) {
-  if (!input) return '—'
+  if (!input) return '-'
   const t = typeof input === 'string' ? new Date(input).getTime() : input
-  if (Number.isNaN(t)) return '—'
+  if (Number.isNaN(t)) return '-'
   const diff = Date.now() - t
   const s = Math.floor(diff / 1000)
   if (s < 60) return 'just now'

@@ -20,7 +20,7 @@ import {
   CameraIcon,
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
-// Connectors hidden from live site — re-enable by uncommenting:
+// Connectors hidden from live site, re-enable by uncommenting:
 // import Connectors from './Connectors'
 import Billing from './Billing'
 
@@ -179,7 +179,7 @@ function ProfileSection({ callSettings, onSaved }) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
-  // Avatar — read from auth.user_metadata so it survives refreshes and
+  // Avatar, read from auth.user_metadata so it survives refreshes and
   // appears immediately for every component subscribed to authUser.
   const avatarUrl = authUser?.user_metadata?.avatar_url || ''
   const [avatarBusy, setAvatarBusy] = useState(false)
@@ -243,7 +243,7 @@ function ProfileSection({ callSettings, onSaved }) {
         xhr.setRequestHeader('cache-control', '3600')
         xhr.upload.addEventListener('progress', e => {
           if (e.lengthComputable) {
-            // Cap visible progress at 95% during transfer — the last 5% is
+            // Cap visible progress at 95% during transfer, the last 5% is
             // reserved for the server-side write + the user_metadata patch.
             setUploadProgress(Math.min(95, Math.round((e.loaded / e.total) * 95)))
           }
@@ -263,7 +263,7 @@ function ProfileSection({ callSettings, onSaved }) {
       if (!publicUrl) throw new Error('Could not resolve public URL')
 
       await callSettings({ action: 'update_avatar', avatarUrl: publicUrl })
-      // refreshSession() alone often doesn't pull new user_metadata —
+      // refreshSession() alone often doesn't pull new user_metadata -
       // explicitly fetch the latest user row and overwrite local state so
       // every consumer of authUser re-renders with the new URL.
       try { await supabase.auth.refreshSession() } catch {}
@@ -315,7 +315,7 @@ function ProfileSection({ callSettings, onSaved }) {
         gap: isMobile ? 14 : 16,
         padding: '16px 0 20px', borderBottom: '1px solid var(--color-border)',
       }}>
-        {/* Avatar circle — clickable to upload */}
+        {/* Avatar circle, clickable to upload */}
         <div
           onClick={() => !avatarBusy && fileInputRef.current?.click()}
           style={{
@@ -405,7 +405,7 @@ function ProfileSection({ callSettings, onSaved }) {
               </button>
             )}
           </div>
-          {/* Upload progress — shows real percentage tracked via XHR */}
+          {/* Upload progress, shows real percentage tracked via XHR */}
           {avatarBusy && uploadProgress > 0 && (
             <div style={{ marginTop: 10 }}>
               <div style={{
@@ -673,7 +673,7 @@ function WorkspaceGeneralSection({ callSettings, onSaved }) {
 function PlansSection() {
   const isMobile = useIsMobile()
   const { userPlan, userCredits, creditsUsed, creditsLimit, openUpgradeModal } = useApp()
-  // Reads from userPlan (profiles.plan) — the source of truth that
+  // Reads from userPlan (profiles.plan), the source of truth that
   // updates immediately after a successful Flutterwave upgrade.
   const plan = userPlan || 'free'
   const remaining = Math.max(0, Math.min(creditsLimit, userCredits ?? 0))
@@ -832,7 +832,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
         setWorkspace(nextWs)
         onWorkspaceDeleted?.()
       } else {
-        // No other workspace — clear and reload so WorkspaceSetup shows
+        // No other workspace, clear and reload so WorkspaceSetup shows
         localStorage.removeItem('db-workspace')
         window.location.reload()
       }
@@ -873,7 +873,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
     setDeletingAccount(true); setError('')
     try {
       await callSettings({ action: 'delete_account' })
-      // Token is now invalid — clear everything and redirect to login
+      // Token is now invalid, clear everything and redirect to login
       localStorage.clear()
       window.location.href = '/'
     } catch (e) {
@@ -896,7 +896,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
       {/* ── Workspace actions card ── */}
       <div style={{ border: `1px solid ${RED}`, borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
 
-        {/* Delete workspace — owner only */}
+        {/* Delete workspace, owner only */}
         {isOwner && (
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
@@ -986,7 +986,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
           </div>
         )}
 
-        {/* Leave workspace — everyone. Disabled only when there is just one
+        {/* Leave workspace, everyone. Disabled only when there is just one
             workspace, since the user must always keep at least one. Owners
             leaving will cascade-delete the workspace; members just lose
             access. */}
@@ -1077,7 +1077,7 @@ function DangerSection({ callSettings, onWorkspaceDeleted, onWorkspaceLeft, onAc
       {/* ── Account actions card ── */}
       <div style={{ border: `1px solid ${RED}`, borderRadius: 12, overflow: 'hidden' }}>
 
-        {/* Delete account — all users */}
+        {/* Delete account, all users */}
         <div style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 24 }}>
             <div>
@@ -1179,7 +1179,7 @@ const NAV = [
     items: [
       { id: 'general',    label: 'General',        icon: Cog6ToothIcon },
       { id: 'plans',      label: 'Billing',          icon: BoltIcon },
-      // Connectors hidden from live site — re-enable by uncommenting:
+      // Connectors hidden from live site, re-enable by uncommenting:
       // { id: 'connectors', label: 'Connectors',      icon: LinkIcon },
       { id: 'danger',     label: 'Danger zone',     icon: ExclamationTriangleIcon },
     ],
@@ -1278,7 +1278,7 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
             callSettings={callSettings}
             onWorkspaceDeleted={() => { localStorage.removeItem('db-workspace'); supabase.auth.signOut().then(() => window.location.reload()) }}
             onWorkspaceLeft={() => { /* workspace switch handled inside handleLeave */ }}
-            onAccountDeleted={() => { /* handled inside handleDeleteAccount — localStorage cleared, redirected to / */ }}
+            onAccountDeleted={() => { /* handled inside handleDeleteAccount, localStorage cleared, redirected to / */ }}
           />
         )
       default: return <ProfileSection callSettings={callSettings} onSaved={showSaveToast} />
@@ -1364,7 +1364,7 @@ export default function SettingsPage({ onClose, onOpenSidebar }) {
             </button>
           )}
 
-          {/* Title — centred on mobile, right-aligned on desktop */}
+          {/* Title, centred on mobile, right-aligned on desktop */}
           <div style={{
             ...(isMobile
               ? { position: 'absolute', left: '50%', transform: 'translateX(-50%)' }

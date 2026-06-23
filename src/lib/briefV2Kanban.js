@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// briefV2Kanban.js — derive kanban cards from a V2 brief result.
+// briefV2Kanban.js, derive kanban cards from a V2 brief result.
 //
 // Phase 3 of the 21-item framework. Per spec:
 //   - Item 4 (Deliverables Definition) is the source of truth for
@@ -9,7 +9,7 @@
 //     purpose), 5, 6 (user context + journey), 14 (emotion at this
 //     stage), 7 (success condition), 20 (constraints), 21 (content +
 //     asset status for this specific page).
-//   - Blocked status comes from items 9, 10, 11 — when a Red Flag
+//   - Blocked status comes from items 9, 10, 11, when a Red Flag
 //     of High severity, an Assumption marked Needs Clarification,
 //     or an open Question mentions the page name (or maps to "this
 //     page" / "all pages"), the card is flagged blocked with the
@@ -207,7 +207,7 @@ function pickRelevantConstraints(page, constraints) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// composeDescription — builds the markdown body of the kanban card.
+// composeDescription, builds the markdown body of the kanban card.
 // Pulls from the items spelled out in the spec. Plain-text markdown;
 // renderer in TeamCollab already handles it.
 // ────────────────────────────────────────────────────────────────────

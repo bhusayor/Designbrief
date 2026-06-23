@@ -1,16 +1,16 @@
 // ────────────────────────────────────────────────────────────────────
-// /api/intake-followup — Phase 6 of the Client Intake Form rebuild.
+// /api/intake-followup, Phase 6 of the Client Intake Form rebuild.
 //
 // Two actions, one endpoint (one Vercel function slot):
 //
-//   action: 'send'             — designer-authenticated. Inserts a
+//   action: 'send'            , designer-authenticated. Inserts a
 //                                row into intake_followups with a
 //                                fresh token, sends a branded single-
 //                                question email to the client via
 //                                Resend. Returns the token so the
 //                                review screen can mark the question
 //                                "sent".
-//   action: 'notify-response'  — no auth. Called by the public
+//   action: 'notify-response' , no auth. Called by the public
 //                                /followup/:token page right after
 //                                supabase.rpc('submit_followup_anon')
 //                                lands. Pulls the followup + parent
@@ -150,7 +150,7 @@ async function handleSend(req, res) {
     return res.status(200).json({ ok: true, token: insertRow.token, response_url: responseUrl })
   } catch (e) {
     console.error('[followup send] resend failed', e)
-    // We don't roll back the row — the designer can re-send by re-using the token if needed.
+    // We don't roll back the row, the designer can re-send by re-using the token if needed.
     return res.status(500).json({ error: 'send_failed', token: insertRow.token, message: e?.message || 'Email send failed' })
   }
 }
@@ -162,7 +162,7 @@ async function handleNotifyResponse(req, res) {
   const { token } = req.body || {}
   if (!token) return res.status(400).json({ error: 'bad_request', message: 'token required' })
 
-  // Service-role read; we deliberately ignore who is asking — this
+  // Service-role read; we deliberately ignore who is asking, this
   // endpoint just fires the designer notification email.
   const { data: row, error } = await supabase
     .from('intake_followups')

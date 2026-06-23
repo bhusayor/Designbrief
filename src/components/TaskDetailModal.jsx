@@ -85,11 +85,11 @@ const URL_REGEX = new RegExp(
 // Renders plain text with URLs auto-linked. exec() loop avoids the
 // stateful split+test bug we had before.
 // Highlights @mentions inside a plain-text segment as accent-coloured chips.
-// Tries to match against a `members` list — when present, a name match
+// Tries to match against a `members` list, when present, a name match
 // strengthens the highlight to a soft accent-bg pill.
 function highlightMentions(text, members) {
   if (!text) return text
-  // @Name — allows letters/digits/dot/hyphen/underscore/apostrophe, plus a
+  // @Name, allows letters/digits/dot/hyphen/underscore/apostrophe, plus a
   // single space between two name parts (matches "@John Doe", "@Joe").
   // We greedily try a two-word capture first so multi-word names work, but
   // fall back to a single word if there's no member-list to anchor on.
@@ -354,7 +354,7 @@ function ComposerBubble({
           }}
         />
 
-        {/* @mention dropdown — floats above the textarea, anchored to the bubble */}
+        {/* @mention dropdown, floats above the textarea, anchored to the bubble */}
         {mentionStart !== -1 && filteredMentions.length > 0 && (
           <div style={{
             position: 'absolute', bottom: '100%', left: 0,
@@ -575,7 +575,7 @@ function FilePreviewModal({ file, onClose }) {
     // Fetch text content and render in <pre>
     body = <TextPreview url={url} />
   } else {
-    // Office docs / unknown — use Google Docs Viewer (no download required)
+    // Office docs / unknown, use Google Docs Viewer (no download required)
     const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`
     body = (
       <iframe src={viewerUrl} title={name}
@@ -823,7 +823,7 @@ function CommentRow({
           </div>
         )}
 
-        {/* Reaction strip — thumbs up/down + counts */}
+        {/* Reaction strip, thumbs up/down + counts */}
         {!editing && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
             <button onClick={onThumbUp} title="Thumbs up" style={reactionBtnStyle(mine === 'up')}>
@@ -883,7 +883,7 @@ function CommentRow({
           </div>
         )}
 
-        {/* Nested replies — pass through the parent's handler factory so each
+        {/* Nested replies, pass through the parent's handler factory so each
             reply gets its OWN wired set of actions (menu/edit/delete/thumbs) */}
         {replies.length > 0 && makeHandlersForComment && (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -941,7 +941,7 @@ export default function TaskDetailModal({
   task: initialTask,
   projectId,
   projectName = 'Project',
-  briefContext = null, // translated-brief snapshot — sharpens AI prompts
+  briefContext = null, // translated-brief snapshot, sharpens AI prompts
   authUser,
   user,
   teamMembers = [],
@@ -965,7 +965,7 @@ export default function TaskDetailModal({
     return () => window.removeEventListener('resize', handler)
   }, [])
 
-  // ── Local copy of the task — patched optimistically ────────────────────
+  // ── Local copy of the task, patched optimistically ────────────────────
   const [task, setTask] = useState(initialTask)
   const taskRef = useRef(task)
   taskRef.current = task
@@ -1010,7 +1010,7 @@ export default function TaskDetailModal({
   // Auto-clears after 30s so it doesn't linger forever.
   const [originalDescription, setOriginalDescription] = useState(null)
   const restoreTimerRef = useRef(null)
-  // Project design system — loaded lazily so AI helpers honour the saved tokens.
+  // Project design system, loaded lazily so AI helpers honour the saved tokens.
   const [designSystem, setDesignSystem] = useState(null)
   useEffect(() => {
     let cancelled = false
@@ -1113,7 +1113,7 @@ export default function TaskDetailModal({
           return acts
         })
       } catch {
-        /* transient — next tick will retry */
+        /* transient, next tick will retry */
       }
     }
 
@@ -1140,7 +1140,7 @@ export default function TaskDetailModal({
         filter: `id=eq.${task.id}`,
       }, payload => {
         const remote = mapDBTask(payload.new)
-        // Only apply if it's a real change from another device — we already
+        // Only apply if it's a real change from another device, we already
         // patched local state optimistically for our own actions.
         setTask(prev => {
           if (!prev) return remote
@@ -1550,7 +1550,7 @@ export default function TaskDetailModal({
 
   // Load existing reactions when the set of comment IDs grows. We only
   // fetch for IDs we don't yet have in `reactions`, and we MERGE into
-  // existing state — never overwrite a locally-set optimistic value or
+  // existing state, never overwrite a locally-set optimistic value or
   // we'd "lose" a thumbs the user just clicked.
   const reactionsFetchedRef = useRef(new Set())
   useEffect(() => {
@@ -1592,7 +1592,7 @@ export default function TaskDetailModal({
     const url = `${window.location.origin}/task/${task.id}`
     const shareData = {
       title: task.title || 'Task',
-      text: `${task.title || 'Task'} — ${projectName}`,
+      text: `${task.title || 'Task'}, ${projectName}`,
       url,
     }
 
@@ -1600,9 +1600,9 @@ export default function TaskDetailModal({
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share(shareData)
-        return  // success — native sheet handled it
+        return  // success, native sheet handled it
       } catch (e) {
-        // User pressed Cancel on the share sheet — silently bail
+        // User pressed Cancel on the share sheet, silently bail
         if (e?.name === 'AbortError') return
         // Anything else (NotAllowedError, etc.) → fall through to clipboard
         console.warn('[share] navigator.share failed:', e?.name, e?.message)
@@ -1731,7 +1731,7 @@ export default function TaskDetailModal({
     currentUserName: user?.firstName || user?.name,
   })
 
-  // The signed-in user's name + avatar — pulled live from auth metadata so
+  // The signed-in user's name + avatar, pulled live from auth metadata so
   // a fresh upload / rename appears immediately on the reply composer + on
   // their own comments / activity entries.
   const currentUserName = user?.firstName || user?.name || authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || ''
@@ -1815,7 +1815,7 @@ export default function TaskDetailModal({
     minHeight: 0,
   }
   // On mobile we render only ONE panel at a time, selected by mobileTab.
-  // No stacking, no 50vh cap — each panel takes the full body height.
+  // No stacking, no 50vh cap, each panel takes the full body height.
   const leftStyle = {
     width: isMobile ? '100%' : '60%',
     height: '100%',
@@ -1924,7 +1924,7 @@ export default function TaskDetailModal({
           </div>
         </div>
 
-        {/* MOBILE TAB BAR — switch between Task content and Details/Properties */}
+        {/* MOBILE TAB BAR, switch between Task content and Details/Properties */}
         {isMobile && (
           <div style={{
             flexShrink: 0,
@@ -2051,7 +2051,7 @@ export default function TaskDetailModal({
                     {task.description || 'Add a description...'}
                   </div>
                 )}
-                {/* Restore-original link — shown for 30s after a
+                {/* Restore-original link, shown for 30s after a
                     successful enhance so the user can revert if the
                     rewrite missed the mark. */}
                 {originalDescription && (
@@ -2079,7 +2079,7 @@ export default function TaskDetailModal({
                 )}
               </div>
 
-              {/* AI PROMPT — placed under Description for visibility */}
+              {/* AI PROMPT, placed under Description for visibility */}
               <div style={{ marginTop: 16 }}>
                 <button
                   onClick={handleGenerateAIPrompt}
@@ -2374,7 +2374,7 @@ export default function TaskDetailModal({
                     role: m.role || '',
                   }))
                 const pickerList = [...realMembers, ...pseudoMembers]
-                // Avatar URL for the currently-assigned user — prefer the
+                // Avatar URL for the currently-assigned user, prefer the
                 // live authUser.user_metadata when the assignee is self.
                 const isSelf = task.assignedUserId && task.assignedUserId === authUser?.id
                 const currentAvatar = isSelf
@@ -2484,7 +2484,7 @@ export default function TaskDetailModal({
                 )}
               </div>
 
-              {/* Start Date — goes BEFORE Due Date */}
+              {/* Start Date, goes BEFORE Due Date */}
               <label className="tdm-row" style={{ ...detailRowStyle, display: 'flex' }}>
                 <span style={labelStyle}>Start Date</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -2544,7 +2544,7 @@ export default function TaskDetailModal({
                 )}
               </div>
 
-              {/* Reporter — picker mirrors the Assignee row */}
+              {/* Reporter, picker mirrors the Assignee row */}
               {(() => {
                 const realMembers = Object.entries(projectMembers || {}).map(([uid, m]) => ({
                   userId: uid,
@@ -2604,7 +2604,7 @@ export default function TaskDetailModal({
           </div>
         </div>
 
-        {/* Share toast — sits inside modal shell so it's always on top */}
+        {/* Share toast, sits inside modal shell so it's always on top */}
         {shareToast && (
           <div style={{
             position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
@@ -2623,7 +2623,7 @@ export default function TaskDetailModal({
           <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
         )}
 
-        {/* Delete task confirmation — shared destructive modal */}
+        {/* Delete task confirmation, shared destructive modal */}
         <ConfirmDeleteModal
           open={confirmDelete}
           title="Delete task?"

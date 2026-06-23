@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { initProximityEffect } from '../lib/proximity'
 
 // ────────────────────────────────────────────────────────────────────
-// useProximity — thin React hook wrapper around initProximityEffect.
+// useProximity, thin React hook wrapper around initProximityEffect.
 //
 // Pass a CSS selector for the elements you want magnetised. Re-runs
 // when any of the deps change (typically the list/state that controls

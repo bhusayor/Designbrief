@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { EASE } from '../lib/motion'
 
 // ────────────────────────────────────────────────────────────────────
-// ClipReveal — scroll-triggered clip-path wipe. Wrap any block of
+// ClipReveal, scroll-triggered clip-path wipe. Wrap any block of
 // content and pick the direction:
 //
 //   left   → wipe in from the left   (great for hero copy)

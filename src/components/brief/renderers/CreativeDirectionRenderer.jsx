@@ -13,7 +13,7 @@ export default function CreativeDirectionRenderer({ result }) {
   return (
     <div style={{ fontFamily: 'var(--font-sans)', maxWidth: 800 }}>
 
-      {/* Concept statement — hero */}
+      {/* Concept statement, hero */}
       {r.creativeConceptStatement && (
         <div style={{
           marginBottom: 20,
@@ -49,7 +49,7 @@ export default function CreativeDirectionRenderer({ result }) {
         </div>
       )}
 
-      {/* Color palette — full bleed swatches */}
+      {/* Color palette, full bleed swatches */}
       {safeArr(r.colorPalette).length > 0 && (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px 12px' }}>
@@ -88,7 +88,7 @@ export default function CreativeDirectionRenderer({ result }) {
         </Card>
       )}
 
-      {/* Typography — large display */}
+      {/* Typography, large display */}
       {r.typography && (
         <Card>
           <SectionHeading title="Typography" accent={accent} />
@@ -119,7 +119,7 @@ export default function CreativeDirectionRenderer({ result }) {
         </Card>
       )}
 
-      {/* Tone words — large pill tags */}
+      {/* Tone words, large pill tags */}
       {safeArr(r.toneWords).length > 0 && (
         <Card>
           <SectionHeading title="Brand Tone" accent={accent} />
@@ -168,7 +168,7 @@ export default function CreativeDirectionRenderer({ result }) {
         </Card>
       )}
 
-      {/* Inspiration — prominent for creative */}
+      {/* Inspiration, prominent for creative */}
       {r.inspiration?.length > 0 && (
         <Card>
           <SectionHeading title="Inspiration & References" subtitle="Real examples to guide the creative direction" accent={accent} />
@@ -208,7 +208,7 @@ export default function CreativeDirectionRenderer({ result }) {
         </Card>
       )}
 
-      {/* Gantt — minimal for creative */}
+      {/* Gantt, minimal for creative */}
       {r.ganttData?.phases?.length > 0 && (
         <Card>
           <SectionHeading

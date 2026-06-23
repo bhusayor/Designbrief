@@ -1,12 +1,12 @@
 // ────────────────────────────────────────────────────────────────────
-// SharedBrief — public viewer for /share/:token URLs.
+// SharedBrief, public viewer for /share/:token URLs.
 //
 // The Share button on the brief result page inserts a snapshot of
 // the brief into supabase.shared_briefs with a UUID token. That
 // token rides in the URL; this page reads it out of context
 // (App.jsx routing pre-populates activeShareToken), fetches the
 // snapshot from supabase as anon, and renders it through the same
-// ResultView the owner sees — minus the owner-only sticky header.
+// ResultView the owner sees, minus the owner-only sticky header.
 //
 // Header buttons branch on auth state:
 //   - Anon visitor → "Create your own" sends them to signup (App.jsx
@@ -70,7 +70,7 @@ export default function SharedBrief() {
     navigate('dashboard')
   }
 
-  // "Save to history" — only for signed-in viewers. Pipes the snapshot
+  // "Save to history", only for signed-in viewers. Pipes the snapshot
   // into saveHistory which writes a project row + lights up the
   // Recent list in the sidebar. Inspirations live on result.inspirations
   // so the standard history hydration in Dashboard.jsx restores them.
@@ -100,7 +100,7 @@ export default function SharedBrief() {
         },
       })
       setSaved(true)
-      showToast?.('Saved — check Recent in the sidebar.', 'success')
+      showToast?.('Saved, check Recent in the sidebar.', 'success')
     } catch (e) {
       console.error('[shared-brief] save failed', e)
       showToast?.(e?.message || 'Could not save brief. Try again.', 'error')
@@ -160,10 +160,10 @@ export default function SharedBrief() {
 
   const snap = state.data
   // Two scroll contexts:
-  //   Signed-in viewer (inside AppShell) — AppShell's <main> has
+  //   Signed-in viewer (inside AppShell), AppShell's <main> has
   //     height: 100dvh + overflow: hidden. We need to BE the scroll
   //     container here. height: 100% of main + overflowY: auto.
-  //   Anon viewer (no AppShell) — sits directly under <body>. The
+  //   Anon viewer (no AppShell), sits directly under <body>. The
   //     page scrolls naturally; we just need a minHeight so the bg
   //     fills short briefs.
   // In both cases ResultView's root is set to height: auto +

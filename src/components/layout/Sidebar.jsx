@@ -122,7 +122,7 @@ function NavItem({ icon: Icon, label, active, onClick, collapsed, badge, locked 
         )}
       </button>
 
-      {/* Tooltip — fixed position to escape overflow:hidden on sidebar */}
+      {/* Tooltip, fixed position to escape overflow:hidden on sidebar */}
       {collapsed && hovered && (
         <div
           style={{
@@ -168,12 +168,12 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     openUpgradeModal,
   } = useContext(AppContext)
 
-  // Profile-picture URL — from auth.user_metadata so any change in Settings
+  // Profile-picture URL, from auth.user_metadata so any change in Settings
   // shows up here immediately after the session refresh fires.
   const sidebarAvatarUrl = authUser?.user_metadata?.avatar_url || null
 
   // Sidebar nav items use a plain background-color hover (handled in
-  // NavItem's React `hovered` state) — proximity is intentionally
+  // NavItem's React `hovered` state), proximity is intentionally
   // OFF here. Any transform-driven scale on text composites the
   // label to a separate layer, and the resulting sub-pixel
   // rasterisation makes type look soft no matter how small the
@@ -242,7 +242,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
 
   const initials = (user?.firstName || user?.name || 'D')[0].toUpperCase()
 
-  // Recents only shows translator/intake briefs — NOT TeamCollab project
+  // Recents only shows translator/intake briefs, NOT TeamCollab project
   // boards (section='team'), which live in the Projects library +
   // TeamCollab project switcher.
   const sortedHistory = [...history]
@@ -267,7 +267,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
     }
   }
 
-  // Plan badge label — reads from the user's actual profile.plan,
+  // Plan badge label, reads from the user's actual profile.plan,
   // not the legacy workspace.plan field, so Free / Starter / Pro
   // always reflects reality.
   function planLabel(_legacy) {
@@ -356,7 +356,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               padding: '14px 14px 10px',
             }}
           >
-          {/* Logo mark — collapsed shows expand icon on hover */}
+          {/* Logo mark, collapsed shows expand icon on hover */}
           {collapsed ? (
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
               <button
@@ -390,7 +390,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
             </div>
           )}
 
-          {/* Collapse button — only when expanded on desktop */}
+          {/* Collapse button, only when expanded on desktop */}
           {!collapsed && (
             <button
               onClick={() => setCollapsedDesktop(true)}
@@ -532,7 +532,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
           label="Client Intake"
           active={activeSection === 'intake'}
           onClick={() => {
-            // Pro-only — Free + Starter open the upgrade modal instead
+            // Pro-only, Free + Starter open the upgrade modal instead
             // of navigating to the intake builder.
             if (userPlan === 'free' || userPlan === 'starter') {
               openUpgradeModal?.('client_intake')
@@ -634,7 +634,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         const usedAmount = Math.max(0, creditsLimit - remaining)
         const pct = creditsLimit > 0 ? (usedAmount / creditsLimit) * 100 : 0
         // Thresholds scale with the plan cap. Free: <10 / <20.
-        // Starter (300 cap): <30 / <60 — i.e. 10% red, 20% yellow.
+        // Starter (300 cap): <30 / <60, i.e. 10% red, 20% yellow.
         const dangerAt = Math.max(5, Math.round(creditsLimit * 0.10))
         const lowAt   = Math.max(10, Math.round(creditsLimit * 0.20))
         const exhausted = remaining <= 0
@@ -671,7 +671,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               </span>
             </div>
 
-            {/* Progress bar — fill = credits used */}
+            {/* Progress bar, fill = credits used */}
             <div style={{ height: 6, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', marginBottom: 8, overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
@@ -712,7 +712,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
               )}
             </div>
 
-            {/* Upgrade button — hidden on Pro since there's nothing higher */}
+            {/* Upgrade button, hidden on Pro since there's nothing higher */}
             {userPlan !== 'pro' && (
             <button
               onClick={() => openUpgradeModal?.('credits')}
@@ -879,7 +879,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
 
     </aside>
 
-    {/* Workspace dropdown — rendered outside <aside> so it overlays content on all screen sizes
+    {/* Workspace dropdown, rendered outside <aside> so it overlays content on all screen sizes
         without being clipped by overflow:hidden or trapped by the sidebar's CSS transform */}
     {showWorkspaceMenu && (
       <div

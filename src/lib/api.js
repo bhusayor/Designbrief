@@ -1,9 +1,9 @@
 /**
- * api.js — higher-level AI helpers.
+ * api.js, higher-level AI helpers.
  *
  * All AI calls route through our backend proxy. Errors that come back
  * from the server are already mapped to user-safe codes/messages by
- * api/lib/claudeError.js — we just surface them verbatim.
+ * api/lib/claudeError.js, we just surface them verbatim.
  */
 
 import { supabase } from './supabase.js'
@@ -36,7 +36,7 @@ async function post(path, body, timeoutMs = 25000) {
       // The server-side error mapper (api/lib/claudeError.js) gives us:
       //   { error: <code>, message: <user-safe text>, retry_after?: number }
       // We just surface that. No provider-specific language reaches here.
-      const message = errData.message || 'Something interrupted the AI. Your work is safe — please try again.'
+      const message = errData.message || 'Something interrupted the AI. Your work is safe, please try again.'
       const error = new Error(message)
       error.status = res.status
       error.data = errData
@@ -62,7 +62,7 @@ async function post(path, body, timeoutMs = 25000) {
 function extractJSON(text) {
   if (!text) return null
 
-  // Already an object — return as-is
+  // Already an object, return as-is
   if (typeof text === 'object') return text
 
   const str = String(text).trim()
@@ -138,11 +138,11 @@ function extractJSON(text) {
 // ─── Base callers ─────────────────────────────────────────────────────────────
 
 /**
- * callClaudeTools — sends a full conversation with optional tools.
+ * callClaudeTools, sends a full conversation with optional tools.
  * Returns { content, stop_reason }.
  *
  * Accepts optional taskType so the server picks the right model
- * (defaults to chat_refinement → Haiku — the in-board chat is the
+ * (defaults to chat_refinement → Haiku, the in-board chat is the
  * primary user of this entry point).
  */
 export async function callClaudeTools({ messages, system = '', maxTokens = 2000, tools, taskType = 'chat_refinement' } = {}) {
@@ -157,7 +157,7 @@ export async function callClaudeTools({ messages, system = '', maxTokens = 2000,
 }
 
 /**
- * callClaude — returns the raw text string. Positional signature kept
+ * callClaude, returns the raw text string. Positional signature kept
  * for backward compat; pass taskType as the 4th arg to opt into a
  * non-default model. Without taskType the server falls back to Sonnet.
  */
@@ -172,7 +172,7 @@ export async function callClaude(systemPrompt, userMessage, maxTokens = 2000, ta
 }
 
 /**
- * callJSON — same as callClaude but parses the response as JSON.
+ * callJSON, same as callClaude but parses the response as JSON.
  */
 export async function callJSON(systemPrompt, userMessage, maxTokens = 4000, taskType) {
   const text = await callClaude(systemPrompt, userMessage, maxTokens, taskType)
@@ -180,8 +180,8 @@ export async function callJSON(systemPrompt, userMessage, maxTokens = 4000, task
 }
 
 /**
- * callClaudeWithSearch — Claude with web_search injected. Default
- * model = competitors_search (still Sonnet) — the inspirations/
+ * callClaudeWithSearch, Claude with web_search injected. Default
+ * model = competitors_search (still Sonnet), the inspirations/
  * competitors lookups are the primary user.
  */
 export async function callClaudeWithSearch(systemPrompt, userMessage, maxTokens = 2000, taskType = 'competitors_search') {
@@ -204,7 +204,7 @@ export async function callClaudeWithSearch(systemPrompt, userMessage, maxTokens 
   })
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}))
-    const error = new Error(errData.message || 'Something interrupted the AI. Your work is safe — please try again.')
+    const error = new Error(errData.message || 'Something interrupted the AI. Your work is safe, please try again.')
     error.status = res.status
     error.code = errData.error || null
     if (errData.retry_after) error.retryAfter = errData.retry_after
@@ -217,7 +217,7 @@ export async function callClaudeWithSearch(systemPrompt, userMessage, maxTokens 
 // ─── Brief analysis ───────────────────────────────────────────────────────────
 
 /**
- * scoreBrief — quick scoring pass (800 tokens).
+ * scoreBrief, quick scoring pass (800 tokens).
  * Returns: { clarity, completeness, contradictions, overall,
  *            verdict, summary, issues[], chaosReason }
  */
@@ -241,7 +241,7 @@ ${briefText}`;
   return callJSON(system, user, 800, 'brief_translation');
 }
 
-// ─── Brief translation — parallel-split architecture ─────────────────────────
+// ─── Brief translation, parallel-split architecture ─────────────────────────
 //
 // PROBLEM:  Single Sonnet call generating the full 17-field schema +
 //           a 290-line system prompt was hitting Vercel's 60s function
@@ -249,8 +249,8 @@ ${briefText}`;
 //           (8000 → 5500 → 4000 → 3000 → 6000 → 4500) couldn't both
 //           fit the schema AND beat the timeout.
 //
-// FIX:      Two parallel calls — translateBriefCore (visual/strategic)
-//           and translateBriefPlanning (budget/team/voice) — each with
+// FIX:      Two parallel calls, translateBriefCore (visual/strategic)
+//           and translateBriefPlanning (budget/team/voice), each with
 //           a tight focused system prompt and a 2200-token output cap.
 //           Sonnet emits each in 12-20s; running them in parallel via
 //           Promise.all means total wall time is bounded by the slower
@@ -258,7 +258,7 @@ ${briefText}`;
 //           BOTH function invocations.
 //
 //           competitors / inspiration / projectWorkflow / ganttData
-//           were dropped from the schema — competitors is overwritten
+//           were dropped from the schema, competitors is overwritten
 //           by analyseCompetitors() right after this call, inspiration
 //           is fetched by apiFetchInspirations() separately, and the
 //           workflow/gantt blocks only fed unmounted LeanCanvasRenderer
@@ -273,11 +273,11 @@ ACCURACY:
 - Fonts: real Google Fonts or system fonts only. Don't use Urbanist.
 - If brief is vague: set isChaos true and still generate every field with best-interpretation reasoning.
 
-DISCIPLINE — detect exactly one type from the brief:
+DISCIPLINE, detect exactly one type from the brief:
   digital-product | brand | campaign | photography | video | motion | social-media | illustration | print | game | hybrid
 Detect platform: web | mobile | both | print | video | social | physical
 
-PLATFORMS (finer granularity for digital-product briefs) — return an array
+PLATFORMS (finer granularity for digital-product briefs), return an array
 containing one or more of: website | webapp | mobile.
   website  = marketing site, landing page, content site, brochure site,
              portfolio, blog, e-commerce storefront. Brief language clues:
@@ -298,7 +298,7 @@ educates → website; if users log in to perform tasks → webapp; if it
 runs on a phone → mobile. For non-digital briefs (brand, photography,
 print, etc.) return an empty array [].
 
-COLOR PALETTE — exactly 4 colors covering Primary, Secondary, Background, Text/Neutral. Industry-matched:
+COLOR PALETTE, exactly 4 colors covering Primary, Secondary, Background, Text/Neutral. Industry-matched:
   Tech/SaaS → blues, purples, neutrals
   Finance → navy, slate, gold
   Healthcare → teal, deep blue, clean
@@ -306,7 +306,7 @@ COLOR PALETTE — exactly 4 colors covering Primary, Secondary, Background, Text
   Food → earthy warm neutrals (not lime green)
   Creative → bold high-contrast primaries
 
-TYPOGRAPHY — exactly 2 real Google/system fonts matched to brand:
+TYPOGRAPHY, exactly 2 real Google/system fonts matched to brand:
   Luxury → Cormorant Garamond + DM Sans
   Tech/SaaS → Inter + JetBrains Mono / Space Grotesk + Inter
   Health → DM Serif Display + Lato
@@ -350,7 +350,7 @@ Return JSON with these exact keys:
   "discipline": {
     "type": "<one of the 11 types above>",
     "platform": "<one of the platforms above>",
-    "platforms": ["<one or more: website, webapp, mobile — empty [] for non-digital>"],
+    "platforms": ["<one or more: website, webapp, mobile, empty [] for non-digital>"],
     "primaryCreative": "<main creative role>",
     "secondaryCreatives": ["<other creative roles>"]
   }
@@ -432,7 +432,7 @@ ${briefText}`;
 }
 
 /**
- * translateBrief — combined translation (kept as a thin wrapper for
+ * translateBrief, combined translation (kept as a thin wrapper for
  * any external caller). Returns the merged result of the two parallel
  * halves: core (visual/strategic) + planning (budget/team/voice).
  */
@@ -448,7 +448,7 @@ export async function translateBrief(briefText) {
 async function _legacyTranslateBrief(briefText) {
   const system = `You are an expert product design strategist. Your job is to translate a client brief into actionable design direction.
 
-ACCURACY RULES — follow these strictly:
+ACCURACY RULES, follow these strictly:
 1. Only state facts that are directly supported by the brief. Do not invent project details.
 2. If the brief does not mention a platform, infer it carefully from context clues. 'mobile app' = mobile, 'website' = web, 'platform' or 'SaaS' = web, no mention = web.
 3. Budget estimates must be realistic for the stated requirements. A simple landing page costs $2k-$8k. A full SaaS product costs $30k-$150k. Never underestimate complexity.
@@ -468,9 +468,9 @@ If the brief is vague, chaotic, or incomplete:
 - Set verdict to CHAOS and overall score to 1-3
 - Still provide colorPalette, typography, timeframe, rolesNeeded, and all other fields
 - Never return an incomplete or truncated JSON
-- A chaotic brief still needs design direction — provide it based on what CAN be inferred
+- A chaotic brief still needs design direction, provide it based on what CAN be inferred
 
-DISCIPLINE DETECTION RULES — follow strictly:
+DISCIPLINE DETECTION RULES, follow strictly:
 Analyse the brief and detect the creative discipline.
 
 digital-product: brief mentions app, website, SaaS, dashboard, mobile, platform, UX, UI, screens, flows, wireframes, prototype
@@ -485,7 +485,7 @@ print: brief mentions print, poster, flyer, brochure, packaging, magazine, book 
 game: brief mentions game, gaming, UI for game, game design, levels, characters, game assets
 hybrid: brief spans multiple disciplines above
 
-For primaryCreative — detect from context:
+For primaryCreative, detect from context:
   digital-product → UI/UX Designer
   brand → Brand Designer
   campaign → Art Director
@@ -524,7 +524,7 @@ print: Graphic Designer, Copywriter, Print Specialist, Account Manager
 BUDGET RULES (ALL DISCIPLINES):
 Generate realistic budget breakdown with discipline-specific line items.
 Use NGN rates for clearly local Nigerian projects, USD for international scope.
-budgetRange.breakdown is an ARRAY of line-item objects — NOT a key/value object.
+budgetRange.breakdown is an ARRAY of line-item objects, NOT a key/value object.
 digital-product line items: Design, Frontend development, Backend development, QA testing, Hosting/infrastructure, Project management
 brand line items: Strategy & discovery, Logo design, Brand guidelines, Collateral design, File preparation & delivery
 campaign line items: Strategy, Creative concept, Copywriting, Design/production, Media spend (if applicable), Project management
@@ -560,7 +560,7 @@ For non-digital disciplines rename and reframe:
 
 PROJECT WORKFLOW RULES (ALL DISCIPLINES):
 Generate exactly 8 steps that guide the team from start to finish for THIS specific project.
-Use real details from the brief — not generic placeholders.
+Use real details from the brief, not generic placeholders.
 Adapt the step names and descriptions to the detected discipline:
 digital-product: Discovery & Requirements → Information Architecture → Wireframes & User Flows → Visual Design → Prototype & Test → Developer Handoff → Build & QA → Launch
 brand: Brand Discovery Workshop → Competitor & Market Audit → Positioning & Strategy → Concept Exploration (3 directions) → Refinement of Chosen Direction → Brand System Build → Guidelines Document → Asset Delivery
@@ -734,7 +734,7 @@ IMPORTANT RULES FOR disciplineData:
 - Only include fields relevant to the detected discipline
 - Do NOT include techStack in non-digital briefs
 - Do NOT include shotList in non-photography briefs
-- Keep all existing 17 fields intact — disciplineData is the 18th field
+- Keep all existing 17 fields intact, disciplineData is the 18th field
 - If a field has no relevant data from the brief, use null not empty string
 
 Respond ONLY with valid JSON.`;
@@ -751,10 +751,10 @@ Return JSON with these exact keys:
   ],
   "colorDirection": "<overall colour palette narrative>",
   "typography": {
-    "displayFont": "<Font name only — e.g. Playfair Display>",
-    "bodyFont": "<Font name only — e.g. Inter>",
-    "displayUse": "<Short description of where display font is used — e.g. Hero headings, brand name, section titles>",
-    "bodyUse": "<Short description of where body font is used — e.g. Body copy, UI labels, navigation, captions>",
+    "displayFont": "<Font name only, e.g. Playfair Display>",
+    "bodyFont": "<Font name only, e.g. Inter>",
+    "displayUse": "<Short description of where display font is used, e.g. Hero headings, brand name, section titles>",
+    "bodyUse": "<Short description of where body font is used, e.g. Body copy, UI labels, navigation, captions>",
     "rationale": "<One sentence why these two fonts suit this specific brand>",
     "platform": "<web|mobile|both>"
   },
@@ -790,10 +790,10 @@ Return JSON with these exact keys:
   "discipline": {
     "type": "<digital-product | brand | campaign | photography | video | motion | social-media | illustration | print | game | hybrid>",
     "platform": "<web | mobile | both | print | video | social | physical>",
-    "primaryCreative": "<main creative role — e.g. UI Designer, Brand Designer, Photographer>",
+    "primaryCreative": "<main creative role, e.g. UI Designer, Brand Designer, Photographer>",
     "secondaryCreatives": ["<other creative roles involved>"]
   },
-  "creativeConceptStatement": "<single sharp creative concept sentence that unifies all creative decisions — specific to this project, not generic. Example: 'A premium Nigerian food brand that feels like a Michelin-starred restaurant brought to your kitchen — elevated, warm, and culturally proud.'>",
+  "creativeConceptStatement": "<single sharp creative concept sentence that unifies all creative decisions, specific to this project, not generic. Example: 'A premium Nigerian food brand that feels like a Michelin-starred restaurant brought to your kitchen, elevated, warm, and culturally proud.'>",
   "copyVoice": {
     "personality": "<3 words describing the brand voice e.g. Bold, Direct, Warm>",
     "doSay": [
@@ -825,7 +825,7 @@ Return JSON with these exact keys:
     {
       "name": "<company or brand name>",
       "url": "<real URL>",
-      "description": "<what they do — 1 sentence>",
+      "description": "<what they do, 1 sentence>",
       "strength": "<what they do particularly well>",
       "weakness": "<gap or opportunity vs this project>",
       "relevance": "<why they are worth comparing to>"
@@ -843,8 +843,8 @@ Return JSON with these exact keys:
   "projectWorkflow": [
     {
       "step": 1,
-      "title": "<step name — max 4 words>",
-      "description": "<what happens in this step — 1-2 sentences specific to this brief>",
+      "title": "<step name, max 4 words>",
+      "description": "<what happens in this step, 1-2 sentences specific to this brief>",
       "duration": "<e.g. 2 days, 1 week>",
       "milestone": false
     }
@@ -878,21 +878,21 @@ Return JSON with these exact keys:
 
 CRITICAL projectWorkflow rules:
 - Generate EXACTLY 8 steps
-- Each step must be specific to this brief — use real project details, not generic text
+- Each step must be specific to this brief, use real project details, not generic text
 - Set milestone: true on exactly 2 steps (the most important approval/delivery moments)
 - duration must be a realistic string like "2 days", "1 week", "3 days"
 
 CRITICAL competitors rules:
 - Return 3-5 real, existing companies/brands
 - url must be a real, working URL (e.g. "https://notion.so")
-- Never invent competitor names — only use real brands that actually operate in this market
+- Never invent competitor names, only use real brands that actually operate in this market
 - weakness must be a genuine gap or opportunity, not just a generic complaint
 
 CRITICAL inspiration rules:
 - Return 4-6 specific, named references the team can actually look up
 - url should be a real URL when possible; use empty string only when no URL exists
-- why must be specific to THIS brief — explain exactly what to take from the reference
-- Adapt references to the discipline: no "check Dribbble" generics — name actual works/accounts
+- why must be specific to THIS brief, explain exactly what to take from the reference
+- Adapt references to the discipline: no "check Dribbble" generics, name actual works/accounts
 
 CRITICAL ganttData rules:
 - totalDays must match timeframe.total converted to working days (1 week = 5 days)
@@ -902,13 +902,13 @@ CRITICAL ganttData rules:
 - dependencies must reference real task ids within the ganttData object, or be an empty array
 
 CRITICAL teamRoles rules:
-- Generate roles specific to the detected discipline — never add developer roles to non-technical briefs
+- Generate roles specific to the detected discipline, never add developer roles to non-technical briefs
 - required: true means the project cannot be delivered without this role
 - timeCommitment must be realistic (e.g. "Full-time, 8 weeks", "Part-time, 2 days/week for 4 weeks")
 - Keep rolesNeeded as a flat string[] (backwards compatibility) AND populate teamRoles
 
 CRITICAL colorPalette rules:
-- Return EXACTLY 4 colours — no more, no less
+- Return EXACTLY 4 colours, no more, no less
 - The 4 colours must cover: Primary, Secondary, Background, and Text/Neutral
 - Do NOT default to orange or green unless the brand specifically calls for it (food, health, energy brands only)
 - Choose colours that are sophisticated, modern and appropriate for the specific industry:
@@ -922,7 +922,7 @@ CRITICAL colorPalette rules:
 - Never include #5AFFEE or any neon colour
 - Every hex must be a valid 6-digit hex code starting with #
 CRITICAL typography rules:
-- Use EXACTLY 2 fonts — displayFont and bodyFont
+- Use EXACTLY 2 fonts, displayFont and bodyFont
 - displayFont is for headings, hero text, brand name
 - bodyFont is for body copy, UI labels, navigation
 - Both must be real Google Fonts or system fonts matched to the brand personality:
@@ -941,14 +941,14 @@ CRITICAL typography platform rules:
 - If the product is ONLY a mobile app: set platform to 'mobile' and only include the mobile scale array inside scale
 - If the product includes BOTH website and mobile (web app, responsive app, cross-platform): set platform to 'both' and include both web and mobile scale arrays
 - Detect platform from: 'app' 'mobile' 'iOS' 'Android' 'website' 'web' 'landing page' 'SaaS' keywords in the brief
-- Scale values should be appropriate for the platform and brand — luxury brands use larger sizes, dense tools use smaller sizes
+- Scale values should be appropriate for the platform and brand, luxury brands use larger sizes, dense tools use smaller sizes
 - All scale values are strings
 
 CRITICAL discipline rules:
-- discipline.type must be exactly one of the 11 values listed — no other values allowed
+- discipline.type must be exactly one of the 11 values listed, no other values allowed
 - discipline.platform must reflect what was detected from the brief keywords
-- creativeConceptStatement must be a single sentence, specific to THIS project — never generic filler
-- copyVoice applies to ALL disciplines — every brand needs a voice, not just copywriting projects
+- creativeConceptStatement must be a single sentence, specific to THIS project, never generic filler
+- copyVoice applies to ALL disciplines, every brand needs a voice, not just copywriting projects
 - copyVoice.doSay must be actual example sentences in the brand voice, not descriptions of the voice
 - copyVoice.doNotSay must be actual example sentences of the wrong tone, not generic advice
 
@@ -964,7 +964,7 @@ Brief:
 ${briefText}`;
 
   // 6000 was pushing past the 60s Vercel cap on busy windows.
-  // Schema trimmed to drop typography.scale (~700 tokens — the
+  // Schema trimmed to drop typography.scale (~700 tokens, the
   // renderer falls back to default scales when absent) and
   // maxTokens dropped to 4500. Sonnet now lands the complete
   // remaining schema in 22-38s with comfortable margin under 60s.
@@ -972,7 +972,7 @@ ${briefText}`;
 }
 
 /**
- * analyseDeep — product architecture deep-dive (4000 tokens).
+ * analyseDeep, product architecture deep-dive (4000 tokens).
  * Returns: { techStack, features, userFlow }
  */
 export async function analyseDeep(briefText, projectTitle) {
@@ -999,9 +999,9 @@ Return JSON with these exact keys:
   "userFlow": [
     {
       "step": <number>,
-      "title": "<screen or action name — max 3 words>",
-      "action": "<what the user does on this screen — 1-2 sentences specific to this product>",
-      "outcome": "<what happens as a result — 1 sentence>",
+      "title": "<screen or action name, max 3 words>",
+      "action": "<what the user does on this screen, 1-2 sentences specific to this product>",
+      "outcome": "<what happens as a result, 1 sentence>",
       "branch": "<alternate path if applicable, empty string if none>"
     }
   ]
@@ -1038,14 +1038,14 @@ CRITICAL userFlow rules:
 Brief:
 ${briefText}`;
 
-  // Non-streaming (same reasoning as translateBrief — the streaming
+  // Non-streaming (same reasoning as translateBrief, the streaming
   // version was hanging in production). Button-triggered so the user
   // gets a visible spinner.
   return callJSON(system, user, 3000, 'brief_translation');
 }
 
 /**
- * generateSubtasks — generates specific subtasks for a gantt task.
+ * generateSubtasks, generates specific subtasks for a gantt task.
  * Always returns at least 4 items via hardcoded fallback.
  */
 export async function generateSubtasks(taskName, phaseName, projectTitle) {
@@ -1094,7 +1094,7 @@ Return ONLY the JSON, nothing else.`,
 }
 
 /**
- * fetchInspirations — searches for real design references.
+ * fetchInspirations, searches for real design references.
  * Returns: [{ name, url, why, category }]
  */
 export async function fetchInspirations(projectTitle, toneWords, moodboardKeywords) {
@@ -1116,22 +1116,22 @@ Return 6-8 high-quality, real references.`;
 // ─── Combined runners ─────────────────────────────────────────────────────────
 
 /**
- * translateAndAnalyse — runs score → translate + analyse in parallel.
+ * translateAndAnalyse, runs score → translate + analyse in parallel.
  * Returns: { scoreData, finalResult }
  */
 export async function translateAndAnalyse(briefText, opts = {}) {
   // Four calls in parallel:
-  //   scoreBrief             — 800 tokens,  ~5s
-  //   translateBriefCore     — 2200 tokens, ~15s (visual brief)
-  //   translateBriefPlanning — 2200 tokens, ~15s (budget/team/voice)
-  //   analyseDeep            — 4000 tokens, ~20s (techStack + features + userFlow)
+  //   scoreBrief            , 800 tokens,  ~5s
+  //   translateBriefCore    , 2200 tokens, ~15s (visual brief)
+  //   translateBriefPlanning, 2200 tokens, ~15s (budget/team/voice)
+  //   analyseDeep           , 4000 tokens, ~20s (techStack + features + userFlow)
   //
   // translateBrief() wraps Core+Planning with Promise.all internally,
   // so this outer Promise.all fans out three independent network round
   // trips. Wall time is bounded by the slowest single call (~20-25s).
   //
   // The Vercel 60s ceiling that used to force deep analysis behind a
-  // button is gone now that the backend runs on Render — so deep is
+  // button is gone now that the backend runs on Render, so deep is
   // bundled back into the default translation flow. Callers that want
   // to skip deep (cheap one-off scoring without the techStack cost)
   // can still pass `{ deep: false }`.
@@ -1201,7 +1201,7 @@ export async function translateAndAnalyse(briefText, opts = {}) {
 }
 
 /**
- * runDeepAnalysis — on-demand deep technical breakdown. Returns the
+ * runDeepAnalysis, on-demand deep technical breakdown. Returns the
  * techStack / features / userFlow trio that used to be bundled into
  * translateAndAnalyse. Caller is responsible for credit deduction +
  * merging the result back into the brief.
@@ -1216,7 +1216,7 @@ export async function runDeepAnalysis(briefText, projectTitle) {
 }
 
 /**
- * generateKanban — generates role-assigned task board.
+ * generateKanban, generates role-assigned task board.
  * Returns: { tasks, projectTimeline, unassignedTasks, missingRoles }
  */
 export async function generateKanban(briefText, projectTitle, teamMembers = [], briefData = null) {
@@ -1304,7 +1304,7 @@ export async function generateKanban(briefText, projectTitle, teamMembers = [], 
 }
 
 /**
- * generateTeamRoles — analyses brief and suggests team composition.
+ * generateTeamRoles, analyses brief and suggests team composition.
  * Returns: { suggestedRoles[], roleReasoning, projectTitle, isChaos, chaosNote }
  */
 export async function generateTeamRoles(briefText) {
@@ -1334,14 +1334,14 @@ export async function generateTeamRoles(briefText) {
 }
 
 /**
- * handleFollowUp — multi-turn chat for kanban board updates.
+ * handleFollowUp, multi-turn chat for kanban board updates.
  * Returns: { displayReply, boardUpdate }
  * boardUpdate is null or a parsed update object.
  */
 export async function handleFollowUp(message, kanban, teamMembers, projectTitle, history) {
   const taskSummary = (kanban?.tasks || [])
     .map(t => '[' + t.column + '] ' + t.title +
-              ' — ' + t.assignedRole +
+              ', ' + t.assignedRole +
               ' (' + t.priority + ')')
     .join('\n');
 
@@ -1384,14 +1384,14 @@ export async function handleFollowUp(message, kanban, teamMembers, projectTitle,
       catch (e) { boardUpdate = null; }
     }
   } catch (e) {
-    displayReply = e?.message || 'Something interrupted the AI. Your work is safe — please try again.'
+    displayReply = e?.message || 'Something interrupted the AI. Your work is safe, please try again.'
   }
 
   return { displayReply, boardUpdate };
 }
 
 /**
- * analyseCompetitors — analyses competitors using Claude (no web search).
+ * analyseCompetitors, analyses competitors using Claude (no web search).
  * Returns: [{ name, url, category, description, strengths[], weakness, differentiator, marketShare, pricing, rating, userBase }]
  */
 export async function analyseCompetitors(projectTitle, industry, toneWords = [], briefText = '') {
@@ -1401,7 +1401,7 @@ export async function analyseCompetitors(projectTitle, industry, toneWords = [],
     industry,
     (toneWords || []).join(', '),
     briefText ? briefText.slice(0, 500) : '',
-  ].filter(Boolean).join(' — ')
+  ].filter(Boolean).join(', ')
 
   const system = `You are a market research analyst with deep knowledge of competitive landscapes. Respond ONLY with a valid JSON array. No markdown, no code fences.`
   const user = `Analyse competitors for this project: "${context}".
@@ -1415,7 +1415,7 @@ Return a JSON array of 4-5 real, well-known competitors in this exact shape:
   "strengths": ["<strength 1>", "<strength 2>"],
   "weakness": "<one notable weakness>",
   "differentiator": "<how this project can stand out vs this competitor>",
-  "marketShare": "<e.g. 'Large – 40%+' or 'Medium – 10-20%' or 'Small – <5%'>",
+  "marketShare": "<e.g. 'Large-40%+' or 'Medium-10-20%' or 'Small-<5%'>",
   "pricing": "<e.g. 'Freemium', '$10-50/mo', 'Enterprise', 'Free'>",
   "rating": <1-5 integer based on overall market reputation>,
   "userBase": "<e.g. '10M+ users', 'Enterprise-focused', 'SMBs'>"}]`
@@ -1425,7 +1425,7 @@ Return a JSON array of 4-5 real, well-known competitors in this exact shape:
 }
 
 /**
- * processIntakeSubmission — converts raw client intake into a full brief document.
+ * processIntakeSubmission, converts raw client intake into a full brief document.
  * Returns complete brief document from translateAndAnalyse.
  */
 export async function processIntakeSubmission(intakeData) {

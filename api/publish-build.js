@@ -1,12 +1,12 @@
 // ────────────────────────────────────────────────────────────────────
-// /api/publish-build — finishes the AI Builder flow.
+// /api/publish-build, finishes the AI Builder flow.
 //
 // Body (POST):
 //   { build_id, slug, html, seo_title?, meta_description? }
 //
 // What it does:
 //   1. Verifies caller owns the build.
-//   2. Verifies slug is unique (server-side defence-in-depth — the
+//   2. Verifies slug is unique (server-side defence-in-depth, the
 //      client already checks, but two tabs could race).
 //   3. Uploads the assembled HTML to the public `ai-builds` Storage
 //      bucket at `<build_id>/index.html`.
@@ -164,7 +164,7 @@ export default async function handler(req, res) {
 // ─── Vercel deploy helper (stubbed until env is configured) ────────
 // Deploys a single index.html to the configured Vercel project. The
 // canonical URL `<slug>.designbrief.app` requires the wildcard domain
-// to be attached to that project — Vercel honours the alias once that
+// to be attached to that project, Vercel honours the alias once that
 // is in place. If alias attachment fails we still return the
 // `.vercel.app` URL the deployment got.
 async function deployToVercel({ slug, html, seoTitle, metaDescription }) {
@@ -200,7 +200,7 @@ async function deployToVercel({ slug, html, seoTitle, metaDescription }) {
     : null
 
   // 2. Best-effort alias to <slug>.designbrief.app. Skipped if the
-  //    wildcard isn't attached to the project — the fallback URL
+  //    wildcard isn't attached to the project, the fallback URL
   //    still works.
   const aliasTarget = `${slug}.designbrief.app`
   try {

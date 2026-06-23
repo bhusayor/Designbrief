@@ -50,7 +50,7 @@ export default function SuccessIllustration() {
         </g>
       </g>
 
-      {/* Confetti burst — each particle carries its own direction
+      {/* Confetti burst, each particle carries its own direction
           via inline --tx / --ty custom properties consumed by the
           keyframe's translate(). */}
       <circle cx="60" cy="58" r="5"   fill="#8B5CF6"             className="success-confetti" style={{ '--tx': '-30px', '--ty': '-25px', animationDelay: '0.6s' }} />

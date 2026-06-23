@@ -24,7 +24,7 @@ export default function TasksIllustration() {
         `}</style>
       </defs>
 
-      {/* Column 1 — To Do */}
+      {/* Column 1, To Do */}
       <g>
         <rect x="8" y="24" width="30" height="80" rx="8" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.3" className="task-col-draw" />
         <circle cx="16" cy="32" r="3" fill="rgba(139,92,246,0.4)" />
@@ -40,7 +40,7 @@ export default function TasksIllustration() {
         </g>
       </g>
 
-      {/* Column 2 — In Progress */}
+      {/* Column 2, In Progress */}
       <g>
         <rect x="45" y="24" width="30" height="80" rx="8" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.3" className="task-col-draw" style={{ animationDelay: '0.2s' }} />
         <circle cx="53" cy="32" r="3" fill="rgba(139,92,246,0.6)" />
@@ -52,7 +52,7 @@ export default function TasksIllustration() {
         </g>
       </g>
 
-      {/* Column 3 — Done */}
+      {/* Column 3, Done */}
       <g>
         <rect x="82" y="24" width="30" height="80" rx="8" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.3" className="task-col-draw" style={{ animationDelay: '0.4s' }} />
         <circle cx="90" cy="32" r="3" fill="rgba(34,197,94,0.6)" />

@@ -1,7 +1,7 @@
 // Clock face with rotating hands (24s hour, 6s minute) and three
 // document cards orbiting at 120° offsets. Tick marks generated
 // programmatically. Original spec had `x="51" cy="14"` then `x="51" y="14"`
-// on one rect — the dup `x` + stray `cy` are fixed here.
+// on one rect, the dup `x` + stray `cy` are fixed here.
 export default function HistoryIllustration() {
   const ticks = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
 

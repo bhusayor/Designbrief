@@ -115,7 +115,7 @@ function ProjectCard({ item, onClick }) {
     discLabel = 'Brief';
   }
 
-  // Proximity handles scale/lift now — only the border-color hover
+  // Proximity handles scale/lift now, only the border-color hover
   // is wired here so we don't fight the dock effect.
   function handleEnter(e) {
     e.currentTarget.style.borderColor = 'var(--color-border-hover)';
@@ -138,7 +138,7 @@ function ProjectCard({ item, onClick }) {
         cursor: 'pointer',
         transition: 'border-color 0.2s',
         // height: 100% so every card in a row stretches to the row's
-        // tallest sibling — equal-height grid cards.
+        // tallest sibling, equal-height grid cards.
         height: '100%',
         boxSizing: 'border-box',
         display: 'flex', flexDirection: 'column', gap: '10px',
@@ -173,7 +173,7 @@ function ProjectCard({ item, onClick }) {
         </div>
       </div>
 
-      {/* Single discipline tag — what kind of work this brief is. */}
+      {/* Single discipline tag, what kind of work this brief is. */}
       <div>
         <span style={{
           display: 'inline-block',
@@ -298,7 +298,7 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
   const triggerRef = useRef(null);
 
   // Position is computed synchronously in toggleMenu() (below) so
-  // the popover has coords on its FIRST render — useEffect would
+  // the popover has coords on its FIRST render, useEffect would
   // have introduced an empty frame where menuOpen=true but
   // menuPosition was still null, which on some browsers + render
   // schedules made the menu invisible after the click.
@@ -319,7 +319,7 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
     }
     const rect = triggerRef.current?.getBoundingClientRect();
     // Default to top-left of viewport if we somehow don't have a
-    // rect — the menu still renders + the designer at least sees
+    // rect, the menu still renders + the designer at least sees
     // it open. Without this fallback a null rect would keep the
     // portal from rendering at all.
     if (rect) {
@@ -451,13 +451,13 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
         </div>
       )}
 
-      {/* Meta stats row — iconified glanceable data:
+      {/* Meta stats row, iconified glanceable data:
           questions count, submissions count, open count,
           flag count, expiry. Each chip has an icon so the row
           reads even when scanned quickly. */}
       <MetaStatsRow form={form} submission={submission} />
 
-      {/* Status indicator — pipeline-aware: Draft / Awaiting /
+      {/* Status indicator, pipeline-aware: Draft / Awaiting /
           Processing / Ready / Approved / Failed */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12,
@@ -496,10 +496,10 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
       </div>
 
       {/* Action buttons row.
-          Primary (filled) — varies by state. Review brief when
+          Primary (filled), varies by state. Review brief when
           ready; otherwise the most useful follow-up action.
-          Secondary (icon-only) — Open public form in a new tab.
-          Ellipsis menu — Copy link / Open public / Delete. */}
+          Secondary (icon-only), Open public form in a new tab.
+          Ellipsis menu, Copy link / Open public / Delete. */}
       <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
         {isReady ? (
           <button onClick={() => onView(form)} style={primaryBtn} title="Review the translated brief">
@@ -531,7 +531,7 @@ function IntakeFormCard({ form, onView, onCopyLink, onOpenPublic, onDelete, onRe
           </button>
         )}
 
-        {/* Menu trigger — the more button. Hidden entirely when
+        {/* Menu trigger, the more button. Hidden entirely when
             `hideMenu` is set (Expired column doesn't surface a
             menu because the Renew primary CTA is the only useful
             action and a styled modal owns the rest). */}
@@ -642,7 +642,7 @@ const secondaryBtn = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
   whiteSpace: 'nowrap',
 };
-// Label wrapper — kept as a plain span. Buttons never truncate
+// Label wrapper, kept as a plain span. Buttons never truncate
 // their labels now; the column is sized to fit the longest label.
 const btnLabel = {
   whiteSpace: 'nowrap',
@@ -748,12 +748,12 @@ function CardMenu({ form, submission, progress, onCopyLink, onOpenPublic, onView
   // ── In Progress: a deliberately tight menu ─────────────────────
   // While the pipeline is running the designer is just waiting. The
   // only actions that earn their slot:
-  //   Email client — opens a preloaded "got your form, working on
+  //   Email client, opens a preloaded "got your form, working on
   //                  the brief now" mailto so the designer can fire
   //                  a quick reassurance in one click.
-  //   Delete form  — cancel + remove if the submission was sent in
+  //   Delete form , cancel + remove if the submission was sent in
   //                  error or no longer wanted.
-  // Open public form + Extend expiry are deliberately omitted — the
+  // Open public form + Extend expiry are deliberately omitted, the
   // form's been filled, the link is already alive; previewing or
   // extending isn't useful in this state.
   if (progress?.tone === 'accent') {
@@ -839,7 +839,7 @@ function buildMailtoForState(email, form, submission, progress) {
 }
 
 // Awaiting Client mailto. The form is published but the client
-// hasn't filled it yet — pre-fill a gentle reminder with the
+// hasn't filled it yet, pre-fill a gentle reminder with the
 // share link inline so it lands ready to send.
 function buildAwaitingMailto(email, form, submission) {
   const firstName = pickFirstName(form, submission);
@@ -851,7 +851,7 @@ function buildAwaitingMailto(email, form, submission) {
   const body = [
     `Hi ${firstName},`,
     '',
-    `Just checking in — did you get a chance to fill out the project intake form${business ? ` for ${business}` : ''}?`,
+    `Just checking in, did you get a chance to fill out the project intake form${business ? ` for ${business}` : ''}?`,
     '',
     "It takes a few minutes and helps me put together a brief that actually reflects what you're trying to build.",
     '',
@@ -874,7 +874,7 @@ function buildExpiredMailto(email, form, submission) {
   const body = [
     `Hi ${firstName},`,
     '',
-    'Quick heads up — the original intake link has expired.',
+    'Quick heads up, the original intake link has expired.',
     '',
     `I'll send a fresh link${business ? ` for ${business}` : ''} in a follow-up. Should only take a moment.`,
     '',
@@ -939,7 +939,7 @@ function buildMailto(email, subject, body) {
 // markup.
 function renderMenu(items) {
   // Defensively skip any item whose icon is falsy (undefined /
-  // null) — JSX would otherwise blow up with "type is invalid" on
+  // null), JSX would otherwise blow up with "type is invalid" on
   // an empty component reference. We DON'T type-check icon against
   // 'function' because Heroicons are forwardRef components (typeof
   // === 'object'); the previous version of this filter accidentally
@@ -952,7 +952,7 @@ function renderMenu(items) {
       style={{
         // Positioned by the portal wrapper (fixed coords). This
         // element just renders the styled popover inside that
-        // wrapper — no own positioning.
+        // wrapper, no own positioning.
         minWidth: 180,
         background: 'var(--color-card)',
         border: '1px solid var(--color-border)',
@@ -1007,7 +1007,7 @@ function deriveIntakeProgress(form, submission) {
 
   // Computed-expired check. Honoured ONLY when the brief isn't
   // already done (translated/approved). A ready brief is the
-  // useful artefact — link expiry doesn't take that away from the
+  // useful artefact, link expiry doesn't take that away from the
   // designer; we leave it in Ready to Review and let the
   // submission state win.
   const linkExpired = form?.status === 'expired'
@@ -1020,7 +1020,7 @@ function deriveIntakeProgress(form, submission) {
   const subStatus = String(submission?.status || '').toLowerCase();
   // Status is the authoritative signal here. We dropped
   // translated_result from the list query (it's a heavy JSONB blob)
-  // so the card no longer infers readiness from its presence —
+  // so the card no longer infers readiness from its presence -
   // status='complete' is set by the pipeline AFTER it writes the
   // translated_result, so this check is equivalent.
   if (submission && (subStatus === 'complete' || subStatus === 'completed')) {
@@ -1187,7 +1187,7 @@ export default function ProjectLibrary() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intakeForms, activeTab])
 
-  // macOS-dock proximity for project cards — scale + tilt only. The
+  // macOS-dock proximity for project cards, scale + tilt only. The
   // box-shadow glow + cursor spotlight were polarising, so cards just
   // magnetise quietly on hover now.
   useProximity('.project-card', {
@@ -1239,7 +1239,7 @@ export default function ProjectLibrary() {
       return;
     }
 
-    // Nothing to view yet — the form is still awaiting the client
+    // Nothing to view yet, the form is still awaiting the client
     // or mid-processing. Toast and stay put.
     showToast?.('Brief is not ready yet.', 'success');
   }
@@ -1257,7 +1257,7 @@ export default function ProjectLibrary() {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
-  // Card-level handler — opens the styled RenewExpiryModal.
+  // Card-level handler, opens the styled RenewExpiryModal.
   // The actual supabase update runs in confirmRenewExpiry(days)
   // after the user picks a duration and hits Renew.
   function handleRenewExpiry(form) {
@@ -1360,7 +1360,7 @@ export default function ProjectLibrary() {
           recipients: [email],
           subject: `Your project intake for ${business}`,
           body: form.branding?.welcome_message
-            || `Hi, I've put together a short intake form to capture the shape of ${business}. Click the button below to fill it out — takes a few minutes.`,
+            || `Hi, I've put together a short intake form to capture the shape of ${business}. Click the button below to fill it out, takes a few minutes.`,
           mode: 'invite',
         }),
       });
@@ -1408,7 +1408,7 @@ export default function ProjectLibrary() {
     }
   }
 
-  // Card-level handler — opens the styled ConfirmDeleteModal.
+  // Card-level handler, opens the styled ConfirmDeleteModal.
   // The actual delete runs in confirmDeleteForm() when the user
   // hits the destructive button.
   function handleDeleteForm(form) {
@@ -1483,7 +1483,7 @@ export default function ProjectLibrary() {
           <div style={{ textAlign: isMobile ? 'center' : 'left' }}>
             <h1 style={{
               fontFamily: "'Urbanist', sans-serif", fontWeight: 800,
-              // Fluid heading — scales smoothly from 22px (mobile)
+              // Fluid heading, scales smoothly from 22px (mobile)
               // through tablet to 30px (large desktop) instead of
               // a hard step at one breakpoint.
               fontSize: 'clamp(22px, 3vw, 30px)',
@@ -1505,7 +1505,7 @@ export default function ProjectLibrary() {
             )}
           </div>
 
-          {/* Search — only on projects tab */}
+          {/* Search, only on projects tab */}
           {activeTab === 'projects' && history.length > 0 && (
             <div style={{ position: 'relative', width: isMobile ? '100%' : '240px' }}>
               <MagnifyingGlassIcon
@@ -1534,7 +1534,7 @@ export default function ProjectLibrary() {
           )}
         </div>
 
-        {/* Tab bar — overflow-x: auto + nowrap so the tabs scroll
+        {/* Tab bar, overflow-x: auto + nowrap so the tabs scroll
             horizontally instead of wrapping when the viewport (or
             tab list) is narrow. scrollbarWidth: thin keeps the
             scrollbar subtle. */}
@@ -1645,7 +1645,7 @@ export default function ProjectLibrary() {
               const hidden = isFree ? filtered.slice(HISTORY_CAP) : []
               const gridStyle = {
                 display: 'grid',
-                // Fully fluid grid — `auto-fill` packs in as many
+                // Fully fluid grid, `auto-fill` packs in as many
                 // 260px-minimum columns as the container can hold
                 // and stretches each to its equal share. No hard
                 // breakpoints, no awkward gaps at intermediate
@@ -1746,7 +1746,7 @@ export default function ProjectLibrary() {
           // Two layout modes for the intake board:
           //   Desktop (≥1024px): 4-column CSS grid (every column
           //     visible at once, no scroll).
-          //   Tablet + mobile (<1024px): horizontal swipe — flex
+          //   Tablet + mobile (<1024px): horizontal swipe, flex
           //     row with overflow-x: auto + per-column scroll-snap
           //     so each column locks into view as the user swipes.
           //     Columns get a fixed width so they don't collapse;
@@ -1757,14 +1757,14 @@ export default function ProjectLibrary() {
           // for its content; the swipe board's own overflow-x
           // handles bringing every column into view via horizontal
           // scroll. The whole board's total width = sum of column
-          // widths + gaps and freely exceeds the viewport — only
+          // widths + gaps and freely exceeds the viewport, only
           // the inner swipe scroller moves, so the page itself
           // never gets a horizontal scrollbar.
-          //   Tablet — 540px: each card has ~508px of usable width
+          //   Tablet, 540px: each card has ~508px of usable width
           //                   after padding. Comfortable for long
           //                   business names + every chip + the
           //                   full button label.
-          //   Mobile — 340px: phone-sized; still gives the card
+          //   Mobile, 340px: phone-sized; still gives the card
           //                   enough room to breathe.
           const columnWidth = isMobile ? 340 : 540;
           const sharedColumnProps = {
@@ -1803,7 +1803,7 @@ export default function ProjectLibrary() {
                   // Flex row that horizontally scrolls when its
                   // children (the columns) overflow. Total board
                   // width = sum of column widths + gaps, freely
-                  // exceeds the viewport — the page padding gives
+                  // exceeds the viewport, the page padding gives
                   // the visible window. overflow-x: auto on this
                   // element makes the inner row scroll, NOT the
                   // page. (Outer page wrapper has overflow-x:
@@ -1889,7 +1889,7 @@ export default function ProjectLibrary() {
         onConfirm={confirmDeleteForm}
       />
 
-      {/* Renew expiry — styled modal with preset durations.
+      {/* Renew expiry, styled modal with preset durations.
           Replaces the previous window.prompt() that fired from the
           Expired card's primary CTA. */}
       <RenewExpiryModal

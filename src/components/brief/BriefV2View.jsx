@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// BriefV2View — renders the 21-item brief framework.
+// BriefV2View, renders the 21-item brief framework.
 //
 // 5 sections, 21 cards. Each card shows its global item number, its
 // title, and the AI-generated content rendered through a shape-
@@ -57,7 +57,7 @@ export default function BriefV2View({
   // current decision state. Used by the public /review/<token> page.
   sectionDecisions = null,
   onSectionDecision = null,
-  // Revision props — designer-side only. When onRevise is provided,
+  // Revision props, designer-side only. When onRevise is provided,
   // the action bar gets a "Revise" button; when result.revisions[]
   // has entries, a tab strip below the hero lets the designer flip
   // between versions. onRestore is called when the designer hits
@@ -83,7 +83,7 @@ export default function BriefV2View({
 
   // Compute the "displayed" sections/designSystem/score based on
   // viewedVersion. Latest reads off result; otherwise we pluck from
-  // the revisions[] history. This is purely render-time — the
+  // the revisions[] history. This is purely render-time, the
   // underlying result state never changes from a tab switch.
   const viewedSnap = viewedVersion === 'latest'
     ? null
@@ -142,16 +142,16 @@ export default function BriefV2View({
     <div className="brief-v2-root">
       <ResponsiveStyles />
 
-      {/* Top tab bar removed — the brief reads as a single flowing
+      {/* Top tab bar removed, the brief reads as a single flowing
           document now; the natural section-glyph headers serve as
           jump targets via scroll. */}
 
       <div className="brief-v2-layout">
-        {/* Translation map sidebar removed — designers can use the
+        {/* Translation map sidebar removed, designers can use the
             tablet tab bar at the top for jumping between sections,
             and the page scrolls naturally for everything else. */}
 
-        {/* Main column — sections + cards (now full-width) */}
+        {/* Main column, sections + cards (now full-width) */}
         <main className="brief-v2-main">
           {displayedProjectTitle && (
             <header className="brief-v2-hero">
@@ -173,7 +173,7 @@ export default function BriefV2View({
             </header>
           )}
 
-          {/* Version tab strip — only when there's at least one
+          {/* Version tab strip, only when there's at least one
               older snapshot to compare against. Latest tab is left;
               older versions stack to the right, newest first. */}
           {revisions.length > 0 && (
@@ -185,7 +185,7 @@ export default function BriefV2View({
             />
           )}
 
-          {/* Pending client feedback banner — only on the latest
+          {/* Pending client feedback banner, only on the latest
               tab so the designer doesn't see it while inspecting
               old versions. Surfaces the client's note + a Revise CTA. */}
           {!isViewingOldVersion && pendingReviewNote && onRevise && (
@@ -196,7 +196,7 @@ export default function BriefV2View({
             />
           )}
 
-          {/* Revision meta banner — shown on the latest tab when the
+          {/* Revision meta banner, shown on the latest tab when the
               brief has been revised, so designer can see what the
               latest revision was about. */}
           {!isViewingOldVersion && result?.revisionMeta?.status === 'complete' && result.revisionMeta.feedback && (
@@ -210,7 +210,6 @@ export default function BriefV2View({
           {showCompletionBanner && allDone && !isViewingOldVersion && (
             <CompletionBanner
               onShareReview={() => setShareOpen(true)}
-              onRevise={onRevise ? () => onRevise() : null}
               reviewStatus={result?.review?.status}
               onBuildBoard={onBuildBoard}
               onExportPdf={onExportPdf}
@@ -289,7 +288,7 @@ export default function BriefV2View({
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Section header — circular section icon + title chip
+// Section header, circular section icon + title chip
 // ────────────────────────────────────────────────────────────────────
 const SECTION_GLYPHS = {
   understand:  '01',
@@ -324,7 +323,7 @@ function SectionHeader({ index, label, sectionId }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// SectionReviewBar — Approve / Request changes UI rendered under
+// SectionReviewBar, Approve / Request changes UI rendered under
 // each section header on the public client review page.
 //
 // States:
@@ -403,7 +402,7 @@ function SectionReviewBar({ sectionId, decision, onDecide }) {
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. The audience description is too broad — we only target independent designers."
+          placeholder="e.g. The audience description is too broad, we only target independent designers."
           rows={3}
           autoFocus
           disabled={submitting}
@@ -465,7 +464,7 @@ function BriefCard({ item }) {
   const isLoading = item.content === null || item.content === undefined
   const isError   = item.content && typeof item.content === 'object' && item.content.__error === true
   // Rich/wide shapes get a full-row card. The colour palette, type
-  // system, and moodboard refs also need the breathing room — added
+  // system, and moodboard refs also need the breathing room, added
   // here so the grid has a clear 2-up-then-stack rhythm.
   const isFullWidth =
     item.shape === 'rows' ||
@@ -559,7 +558,7 @@ function BrandPersonalityContent({ value }) {
 // The prompt asks for a single string that looks like:
 //   "Confident and warm. Never feel like: corporate or sterile."
 // We split on "Never feel like:" so we can render the positive
-// register and the wrong register as two separated bands — much
+// register and the wrong register as two separated bands, much
 // easier to scan than a single sentence with a "but…" buried in it.
 function ToneMoodContent({ value }) {
   const raw = String(value || '').trim()
@@ -578,7 +577,7 @@ function ToneMoodContent({ value }) {
         <span className="brief-v2-tone-icon" aria-hidden>✓</span>
         <div>
           <div className="brief-v2-tone-label">Feels like</div>
-          <div className="brief-v2-tone-text">{feels || '—'}</div>
+          <div className="brief-v2-tone-text">{feels || '-'}</div>
         </div>
       </div>
       {never && (
@@ -614,7 +613,7 @@ function BriefScoreBadge({ score }) {
         <span className="brief-v2-score-num">{n}</span>
         <span className="brief-v2-score-meta">
           <span className="brief-v2-score-label">Brief score</span>
-          <span className="brief-v2-score-rating">{score.rating || '—'}</span>
+          <span className="brief-v2-score-rating">{score.rating || '-'}</span>
         </span>
       </button>
       {open && (
@@ -647,7 +646,7 @@ function BriefScoreBadge({ score }) {
 
 // ── Text ────────────────────────────────────────────────────────────
 function TextContent({ value }) {
-  return <p className="brief-v2-text">{String(value || '').trim() || '—'}</p>
+  return <p className="brief-v2-text">{String(value || '').trim() || '-'}</p>
 }
 
 // ── Plain bulleted list ────────────────────────────────────────────
@@ -678,11 +677,11 @@ function RowsContent({ value }) {
           <div key={i} className="brief-v2-row">
             <div className="brief-v2-row-cell">
               <span className="brief-v2-row-label">Asked</span>
-              <span className="brief-v2-row-value">{r.left || '—'}</span>
+              <span className="brief-v2-row-value">{r.left || '-'}</span>
             </div>
             <div className="brief-v2-row-cell brief-v2-row-cell-right">
               <span className="brief-v2-row-label">Need</span>
-              <span className="brief-v2-row-value">{r.right || '—'}</span>
+              <span className="brief-v2-row-value">{r.right || '-'}</span>
             </div>
           </div>
         ))}
@@ -702,7 +701,7 @@ function BadgedListContent({ value, statuses }) {
         const variant = statusVariant(status)
         return (
           <li key={i} className={`brief-v2-badged-row brief-v2-badged-${variant}`}>
-            <span className="brief-v2-badged-text">{it.text || '—'}</span>
+            <span className="brief-v2-badged-text">{it.text || '-'}</span>
             <span className={`brief-v2-badge brief-v2-badge-${variant}`}>{status}</span>
           </li>
         )
@@ -802,7 +801,7 @@ function RolesContent({ value }) {
           {rows.map(([label, val]) => (
             <li key={label}>
               <span className="brief-v2-roles-label">{label}</span>
-              <span className="brief-v2-roles-value">{val || '—'}</span>
+              <span className="brief-v2-roles-value">{val || '-'}</span>
             </li>
           ))}
         </ul>
@@ -958,7 +957,7 @@ function LevelsContent({ value }) {
           {rows.map(([lab, val]) => (
             <li key={lab}>
               <span className="brief-v2-roles-label">{lab}</span>
-              <span className="brief-v2-roles-value">{val || '—'}</span>
+              <span className="brief-v2-roles-value">{val || '-'}</span>
             </li>
           ))}
         </ul>
@@ -1064,7 +1063,7 @@ function FontFamilyCard({ role, font }) {
         {family}
       </div>
       <div className="brief-v2-type-card-meta">
-        {weights.length ? weights.join(' / ') : '—'}{font.tracking ? ` · ${font.tracking}` : ''}
+        {weights.length ? weights.join(' / ') : '-'}{font.tracking ? ` · ${font.tracking}` : ''}
       </div>
       {font.notes && <div className="brief-v2-type-card-notes">{font.notes}</div>}
     </div>
@@ -1083,7 +1082,7 @@ function sampleFor(token) {
 
 function isObj(x) { return x && typeof x === 'object' && !Array.isArray(x) }
 
-// Google Fonts injection — one <link> per family, cached so a
+// Google Fonts injection, one <link> per family, cached so a
 // re-render doesn't spam duplicates. Weights collapse to a single
 // wght axis request.
 const _injectedFonts = new Set()
@@ -1144,7 +1143,7 @@ function CompetitorsContent({ value }) {
         {list.map((c, i) => (
           <li key={i} className="brief-v2-competitor">
             <div className="brief-v2-competitor-head">
-              <span className="brief-v2-competitor-name">{c.name || '—'}</span>
+              <span className="brief-v2-competitor-name">{c.name || '-'}</span>
               {c.url && (
                 <a
                   href={c.url}
@@ -1206,7 +1205,7 @@ function CompetitorMatrix({ list }) {
               <th></th>
               {list.map((c, i) => (
                 <th key={i}>
-                  <div className="brief-v2-comp-matrix-name">{c.name || '—'}</div>
+                  <div className="brief-v2-comp-matrix-name">{c.name || '-'}</div>
                   {c.url && (
                     <a
                       href={c.url}
@@ -1224,7 +1223,7 @@ function CompetitorMatrix({ list }) {
               <tr key={r.key}>
                 <th scope="row">{r.label}</th>
                 {list.map((c, i) => (
-                  <td key={i}>{c[r.key] || '—'}</td>
+                  <td key={i}>{c[r.key] || '-'}</td>
                 ))}
               </tr>
             ))}
@@ -1246,7 +1245,7 @@ function prettyHost(url) {
 function MoodboardContent({ value }) {
   // Backwards-compatible: old shape was a plain string.
   if (typeof value === 'string') {
-    return <p className="brief-v2-text">{value.trim() || '—'}</p>
+    return <p className="brief-v2-text">{value.trim() || '-'}</p>
   }
   const v = value || {}
   const refs = Array.isArray(v.references) ? v.references : []
@@ -1561,7 +1560,7 @@ function visualLines(v) {
 }
 
 // ── Completion banner ──────────────────────────────────────────────
-function CompletionBanner({ onBuildBoard, onExportPdf, onShareReview, onRevise, reviewStatus, designSystemBuilding }) {
+function CompletionBanner({ onBuildBoard, onExportPdf, onShareReview, reviewStatus, designSystemBuilding }) {
   const shareLabel = reviewStatus === 'pending'
     ? 'Review pending'
     : reviewStatus === 'changes_requested'
@@ -1573,16 +1572,11 @@ function CompletionBanner({ onBuildBoard, onExportPdf, onShareReview, onRevise, 
         <div className="brief-v2-banner-title">Translation ready</div>
         <div className="brief-v2-banner-sub">
           {designSystemBuilding
-            ? 'Compiling design system from items 12-17…'
-            : 'Send to your client for sign-off, revise with feedback, or build the board.'}
+            ? 'Compiling design system from items 12 to 17.'
+            : 'Send to your client for sign-off, or build the board.'}
         </div>
       </div>
       <div className="brief-v2-banner-actions">
-        {onRevise && (
-          <button onClick={onRevise} className="brief-v2-banner-btn brief-v2-banner-btn-quiet">
-            <SparklesIconInline /> Revise
-          </button>
-        )}
         {onShareReview && (
           <button onClick={onShareReview} className="brief-v2-banner-btn brief-v2-banner-btn-quiet">
             <ShareIcon style={{ width: 14, height: 14 }} /> {shareLabel}
@@ -1612,7 +1606,7 @@ function SparklesIconInline() {
 // Shows tabs for every snapshot in revisions[] plus a Latest tab.
 // Newest old version sits closest to Latest; Original ends up at
 // the far right. Each old-version tab includes a Restore link that
-// fires onRestore(snapshotId) — promotes that snapshot back to
+// fires onRestore(snapshotId), promotes that snapshot back to
 // Latest so the designer can roll back from a bad AI revision.
 function VersionTabStrip({ revisions, viewedVersion, onSelect, onRestore }) {
   // Newest first (after Latest), so Original lands at the end.
@@ -1702,7 +1696,7 @@ function RevisionMetaBanner({ meta }) {
   )
 }
 
-// ── Approved banner — shown when client clicks Approve ─────────────
+// ── Approved banner, shown when client clicks Approve ─────────────
 function ApprovedBanner({ review }) {
   const when = review?.approved_at
     ? new Date(review.approved_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -1744,7 +1738,7 @@ function safeJsonString(v) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Responsive styles — single <style> block. Reuses CSS variables
+// Responsive styles, single <style> block. Reuses CSS variables
 // (var(--color-…)) that the app already exposes globally, so this
 // participates in light/dark themes without extra wiring.
 // ────────────────────────────────────────────────────────────────────
@@ -1757,10 +1751,10 @@ function ResponsiveStyles() {
         color: var(--color-text);
       }
 
-      /* Top tab bar removed — no styles needed. */
+      /* Top tab bar removed, no styles needed. */
 
       .brief-v2-layout {
-        /* Full-width single column — the Translation map sidebar
+        /* Full-width single column, the Translation map sidebar
            was removed in favour of the tablet tab bar + natural
            scroll. The brief card grid below still self-organises
            into 2 columns ≥1024 via .brief-v2-cards. */

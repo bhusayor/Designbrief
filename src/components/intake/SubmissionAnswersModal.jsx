@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// SubmissionAnswersModal — view raw client answers for an intake
+// SubmissionAnswersModal, view raw client answers for an intake
 // submission. Used from the Project Library's:
 //
 //   - "View submission" action on In Progress cards (peek while the

@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { MODAL } from '../lib/motion'
 
 // ────────────────────────────────────────────────────────────────────
-// MotionModal — drop-in modal wrapper. Use it for new modals — the
+// MotionModal, drop-in modal wrapper. Use it for new modals, the
 // existing ones can stay on their own keyframe animations for now.
 //
 //   <MotionModal isOpen={open} onClose={close} maxWidth={520}>

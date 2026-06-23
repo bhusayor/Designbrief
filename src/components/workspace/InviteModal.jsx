@@ -227,7 +227,7 @@ export default function InviteModal({ onClose }) {
           </button>
         </div>
 
-        {/* ── Invite input — always visible ── */}
+        {/* ── Invite input, always visible ── */}
         <div style={{
           padding: '14px 24px',
           borderBottom: '1px solid var(--color-border)',

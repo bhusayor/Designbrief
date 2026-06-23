@@ -109,7 +109,7 @@ export default function AgencyDeckRenderer({ result }) {
                   {item.font || 'Inter'}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                  Aa Bb Cc — The quick brown fox jumps
+                  Aa Bb Cc, The quick brown fox jumps
                 </div>
               </div>
             ))}

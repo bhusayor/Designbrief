@@ -11,7 +11,7 @@ import {
 import { labelStyle, axisLabel } from '../lib/chartUtils'
 
 /**
- * BriefTranslator — view-only page for saved history items.
+ * BriefTranslator, view-only page for saved history items.
  * New translations happen on the Dashboard.
  * If no matching activeChat, redirects to dashboard.
  */
@@ -62,7 +62,7 @@ export default function BriefTranslator() {
     const r = result
     const s = scoring
     const lines = [
-      `TRANSLATED BRIEF — ${r.projectTitle ?? 'Untitled'}`,
+      `TRANSLATED BRIEF, ${r.projectTitle ?? 'Untitled'}`,
       '='.repeat(60),
       '',
       s ? `BRIEF SCORE: ${s.overall}/10  (${s.verdict})` : '',
@@ -82,7 +82,7 @@ export default function BriefTranslator() {
         ? r.typography
         : (r.typography
             ? [r.typography.displayFont, r.typography.bodyFont].filter(Boolean).join(' + ') +
-              (r.typography.rationale ? ' — ' + r.typography.rationale : '')
+              (r.typography.rationale ? ', ' + r.typography.rationale : '')
             : ''),
       '',
       '─── MOODBOARD KEYWORDS ───',
@@ -332,7 +332,7 @@ export default function BriefTranslator() {
             )}
           </Card>
 
-          {/* Typography — newer briefs save typography as an object
+          {/* Typography, newer briefs save typography as an object
               {displayFont, bodyFont, displayUse, bodyUse, rationale,
               platform}; older saved briefs may have it as a string.
               Render the object structurally; fall back to the string

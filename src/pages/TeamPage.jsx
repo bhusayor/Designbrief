@@ -94,7 +94,7 @@ function RoleBadge({ role }) {
   )
 }
 
-// Inline role picker — used in the project members table by the Admin to
+// Inline role picker, used in the project members table by the Admin to
 // switch a member between Admin / Editor / Viewer. Visually mirrors
 // RoleBadge when collapsed.
 function RoleSelect({ value, onChange }) {
@@ -375,7 +375,7 @@ function InviteModal({ workspaceId, projectId, projectName, onClose, onSent, get
       } else {
         const reason = results[0]?.value?.error
           || results[0]?.reason?.message
-          || 'Failed to send invite — check your connection and try again'
+          || 'Failed to send invite, check your connection and try again'
         setError(reason)
       }
     } catch (e) {
@@ -652,7 +652,7 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
         )}
       </p>
 
-      {/* Role picker — titles + one-line descriptions */}
+      {/* Role picker, titles + one-line descriptions */}
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           Join as
@@ -711,7 +711,7 @@ function InviteLinkPopup({ workspaceId, workspaceName, projectId, projectName, g
           flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           fontFamily: 'var(--font-mono)',
         }}>
-          {loading ? 'Generating link…' : (linkData?.link || '—')}
+          {loading ? 'Generating link…' : (linkData?.link || '-')}
         </span>
       </div>
 
@@ -783,7 +783,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false)
   const [bulkRemoving, setBulkRemoving] = useState(false)
 
-  // In WORKSPACE mode we know the signed-in user is the owner — synthesize that row
+  // In WORKSPACE mode we know the signed-in user is the owner, synthesize that row
   // locally so the table renders immediately. In PROJECT mode the API returns the
   // project creator with role 'PM' explicitly, so we don't need a local placeholder.
   const ownerRow = (!isProjectMode && authUser) ? {
@@ -828,12 +828,12 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   }, [openMenuId])
 
   async function getAuthHeaders() {
-    // 1. Use session already stored in AppContext — synchronous, always up to date
+    // 1. Use session already stored in AppContext, synchronous, always up to date
     if (session?.access_token) {
       return { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }
     }
 
-    // 2. Read from localStorage — synchronous, no network
+    // 2. Read from localStorage, synchronous, no network
     try {
       for (const key of Object.keys(localStorage)) {
         if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
@@ -1080,7 +1080,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
   })
 
   function timeAgo(dateStr) {
-    if (!dateStr) return '—'
+    if (!dateStr) return '-'
     const diff = Date.now() - new Date(dateStr).getTime()
     const days = Math.floor(diff / 86400000)
     if (days === 0) return 'Today'
@@ -1180,7 +1180,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                 <>
                   Inviting people to{' '}
                   <strong style={{ color: 'var(--color-text)', fontWeight: 600 }}>{projectName || 'this project'}</strong>
-                  {' '}gives access to the project board, tasks, and comments — without joining your workspace.
+                  {' '}gives access to the project board, tasks, and comments, without joining your workspace.
                 </>
               ) : (
                 <>
@@ -1222,7 +1222,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
             ))}
           </div>
 
-          {/* Toolbar — single row on desktop, wraps on mobile */}
+          {/* Toolbar, single row on desktop, wraps on mobile */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             {/* Search */}
             <div style={{ position: 'relative', flex: isMobile ? '1 1 100%' : '1 1 auto', minWidth: 140 }}>
@@ -1265,7 +1265,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
               <ChevronDownIcon style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
             </div>
 
-            {/* Spacer — pushes action buttons right on desktop */}
+            {/* Spacer, pushes action buttons right on desktop */}
             {!isMobile && <div style={{ flex: 1 }} />}
 
             {/* Export */}
@@ -1283,7 +1283,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
               {selected.size > 0 ? `Export ${selected.size}` : 'Export'}
             </button>
 
-            {/* Invite link — triggers popup. In project mode, only the Admin can create invite links. */}
+            {/* Invite link, triggers popup. In project mode, only the Admin can create invite links. */}
             {(!isProjectMode || isAdmin) && (
             <div style={{ position: 'relative', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
               <button
@@ -1321,7 +1321,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
             </div>
             )}
 
-            {/* Invite members — admin-only in project mode */}
+            {/* Invite members, admin-only in project mode */}
             {(!isProjectMode || isAdmin) && (
             <button
               title={userPlan === 'free' ? 'Upgrade to invite teammates' : undefined}
@@ -1494,7 +1494,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
                 {/* Role */}
                 <div>
                   {row.isCreator || row.role === 'owner' ? (
-                    // Project creator / workspace owner — role is fixed (Admin/Owner)
+                    // Project creator / workspace owner, role is fixed (Admin/Owner)
                     <span className="tp-owner-role" style={{ cursor: 'default' }}>
                       <RoleBadge role={isProjectMode ? 'Admin' : 'owner'} />
                       <span className="tp-owner-tooltip">
@@ -1517,18 +1517,18 @@ export default function TeamPage({ onClose, projectId, projectName }) {
 
                 {/* Joined */}
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  {row.isPending ? '—' : timeAgo(row.joinedAt)}
+                  {row.isPending ? '-' : timeAgo(row.joinedAt)}
                 </div>
 
                 {/* Credit used */}
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  {row.isPending ? '—' : (memberCredits[row.id] ?? 0)}
+                  {row.isPending ? '-' : (memberCredits[row.id] ?? 0)}
                 </div>
 
                 {/* Total credit (per-project credit limit) */}
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)' }}>
                   {row.isPending || row.isCreator || row.role === 'owner'
-                    ? '—'
+                    ? '-'
                     : (row.creditLimit ?? '∞')}
                 </div>
 
@@ -1618,7 +1618,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
         )
       })()}
 
-      {/* Row actions dropdown — portal to escape overflow:auto clipping.
+      {/* Row actions dropdown, portal to escape overflow:auto clipping.
           Two flavours, dispatched on the openMenuId prefix:
             - 'm:<userId>' → active member row → Delete + Set credit limit
             - anything else  → pending-invite row → Resend + Cancel */}
@@ -1726,7 +1726,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
         )
       })()}
 
-      {/* Remove member confirmation — shared destructive modal */}
+      {/* Remove member confirmation, shared destructive modal */}
       <ConfirmDeleteModal
         open={!!removeModalFor}
         title="Remove member?"
@@ -1757,7 +1757,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
         )}
       />
 
-      {/* Bulk remove confirmation — same shared modal */}
+      {/* Bulk remove confirmation, same shared modal */}
       <ConfirmDeleteModal
         open={bulkRemoveOpen}
         title={`Remove ${selected.size} member${selected.size === 1 ? '' : 's'}?`}
@@ -1782,7 +1782,7 @@ export default function TeamPage({ onClose, projectId, projectName }) {
         }
       />
 
-      {/* Set Credit Limit modal — only mounted when a member is selected */}
+      {/* Set Credit Limit modal, only mounted when a member is selected */}
       {creditModalFor && (
         <CreditLimitModal
           member={creditModalFor}

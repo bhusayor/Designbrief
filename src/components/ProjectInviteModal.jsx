@@ -137,7 +137,7 @@ export default function ProjectInviteModal({
           fontFamily: 'var(--font-sans)', fontSize: 12,
           color: 'var(--color-text-muted)', margin: '10px 0 18px', lineHeight: 1.55,
         }}>
-          They'll join just this project — they keep (or create) their own workspace.
+          They'll join just this project, they keep (or create) their own workspace.
         </p>
 
         {/* SUCCESS STATE */}

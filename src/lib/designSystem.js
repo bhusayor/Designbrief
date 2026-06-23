@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 
 // ────────────────────────────────────────────────────────────────────
-// Project Design System library — the canonical source of truth that
+// Project Design System library, the canonical source of truth that
 // every AI call in a project should read from.
 //
 // Two exports the rest of the app cares about:
@@ -14,12 +14,12 @@ import { supabase } from './supabase'
 //   designSystemToContext(ds)
 //     Serialise a design-system row into the system-prompt block
 //     that gets injected ahead of every AI call. Pass null for "no
-//     design system defined yet" — returns an empty string so the
+//     design system defined yet", returns an empty string so the
 //     caller can safely splice it into a template.
 // ────────────────────────────────────────────────────────────────────
 
 export const DEFAULT_DESIGN_SYSTEM = {
-  // Colors — array of { id, hex, name, role }
+  // Colors, array of { id, hex, name, role }
   colors: [],
 
   // Typography
@@ -33,14 +33,14 @@ export const DEFAULT_DESIGN_SYSTEM = {
   letterSpacingBody: '0em',
   letterSpacingLabels: '0.08em',
 
-  // Buttons — primary
+  // Buttons, primary
   buttonRadius: 'rounded',      // square | rounded | pill | custom
   buttonRadiusValue: 8,
   buttonSize: 'medium',         // small | medium | large
   buttonStyle: 'filled',        // filled | outlined | soft | ghost
   buttonWeight: '600',          // 400 | 500 | 600 | 700
 
-  // Buttons — secondary (free-standing overrides; jsonb in DB so
+  // Buttons, secondary (free-standing overrides; jsonb in DB so
   // adding a sub-field later doesn't need another migration)
   buttonSecondary: {
     enabled: false,
@@ -88,7 +88,7 @@ export const DEFAULT_DESIGN_SYSTEM = {
   shadowColorTint: 'black',
 }
 
-// Format a string list — empty becomes "Not defined" so the AI knows
+// Format a string list, empty becomes "Not defined" so the AI knows
 // which sections are intentionally open and which are constrained.
 function pretty(v, fallback = 'Not defined') {
   if (v == null) return fallback
@@ -136,7 +136,7 @@ export function designSystemToContext(ds) {
     fontsLine,
     `Base size: ${ds.baseFontSize}px`,
     `Scale ratio: ${ds.scaleRatio}`,
-    `Letter spacing — headings ${ds.letterSpacingHeadings}, body ${ds.letterSpacingBody}, labels ${ds.letterSpacingLabels}`,
+    `Letter spacing, headings ${ds.letterSpacingHeadings}, body ${ds.letterSpacingBody}, labels ${ds.letterSpacingLabels}`,
     '',
     'BUTTONS:',
     buttonDesc,
@@ -148,7 +148,7 @@ export function designSystemToContext(ds) {
     '',
     'SPACING:',
     `Base unit: ${ds.baseUnit}px`,
-    `Border radius — sm ${ds.borderRadiusSm}px, md ${ds.borderRadiusMd}px, lg ${ds.borderRadiusLg}px, full pill`,
+    `Border radius, sm ${ds.borderRadiusSm}px, md ${ds.borderRadiusMd}px, lg ${ds.borderRadiusLg}px, full pill`,
     `Max content width: ${ds.maxContentWidth}px`,
     `Grid: ${ds.gridColumns} columns, ${ds.gutter}px gutter`,
     '',
@@ -224,11 +224,11 @@ export function dbRowToDesignSystem(row) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// fetchDesignSystem — single async lookup callers use to load the
+// fetchDesignSystem, single async lookup callers use to load the
 // project's saved design system before firing an AI call. Returns
 // the camelCase shape directly (the helper handles the mapping +
 // the "no row exists yet" case). Returns null if nothing's saved or
-// the table isn't set up — callers then either pass null down (so
+// the table isn't set up, callers then either pass null down (so
 // designSystemToContext returns '') or skip the integration silently.
 // ────────────────────────────────────────────────────────────────────
 export async function fetchDesignSystem(projectId) {
@@ -240,8 +240,8 @@ export async function fetchDesignSystem(projectId) {
       .eq('project_id', projectId)
       .maybeSingle()
     if (error) {
-      // 42P01 = table missing (Phase 1 SQL not run yet) — fail silently.
-      // PGRST116 = no row found for this project — that's expected for
+      // 42P01 = table missing (Phase 1 SQL not run yet), fail silently.
+      // PGRST116 = no row found for this project, that's expected for
       // a project the user hasn't set up a design system for.
       return null
     }
@@ -251,7 +251,7 @@ export async function fetchDesignSystem(projectId) {
   }
 }
 
-// Inverse — camelCase → snake_case for the upsert.
+// Inverse, camelCase → snake_case for the upsert.
 export function designSystemToDbRow(ds, projectId, workspaceId, userId) {
   return {
     project_id: projectId,

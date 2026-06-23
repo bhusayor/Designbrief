@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// IntakeBriefReview — Phase 5 of the Client Intake Form rebuild.
+// IntakeBriefReview, Phase 5 of the Client Intake Form rebuild.
 //
 // The designer lands here from the notification email link or from
 // IntakeDelivery's View Brief button on a submission row. Shows the
@@ -8,13 +8,13 @@
 // flow that locks the brief.
 //
 // Responsive:
-//   ≥1024 desktop  — three-column: left section nav, centre
+//   ≥1024 desktop , three-column: left section nav, centre
 //                    translation, right tabbed panel (Flags /
 //                    System / Kanban).
-//   768-1023 tablet — two-column: left translation, right collapses
+//   768-1023 tablet, two-column: left translation, right collapses
 //                    into a slide-in drawer behind a floating
 //                    "Flags + System" button.
-//   <768  mobile    — single column; sticky bottom tab bar with
+//   <768  mobile   , single column; sticky bottom tab bar with
 //                    Brief / Flags / System tabs. Kanban opens as
 //                    a bottom sheet via View Board.
 // ────────────────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ function useFollowups(submissionId) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Shell — manages editable result + tab state + persistence
+// Shell, manages editable result + tab state + persistence
 // ────────────────────────────────────────────────────────────────────
 function ReviewShell({ submission, form, onBack, showToast }) {
   const initialResult = useMemo(() => submission?.translated_result || null, [submission])
@@ -157,7 +157,7 @@ function ReviewShell({ submission, form, onBack, showToast }) {
   const { list: followups, reload: reloadFollowups } = useFollowups(submission?.id)
   const [composer, setComposer] = useState(null)  // { question, context }
 
-  // Sweep B — auto-unblock matching. When a follow-up question gets
+  // Sweep B, auto-unblock matching. When a follow-up question gets
   // answered, walk every kanban card's blocked_reasons and surface
   // an Apply banner if any reason text matches an answered question.
   // We don't auto-mutate the result because the designer should
@@ -381,7 +381,7 @@ function ReviewShell({ submission, form, onBack, showToast }) {
           </aside>
         )}
 
-        {/* Centre — translation OR mobile-active panel */}
+        {/* Centre, translation OR mobile-active panel */}
         <main className="br-centre">
           {(!isMobile || mobileTab === 'brief') && (
             <TranslationPanel
@@ -581,7 +581,7 @@ function SectionNav({ result, activeId, onPick }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Translation panel — all 21 items inline editable
+// Translation panel, all 21 items inline editable
 // ────────────────────────────────────────────────────────────────────
 function TranslationPanel({ result, locked, onChangeItem, onChangeAssumption, enrichmentMap, activeSectionId, setActiveSectionId, isDesktop }) {
   const sectionRefs = useRef({})
@@ -608,7 +608,7 @@ function TranslationPanel({ result, locked, onChangeItem, onChangeAssumption, en
   }, [isDesktop, result?.sections])
 
   // Map of "AI-inferred" markers per item key, taken from
-  // submission.enriched_answers.expansions — when an expansion
+  // submission.enriched_answers.expansions, when an expansion
   // mentions a question id, we mark items derived from it.
   const aiInferredKeys = useMemo(() => {
     const out = new Set()
@@ -726,7 +726,7 @@ function TextField({ value, editing, onCommit }) {
       />
     )
   }
-  return <p className="br-text">{String(value || '').trim() || '—'}</p>
+  return <p className="br-text">{String(value || '').trim() || '-'}</p>
 }
 
 function ListField({ value, editing, onCommit }) {
@@ -766,8 +766,8 @@ function RowsField({ value, editing, onCommit }) {
       <div className="br-rows-head"><span>Asked for</span><span>Actually need</span></div>
       {rows.map((r, i) => (
         <div key={i} className="br-row">
-          <div className="br-row-cell"><span className="br-row-label">Asked</span><span>{r.left || '—'}</span></div>
-          <div className="br-row-cell"><span className="br-row-label">Need</span><span>{r.right || '—'}</span></div>
+          <div className="br-row-cell"><span className="br-row-label">Asked</span><span>{r.left || '-'}</span></div>
+          <div className="br-row-cell"><span className="br-row-label">Need</span><span>{r.right || '-'}</span></div>
         </div>
       ))}
     </div>
@@ -807,7 +807,7 @@ function BadgedListField({ value, editing, onCommit, itemKey, onChangeAssumption
         const isAssumption = itemKey === 'assumptions_log'
         return (
           <li key={i} className={`br-badged-row br-badged-${variant}`}>
-            <span className="br-badged-text">{it.text || '—'}</span>
+            <span className="br-badged-text">{it.text || '-'}</span>
             {editing && isAssumption ? (
               <select
                 value={status}
@@ -872,7 +872,7 @@ function RolesField({ value, editing, onCommit }) {
       {keys.map(k => (
         <li key={k}>
           <span className="br-roles-label">{capitalise(k)}</span>
-          <span className="br-roles-value">{v[k] || '—'}</span>
+          <span className="br-roles-value">{v[k] || '-'}</span>
         </li>
       ))}
     </ul>
@@ -901,7 +901,7 @@ function LevelsField({ value, editing, onCommit }) {
       {keys.map(k => (
         <li key={k}>
           <span className="br-roles-label">{capitalise(k)}</span>
-          <span className="br-roles-value">{v[k] || '—'}</span>
+          <span className="br-roles-value">{v[k] || '-'}</span>
         </li>
       ))}
     </ul>
@@ -957,7 +957,7 @@ function CompetitorsField({ value, editing, onCommit }) {
     <ul className="br-competitors">
       {list.map((c, i) => (
         <li key={i} className="br-competitor">
-          <div className="br-competitor-name">{c.name || '—'}</div>
+          <div className="br-competitor-name">{c.name || '-'}</div>
           {c.positioning && <p><strong>Positioning.</strong> {c.positioning}</p>}
           {c.layout && <p><strong>Layout.</strong> {c.layout}</p>}
           {c.differentiation && <p><strong>Where to diverge.</strong> {c.differentiation}</p>}
@@ -1240,7 +1240,7 @@ function DesignSystemPanel({ ds, locked, onChange }) {
               <li key={k}>
                 <span className="br-roles-label">{capitalise(k.replace(/_/g, ' '))}</span>
                 {locked
-                  ? <span className="br-roles-value">{ds[s.key]?.[k] || '—'}</span>
+                  ? <span className="br-roles-value">{ds[s.key]?.[k] || '-'}</span>
                   : <input className="br-input" value={ds[s.key]?.[k] || ''} onChange={e => setField(s.key, k, e.target.value)} />}
               </li>
             ))}
@@ -1271,7 +1271,7 @@ function KanbanPreview({ kanban }) {
         {tasks.map(t => (
           <li key={t.id} className={`br-kanban-card ${t.blocked ? 'is-blocked' : ''}`}>
             <div className="br-kanban-name">{t.title}</div>
-            <div className="br-kanban-preview">{firstLine(t.description) || '—'}</div>
+            <div className="br-kanban-preview">{firstLine(t.description) || '-'}</div>
             <div className="br-kanban-meta">
               {t.blocked && <span className="br-mini-badge br-mini-badge-warn">Blocked</span>}
               {t.v2?.inventoryEntry?.status && <span className="br-mini-badge">{t.v2.inventoryEntry.status}</span>}
@@ -1429,7 +1429,7 @@ function ExportModal({ result, onClose }) {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
         doc.text(it.title, 20, y); y += 5
         doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(60)
-        const body = Array.isArray(it.content) ? it.content.join(', ') : String(it.content || '—')
+        const body = Array.isArray(it.content) ? it.content.join(', ') : String(it.content || '-')
         const wrapped = doc.splitTextToSize(body, 170)
         doc.text(wrapped, 20, y)
         y += wrapped.length * 5 + 6
@@ -1515,7 +1515,7 @@ function ExportOption({ title, description, onClick, busy }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Follow-up composer modal — send a blocking question to the client
+// Follow-up composer modal, send a blocking question to the client
 // ────────────────────────────────────────────────────────────────────
 function FollowupComposerModal({ question: initial, onCancel, onSend }) {
   const [question, setQuestion] = useState(initial || '')
@@ -1658,8 +1658,8 @@ function prettyStatus(s) {
 }
 function capitalise(s) { return String(s || '').replace(/^./, c => c.toUpperCase()) }
 function prettyDate(iso) {
-  if (!iso) return '—'
-  try { return new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) } catch { return '—' }
+  if (!iso) return '-'
+  try { return new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) } catch { return '-' }
 }
 function firstLine(s) {
   if (!s) return ''

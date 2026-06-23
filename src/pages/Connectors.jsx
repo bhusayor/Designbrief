@@ -123,7 +123,7 @@ const CONNECTORS = [
     description:
       'Connect a Notion page to any project and DesignBrief AI ' +
       'reads its content as context. Paste in existing requirements, ' +
-      'research notes, or user stories — the AI extends what you ' +
+      'research notes, or user stories, the AI extends what you ' +
       'already have instead of starting from scratch.',
     accentColor: '#000000',
     bgColor: 'var(--color-surface)',
@@ -154,7 +154,7 @@ const CONNECTORS = [
     tools: ['doc_content', 'context_injection', 'brief_enrichment', 'public_access'],
     tokenLabel: 'Google API Key (optional, for title lookup)',
     tokenPlaceholder: 'AIza... or leave blank',
-    tokenHelp: 'Leave blank — just share your doc as "Anyone with the link"',
+    tokenHelp: 'Leave blank, just share your doc as "Anyone with the link"',
     tokenHelpUrl: 'https://console.cloud.google.com/apis/credentials',
     tokenRequired: false,
   },
@@ -411,7 +411,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
           {/* Divider */}
           <div style={{ height: 1, background: 'var(--color-border)', marginBottom: 20 }}/>
 
-          {/* Token input — only when not installed */}
+          {/* Token input, only when not installed */}
           {!installed && (
             <div>
               <label style={{
@@ -530,7 +530,7 @@ function InstallModal({ connector, installed, hint, workspaceId, onClose, onInst
         </div>
       </div>
 
-      {/* Uninstall confirmation — shared destructive modal */}
+      {/* Uninstall confirmation, shared destructive modal */}
       <ConfirmDeleteModal
         open={confirmUninstall}
         title="Uninstall connector?"
@@ -657,7 +657,7 @@ function ConnectorCard({ connector, installed, hint, onClick }) {
         {connector.tagline}
       </div>
 
-      {/* Tool tags — first 3 */}
+      {/* Tool tags, first 3 */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
         {connector.tools.slice(0, 3).map(t => (
           <span key={t} style={{
@@ -721,7 +721,7 @@ export default function Connectors({ embedded = false }) {
       fontFamily: "'Urbanist', sans-serif",
       boxSizing: 'border-box',
     }}>
-      {/* Header + search — constrained width */}
+      {/* Header + search, constrained width */}
       <div style={{ maxWidth: isMobile ? 'none' : 640 }}>
         {!embedded && (
           <div style={{ marginBottom: 24, textAlign: isMobile ? 'center' : 'left' }}>

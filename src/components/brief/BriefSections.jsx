@@ -219,7 +219,7 @@ export function ChaosBanner({ r, s }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: s?.chaosReason ? '10px' : '14px' }}>
         <span style={{ fontSize: '18px' }}>⚡</span>
         <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 700, fontSize: '14px', color: 'var(--color-purple)' }}>
-          This brief is chaotic — here's how to fix it
+          This brief is chaotic, here's how to fix it
         </span>
       </div>
       {s?.chaosReason && (
@@ -254,7 +254,7 @@ export function ChaosBanner({ r, s }) {
 // flat list of { label, cost, costNum }:
 //   - new schema: [{ item, low, high, notes }]
 //   - older schema: { role: cost }  (Object.entries gives [role, cost])
-//   - fallback: a string  ("$5000 design, $3000 dev") — skip
+//   - fallback: a string  ("$5000 design, $3000 dev"), skip
 function normaliseBudgetBreakdown(breakdown) {
   if (!breakdown) return []
   if (Array.isArray(breakdown)) {
@@ -264,7 +264,7 @@ function normaliseBudgetBreakdown(breakdown) {
         const label = row.item || row.role || row.name || row.label || ''
         const low = row.low
         const high = row.high
-        const cost = (low != null && high != null) ? `${low} – ${high}` : (low ?? high ?? row.cost ?? row.amount ?? '')
+        const cost = (low != null && high != null) ? `${low}-${high}` : (low ?? high ?? row.cost ?? row.amount ?? '')
         const costNum = parseFloat(String(high ?? low ?? cost).replace(/[^0-9.]/g, ''))
         return label ? { label, cost: String(cost), costNum: isNaN(costNum) ? 0 : costNum } : null
       })
@@ -288,7 +288,7 @@ export function BudgetCard({ budgetRange: br }) {
     <Card title="Budget Estimate" style={{ marginBottom: '14px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '6px' }}>
         <span style={{ fontFamily: "'Urbanist', sans-serif", fontWeight: 800, fontSize: '32px', color: 'var(--color-text)' }}>
-          {br.low} – {br.high}
+          {br.low}-{br.high}
         </span>
         <span style={{
           fontFamily: "'Urbanist', sans-serif", fontSize: '11px', color: 'var(--color-accent)',
@@ -513,7 +513,7 @@ export function TechStackCard({ techStack }) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {items.map((item, i) => {
-                  const [name, ...rest] = typeof item === 'string' ? item.split(' — ') : [item];
+                  const [name, ...rest] = typeof item === 'string' ? item.split(', ') : [item];
                   return (
                     <div key={i} style={{
                       background: 'var(--color-surface)', borderRadius: '9px',
@@ -533,7 +533,7 @@ export function TechStackCard({ techStack }) {
                           fontFamily: "'Urbanist', sans-serif", fontSize: '12px',
                           color: 'var(--color-text-soft)', lineHeight: 1.6,
                         }}>
-                          {rest.join(' — ')}
+                          {rest.join(', ')}
                         </span>
                       )}
                     </div>

@@ -1,4 +1,4 @@
-// Build engine — routes Phase 1 React-component generation through the
+// Build engine, routes Phase 1 React-component generation through the
 // central /api/claude proxy. Tags task_type so the server picks Opus
 // for the highest-quality code output.
 
@@ -24,7 +24,7 @@ export async function buildWithProxy(prompt, onToken, authHeader) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     // Server has already mapped this into a user-safe { message, error, retry_after }.
-    const wrapped = new Error(err?.message || 'Something interrupted the AI. Your work is safe — please try again.')
+    const wrapped = new Error(err?.message || 'Something interrupted the AI. Your work is safe, please try again.')
     wrapped.code = err?.error || null
     wrapped.status = res.status
     if (err?.retry_after) wrapped.retryAfter = err.retry_after

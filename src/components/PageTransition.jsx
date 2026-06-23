@@ -2,14 +2,14 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { PAGE } from '../lib/motion'
 
 // ────────────────────────────────────────────────────────────────────
-// PageTransition — wrap the section content so changing the `pageKey`
+// PageTransition, wrap the section content so changing the `pageKey`
 // (typically AppContext.activeSection) crossfades the old view out
 // and scales the new view in with a brief blur. The AppShell already
 // remounts on workspace change; this layer handles the in-shell
 // section navigation (Dashboard → Library → TeamCollab → Settings …).
 //
 // We use mode="wait" so the previous view fully exits before the
-// next one enters — avoids overlap glitches when the page heights
+// next one enters, avoids overlap glitches when the page heights
 // are different.
 // ────────────────────────────────────────────────────────────────────
 

@@ -24,7 +24,7 @@ export const supabase = createClient(
       detectSessionInUrl: true,
       storageKey: 'designbrief-auth-v1',
       flowType: 'pkce',
-      // No-op lock — bypasses the navigator/localStorage lock that was
+      // No-op lock, bypasses the navigator/localStorage lock that was
       // throwing "Lock was released because another request stole it" when
       // our 5s project polling raced with Supabase's internal auto-refresh.
       // We're single-tab per device so we don't need cross-tab coordination.

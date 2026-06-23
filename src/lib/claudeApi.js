@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────
-// claudeApi.js — the SINGLE client-side entry point for /api/claude.
+// claudeApi.js, the SINGLE client-side entry point for /api/claude.
 //
 // Every AI call in the app routes through callClaude / callClaudeStream
 // here (directly or via one of the convenience wrappers below). The
@@ -22,7 +22,7 @@ import { supabase } from './supabase.js'
 import { MODELS, MODEL_FOR, pickModel } from './models.js'
 import { designSystemToContext } from './designSystem.js'
 
-// API base — points at the standalone Express API server (Render in
+// API base, points at the standalone Express API server (Render in
 // production, localhost:3001 in dev). Set VITE_API_URL on Vercel to
 // the Render URL. Fetches below already template-string this base
 // into every /api/claude call, so swapping deployments is one env
@@ -60,7 +60,7 @@ function shouldRetry(status) {
 }
 
 function toError(body, status) {
-  const err = new Error(body?.message || 'Something interrupted the AI. Your work is safe — please try again.')
+  const err = new Error(body?.message || 'Something interrupted the AI. Your work is safe, please try again.')
   err.status = status
   err.code = body?.error || null
   err.data = body || null
@@ -69,7 +69,7 @@ function toError(body, status) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// callClaude — non-streaming.
+// callClaude, non-streaming.
 // Returns { text, content, usage, model_used }.
 // ────────────────────────────────────────────────────────────────────
 export async function callClaude({
@@ -150,11 +150,11 @@ export async function callClaude({
     }
   }
 
-  throw lastErr || new Error('Something interrupted the AI. Your work is safe — please try again.')
+  throw lastErr || new Error('Something interrupted the AI. Your work is safe, please try again.')
 }
 
 // ────────────────────────────────────────────────────────────────────
-// callClaudeStream — SSE streaming.
+// callClaudeStream, SSE streaming.
 // onChunk(text, accumulated) fires per delta.
 // onComplete(fullText) fires when the stream ends successfully.
 // onError(err) fires once on failure.
@@ -251,7 +251,7 @@ export async function callClaudeStream({
     if (e?.name !== 'AbortError') {
       // onError already fired for known cases above; fire generically for raw network errors.
       if (!e?.code) {
-        const generic = new Error('Something interrupted the AI. Your work is safe — please try again.')
+        const generic = new Error('Something interrupted the AI. Your work is safe, please try again.')
         generic.code = 'unexpected'
         onError?.(generic)
         throw generic
@@ -262,7 +262,7 @@ export async function callClaudeStream({
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Convenience wrappers — pre-configured per task type.
+// Convenience wrappers, pre-configured per task type.
 // ────────────────────────────────────────────────────────────────────
 
 // JSON-only Sonnet helpers.
@@ -290,20 +290,20 @@ export function generateTaskPrompt(task, briefContext) {
   return callClaude({
     taskType: 'ai_task_prompt',
     maxTokens: 1200,
-    system: `You are a senior creative director who writes precise, inspiring creative briefs for individual design tasks. Output plain text — no markdown headers.`,
-    userMessage: `Generate a creative direction prompt for this specific task.\n\nTask: ${task.title}\nDescription: ${task.description || ''}\n\nBrief Context:\nBrand: ${briefContext?.projectName || ''}\nTone: ${briefContext?.tone || briefContext?.toneAndMood || ''}\nColors: ${JSON.stringify(briefContext?.colors || briefContext?.colorDirection || [])}\nTypography: ${briefContext?.typography?.displayFont || briefContext?.typographyDirection || ''}\nPersonality: ${JSON.stringify(briefContext?.brandPersonality || [])}\n\nReturn a structured prompt with: Creative Direction, Design Approach, Interaction & Animation, Copy Direction, Success Metric. Be specific, bold, and inspiring — Stripe / Linear quality.`,
+    system: `You are a senior creative director who writes precise, inspiring creative briefs for individual design tasks. Output plain text, no markdown headers.`,
+    userMessage: `Generate a creative direction prompt for this specific task.\n\nTask: ${task.title}\nDescription: ${task.description || ''}\n\nBrief Context:\nBrand: ${briefContext?.projectName || ''}\nTone: ${briefContext?.tone || briefContext?.toneAndMood || ''}\nColors: ${JSON.stringify(briefContext?.colors || briefContext?.colorDirection || [])}\nTypography: ${briefContext?.typography?.displayFont || briefContext?.typographyDirection || ''}\nPersonality: ${JSON.stringify(briefContext?.brandPersonality || [])}\n\nReturn a structured prompt with: Creative Direction, Design Approach, Interaction & Animation, Copy Direction, Success Metric. Be specific, bold, and inspiring, Stripe / Linear quality.`,
   })
 }
 
 // Streaming Opus helper used by the AI website builder (Phase 2). For
 // the canonical Phase 2 site builder pipeline (with persistence into
-// build_sections), use src/lib/aiBuildEngine.js#buildSection — that
+// build_sections), use src/lib/aiBuildEngine.js#buildSection, that
 // hits /api/build-section which writes to Supabase as it streams.
 // This helper exists for ad-hoc one-shot section builds.
 export function buildWebsiteSection({ task, briefContext, previousSections = [], changeRequest = null, system, maxTokens = 6000, onChunk, onComplete, onError, signal } = {}) {
   const previous = previousSections.length
     ? previousSections.map(s => s.task_title || s.title).join(', ')
-    : 'None — this is the first section.'
+    : 'None, this is the first section.'
 
   const briefBlock = `PROJECT CONTEXT:\nName: ${briefContext?.projectName || ''}\nTone: ${briefContext?.tone || briefContext?.toneAndMood || ''}\nColors: ${JSON.stringify(briefContext?.colors || briefContext?.colorDirection || [])}\nTypography: ${briefContext?.typography?.displayFont || briefContext?.typographyDirection || ''}\nBrand personality: ${JSON.stringify(briefContext?.brandPersonality || [])}\nTarget audience: ${briefContext?.projectUnderstanding || ''}`
 
@@ -336,7 +336,7 @@ export function buildWebsiteSection({ task, briefContext, previousSections = [],
 }
 
 // Haiku helper for short interactive turns. `designSystem` is the
-// camelCase output of fetchDesignSystem(projectId) — when present its
+// camelCase output of fetchDesignSystem(projectId), when present its
 // designSystemToContext() rendering is spliced into the system prompt
 // so Haiku honours the saved tokens (colors, type, button shape,
 // motion, shadow language) on every refinement, not just the brand

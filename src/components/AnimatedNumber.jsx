@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useInView } from 'framer-motion'
 
 // ────────────────────────────────────────────────────────────────────
-// AnimatedNumber — count-up to a target value once the element scrolls
+// AnimatedNumber, count-up to a target value once the element scrolls
 // into view, using an easeOutExpo curve. requestAnimationFrame driven
 // so it's smooth and stops cleanly on unmount.
 //

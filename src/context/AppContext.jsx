@@ -58,7 +58,7 @@ function formatProjectRow(p, extra = {}) {
 export function AppProvider({ children }) {
   const [projects, setProjects] = useState([]);
   const [activeProject, setActiveProjectState] = useState(null);
-  // Remember the active project's id across refreshes — we restore the full
+  // Remember the active project's id across refreshes, we restore the full
   // object from ctxProjects once they load. Cleared when activeProject is
   // explicitly set to null (project deleted or user kicked out).
   const [activeProjectId, setActiveProjectId] = useState(() => {
@@ -67,7 +67,7 @@ export function AppProvider({ children }) {
   // Persist activeSection across refreshes so the user lands back on the
   // page they were on (Team / Document / Library / Connectors / etc.) rather
   // than being kicked to the dashboard. Sections tied to special URLs
-  // (auth / join / accept-invite / client-intake) are NEVER persisted —
+  // (auth / join / accept-invite / client-intake) are NEVER persisted -
   // App.jsx's path matcher already handles those on load.
   const NON_PERSISTABLE_SECTIONS = new Set(['auth', 'join', 'accept-invite', 'client-intake']);
   const [activeSection, setActiveSectionState] = useState(() => {
@@ -80,21 +80,21 @@ export function AppProvider({ children }) {
   const [history, setHistory] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [notification, setNotification] = useState(null);
-  // AI error banner — distinct from regular toast because it carries an
+  // AI error banner, distinct from regular toast because it carries an
   // optional retry callback and (for rate_limited) a countdown.
   const [aiError, setAiError] = useState(null);
   const [activeIntakeId, setActiveIntakeId] = useState(null);
-  // Phase 5 — submission id of the brief currently being reviewed.
+  // Phase 5, submission id of the brief currently being reviewed.
   // Set from IntakeDelivery's View Brief button on a submission row;
   // read by the new IntakeBriefReview page.
   const [activeIntakeSubmissionId, setActiveIntakeSubmissionId] = useState(null);
-  // Phase 6 — token in the URL when a client is responding to a
+  // Phase 6, token in the URL when a client is responding to a
   // designer follow-up question via the public /followup/:token page.
   const [activeFollowupToken, setActiveFollowupToken] = useState(null);
-  // Token from a /share/:token URL — read by the public SharedBriefPage
+  // Token from a /share/:token URL, read by the public SharedBriefPage
   // to fetch the snapshot row out of supabase.shared_briefs.
   const [activeShareToken, setActiveShareToken] = useState(null);
-  // Token from a /review/:token URL — public client review page.
+  // Token from a /review/:token URL, public client review page.
   // Set by App.jsx when the URL matches, consumed by ClientBriefReview.
   const [activeReviewToken, setActiveReviewToken] = useState(null);
   const [intakeForms, setIntakeForms] = useState([]);
@@ -121,7 +121,7 @@ export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // ── Workspace state — seeded from localStorage so refresh never flickers ──
+  // ── Workspace state, seeded from localStorage so refresh never flickers ──
   const [workspace, setWorkspace] = useState(() => {
     try {
       const cached = localStorage.getItem('db-workspace');
@@ -142,7 +142,7 @@ export function AppProvider({ children }) {
   const [workspaceLoadError, setWorkspaceLoadError] = useState(false);
 
   // ── Plan + credits state ──────────────────────────────────────────────────
-  // userPlan: 'free' | 'starter' | 'pro' — single source of truth read from
+  // userPlan: 'free' | 'starter' | 'pro', single source of truth read from
   // profiles.plan on auth. userCredits is the remaining balance; the sidebar
   // bar and every gate read from these.
   // Seeded from db-plan-state so a refresh doesn't flicker "Free + Upgrade"
@@ -190,7 +190,7 @@ export function AppProvider({ children }) {
   const [selectedWebsiteTemplate, setSelectedWebsiteTemplate] = useState('saas-landing');
   const [activeProjectBriefResult, setActiveProjectBriefResult] = useState(null);
   // Paired scoring for the brief loaded into Dashboard from
-  // Sidebar history / Project Library — Dashboard's ResultView
+  // Sidebar history / Project Library, Dashboard's ResultView
   // expects a scoring object alongside the result, so this carries
   // it through the navigation hop.
   const [activeProjectScoring, setActiveProjectScoring] = useState(null);
@@ -221,7 +221,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    // Safety timeout — if Supabase takes more than 5 seconds, stop the spinner
+    // Safety timeout, if Supabase takes more than 5 seconds, stop the spinner
     const timeout = setTimeout(() => {
       if (mounted) {
         console.warn('Supabase getSession timed out');
@@ -384,7 +384,7 @@ export function AppProvider({ children }) {
       // workspace, and the hydrate effect could lock activeProject onto
       // a row that doesn't belong to the active workspace.
 
-      // Skip loadWorkspace when a workspace invite is being accepted — doAccept will set the
+      // Skip loadWorkspace when a workspace invite is being accepted, doAccept will set the
       // workspace directly after the member insert commits, avoiding a race condition.
       let foundWorkspace = null;
       if (localStorage.getItem('db-invite-token')) {
@@ -439,7 +439,7 @@ export function AppProvider({ children }) {
     setWorkspaceLoadError(false);
 
     try {
-      // Server-side lookup using SERVICE_ROLE_KEY — bypasses RLS so the
+      // Server-side lookup using SERVICE_ROLE_KEY, bypasses RLS so the
       // workspace is always returned if it exists, regardless of how the
       // workspaces SELECT policy is configured.
       const { data: { session } } = await supabase.auth.getSession();
@@ -541,12 +541,12 @@ export function AppProvider({ children }) {
         .order('updated_at', { ascending: false });
 
       if (error) {
-        // Auth lock collision is transient — skip silently, next poll succeeds
+        // Auth lock collision is transient, skip silently, next poll succeeds
         if (error.message?.includes('Lock') && error.message?.includes('stole')) {
           return;
         }
         console.error('[AppContext] loadProjectsFromDB error:', error);
-        console.error('[AppContext] If you see code 42P17 (recursive policy) or 500 — run supabase/cross-device-sync.sql in Supabase SQL Editor.');
+        console.error('[AppContext] If you see code 42P17 (recursive policy) or 500, run supabase/cross-device-sync.sql in Supabase SQL Editor.');
         return;
       }
       console.log('[loadProjectsFromDB] fetched', data?.length || 0, 'owned projects');
@@ -561,12 +561,12 @@ export function AppProvider({ children }) {
       }
 
       // Filter projects to the active workspace. Rows with workspace_id=null
-      // were created before the schema migration — treat them as belonging to
+      // were created before the schema migration, treat them as belonging to
       // the user's primary workspace (the first one in the list) so existing
       // data doesn't disappear on upgrade.
       const primaryWsId = workspaces[0]?.id || null;
       const inActiveWorkspace = (p) => {
-        if (!workspaceId) return true; // no active ws yet — show everything
+        if (!workspaceId) return true; // no active ws yet, show everything
         if (p.workspace_id === workspaceId) return true;
         if (p.workspace_id == null && workspaceId === primaryWsId) return true;
         return false;
@@ -577,7 +577,7 @@ export function AppProvider({ children }) {
         .map(p => formatProjectRow(p, { currentUserRole: 'Admin' }));
       const ownIds = new Set(ownFormatted.map(p => p.id));
 
-      // 2. Shared projects — where this user is a team_member but not the owner.
+      // 2. Shared projects, where this user is a team_member but not the owner.
       //    Requires the "Team members can view invited projects" RLS policy on projects.
       const { data: memberData } = await supabase
         .from('team_members')
@@ -595,7 +595,7 @@ export function AppProvider({ children }) {
 
       const allFormatted = [...ownFormatted, ...sharedFormatted];
 
-      // Skip the setState entirely if nothing changed — otherwise every 5s poll
+      // Skip the setState entirely if nothing changed, otherwise every 5s poll
       // re-assigns the array (new reference) and re-renders every consumer of
       // ctxProjects, including TeamCollab. That re-render redefines components
       // declared inside TeamCollab (InlineAddTask etc.) and wipes their local
@@ -620,7 +620,7 @@ export function AppProvider({ children }) {
           if (a.pinned !== b.pinned) return false;
           if (a.ts !== b.ts) return false;
           // kanban_columns changes are written to projects.updated_at so
-          // `ts` should differ — but check explicitly to survive any
+          // `ts` should differ, but check explicitly to survive any
           // server-side clock skew or skipped touched_at update.
           if (!sameColumns(a.kanbanColumns, b.kanbanColumns)) return false;
         }
@@ -660,7 +660,7 @@ export function AppProvider({ children }) {
   //
   // We use a ref for the active workspace so handlers always read the
   // current value without resubscribing on every workspace switch. Events
-  // whose row.workspace_id doesn't match are skipped — otherwise a change
+  // whose row.workspace_id doesn't match are skipped, otherwise a change
   // in workspace A would briefly populate the local state on a client
   // viewing workspace B and lock activeProject onto the wrong row.
   const activeWorkspaceIdRef = useRef(workspace?.id);
@@ -678,7 +678,7 @@ export function AppProvider({ children }) {
         const eventWsId = payload.new?.workspace_id ?? payload.old?.workspace_id;
         const activeWsId = activeWorkspaceIdRef.current;
         if (activeWsId && eventWsId && eventWsId !== activeWsId) {
-          // Cross-workspace event — ignore so this tab's state stays
+          // Cross-workspace event, ignore so this tab's state stays
           // scoped to the workspace the user is actually viewing.
           return;
         }
@@ -709,7 +709,7 @@ export function AppProvider({ children }) {
       .subscribe((status, err) => {
         console.log('[projects realtime] subscription status:', status, err || '');
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          console.error('[projects realtime] subscription failed — most likely the projects table is NOT in the supabase_realtime publication. Run cross-device-sync.sql in Supabase SQL Editor.');
+          console.error('[projects realtime] subscription failed, most likely the projects table is NOT in the supabase_realtime publication. Run cross-device-sync.sql in Supabase SQL Editor.');
         }
       });
 
@@ -744,7 +744,7 @@ export function AppProvider({ children }) {
         setProjects(prev => prev.filter(p => !(p.isShared && p.id === goneProjectId)));
         setHistory(prev => prev.filter(p => !(p.isShared && p.id === goneProjectId)));
         // If the kicked user was viewing this project, drop it from
-        // activeProject — TeamCollab's switch-to-most-recent effect
+        // activeProject, TeamCollab's switch-to-most-recent effect
         // takes over from there. Also scrub the localStorage caches so
         // the board state + columns don't linger.
         setActiveProjectState(prev => prev?.id === goneProjectId ? null : prev);
@@ -770,7 +770,7 @@ export function AppProvider({ children }) {
   // Realtime can fail silently if the projects table isn't in the
   // supabase_realtime publication or if a connection drops mid-session.
   // We poll every 5s while the tab is visible, and immediately on visibility
-  // change. Cheap query (single SELECT filtered by user_id) — no perf concern.
+  // change. Cheap query (single SELECT filtered by user_id), no perf concern.
   useEffect(() => {
     if (!authUser?.id) return;
     // Wait until the workspace is resolved before fetching projects.
@@ -818,7 +818,7 @@ export function AppProvider({ children }) {
       // intake tab took ages to load.
       //
       // The review screen loads the full submission row separately
-      // when the designer opens it — see IntakeBriefReview.
+      // when the designer opens it, see IntakeBriefReview.
       const { data, error: selErr } = await supabase
         .from('intake_forms')
         .select(`
@@ -923,7 +923,7 @@ export function AppProvider({ children }) {
       if (newComplete.length > 0) {
         showToast(
           '🎉 ' + newComplete[0].project_name +
-          ' — client submitted their brief!'
+          ', client submitted their brief!'
         );
         newComplete.forEach(f => knownCompleteIdsRef.current.add(f.id));
       }
@@ -950,7 +950,7 @@ export function AppProvider({ children }) {
   }
 
   // Force a fresh fetch of the auth user (NOT just the session). Important
-  // after server-side user_metadata edits — refreshSession() only renews
+  // after server-side user_metadata edits, refreshSession() only renews
   // tokens, it doesn't always rebuild the user object with the new metadata.
   // Calling getUser() pulls the latest row from auth.users and we then
   // overwrite our local authUser so every consumer re-renders with the new
@@ -1020,7 +1020,7 @@ export function AppProvider({ children }) {
   // ── Sign Out ──────────────────────────────────────────────────────────────
 
   function signOut() {
-    // Fire-and-forget — never await a network call inside signOut.
+    // Fire-and-forget, never await a network call inside signOut.
     // If signOut() hangs the user is stuck forever; clearing storage is enough.
     supabase.auth.signOut().catch(() => {});
 
@@ -1033,7 +1033,7 @@ export function AppProvider({ children }) {
       if (k.startsWith('sb-')) localStorage.removeItem(k);
     });
 
-    // Force a full navigation to root — the fresh page will find no session
+    // Force a full navigation to root, the fresh page will find no session
     // and render <Auth />.
     window.location.replace('/');
   }
@@ -1046,7 +1046,7 @@ export function AppProvider({ children }) {
     toastTimer.current = setTimeout(() => setNotification(null), 3000);
   }, []);
 
-  // showAIError(error, onRetry?) — surface a user-safe AI error banner.
+  // showAIError(error, onRetry?), surface a user-safe AI error banner.
   // The error object must come from our client wrappers (post() in
   // src/lib/api.js or aiBuildEngine.buildSection) so the .code and
   // .message fields are already mapped to user-safe values by the
@@ -1054,7 +1054,7 @@ export function AppProvider({ children }) {
   const showAIError = useCallback((error, onRetry) => {
     const code = (error && error.code) || 'unexpected';
     const message = (error && error.message)
-      || 'Something interrupted the AI. Your work is safe — please try again.';
+      || 'Something interrupted the AI. Your work is safe, please try again.';
     setAiError({
       code,
       message,
@@ -1236,7 +1236,7 @@ export function AppProvider({ children }) {
       } else if (remaining === 5) {
         showToast?.('Only 5 credits left.', 'warning')
       } else if (remaining === 10) {
-        showToast?.('10 credits remaining — upgrade to get more.', 'warning')
+        showToast?.('10 credits remaining, upgrade to get more.', 'warning')
       }
       return { ok: true, creditsRemaining: remaining }
     } catch (e) {
@@ -1446,7 +1446,7 @@ export function AppProvider({ children }) {
     // row exists in DB with section='translator').
     let preservedSection = sectionOverride;
 
-    // Optimistic update — IMPORTANT: handle both "exists" (rename) and
+    // Optimistic update, IMPORTANT: handle both "exists" (rename) and
     // "doesn't exist yet" (create-via-handleNewProject) cases. Without the
     // upsert behaviour here, a brand-new TC project never landed in
     // AppContext.projects on Device A, so its realtime echo on Device B
@@ -1483,7 +1483,7 @@ export function AppProvider({ children }) {
     if (!authUser) return;
 
     (async () => {
-      // Use the cached session from state — calling supabase.auth.getSession()
+      // Use the cached session from state, calling supabase.auth.getSession()
       // can hang on subsequent calls due to internal token-refresh races.
       const accessToken = session?.access_token;
       if (!accessToken) {
@@ -1524,7 +1524,7 @@ export function AppProvider({ children }) {
 
   // touchProject: bump projects.updated_at WITHOUT changing any owner-only
   // fields (title / pinned / locked / section). The API allows any active
-  // member to fire this — used by handleSwitchProject so the user's "most
+  // member to fire this, used by handleSwitchProject so the user's "most
   // recently viewed" project syncs across their own devices regardless of
   // whether they're Admin / Editor / Viewer on it.
   const touchProject = useCallback(async (id) => {
@@ -1633,7 +1633,7 @@ export function AppProvider({ children }) {
   const renameHistory = useCallback((id, title) => {
     // Translator/brief projects exist in DB already (created via the
     // translator flow). Use the same server-side PATCH path as renameProject
-    // for consistency — direct .update() was also subject to the hang.
+    // for consistency, direct .update() was also subject to the hang.
     setHistory(prev => prev.map(h => h.id === id ? { ...h, title } : h));
     setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     setActiveProjectState(prev => prev?.id === id ? { ...prev, title } : prev);
