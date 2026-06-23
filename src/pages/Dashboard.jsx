@@ -17,7 +17,7 @@ import {
   callJSON,
   generateSubtasks,
 } from '../lib/api'
-import { translateBriefV2, isV2Result, scoreBriefV2, enrichCompetitorUrls } from '../lib/briefV2Translator'
+import { translateBriefV2, isV2Result, scoreBriefV2 } from '../lib/briefV2Translator'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
 import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
@@ -536,20 +536,13 @@ export default function Dashboard() {
         setActiveProjectBriefResult(prev => prev ? { ...prev, score } : prev)
       }).catch(() => {})
 
-      // Post-translation competitor URL enrichment via Brave Search
-      // proxy on Render. Replaces the competitor list with a copy
-      // that has each competitor's homepage URL filled in (where
-      // we found one). Silent degradation if Brave isn't keyed.
-      enrichCompetitorUrls(finalResult).then(enriched => {
-        if (!enriched || enriched === finalResult) return
-        setResult(prev => {
-          if (!prev) return prev
-          // Merge: keep prev.score and any other fields set after
-          // the initial result; just replace the sections list.
-          return { ...prev, sections: enriched.sections }
-        })
-        setActiveProjectBriefResult(prev => prev ? { ...prev, sections: enriched.sections } : prev)
-      }).catch(() => {})
+      // Competitor URL enrichment was previously a second pass that
+      // hit /api/web-search to verify Claude's URL guesses. Pulled
+      // because the underlying search APIs are no longer free at
+      // any usable tier. The brief still gets URLs — Claude's
+      // first-pass output includes them — they're just not
+      // verified against a live search index. The server route
+      // stays mounted in case a paid key gets added later.
 
       // Phase 2 — async design-system extraction. Reads items 12-17
       // and compiles a single shared object every kanban card +

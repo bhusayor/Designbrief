@@ -219,7 +219,7 @@ Return JSON exactly in this shape:
     "competitor_analysis": [
       {
         "name": "<competitor name>",
-        "url": "<best-guess homepage URL, e.g. https://linear.app — omit the field entirely if not confident>",
+        "url": "<the company's actual homepage URL if you are confident from training data, e.g. https://linear.app. OMIT THIS FIELD ENTIRELY if you are not certain the URL is real and correct — a missing URL is far better than a wrong or hallucinated one>",
         "positioning": "<how they present strategically. 1 short sentence>",
         "layout": "<their dominant layout pattern, plain language, e.g. 'split hero with feature grid below'>",
         "strength": "<one short sentence on what they do best>",
