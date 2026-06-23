@@ -35,6 +35,13 @@ import { requireAuth, checkRateLimit, logUsage } from './server-lib/authMiddlewa
 import { mapClaudeError } from './server-lib/claudeError.js'
 import { pickModel } from './src/lib/models.js'
 import { runIntakePipeline } from './intake-pipeline.js'
+import {
+  createBriefReview,
+  getBriefReviewByToken,
+  submitBriefReviewDecision,
+  addBriefReviewComment,
+  getBriefReviewByProject,
+} from './server-lib/briefReviews.js'
 
 dotenv.config()
 
@@ -453,6 +460,15 @@ app.post('/api/web-search', async (req, res) => {
     return res.status(200).json({ results: [], degraded: 'exception' })
   }
 })
+
+// ────────────────────────────────────────────────────────────────────
+// Brief reviews — client-facing approval flow
+// ────────────────────────────────────────────────────────────────────
+app.post('/api/brief-reviews', createBriefReview)
+app.get('/api/brief-reviews/by-token/:token', getBriefReviewByToken)
+app.post('/api/brief-reviews/by-token/:token/decision', submitBriefReviewDecision)
+app.post('/api/brief-reviews/by-token/:token/comments', addBriefReviewComment)
+app.get('/api/brief-reviews/by-project/:projectId', getBriefReviewByProject)
 
 // ── Unhandled-error fallback ───────────────────────────────────────
 app.use((err, _req, res, _next) => {

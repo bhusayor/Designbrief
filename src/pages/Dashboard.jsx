@@ -904,6 +904,7 @@ export default function Dashboard() {
             isStreaming={v2Streaming}
             showCompletionBanner={true}
             designSystemBuilding={designSystemBuilding}
+            projectId={activeChat}
             onJumpToKanban={() => navigate('team')}
             onEditItem={handleEditBriefItem}
             onExportPdf={handleDownload}

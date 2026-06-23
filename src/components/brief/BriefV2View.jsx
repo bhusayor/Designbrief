@@ -30,12 +30,15 @@ import {
   PaperAirplaneIcon,
   PencilSquareIcon,
   QuestionMarkCircleIcon,
+  ShareIcon,
+  CheckBadgeIcon,
 } from '@heroicons/react/24/outline'
 import {
   BRIEF_V2_SECTIONS,
   emptyContentForShape,
 } from '../../lib/briefV2Schema.js'
 import { EditorForShape } from './BriefV2Edit.jsx'
+import BriefV2ShareModal from './BriefV2ShareModal.jsx'
 
 // ────────────────────────────────────────────────────────────────────
 // Public component
@@ -46,6 +49,10 @@ export default function BriefV2View({
   onJumpToKanban,
   onReviewTranslation, // legacy no-op; replaced by inline edit
   onEditItem,
+  projectId,
+  intakeSubmissionId,
+  defaultClientEmail,
+  defaultClientName,
   onExportPdf,
   onBuildBoard,
   showCompletionBanner = false,
@@ -67,6 +74,7 @@ export default function BriefV2View({
   // Active section for sticky nav highlight + tab bar selection.
   const sectionRefs = useRef({})
   const [activeSectionId, setActiveSectionId] = useState(sections[0]?.id)
+  const [shareOpen, setShareOpen] = useState(false)
 
   useEffect(() => {
     const els = sections
@@ -125,8 +133,14 @@ export default function BriefV2View({
             </header>
           )}
 
+          {result?.review?.status === 'approved' && (
+            <ApprovedBanner review={result.review} />
+          )}
+
           {showCompletionBanner && allDone && (
             <CompletionBanner
+              onShareReview={() => setShareOpen(true)}
+              reviewStatus={result?.review?.status}
               onBuildBoard={onBuildBoard}
               onExportPdf={onExportPdf}
               designSystemBuilding={designSystemBuilding}
@@ -161,6 +175,15 @@ export default function BriefV2View({
           <div style={{ height: 80 }} />
         </main>
       </div>
+
+      <BriefV2ShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        projectId={projectId}
+        intakeSubmissionId={intakeSubmissionId}
+        defaultClientEmail={defaultClientEmail}
+        defaultClientName={defaultClientName}
+      />
 
       {/* Mobile floating bottom bar */}
       <div className="brief-v2-bottombar">
@@ -1367,7 +1390,12 @@ function visualLines(v) {
 }
 
 // ── Completion banner ──────────────────────────────────────────────
-function CompletionBanner({ onBuildBoard, onExportPdf, designSystemBuilding }) {
+function CompletionBanner({ onBuildBoard, onExportPdf, onShareReview, reviewStatus, designSystemBuilding }) {
+  const shareLabel = reviewStatus === 'pending'
+    ? 'Review pending'
+    : reviewStatus === 'changes_requested'
+    ? 'Changes requested'
+    : 'Send for client review'
   return (
     <div className="brief-v2-banner">
       <div className="brief-v2-banner-body">
@@ -1375,16 +1403,38 @@ function CompletionBanner({ onBuildBoard, onExportPdf, designSystemBuilding }) {
         <div className="brief-v2-banner-sub">
           {designSystemBuilding
             ? 'Compiling design system from items 12-17…'
-            : 'Click any card to edit. Build the board when you are ready.'}
+            : 'Click any card to edit. Send to your client for sign-off, or build the board.'}
         </div>
       </div>
       <div className="brief-v2-banner-actions">
+        {onShareReview && (
+          <button onClick={onShareReview} className="brief-v2-banner-btn brief-v2-banner-btn-quiet">
+            <ShareIcon style={{ width: 14, height: 14 }} /> {shareLabel}
+          </button>
+        )}
         <button onClick={onExportPdf} className="brief-v2-banner-btn brief-v2-banner-btn-quiet">
           <ArrowDownTrayIcon style={{ width: 14, height: 14 }} /> Export PDF
         </button>
         <button onClick={onBuildBoard} disabled={designSystemBuilding} className="brief-v2-banner-btn brief-v2-banner-btn-primary">
           Build board <ArrowRightIcon style={{ width: 14, height: 14 }} />
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Approved banner — shown when client clicks Approve ─────────────
+function ApprovedBanner({ review }) {
+  const when = review?.approved_at
+    ? new Date(review.approved_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    : null
+  const who = review?.client_name || review?.client_email || 'the client'
+  return (
+    <div className="brief-v2-approved-banner">
+      <CheckBadgeIcon style={{ width: 22, height: 22, color: '#047857', flexShrink: 0 }} />
+      <div>
+        <div className="brief-v2-approved-title">Approved by {who}</div>
+        {when && <div className="brief-v2-approved-sub">on {when}</div>}
       </div>
     </div>
   )
@@ -1730,6 +1780,17 @@ function ResponsiveStyles() {
         cursor: pointer;
       }
       .brief-v2-card-edit-save:hover { opacity: 0.92; }
+
+      .brief-v2-approved-banner {
+        display: flex; align-items: center; gap: 12px;
+        padding: 14px 18px;
+        margin-bottom: 18px;
+        background: linear-gradient(135deg, rgba(16,185,129,0.10), rgba(16,185,129,0.04));
+        border: 1px solid rgba(16,185,129,0.40);
+        border-radius: 14px;
+      }
+      .brief-v2-approved-title { font: 800 14px 'Urbanist', sans-serif; color: #047857; }
+      .brief-v2-approved-sub   { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
 
       /* Editor primitives (used by BriefV2Edit components) */
       .briefv2-edit-stack { display: flex; flex-direction: column; gap: 12px; }
