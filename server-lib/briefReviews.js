@@ -103,8 +103,11 @@ export async function createBriefReview(req, res) {
   }
 
   // Send the invite email. Failure here is non-fatal — the review
-  // row exists and the designer can copy the link manually.
+  // row exists and the designer can copy the link manually — but we
+  // capture the failure mode so the API response tells the designer
+  // exactly what went wrong instead of leaving them guessing.
   const reviewUrl = `${appUrl(req)}/review/${share_token}`
+  let emailResult = { sent: false, error: null }
   try {
     const safeName = String(designerName).replace(/[<>"]/g, '').trim() || 'Your designer'
     const html = renderInviteHtml({
@@ -121,19 +124,49 @@ export async function createBriefReview(req, res) {
       message: designer_message,
       reviewUrl,
     })
-    await sendEmail({
+    // Less-spammy subject: a personal-feeling sentence beats
+    // "Designer sent you a thing". Spam filters key on "sent you" +
+    // generic CTAs. A subject phrased like the designer wrote it
+    // themselves scores significantly better.
+    const firstName = (client_name || '').trim().split(/\s+/)[0]
+    const subject = firstName
+      ? `${firstName}, quick read before we get started`
+      : 'Quick read before we get started'
+
+    // List-Unsubscribe headers tell Gmail/Outlook this is a real
+    // sender (transactional senders provide them). Reduces spam
+    // scoring meaningfully even on shared sender domains.
+    const headers = {
+      'List-Unsubscribe': `<mailto:${user.email || 'support@designbrief.ai'}?subject=unsubscribe>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    }
+
+    const sendRes = await sendEmail({
       from: `${safeName} <onboarding@resend.dev>`,
       reply_to: user.email || undefined,
       to: [client_email],
-      subject: `${safeName} sent you a brief to review`,
+      subject,
       html,
       text,
+      headers,
     })
+    if (sendRes?.error) {
+      // The shape from server-lib/sendEmail.js when Resend returns
+      // a non-2xx response. Logged loudly so Render captures it,
+      // and surfaced in the API response so the designer sees the
+      // real reason.
+      console.error('[brief-reviews] resend rejected', sendRes.error)
+      emailResult = { sent: false, error: sendRes.error.message || 'Email provider rejected the message.' }
+    } else {
+      emailResult = { sent: true, error: null, id: sendRes?.data?.id || null }
+      console.log('[brief-reviews] email sent', { to: client_email, id: sendRes?.data?.id })
+    }
   } catch (e) {
-    console.warn('[brief-reviews] email send failed (non-fatal)', e?.message)
+    console.error('[brief-reviews] email exception', e)
+    emailResult = { sent: false, error: e?.message || 'Email send failed.' }
   }
 
-  return res.status(200).json({ ok: true, review, share_url: reviewUrl })
+  return res.status(200).json({ ok: true, review, share_url: reviewUrl, email: emailResult })
 }
 
 // ────────────────────────────────────────────────────────────────────

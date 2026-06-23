@@ -25,6 +25,7 @@ export default function BriefV2ShareModal({
   const [shareUrl, setShareUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
+  const [emailStatus, setEmailStatus] = useState(null) // { sent, error }
   const firstFieldRef = useRef(null)
 
   // Reset state every time the modal opens fresh.
@@ -89,6 +90,7 @@ export default function BriefV2ShareModal({
       }
 
       setShareUrl(body.share_url || '')
+      setEmailStatus(body.email || null)
       setSubmitting(false)
     } catch (err) {
       console.error('[BriefV2ShareModal] create failed', err)
@@ -243,18 +245,37 @@ export default function BriefV2ShareModal({
           </form>
         ) : (
           <div style={{ padding: '18px 24px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{
-              padding: '12px 14px',
-              background: 'rgba(16,185,129,0.07)',
-              border: '1px solid rgba(16,185,129,0.30)',
-              borderRadius: 10,
-              display: 'flex', alignItems: 'center', gap: 10,
-            }}>
-              <CheckIcon style={{ width: 18, height: 18, color: '#047857', flexShrink: 0 }} />
-              <div style={{ fontSize: 13, color: 'var(--color-text)' }}>
-                Sent to <strong>{email}</strong>.
+            {emailStatus?.sent !== false ? (
+              <div style={{
+                padding: '12px 14px',
+                background: 'rgba(16,185,129,0.07)',
+                border: '1px solid rgba(16,185,129,0.30)',
+                borderRadius: 10,
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <CheckIcon style={{ width: 18, height: 18, color: '#047857', flexShrink: 0, marginTop: 1 }} />
+                <div style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.5 }}>
+                  Sent to <strong>{email}</strong>.{' '}
+                  <span style={{ color: 'var(--color-text-muted)' }}>
+                    If it doesn't arrive in 1-2 minutes, check the spam folder — and copy the link below as a backup.
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={{
+                padding: '12px 14px',
+                background: 'rgba(245,158,11,0.07)',
+                border: '1px solid rgba(245,158,11,0.30)',
+                borderRadius: 10,
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <span style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>⚠</span>
+                <div style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.5 }}>
+                  Email didn't go out: <strong>{emailStatus.error || 'unknown error'}</strong>.
+                  The review link below still works — copy and send it manually.
+                </div>
+              </div>
+            )}
 
             <Field label="Shareable review link">
               <div style={{ display: 'flex', gap: 6 }}>

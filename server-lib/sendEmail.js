@@ -32,6 +32,8 @@ export async function sendEmail(payload) {
   }
   // Normalise to[] — Resend accepts string or array, we always
   // send an array so the caller doesn't have to think about it.
+  // headers (List-Unsubscribe etc.) are passed straight through;
+  // Resend forwards them verbatim into the outbound message.
   const body = {
     ...payload,
     to: Array.isArray(payload.to) ? payload.to : [payload.to],
