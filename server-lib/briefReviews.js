@@ -89,6 +89,11 @@ export async function createQuickLink(req, res) {
   }
 
   const share_token = genShareToken()
+  // Use an empty string for client_email rather than NULL so the
+  // insert works on DBs that haven't yet applied migration 0011
+  // (which drops the NOT NULL constraint). The actual email is
+  // never used on the quick-link path; this is purely a column
+  // placeholder.
   const { data: review, error: insErr } = await supabase
     .from('brief_reviews')
     .insert({
@@ -96,7 +101,7 @@ export async function createQuickLink(req, res) {
       intake_submission_id: intake_submission_id || null,
       user_id: user.id,
       share_token,
-      client_email: null,
+      client_email: '',
       status: 'pending',
     })
     .select('id, share_token')
