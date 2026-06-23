@@ -51,6 +51,12 @@ export default function BriefV2View({
   defaultClientName,
   onExportPdf,
   onBuildBoard,
+  // Per-section client-review props. When sectionDecisions is set
+  // (even to {}) AND onSectionDecision is provided, each section
+  // header renders Approve / Request changes buttons + reflects the
+  // current decision state. Used by the public /review/<token> page.
+  sectionDecisions = null,
+  onSectionDecision = null,
   showCompletionBanner = false,
   designSystemBuilding = false,
 }) {
@@ -143,21 +149,32 @@ export default function BriefV2View({
             />
           )}
 
-          {sections.map(section => (
-            <section
-              key={section.id}
-              id={`brief-v2-${section.id}`}
-              ref={el => (sectionRefs.current[section.id] = el)}
-              className="brief-v2-section"
-            >
-              <SectionHeader index={sections.indexOf(section) + 1} label={section.label} sectionId={section.id} />
-              <div className="brief-v2-card-grid">
-                {section.items.map(item => (
-                  <BriefCard key={item.id} item={item} />
-                ))}
-              </div>
-            </section>
-          ))}
+          {sections.map(section => {
+            const decision = sectionDecisions?.[section.id] || null
+            const showReview = !!onSectionDecision
+            return (
+              <section
+                key={section.id}
+                id={`brief-v2-${section.id}`}
+                ref={el => (sectionRefs.current[section.id] = el)}
+                className={`brief-v2-section ${decision?.status ? `brief-v2-section-${decision.status}` : ''}`}
+              >
+                <SectionHeader index={sections.indexOf(section) + 1} label={section.label} sectionId={section.id} />
+                {showReview && (
+                  <SectionReviewBar
+                    sectionId={section.id}
+                    decision={decision}
+                    onDecide={onSectionDecision}
+                  />
+                )}
+                <div className="brief-v2-card-grid">
+                  {section.items.map(item => (
+                    <BriefCard key={item.id} item={item} />
+                  ))}
+                </div>
+              </section>
+            )
+          })}
 
           {(result?.designSystem || designSystemBuilding) && (
             <DesignSystemPanel ds={result?.designSystem} briefResult={result} building={designSystemBuilding} />
@@ -229,6 +246,141 @@ function SectionHeader({ index, label, sectionId }) {
         {glyph}
       </span>
       <h2 className="brief-v2-section-title">{label}</h2>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// SectionReviewBar — Approve / Request changes UI rendered under
+// each section header on the public client review page.
+//
+// States:
+//   - undecided        → two buttons (Approve + Request changes)
+//   - approved         → green badge with a Reset link
+//   - changes_requested → amber callout containing the client's note
+//                         + a Reset link to redo the decision
+//
+// Request-changes opens an inline note input so the client can
+// describe what needs to change without leaving the section.
+// ────────────────────────────────────────────────────────────────────
+function SectionReviewBar({ sectionId, decision, onDecide }) {
+  const [composing, setComposing] = useState(false)
+  const [note, setNote] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function fire(status, payloadNote) {
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      await onDecide?.(sectionId, status, payloadNote || null)
+      setComposing(false)
+      setNote('')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (decision?.status === 'approved') {
+    return (
+      <div className="brief-v2-srbar brief-v2-srbar-approved" role="status">
+        <span className="brief-v2-srbar-pill brief-v2-srbar-pill-good">
+          <CheckBadgeIcon style={{ width: 14, height: 14 }} /> Approved
+        </span>
+        <button
+          type="button"
+          onClick={() => fire('changes_requested', null)}
+          className="brief-v2-srbar-link"
+          disabled={submitting}
+        >
+          Reset
+        </button>
+      </div>
+    )
+  }
+
+  if (decision?.status === 'changes_requested') {
+    return (
+      <div className="brief-v2-srbar brief-v2-srbar-changes">
+        <div className="brief-v2-srbar-changes-head">
+          <span className="brief-v2-srbar-pill brief-v2-srbar-pill-warn">
+            <ExclamationTriangleIcon style={{ width: 14, height: 14 }} /> Changes requested
+          </span>
+          <button
+            type="button"
+            onClick={() => fire('approved', null)}
+            className="brief-v2-srbar-link"
+            disabled={submitting}
+          >
+            Mark approved
+          </button>
+        </div>
+        {decision.note && (
+          <p className="brief-v2-srbar-note">{decision.note}</p>
+        )}
+      </div>
+    )
+  }
+
+  if (composing) {
+    return (
+      <div className="brief-v2-srbar brief-v2-srbar-compose">
+        <label className="brief-v2-srbar-compose-label">
+          What should change in this section?
+        </label>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. The audience description is too broad — we only target independent designers."
+          rows={3}
+          autoFocus
+          disabled={submitting}
+          className="brief-v2-srbar-textarea"
+        />
+        <div className="brief-v2-srbar-compose-actions">
+          <button
+            type="button"
+            onClick={() => { setComposing(false); setNote('') }}
+            disabled={submitting}
+            className="brief-v2-srbar-btn brief-v2-srbar-btn-ghost"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => fire('changes_requested', note.trim())}
+            disabled={submitting || !note.trim()}
+            className="brief-v2-srbar-btn brief-v2-srbar-btn-warn"
+          >
+            {submitting ? 'Sending…' : 'Send change request'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Undecided default state.
+  return (
+    <div className="brief-v2-srbar">
+      <span className="brief-v2-srbar-prompt">Looks good?</span>
+      <div className="brief-v2-srbar-actions">
+        <button
+          type="button"
+          onClick={() => setComposing(true)}
+          disabled={submitting}
+          className="brief-v2-srbar-btn brief-v2-srbar-btn-ghost"
+        >
+          Request changes
+        </button>
+        <button
+          type="button"
+          onClick={() => fire('approved', null)}
+          disabled={submitting}
+          className="brief-v2-srbar-btn brief-v2-srbar-btn-good"
+        >
+          <CheckBadgeIcon style={{ width: 13, height: 13 }} />
+          Approve section
+        </button>
+      </div>
     </div>
   )
 }
@@ -1635,6 +1787,115 @@ function ResponsiveStyles() {
         font: 800 12px 'JetBrains Mono', monospace;
         letter-spacing: 0.04em;
         flex-shrink: 0;
+      }
+      /* Per-section client review status accents on the wrapping section */
+      .brief-v2-section-approved          { /* accent supplied by inner bar */ }
+      .brief-v2-section-changes_requested { /* accent supplied by inner bar */ }
+
+      /* ── SectionReviewBar ─────────────────────────────────────── */
+      .brief-v2-srbar {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; flex-wrap: wrap;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+      }
+      .brief-v2-srbar-approved {
+        background: rgba(16,185,129,0.06);
+        border-color: rgba(16,185,129,0.30);
+      }
+      .brief-v2-srbar-changes {
+        flex-direction: column;
+        align-items: flex-start;
+        background: rgba(245,158,11,0.06);
+        border-color: rgba(245,158,11,0.30);
+      }
+      .brief-v2-srbar-changes-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; width: 100%;
+      }
+      .brief-v2-srbar-note {
+        margin: 6px 0 0;
+        font-size: 13px; line-height: 1.55;
+        color: var(--color-text);
+        background: var(--color-bg);
+        padding: 10px 12px;
+        border-radius: 8px;
+        width: 100%;
+        white-space: pre-wrap;
+      }
+      .brief-v2-srbar-prompt {
+        font: 700 12px 'Urbanist', sans-serif;
+        color: var(--color-text-soft);
+      }
+      .brief-v2-srbar-pill {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 10px;
+        border-radius: 100px;
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.02em;
+      }
+      .brief-v2-srbar-pill-good { background: #10b981; color: white; }
+      .brief-v2-srbar-pill-warn { background: #f59e0b; color: white; }
+      .brief-v2-srbar-actions { display: flex; gap: 8px; }
+      .brief-v2-srbar-btn {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font: 700 12px 'Urbanist', sans-serif;
+        cursor: pointer;
+        border: 1px solid transparent;
+      }
+      .brief-v2-srbar-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+      .brief-v2-srbar-btn-good { background: #10b981; color: white; }
+      .brief-v2-srbar-btn-good:hover:not(:disabled) { opacity: 0.92; }
+      .brief-v2-srbar-btn-warn { background: #f59e0b; color: white; }
+      .brief-v2-srbar-btn-warn:hover:not(:disabled) { opacity: 0.92; }
+      .brief-v2-srbar-btn-ghost {
+        background: transparent;
+        border-color: var(--color-border);
+        color: var(--color-text-soft);
+      }
+      .brief-v2-srbar-btn-ghost:hover:not(:disabled) {
+        background: var(--color-bg);
+        color: var(--color-text);
+      }
+      .brief-v2-srbar-link {
+        background: transparent; border: none; color: var(--color-text-soft);
+        font: 700 11px 'Urbanist', sans-serif;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        padding: 0;
+      }
+      .brief-v2-srbar-link:hover { color: var(--color-text); }
+
+      .brief-v2-srbar-compose { flex-direction: column; align-items: stretch; }
+      .brief-v2-srbar-compose-label {
+        font: 700 11px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+        letter-spacing: 0.04em; text-transform: uppercase;
+      }
+      .brief-v2-srbar-textarea {
+        width: 100%;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: 400 13px 'Urbanist', sans-serif;
+        line-height: 1.55;
+        color: var(--color-text);
+        resize: vertical;
+        outline: none;
+      }
+      .brief-v2-srbar-textarea:focus {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 3px rgba(139,92,246,0.10);
+      }
+      .brief-v2-srbar-compose-actions {
+        display: flex; gap: 8px; justify-content: flex-end;
       }
       .brief-v2-section-chip {
         font-family: 'JetBrains Mono', monospace;

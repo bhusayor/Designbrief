@@ -74,6 +74,10 @@ export default function ClientBriefReview() {
     return () => { cancelled = true }
   }, [activeReviewToken])
 
+  // Overall review decision (Approve all / Request changes on the
+  // whole brief). Approve all also fans out to mark every section
+  // approved in section_decisions so the designer's UI shows the
+  // full state.
   async function submitDecision(status, note = '') {
     if (submitting) return
     setSubmitting(true)
@@ -84,8 +88,29 @@ export default function ClientBriefReview() {
         body: JSON.stringify({ status, note }),
       })
       if (!r.ok) throw new Error(`Could not submit (${r.status})`)
-      // Optimistically reflect in local state so the banner appears
-      // without a round trip.
+
+      // When the client hits Approve all, also stamp every section
+      // as approved client-side. Background fan-out fires in
+      // parallel so the section_decisions map on the DB matches the
+      // overall state without making the user wait.
+      const sectionIds = (data?.brief?.sections || []).map(s => s.id)
+      let nextSectionDecisions = data?.review?.section_decisions || {}
+      if (status === 'approved' && sectionIds.length) {
+        const now = new Date().toISOString()
+        const fan = { ...nextSectionDecisions }
+        sectionIds.forEach(id => { fan[id] = { status: 'approved', note: null, decided_at: now } })
+        nextSectionDecisions = fan
+        // Fire-and-forget per-section writes so the designer's view
+        // reflects approved state on each section too.
+        sectionIds.forEach(id => {
+          fetch(`${API_BASE}/api/brief-reviews/by-token/${activeReviewToken}/section-decision`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ section_id: id, status: 'approved' }),
+          }).catch(() => {})
+        })
+      }
+
       setData(prev => prev ? {
         ...prev,
         review: {
@@ -93,6 +118,7 @@ export default function ClientBriefReview() {
           status,
           decision_note: note || null,
           approved_at: status === 'approved' ? new Date().toISOString() : prev.review.approved_at,
+          section_decisions: nextSectionDecisions,
         },
       } : prev)
       setShowChangesModal(false)
@@ -101,6 +127,33 @@ export default function ClientBriefReview() {
       alert(e?.message || 'Could not submit your decision. Please try again.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // Per-section decision (one of the buttons under a section header).
+  // Server-side updates the JSONB map; locally we patch the same map
+  // so the section bar reflects state immediately.
+  async function submitSectionDecision(sectionId, status, note) {
+    try {
+      const r = await fetch(`${API_BASE}/api/brief-reviews/by-token/${activeReviewToken}/section-decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section_id: sectionId, status, note: note || null }),
+      })
+      if (!r.ok) throw new Error(`Could not submit (${r.status})`)
+      const body = await r.json().catch(() => ({}))
+      setData(prev => prev ? {
+        ...prev,
+        review: {
+          ...prev.review,
+          section_decisions: body?.section_decisions || {
+            ...(prev.review.section_decisions || {}),
+            [sectionId]: { status, note: note || null, decided_at: new Date().toISOString() },
+          },
+        },
+      } : prev)
+    } catch (e) {
+      alert(e?.message || 'Could not save your decision. Please try again.')
     }
   }
 
@@ -210,26 +263,35 @@ export default function ClientBriefReview() {
         </section>
       </div>
 
-      {/* The brief — read-only (no onEditItem prop) */}
+      {/* The brief — read-only (no onEditItem prop) but wired with
+          per-section review handlers so each section gets its own
+          Approve / Request changes UI under its header. */}
       <div style={{ background: 'var(--color-bg)' }}>
         <BriefV2View
           result={brief}
           isStreaming={false}
           showCompletionBanner={false}
+          sectionDecisions={review.section_decisions || {}}
+          onSectionDecision={submitSectionDecision}
         />
       </div>
 
-      {/* Sticky decision bar — only when not yet decided */}
+      {/* Approve-all section — sits at the end of the page, not
+          fixed/sticky. Gives the client one big affordance for the
+          common "everything looks good" case so they don't have to
+          tick each section individually. */}
       {!isDone && (
-        <div style={decisionBar(designer.primary)}>
-          <div style={{ ...container, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={container}>
+          <div style={approveAllBlock(designer.primary)}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>Ready to decide?</div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                Approve the brief or send a note about what needs changing.
+              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
+                Happy with everything?
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                Approve all the sections at once. Or scroll back up and decide section by section.
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
               <button
                 onClick={() => setShowChangesModal(true)}
                 disabled={submitting}
@@ -242,7 +304,7 @@ export default function ClientBriefReview() {
                 disabled={submitting}
                 style={primaryBtn(designer.primary)}
               >
-                {submitting ? 'Submitting…' : 'Approve brief'}
+                {submitting ? 'Submitting…' : 'Approve all'}
               </button>
             </div>
           </div>
@@ -376,7 +438,6 @@ const shell = {
   height: '100dvh',
   overflowY: 'auto',
   background: 'var(--color-bg)',
-  paddingBottom: 120, // leave room for the sticky decision bar
 }
 
 const container = {
@@ -428,6 +489,10 @@ function decisionBanner(isApproved) {
 }
 
 function decisionBar(primary) {
+  // Kept for back-compat; no longer used. The bottom CTA is now
+  // an inline approveAllBlock that flows in document order so the
+  // page is naturally scrollable without a sticky bar covering
+  // the last card.
   return {
     position: 'fixed',
     left: 0, right: 0, bottom: 0,
@@ -436,6 +501,22 @@ function decisionBar(primary) {
     boxShadow: '0 -10px 30px rgba(0,0,0,0.08)',
     padding: '14px 0',
     zIndex: 10,
+  }
+}
+
+function approveAllBlock(primary) {
+  return {
+    margin: '32px 0 48px',
+    padding: '20px 22px',
+    background: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderLeft: `3px solid ${primary}`,
+    borderRadius: 14,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    flexWrap: 'wrap',
   }
 }
 

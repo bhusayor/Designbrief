@@ -37,8 +37,10 @@ import { pickModel } from './src/lib/models.js'
 import { runIntakePipeline } from './intake-pipeline.js'
 import {
   createBriefReview,
+  createQuickLink,
   getBriefReviewByToken,
   submitBriefReviewDecision,
+  submitSectionDecision,
   addBriefReviewComment,
   getBriefReviewByProject,
 } from './server-lib/briefReviews.js'
@@ -465,8 +467,10 @@ app.post('/api/web-search', async (req, res) => {
 // Brief reviews — client-facing approval flow
 // ────────────────────────────────────────────────────────────────────
 app.post('/api/brief-reviews', createBriefReview)
+app.post('/api/brief-reviews/quick-link', createQuickLink)
 app.get('/api/brief-reviews/by-token/:token', getBriefReviewByToken)
 app.post('/api/brief-reviews/by-token/:token/decision', submitBriefReviewDecision)
+app.post('/api/brief-reviews/by-token/:token/section-decision', submitSectionDecision)
 app.post('/api/brief-reviews/by-token/:token/comments', addBriefReviewComment)
 app.get('/api/brief-reviews/by-project/:projectId', getBriefReviewByProject)
 

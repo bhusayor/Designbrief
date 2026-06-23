@@ -40,6 +40,80 @@ function appUrl(req) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// POST /api/brief-reviews/quick-link — designer wants a shareable
+// review URL without going through the email flow at all. Creates a
+// brief_reviews row with NULL client_email + status='pending' and
+// returns the URL. Used by the share modal's "Copy link" button so
+// the designer doesn't have to fill the form just to grab a link
+// they want to paste into Slack / iMessage / WhatsApp.
+//
+// Auth: Bearer token (designer's Supabase JWT)
+// Body: { project_id?, intake_submission_id? }  (one required)
+// ────────────────────────────────────────────────────────────────────
+export async function createQuickLink(req, res) {
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'unauthorised' })
+  }
+  const { data: { user }, error: userErr } = await supabase.auth.getUser(authHeader.slice(7))
+  if (userErr || !user) return res.status(401).json({ error: 'invalid_session' })
+
+  const { project_id, intake_submission_id } = req.body || {}
+  if (!project_id && !intake_submission_id) {
+    return res.status(400).json({ error: 'bad_request', message: 'project_id or intake_submission_id required' })
+  }
+
+  // Verify ownership.
+  if (project_id) {
+    const { data: project } = await supabase
+      .from('projects')
+      .select('id, user_id')
+      .eq('id', project_id)
+      .maybeSingle()
+    if (!project) return res.status(404).json({ error: 'project_not_found' })
+    if (project.user_id !== user.id) return res.status(403).json({ error: 'forbidden' })
+  }
+  if (intake_submission_id && !project_id) {
+    const { data: sub } = await supabase
+      .from('intake_submissions')
+      .select('id, intake_form_id')
+      .eq('id', intake_submission_id)
+      .maybeSingle()
+    if (!sub) return res.status(404).json({ error: 'submission_not_found' })
+    const { data: form } = await supabase
+      .from('intake_forms')
+      .select('user_id')
+      .eq('id', sub.intake_form_id)
+      .maybeSingle()
+    if (!form || form.user_id !== user.id) return res.status(403).json({ error: 'forbidden' })
+  }
+
+  const share_token = genShareToken()
+  const { data: review, error: insErr } = await supabase
+    .from('brief_reviews')
+    .insert({
+      project_id: project_id || null,
+      intake_submission_id: intake_submission_id || null,
+      user_id: user.id,
+      share_token,
+      client_email: null,
+      status: 'pending',
+    })
+    .select('id, share_token')
+    .single()
+  if (insErr || !review) {
+    console.error('[brief-reviews] quick-link insert failed', insErr)
+    return res.status(500).json({ error: 'insert_failed', message: insErr?.message })
+  }
+
+  return res.status(200).json({
+    ok: true,
+    share_url: `${appUrl(req)}/review/${review.share_token}`,
+    review_id: review.id,
+  })
+}
+
+// ────────────────────────────────────────────────────────────────────
 // POST /api/brief-reviews — designer creates a share link
 // Auth: Bearer token (designer's Supabase JWT)
 // Body: { project_id, client_email, client_name?, designer_message? }
@@ -53,7 +127,7 @@ export async function createBriefReview(req, res) {
   const { data: { user }, error: userErr } = await supabase.auth.getUser(authHeader.slice(7))
   if (userErr || !user) return res.status(401).json({ error: 'invalid_session' })
 
-  const { project_id, intake_submission_id, client_email, client_name, designer_message, skip_email } = req.body || {}
+  const { project_id, intake_submission_id, client_email, client_name, designer_message } = req.body || {}
   if (!project_id && !intake_submission_id) {
     return res.status(400).json({ error: 'bad_request', message: 'project_id or intake_submission_id required' })
   }
@@ -106,17 +180,10 @@ export async function createBriefReview(req, res) {
   // row exists and the designer can copy the link manually — but we
   // capture the failure mode so the API response tells the designer
   // exactly what went wrong instead of leaving them guessing.
-  //
-  // skip_email=true is the "Get link" path — the designer wants to
-  // share the URL manually (e.g. via Slack, iMessage) and is
-  // deliberately bypassing Resend. The row still gets created.
+  // The dedicated /quick-link endpoint above covers the link-only
+  // path, so this handler always attempts to send.
   const reviewUrl = `${appUrl(req)}/review/${share_token}`
-  let emailResult = skip_email
-    ? { sent: false, skipped: true, error: null }
-    : { sent: false, error: null }
-  if (skip_email) {
-    return res.status(200).json({ ok: true, review, share_url: reviewUrl, email: emailResult })
-  }
+  let emailResult = { sent: false, error: null }
   try {
     const safeName = String(designerName).replace(/[<>"]/g, '').trim() || 'Your designer'
     const html = renderInviteHtml({
@@ -190,7 +257,7 @@ export async function getBriefReviewByToken(req, res) {
 
   const { data: review, error } = await supabase
     .from('brief_reviews')
-    .select('id, project_id, intake_submission_id, user_id, status, approved_at, decision_note, client_name, client_email, designer_message, opened_at, created_at')
+    .select('id, project_id, intake_submission_id, user_id, status, approved_at, decision_note, client_name, client_email, designer_message, opened_at, created_at, section_decisions')
     .eq('share_token', token)
     .maybeSingle()
   if (error || !review) return res.status(404).json({ error: 'not_found' })
@@ -247,6 +314,7 @@ export async function getBriefReviewByToken(req, res) {
       designer_message: review.designer_message,
       opened_at: review.opened_at,
       created_at: review.created_at,
+      section_decisions: review.section_decisions || {},
     },
     brief,
     projectTitle,
@@ -257,6 +325,57 @@ export async function getBriefReviewByToken(req, res) {
     },
     comments: comments || [],
   })
+}
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/brief-reviews/by-token/:token/section-decision — client
+// approves OR requests changes on a SINGLE section.
+//
+// Body: { section_id, status: 'approved' | 'changes_requested', note? }
+//
+// Persisted in the brief_reviews.section_decisions JSONB map
+// keyed by section_id. The map looks like:
+//   { "understand": { "status": "approved", "decided_at": "..." },
+//     "interrogate": { "status": "changes_requested", "note": "...", "decided_at": "..." } }
+// ────────────────────────────────────────────────────────────────────
+export async function submitSectionDecision(req, res) {
+  const { token } = req.params
+  const { section_id, status, note } = req.body || {}
+  if (!token || !section_id) return res.status(400).json({ error: 'bad_request' })
+  if (status !== 'approved' && status !== 'changes_requested') {
+    return res.status(400).json({ error: 'bad_request', message: 'status must be approved or changes_requested' })
+  }
+
+  // Load existing decisions so we can merge atomically. Postgres
+  // jsonb_set would be more elegant but the Supabase JS client
+  // doesn't expose it cleanly — read-merge-write is fine here
+  // since concurrent edits from the same review token are rare.
+  const { data: existing, error: readErr } = await supabase
+    .from('brief_reviews')
+    .select('id, section_decisions')
+    .eq('share_token', token)
+    .maybeSingle()
+  if (readErr || !existing) return res.status(404).json({ error: 'not_found' })
+
+  const nextDecisions = {
+    ...(existing.section_decisions || {}),
+    [section_id]: {
+      status,
+      note: note || null,
+      decided_at: new Date().toISOString(),
+    },
+  }
+
+  const { error: updErr } = await supabase
+    .from('brief_reviews')
+    .update({ section_decisions: nextDecisions })
+    .eq('id', existing.id)
+  if (updErr) {
+    console.error('[brief-reviews] section_decisions update failed', updErr)
+    return res.status(500).json({ error: 'update_failed', message: updErr.message })
+  }
+
+  return res.status(200).json({ ok: true, section_decisions: nextDecisions })
 }
 
 // ────────────────────────────────────────────────────────────────────
