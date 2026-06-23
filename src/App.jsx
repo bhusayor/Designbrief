@@ -21,13 +21,14 @@ import AcceptInvite from './pages/AcceptInvite';
 import SharedBrief from './pages/SharedBrief';
 import IntakeBriefReview from './pages/IntakeBriefReview';
 import ClientFollowupPage from './pages/ClientFollowupPage';
+import ClientBriefReview from './pages/ClientBriefReview';
 import UpgradeModal from './components/UpgradeModal';
 import { supabase } from './lib/supabase';
 import PageTransition from './components/PageTransition';
 
 function AppRouter() {
   const {
-    activeSection, setActiveIntakeId, setActiveShareToken, setActiveFollowupToken, navigate,
+    activeSection, setActiveIntakeId, setActiveShareToken, setActiveFollowupToken, setActiveReviewToken, navigate,
     authUser, authLoading,
     workspace, setWorkspace, workspaceLoading, workspaceLoadError, loadWorkspace,
     showToast, refreshAuthUser, refreshUserPlan,
@@ -140,6 +141,16 @@ function AppRouter() {
     if (shareMatch) {
       setActiveShareToken(shareMatch[1]);
       navigate('shared');
+      return;
+    }
+
+    // Public client review page — /review/<token>. Tokens are 32 hex
+    // chars (128 bits of entropy) per server-lib/briefReviews.js.
+    // No auth required; the page hits the public token-gated API.
+    const reviewMatch = path.match(/^\/review\/([a-f0-9]{16,64})$/i);
+    if (reviewMatch) {
+      setActiveReviewToken(reviewMatch[1]);
+      navigate('client-review');
     }
   }, []);
 
@@ -160,6 +171,7 @@ function AppRouter() {
     shared:          <SharedBrief />,
     'intake-review': <IntakeBriefReview />,
     'client-followup': <ClientFollowupPage />,
+    'client-review':   <ClientBriefReview />,
   };
 
   // Show spinner while auth initialises, or while workspace is loading for a
@@ -188,7 +200,7 @@ function AppRouter() {
     );
   }
 
-  const publicSections = ['auth', 'client-intake', 'join', 'accept-invite', 'shared', 'client-followup'];
+  const publicSections = ['auth', 'client-intake', 'join', 'accept-invite', 'shared', 'client-followup', 'client-review'];
 
   // Unauthenticated → show Auth page
   if (!authUser && !publicSections.includes(activeSection)) {
@@ -265,6 +277,12 @@ function AppRouter() {
   // Client intake is public — no AppShell
   if (activeSection === 'client-intake') {
     return <ClientIntakePage />;
+  }
+
+  // Client brief review (/review/<token>) is public — no AppShell.
+  // The page hits the token-gated server endpoint directly.
+  if (activeSection === 'client-review') {
+    return <ClientBriefReview />;
   }
 
   // Join page is public — no AppShell

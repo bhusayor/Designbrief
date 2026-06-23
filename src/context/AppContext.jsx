@@ -94,6 +94,9 @@ export function AppProvider({ children }) {
   // Token from a /share/:token URL — read by the public SharedBriefPage
   // to fetch the snapshot row out of supabase.shared_briefs.
   const [activeShareToken, setActiveShareToken] = useState(null);
+  // Token from a /review/:token URL — public client review page.
+  // Set by App.jsx when the URL matches, consumed by ClientBriefReview.
+  const [activeReviewToken, setActiveReviewToken] = useState(null);
   const [intakeForms, setIntakeForms] = useState([]);
   const [loadingForms, setLoadingForms] = useState(false);
   const knownCompleteIdsRef = useRef(null); // null = not yet seeded
@@ -1704,6 +1707,8 @@ export function AppProvider({ children }) {
     setActiveFollowupToken,
     activeShareToken,
     setActiveShareToken,
+    activeReviewToken,
+    setActiveReviewToken,
     intakeForms,
     loadingForms,
     loadIntakeForms,
