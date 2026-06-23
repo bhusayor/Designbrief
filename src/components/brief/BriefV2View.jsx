@@ -65,7 +65,9 @@ export default function BriefV2View({
   onRevise = null,
   onRestore = null,
   revising = false,
-  pendingReviewNote = null, // surfaces in the changes-requested banner
+  pendingReviewNote = null, // legacy single-note (used as fallback when comments[] is empty)
+  pendingComments = [],     // full thread from the client. Designer can mark each addressed individually.
+  onResolveComment = null,  // (commentId) → void
   showCompletionBanner = false,
   designSystemBuilding = false,
 }) {
@@ -187,13 +189,25 @@ export default function BriefV2View({
 
           {/* Pending client feedback banner, only on the latest
               tab so the designer doesn't see it while inspecting
-              old versions. Surfaces the client's note + a Revise CTA. */}
-          {!isViewingOldVersion && pendingReviewNote && onRevise && (
-            <PendingChangesBanner
-              note={pendingReviewNote}
-              onRevise={onRevise}
-              revising={revising}
-            />
+              old versions. Surfaces the full thread (or the legacy
+              single note) + a Revise CTA. */}
+          {!isViewingOldVersion && onRevise && (
+            (pendingComments && pendingComments.some(c => c.status !== 'resolved'))
+              ? (
+                <PendingChangesBanner
+                  comments={pendingComments}
+                  onRevise={onRevise}
+                  onResolve={onResolveComment}
+                  revising={revising}
+                />
+              )
+              : (pendingReviewNote && (
+                <PendingChangesBanner
+                  note={pendingReviewNote}
+                  onRevise={onRevise}
+                  revising={revising}
+                />
+              ))
           )}
 
           {/* Revision meta banner, shown on the latest tab when the
@@ -1656,13 +1670,77 @@ function VersionTabStrip({ revisions, viewedVersion, onSelect, onRestore }) {
 // Amber prompt when there's an outstanding client review with
 // status='changes_requested'. The Revise button triggers the modal
 // which auto-prefills the note.
-function PendingChangesBanner({ note, onRevise, revising }) {
+function PendingChangesBanner({ note, comments, onRevise, onResolve, revising }) {
+  // Thread mode when an array of comments is passed; legacy
+  // single-note fallback when only `note` is set.
+  const useThread = Array.isArray(comments) && comments.length > 0
+  const open = useThread ? comments.filter(c => c.status !== 'resolved') : []
+  const resolved = useThread ? comments.filter(c => c.status === 'resolved') : []
+  const [showResolved, setShowResolved] = useState(false)
+
   return (
     <div className="brief-v2-pending-banner">
       <ExclamationTriangleIcon style={{ width: 22, height: 22, color: '#d97706', flexShrink: 0, marginTop: 1 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="brief-v2-pending-banner-title">Your client requested changes</div>
-        <div className="brief-v2-pending-banner-note">"{note}"</div>
+        <div className="brief-v2-pending-banner-title">
+          {useThread
+            ? (open.length === 1
+                ? 'Your client sent 1 note'
+                : `Your client sent ${open.length} unaddressed notes`)
+            : 'Your client requested changes'}
+        </div>
+
+        {useThread ? (
+          <>
+            <ul className="brief-v2-pending-thread">
+              {open.map(c => (
+                <li key={c.id} className="brief-v2-pending-comment">
+                  <div className="brief-v2-pending-comment-meta">
+                    <span className="brief-v2-pending-comment-when">{formatThreadDate(c.created_at)}</span>
+                    {onResolve && (
+                      <button
+                        type="button"
+                        onClick={() => onResolve(c.id)}
+                        className="brief-v2-pending-comment-resolve"
+                      >
+                        Mark addressed
+                      </button>
+                    )}
+                  </div>
+                  <div className="brief-v2-pending-comment-body">{c.body}</div>
+                </li>
+              ))}
+            </ul>
+            {resolved.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowResolved(s => !s)}
+                  className="brief-v2-pending-resolved-toggle"
+                >
+                  {showResolved
+                    ? `Hide addressed (${resolved.length})`
+                    : `Show addressed (${resolved.length})`}
+                </button>
+                {showResolved && (
+                  <ul className="brief-v2-pending-thread">
+                    {resolved.map(c => (
+                      <li key={c.id} className="brief-v2-pending-comment brief-v2-pending-comment-resolved">
+                        <div className="brief-v2-pending-comment-meta">
+                          <span className="brief-v2-pending-comment-when">{formatThreadDate(c.created_at)}</span>
+                          <span className="brief-v2-pending-comment-addressed">Addressed</span>
+                        </div>
+                        <div className="brief-v2-pending-comment-body">{c.body}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          <div className="brief-v2-pending-banner-note">"{note}"</div>
+        )}
       </div>
       <button
         type="button"
@@ -1674,6 +1752,13 @@ function PendingChangesBanner({ note, onRevise, revising }) {
       </button>
     </div>
   )
+}
+
+function formatThreadDate(iso) {
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  } catch { return '' }
 }
 
 // ── Revision meta banner ──────────────────────────────────────────
@@ -2598,6 +2683,62 @@ function ResponsiveStyles() {
       }
       .brief-v2-pending-banner-btn:hover { opacity: 0.92; }
       .brief-v2-pending-banner-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+      .brief-v2-pending-thread {
+        list-style: none; padding: 0; margin: 8px 0 0;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v2-pending-comment {
+        padding: 9px 11px;
+        background: rgba(255,255,255,0.55);
+        border: 1px solid rgba(245,158,11,0.20);
+        border-radius: 8px;
+      }
+      .brief-v2-pending-comment-resolved {
+        background: var(--color-surface);
+        border-color: var(--color-border);
+        opacity: 0.6;
+      }
+      .brief-v2-pending-comment-meta {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; margin-bottom: 4px;
+      }
+      .brief-v2-pending-comment-when {
+        font: 700 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.04em;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-pending-comment-resolve {
+        background: transparent; border: none;
+        font: 700 11px 'Urbanist', sans-serif;
+        color: #047857;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        padding: 0;
+      }
+      .brief-v2-pending-comment-resolve:hover { opacity: 0.8; }
+      .brief-v2-pending-comment-addressed {
+        font: 800 9px 'Urbanist', sans-serif; letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #047857;
+      }
+      .brief-v2-pending-comment-body {
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--color-text);
+        white-space: pre-wrap;
+      }
+      .brief-v2-pending-resolved-toggle {
+        margin-top: 8px;
+        background: transparent; border: none;
+        font: 700 11px 'Urbanist', sans-serif;
+        color: var(--color-text-soft);
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        padding: 0;
+      }
 
       /* ── Revision meta banner (latest tab info) ───────────────── */
       .brief-v2-revmeta-banner {

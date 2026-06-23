@@ -42,6 +42,8 @@ import {
   submitBriefReviewDecision,
   submitSectionDecision,
   addBriefReviewComment,
+  setBriefReviewCommentStatus,
+  resolveAllProjectComments,
   getBriefReviewByProject,
 } from './server-lib/briefReviews.js'
 
@@ -472,6 +474,8 @@ app.get('/api/brief-reviews/by-token/:token', getBriefReviewByToken)
 app.post('/api/brief-reviews/by-token/:token/decision', submitBriefReviewDecision)
 app.post('/api/brief-reviews/by-token/:token/section-decision', submitSectionDecision)
 app.post('/api/brief-reviews/by-token/:token/comments', addBriefReviewComment)
+app.patch('/api/brief-reviews/comments/:commentId/status', setBriefReviewCommentStatus)
+app.post('/api/brief-reviews/by-project/:projectId/comments/resolve-all', resolveAllProjectComments)
 app.get('/api/brief-reviews/by-project/:projectId', getBriefReviewByProject)
 
 // ── Unhandled-error fallback ───────────────────────────────────────

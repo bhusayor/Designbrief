@@ -413,12 +413,20 @@ export async function submitBriefReviewDecision(req, res) {
 
 // ────────────────────────────────────────────────────────────────────
 // POST /api/brief-reviews/by-token/:token/comments, client comment
-// Body: { section_id, item_key?, body }
+// Body: { section_id?, item_key?, body }
+// section_id defaults to 'overall' so client-side composer can post
+// project-level notes without picking a section.
+//
+// Side-effect: bumps review.status to 'changes_requested' whenever
+// a new note lands so the designer's pending-feedback banner stays
+// accurate. The previous decision_note column is left alone (kept
+// for legacy single-note clients); the thread is the source of
+// truth for active feedback now.
 // ────────────────────────────────────────────────────────────────────
 export async function addBriefReviewComment(req, res) {
   const { token } = req.params
   const { section_id, item_key, body } = req.body || {}
-  if (!token || !section_id || !body) return res.status(400).json({ error: 'bad_request' })
+  if (!token || !body) return res.status(400).json({ error: 'bad_request' })
 
   // Resolve review_id from the token (server-side; client never
   // sees the internal id).
@@ -433,15 +441,101 @@ export async function addBriefReviewComment(req, res) {
     .from('brief_review_comments')
     .insert({
       review_id: review.id,
-      section_id,
+      section_id: section_id || 'overall',
       item_key: item_key || null,
       body: String(body).slice(0, 4000),
+      status: 'open',
     })
     .select('*')
     .single()
   if (error) return res.status(500).json({ error: 'insert_failed', message: error.message })
 
+  // Bump the review's status so the designer's banner surfaces this
+  // as actionable feedback. Best-effort, ignore errors.
+  supabase
+    .from('brief_reviews')
+    .update({ status: 'changes_requested' })
+    .eq('id', review.id)
+    .then(() => {}, () => {})
+
   return res.status(200).json({ ok: true, comment: data })
+}
+
+// ────────────────────────────────────────────────────────────────────
+// PATCH /api/brief-reviews/comments/:commentId/status, designer marks
+// a comment addressed (resolved) or reopens it. Auth: Bearer.
+// Body: { status: 'open' | 'resolved' }
+// ────────────────────────────────────────────────────────────────────
+export async function setBriefReviewCommentStatus(req, res) {
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'unauthorised' })
+  const { data: { user } } = await supabase.auth.getUser(authHeader.slice(7))
+  if (!user) return res.status(401).json({ error: 'invalid_session' })
+
+  const { commentId } = req.params
+  const { status } = req.body || {}
+  if (status !== 'open' && status !== 'resolved') {
+    return res.status(400).json({ error: 'bad_request', message: 'status must be open or resolved' })
+  }
+
+  // Verify the comment's review belongs to the designer.
+  const { data: comment } = await supabase
+    .from('brief_review_comments')
+    .select('id, review_id')
+    .eq('id', commentId)
+    .maybeSingle()
+  if (!comment) return res.status(404).json({ error: 'not_found' })
+
+  const { data: review } = await supabase
+    .from('brief_reviews')
+    .select('user_id')
+    .eq('id', comment.review_id)
+    .maybeSingle()
+  if (!review || review.user_id !== user.id) return res.status(403).json({ error: 'forbidden' })
+
+  const { data, error } = await supabase
+    .from('brief_review_comments')
+    .update({ status })
+    .eq('id', commentId)
+    .select('*')
+    .single()
+  if (error) return res.status(500).json({ error: 'update_failed', message: error.message })
+
+  return res.status(200).json({ ok: true, comment: data })
+}
+
+// ────────────────────────────────────────────────────────────────────
+// POST /api/brief-reviews/by-project/:projectId/comments/resolve-all
+// Bulk: marks every open comment on the freshest review for this
+// project as resolved. Used after the designer revises the brief
+// (the revision is the "address all unaddressed notes" event).
+// Auth: Bearer.
+// ────────────────────────────────────────────────────────────────────
+export async function resolveAllProjectComments(req, res) {
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'unauthorised' })
+  const { data: { user } } = await supabase.auth.getUser(authHeader.slice(7))
+  if (!user) return res.status(401).json({ error: 'invalid_session' })
+
+  const { projectId } = req.params
+  const { data: review } = await supabase
+    .from('brief_reviews')
+    .select('id, user_id')
+    .eq('project_id', projectId)
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!review) return res.status(404).json({ error: 'review_not_found' })
+
+  const { error } = await supabase
+    .from('brief_review_comments')
+    .update({ status: 'resolved' })
+    .eq('review_id', review.id)
+    .eq('status', 'open')
+  if (error) return res.status(500).json({ error: 'update_failed', message: error.message })
+
+  return res.status(200).json({ ok: true })
 }
 
 // ────────────────────────────────────────────────────────────────────

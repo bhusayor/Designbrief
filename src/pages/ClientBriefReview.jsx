@@ -20,7 +20,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { useContext, useEffect, useState } from 'react'
-import { CheckCircleIcon, ExclamationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import AppContext from '../context/AppContext'
 import BriefV2View from '../components/brief/BriefV2View'
 
@@ -35,8 +35,6 @@ export default function ClientBriefReview() {
 
   // Decision UI state
   const [submitting, setSubmitting] = useState(false)
-  const [showChangesModal, setShowChangesModal] = useState(false)
-  const [changesNote, setChangesNote] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -99,8 +97,6 @@ export default function ClientBriefReview() {
           approved_at: status === 'approved' ? new Date().toISOString() : prev.review.approved_at,
         },
       } : prev)
-      setShowChangesModal(false)
-      setChangesNote('')
     } catch (e) {
       alert(e?.message || 'Could not submit your decision. Please try again.')
     } finally {
@@ -227,147 +223,142 @@ export default function ClientBriefReview() {
         />
       </div>
 
-      {/* Approve-all section, sits at the end of the page, not
-          fixed/sticky. Gives the client one big affordance for the
-          common "everything looks good" case so they don't have to
-          tick each section individually. */}
-      {!isDone && (
-        <div style={container}>
-          <div style={approveAllBlock(designer.primary)}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
-                Happy with everything?
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                Approve all the sections at once. Or scroll back up and decide section by section.
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setShowChangesModal(true)}
-                disabled={submitting}
-                style={ghostBtn}
-              >
-                Request changes
-              </button>
-              <button
-                onClick={() => submitDecision('approved')}
-                disabled={submitting}
-                style={primaryBtn(designer.primary)}
-              >
-                {submitting ? 'Submitting…' : 'Approve all'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Request changes modal */}
-      {showChangesModal && (
-        <ChangesModal
-          onCancel={() => { if (!submitting) { setShowChangesModal(false); setChangesNote('') } }}
-          onSubmit={(note) => submitDecision('changes_requested', note)}
-          note={changesNote}
-          setNote={setChangesNote}
-          submitting={submitting}
+      {/* Feedback thread + composer. Always visible regardless of
+          decision state so the client can keep iterating, change
+          their mind, or add follow-up notes. */}
+      <div style={container}>
+        <FeedbackThread
+          comments={data.comments || []}
+          isApproved={isApproved}
+          approvedAt={review.approved_at}
+          onAddComment={async (body) => {
+            const r = await fetch(`${API_BASE}/api/brief-reviews/by-token/${activeReviewToken}/comments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ body, section_id: 'overall' }),
+            })
+            if (!r.ok) throw new Error(`Could not send (${r.status})`)
+            const j = await r.json().catch(() => ({}))
+            const newComment = j?.comment
+            setData(prev => prev ? {
+              ...prev,
+              review: { ...prev.review, status: 'changes_requested' },
+              comments: [...(prev.comments || []), newComment].filter(Boolean),
+            } : prev)
+          }}
+          onApprove={() => submitDecision('approved')}
+          submittingApprove={submitting}
           designerPrimary={designer.primary}
         />
-      )}
+      </div>
     </div>
   )
 }
 
-// ── Changes modal ───────────────────────────────────────────────────
-function ChangesModal({ onCancel, onSubmit, note, setNote, submitting, designerPrimary }) {
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape' && !submitting) onCancel() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel, submitting])
+// ── Feedback thread + composer ──────────────────────────────────────
+// Renders previous comments chronologically + an always-visible
+// composer with Send note + Approve actions. The decision is
+// reversible: client can approve, then later add another note, then
+// approve again. Each action just creates a new event.
+function FeedbackThread({ comments, isApproved, approvedAt, onAddComment, onApprove, submittingApprove, designerPrimary }) {
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sendErr, setSendErr] = useState('')
+
+  // Order by created_at ascending (oldest first). Filter out
+  // resolved comments from the visible thread but keep an entry so
+  // the client knows it was previously addressed.
+  const ordered = (comments || []).slice().sort((a, b) =>
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  )
+
+  async function send() {
+    const body = draft.trim()
+    if (!body || sending) return
+    setSending(true)
+    setSendErr('')
+    try {
+      await onAddComment(body)
+      setDraft('')
+    } catch (e) {
+      setSendErr(e?.message || 'Could not send your note. Please try again.')
+    } finally {
+      setSending(false)
+    }
+  }
 
   return (
-    <div
-      onClick={() => { if (!submitting) onCancel() }}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 900,
-        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--color-bg)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 16,
-          width: '100%', maxWidth: 520,
-          overflow: 'hidden',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
-        }}
-      >
-        <header style={{
-          padding: '16px 22px',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>What needs to change?</div>
+    <div style={threadWrap(designerPrimary)}>
+      <div style={threadHeader}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>Feedback</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+            {isApproved
+              ? `You approved this brief on ${formatDate(approvedAt)}. Send another note if anything else changes.`
+              : 'Send notes or approve when you are happy with everything. You can update your decision anytime.'}
+          </div>
+        </div>
+        {isApproved && (
+          <span style={approvedPill}>
+            <CheckCircleIcon style={{ width: 14, height: 14 }} /> Approved
+          </span>
+        )}
+      </div>
+
+      {ordered.length > 0 && (
+        <ul style={threadList}>
+          {ordered.map(c => (
+            <li key={c.id} style={threadItem(c.status === 'resolved')}>
+              <div style={threadItemMeta}>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                  Your note · {formatDate(c.created_at)}
+                </span>
+                {c.status === 'resolved' && (
+                  <span style={addressedPill}>Addressed</span>
+                )}
+              </div>
+              <div style={{ fontSize: 14, color: 'var(--color-text)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                {c.body}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Composer */}
+      <div style={composerWrap}>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Type a note about anything you'd like changed. e.g. The audience should be more specific."
+          rows={3}
+          style={composerTextarea}
+          disabled={sending}
+        />
+        {sendErr && (
+          <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 4 }}>{sendErr}</div>
+        )}
+        <div style={composerActions}>
           <button
-            onClick={onCancel}
-            disabled={submitting}
+            type="button"
+            onClick={onApprove}
+            disabled={submittingApprove}
+            style={isApproved ? ghostBtn : primaryBtn(designerPrimary)}
+          >
+            {submittingApprove ? 'Submitting…' : (isApproved ? 'Approve again' : 'Approve brief')}
+          </button>
+          <button
+            type="button"
+            onClick={send}
+            disabled={sending || !draft.trim()}
             style={{
-              width: 28, height: 28, borderRadius: 8, background: 'transparent', border: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--color-text-muted)', cursor: submitting ? 'not-allowed' : 'pointer',
+              ...(isApproved ? primaryBtn(designerPrimary) : ghostBtn),
+              opacity: (sending || !draft.trim()) ? 0.55 : 1,
+              cursor: (sending || !draft.trim()) ? 'not-allowed' : 'pointer',
             }}
           >
-            <XMarkIcon style={{ width: 16, height: 16 }} />
+            {sending ? 'Sending…' : 'Send note'}
           </button>
-        </header>
-
-        <div style={{ padding: '18px 22px' }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--color-text-soft)', lineHeight: 1.55, marginBottom: 10 }}>
-            Tell the designer what's not quite right. Be as specific as you can, which section,
-            which line, and what you'd prefer.
-          </label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. The audience description is too broad. We're really only targeting independent designers, not agencies."
-            rows={6}
-            disabled={submitting}
-            autoFocus
-            style={{
-              width: '100%',
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 10,
-              padding: '12px 14px',
-              fontFamily: 'inherit',
-              fontSize: 14,
-              lineHeight: 1.55,
-              color: 'var(--color-text)',
-              resize: 'vertical',
-              outline: 'none',
-            }}
-          />
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-            <button onClick={onCancel} disabled={submitting} style={ghostBtn}>
-              Cancel
-            </button>
-            <button
-              onClick={() => onSubmit(note.trim())}
-              disabled={submitting || !note.trim()}
-              style={{
-                ...primaryBtn(designerPrimary),
-                opacity: (submitting || !note.trim()) ? 0.55 : 1,
-                cursor: (submitting || !note.trim()) ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {submitting ? 'Sending…' : 'Send to designer'}
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -456,6 +447,8 @@ function decisionBar(primary) {
 }
 
 function approveAllBlock(primary) {
+  // Legacy; kept temporarily until any unreferenced callers are
+  // removed. Safe to delete in a future cleanup.
   return {
     margin: '32px 0 48px',
     padding: '20px 22px',
@@ -469,6 +462,95 @@ function approveAllBlock(primary) {
     gap: 16,
     flexWrap: 'wrap',
   }
+}
+
+// ── Feedback thread styles ──────────────────────────────────────────
+function threadWrap(primary) {
+  return {
+    margin: '32px 0 48px',
+    background: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderLeft: `3px solid ${primary}`,
+    borderRadius: 14,
+    overflow: 'hidden',
+  }
+}
+const threadHeader = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  padding: '18px 22px',
+  borderBottom: '1px solid var(--color-border)',
+  flexWrap: 'wrap',
+}
+const approvedPill = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 5,
+  padding: '4px 10px',
+  background: 'rgba(16,185,129,0.10)',
+  color: '#047857',
+  border: '1px solid rgba(16,185,129,0.30)',
+  borderRadius: 100,
+  font: '800 11px Urbanist, sans-serif',
+  letterSpacing: '0.02em',
+}
+const threadList = {
+  listStyle: 'none',
+  padding: 0,
+  margin: 0,
+  borderBottom: '1px solid var(--color-border)',
+}
+function threadItem(resolved) {
+  return {
+    padding: '14px 22px',
+    borderTop: '1px solid var(--color-border)',
+    background: resolved ? 'var(--color-bg)' : 'transparent',
+    opacity: resolved ? 0.6 : 1,
+  }
+}
+const threadItemMeta = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 6,
+  gap: 8,
+}
+const addressedPill = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '2px 8px',
+  background: 'rgba(16,185,129,0.10)',
+  color: '#047857',
+  border: '1px solid rgba(16,185,129,0.30)',
+  borderRadius: 100,
+  font: '800 9px Urbanist, sans-serif',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+const composerWrap = {
+  padding: '16px 22px 18px',
+}
+const composerTextarea = {
+  width: '100%',
+  background: 'var(--color-bg)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 10,
+  padding: '12px 14px',
+  fontFamily: 'inherit',
+  fontSize: 14,
+  lineHeight: 1.55,
+  color: 'var(--color-text)',
+  resize: 'vertical',
+  outline: 'none',
+}
+const composerActions = {
+  display: 'flex',
+  gap: 8,
+  justifyContent: 'flex-end',
+  marginTop: 12,
+  flexWrap: 'wrap',
 }
 
 const ghostBtn = {

@@ -12,8 +12,9 @@ import { XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline'
 export default function BriefV2ReviseModal({
   open,
   onClose,
-  onSubmit,            // (feedback, { reviewId? }) → Promise<void>
+  onSubmit,             // (feedback, { reviewId? }) → Promise<void>
   pendingReview = null, // { decision_note, client_name, id } | null
+  pendingComments = [], // open (unaddressed) thread comments, oldest first
 }) {
   const [feedback, setFeedback] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -21,13 +22,22 @@ export default function BriefV2ReviseModal({
 
   useEffect(() => {
     if (open) {
-      // Auto-prefill from the client's note when one's available.
-      // Designer can edit before submitting.
-      setFeedback(pendingReview?.decision_note || '')
+      // Prefill: prefer the full thread (concatenated, numbered)
+      // over the legacy single-note decision_note. Designer can
+      // edit before submitting.
+      let initial = ''
+      if (Array.isArray(pendingComments) && pendingComments.length > 0) {
+        initial = pendingComments
+          .map((c, i) => `${i + 1}. ${String(c.body || '').trim()}`)
+          .join('\n\n')
+      } else if (pendingReview?.decision_note) {
+        initial = pendingReview.decision_note
+      }
+      setFeedback(initial)
       setSubmitting(false)
       setTimeout(() => taRef.current?.focus(), 30)
     }
-  }, [open, pendingReview?.id])
+  }, [open, pendingReview?.id, pendingComments?.length])
 
   useEffect(() => {
     if (!open) return
@@ -114,7 +124,7 @@ export default function BriefV2ReviseModal({
 
         {/* Body */}
         <div style={{ padding: '16px 22px 18px' }}>
-          {pendingReview?.decision_note && (
+          {(pendingComments?.length > 0 || pendingReview?.decision_note) && (
             <div style={{
               marginBottom: 12,
               padding: '8px 11px',
@@ -126,9 +136,11 @@ export default function BriefV2ReviseModal({
               lineHeight: 1.5,
             }}>
               <strong style={{ fontWeight: 800 }}>
-                {pendingReview.client_name ? `${pendingReview.client_name} ` : 'Your client '}
+                {pendingReview?.client_name ? `${pendingReview.client_name} ` : 'Your client '}
               </strong>
-              requested changes. Their note is pre-filled below, edit or rewrite as you like.
+              sent {pendingComments?.length > 1
+                ? `${pendingComments.length} unaddressed notes`
+                : 'a note'}. Pre-filled below, edit or rewrite as you like.
             </div>
           )}
 

@@ -579,38 +579,98 @@ export default function Dashboard() {
     showToast?.(`Restored "${snap.label}" as the latest brief.`, 'success')
   }
 
-  // ── Pending client review (auto-fetch the latest review for this
-  // project so the Revise modal can prefill the client's note) ────
+  // ── Pending client review (auto-fetch latest review + comments
+  // thread for this project) ──────────────────────────────────────
+  // The thread is the source of truth for active feedback now;
+  // legacy single-note `decision_note` is treated as a fallback.
   const [pendingReview, setPendingReview] = useState(null)
+  const [reviewComments, setReviewComments] = useState([])
+
+  async function refreshPendingReview() {
+    if (!activeChat || !authUser) {
+      setPendingReview(null); setReviewComments([])
+      return
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const tok = session?.access_token
+      if (!tok) return
+      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      if (!apiBase) return
+      const r = await fetch(`${apiBase}/api/brief-reviews/by-project/${activeChat}`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      })
+      if (!r.ok) return
+      const body = await r.json().catch(() => ({}))
+      const review = body?.review || null
+      const comments = body?.comments || []
+      // Surface a "pending review" whenever there's any open
+      // (unaddressed) comment, regardless of overall status. Falls
+      // back to legacy decision_note for reviews created before
+      // the thread feature existed.
+      const hasOpen = comments.some(c => c.status !== 'resolved')
+      if (hasOpen || (review?.status === 'changes_requested' && review?.decision_note)) {
+        setPendingReview(review)
+      } else {
+        setPendingReview(null)
+      }
+      setReviewComments(comments)
+    } catch { /* swallow */ }
+  }
+
   useEffect(() => {
-    if (!activeChat || !authUser) { setPendingReview(null); return }
     let cancelled = false
     ;(async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const tok = session?.access_token
-        if (!tok) return
-        const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-        if (!apiBase) return
-        const r = await fetch(`${apiBase}/api/brief-reviews/by-project/${activeChat}`, {
-          headers: { Authorization: `Bearer ${tok}` },
-        })
-        if (!r.ok) return
-        const body = await r.json().catch(() => ({}))
-        if (cancelled) return
-        // by-project returns the freshest review for the project.
-        // Treat 'changes_requested' as actionable; 'pending' /
-        // 'approved' have nothing to revise on.
-        const review = body?.review
-        if (review?.status === 'changes_requested' && review.decision_note) {
-          setPendingReview(review)
-        } else {
-          setPendingReview(null)
-        }
-      } catch { /* swallow */ }
+      if (cancelled) return
+      await refreshPendingReview()
     })()
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChat, authUser, result?.revisionMeta?.revisedAt])
+
+  // Mark a single comment addressed (designer-side resolve).
+  async function handleResolveComment(commentId) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const tok = session?.access_token
+      if (!tok) return
+      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      if (!apiBase) return
+      const r = await fetch(`${apiBase}/api/brief-reviews/comments/${commentId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+        body: JSON.stringify({ status: 'resolved' }),
+      })
+      if (!r.ok) throw new Error('Could not mark addressed')
+      // Optimistic local update so the row dims immediately.
+      setReviewComments(prev => prev.map(c => c.id === commentId ? { ...c, status: 'resolved' } : c))
+      // Re-derive pendingReview state (no more open → banner goes away).
+      const stillOpen = reviewComments.some(c => c.id !== commentId && c.status !== 'resolved')
+      if (!stillOpen) setPendingReview(null)
+    } catch (e) {
+      showToast?.(e?.message || 'Could not mark addressed.', 'error')
+    }
+  }
+
+  // Bulk-resolve every open comment on the active project's latest
+  // review. Called after a revision lands (the revision IS the
+  // "address all" event).
+  async function resolveAllOpenComments() {
+    if (!activeChat) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const tok = session?.access_token
+      if (!tok) return
+      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      if (!apiBase) return
+      await fetch(`${apiBase}/api/brief-reviews/by-project/${activeChat}/comments/resolve-all`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${tok}` },
+      })
+      setReviewComments(prev => prev.map(c => ({ ...c, status: 'resolved' })))
+      setPendingReview(null)
+    } catch { /* swallow */ }
+  }
 
   // ── Translation ───────────────────────────────────────────────────────────
 
@@ -1085,13 +1145,20 @@ export default function Dashboard() {
             onRestore={handleRestoreRevision}
             revising={revising}
             pendingReviewNote={pendingReview?.decision_note || null}
+            pendingComments={reviewComments}
+            onResolveComment={handleResolveComment}
           />
           <BriefV2ReviseModal
             open={reviseOpen}
             onClose={() => setReviseOpen(false)}
             pendingReview={pendingReview}
+            pendingComments={reviewComments.filter(c => c.status !== 'resolved')}
             onSubmit={async (feedback, meta) => {
               await handleReviseBrief(feedback, meta)
+              // Revision is the "address everything" event. Mark
+              // every open comment resolved so the banner clears
+              // and the next round starts fresh.
+              await resolveAllOpenComments()
             }}
           />
         </div>
