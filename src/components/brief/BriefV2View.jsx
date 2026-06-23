@@ -57,13 +57,47 @@ export default function BriefV2View({
   // current decision state. Used by the public /review/<token> page.
   sectionDecisions = null,
   onSectionDecision = null,
+  // Revision props — designer-side only. When onRevise is provided,
+  // the action bar gets a "Revise" button; when result.revisions[]
+  // has entries, a tab strip below the hero lets the designer flip
+  // between versions. onRestore is called when the designer hits
+  // Restore on an older tab (promotes that version to Latest).
+  onRevise = null,
+  onRestore = null,
+  revising = false,
+  pendingReviewNote = null, // surfaces in the changes-requested banner
   showCompletionBanner = false,
   designSystemBuilding = false,
 }) {
-  const sections = useMemo(() => result?.sections || BRIEF_V2_SECTIONS.map(s => ({
+  // Which version of the brief to render. 'latest' is the live
+  // result; any other value is a snapshot id from result.revisions[].
+  const [viewedVersion, setViewedVersion] = useState('latest')
+  const revisions = Array.isArray(result?.revisions) ? result.revisions : []
+
+  // When a new revision lands, snap the viewer back to Latest so the
+  // designer sees the fresh AI output (unless they're actively
+  // inspecting an old version, in which case leave them alone).
+  useEffect(() => {
+    if (revising) setViewedVersion('latest')
+  }, [revising])
+
+  // Compute the "displayed" sections/designSystem/score based on
+  // viewedVersion. Latest reads off result; otherwise we pluck from
+  // the revisions[] history. This is purely render-time — the
+  // underlying result state never changes from a tab switch.
+  const viewedSnap = viewedVersion === 'latest'
+    ? null
+    : revisions.find(r => r.id === viewedVersion) || null
+  const displayedSections = viewedSnap?.sections || result?.sections || BRIEF_V2_SECTIONS.map(s => ({
     ...s,
     items: s.items.map(it => ({ ...it, content: null })),
-  })), [result?.sections])
+  }))
+  const displayedProjectTitle = viewedSnap?.projectTitle || result?.projectTitle
+  const displayedDesignSystem = viewedSnap?.designSystem ?? result?.designSystem
+  const displayedScore = viewedSnap?.score ?? result?.score
+  const isViewingOldVersion = viewedVersion !== 'latest' && !!viewedSnap
+
+  const sections = useMemo(() => displayedSections, [displayedSections])
 
   const totalItems = sections.reduce((n, s) => n + s.items.length, 0)
   const completedItems = sections.reduce(
@@ -119,29 +153,64 @@ export default function BriefV2View({
 
         {/* Main column — sections + cards (now full-width) */}
         <main className="brief-v2-main">
-          {result?.projectTitle && (
+          {displayedProjectTitle && (
             <header className="brief-v2-hero">
               <div className="brief-v2-hero-row">
                 <div className="brief-v2-hero-text">
-                  <div className="brief-v2-hero-label">Translated brief</div>
-                  <h1 className="brief-v2-hero-title">{result.projectTitle}</h1>
+                  <div className="brief-v2-hero-label">
+                    {isViewingOldVersion ? viewedSnap.label : 'Translated brief'}
+                    {isViewingOldVersion && <span style={{ marginLeft: 8, opacity: 0.6 }}>· read-only</span>}
+                  </div>
+                  <h1 className="brief-v2-hero-title">{displayedProjectTitle}</h1>
                   <div className="brief-v2-hero-meta">
                     21-item framework · {sections.length} sections
                     {isStreaming && !allDone && <span className="brief-v2-hero-pulse"> · generating…</span>}
+                    {revising && <span className="brief-v2-hero-pulse"> · revising…</span>}
                   </div>
                 </div>
-                {result.score && <BriefScoreBadge score={result.score} />}
+                {displayedScore && <BriefScoreBadge score={displayedScore} />}
               </div>
             </header>
           )}
 
-          {result?.review?.status === 'approved' && (
+          {/* Version tab strip — only when there's at least one
+              older snapshot to compare against. Latest tab is left;
+              older versions stack to the right, newest first. */}
+          {revisions.length > 0 && (
+            <VersionTabStrip
+              revisions={revisions}
+              viewedVersion={viewedVersion}
+              onSelect={setViewedVersion}
+              onRestore={onRestore}
+            />
+          )}
+
+          {/* Pending client feedback banner — only on the latest
+              tab so the designer doesn't see it while inspecting
+              old versions. Surfaces the client's note + a Revise CTA. */}
+          {!isViewingOldVersion && pendingReviewNote && onRevise && (
+            <PendingChangesBanner
+              note={pendingReviewNote}
+              onRevise={onRevise}
+              revising={revising}
+            />
+          )}
+
+          {/* Revision meta banner — shown on the latest tab when the
+              brief has been revised, so designer can see what the
+              latest revision was about. */}
+          {!isViewingOldVersion && result?.revisionMeta?.status === 'complete' && result.revisionMeta.feedback && (
+            <RevisionMetaBanner meta={result.revisionMeta} />
+          )}
+
+          {result?.review?.status === 'approved' && !isViewingOldVersion && (
             <ApprovedBanner review={result.review} />
           )}
 
-          {showCompletionBanner && allDone && (
+          {showCompletionBanner && allDone && !isViewingOldVersion && (
             <CompletionBanner
               onShareReview={() => setShareOpen(true)}
+              onRevise={onRevise ? () => onRevise() : null}
               reviewStatus={result?.review?.status}
               onBuildBoard={onBuildBoard}
               onExportPdf={onExportPdf}
@@ -176,8 +245,12 @@ export default function BriefV2View({
             )
           })}
 
-          {(result?.designSystem || designSystemBuilding) && (
-            <DesignSystemPanel ds={result?.designSystem} briefResult={result} building={designSystemBuilding} />
+          {(displayedDesignSystem || (designSystemBuilding && !isViewingOldVersion)) && (
+            <DesignSystemPanel
+              ds={displayedDesignSystem}
+              briefResult={{ ...result, sections: displayedSections }}
+              building={designSystemBuilding && !isViewingOldVersion}
+            />
           )}
 
           <div style={{ height: 80 }} />
@@ -1488,7 +1561,7 @@ function visualLines(v) {
 }
 
 // ── Completion banner ──────────────────────────────────────────────
-function CompletionBanner({ onBuildBoard, onExportPdf, onShareReview, reviewStatus, designSystemBuilding }) {
+function CompletionBanner({ onBuildBoard, onExportPdf, onShareReview, onRevise, reviewStatus, designSystemBuilding }) {
   const shareLabel = reviewStatus === 'pending'
     ? 'Review pending'
     : reviewStatus === 'changes_requested'
@@ -1501,10 +1574,15 @@ function CompletionBanner({ onBuildBoard, onExportPdf, onShareReview, reviewStat
         <div className="brief-v2-banner-sub">
           {designSystemBuilding
             ? 'Compiling design system from items 12-17…'
-            : 'Click any card to edit. Send to your client for sign-off, or build the board.'}
+            : 'Send to your client for sign-off, revise with feedback, or build the board.'}
         </div>
       </div>
       <div className="brief-v2-banner-actions">
+        {onRevise && (
+          <button onClick={onRevise} className="brief-v2-banner-btn brief-v2-banner-btn-quiet">
+            <SparklesIconInline /> Revise
+          </button>
+        )}
         {onShareReview && (
           <button onClick={onShareReview} className="brief-v2-banner-btn brief-v2-banner-btn-quiet">
             <ShareIcon style={{ width: 14, height: 14 }} /> {shareLabel}
@@ -1516,6 +1594,109 @@ function CompletionBanner({ onBuildBoard, onExportPdf, onShareReview, reviewStat
         <button onClick={onBuildBoard} disabled={designSystemBuilding} className="brief-v2-banner-btn brief-v2-banner-btn-primary">
           Build board <ArrowRightIcon style={{ width: 14, height: 14 }} />
         </button>
+      </div>
+    </div>
+  )
+}
+
+// Inline sparkles SVG (avoids a new heroicons import path collision)
+function SparklesIconInline() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
+    </svg>
+  )
+}
+
+// ── Version tab strip ──────────────────────────────────────────────
+// Shows tabs for every snapshot in revisions[] plus a Latest tab.
+// Newest old version sits closest to Latest; Original ends up at
+// the far right. Each old-version tab includes a Restore link that
+// fires onRestore(snapshotId) — promotes that snapshot back to
+// Latest so the designer can roll back from a bad AI revision.
+function VersionTabStrip({ revisions, viewedVersion, onSelect, onRestore }) {
+  // Newest first (after Latest), so Original lands at the end.
+  const ordered = revisions.slice().reverse()
+  return (
+    <div className="brief-v2-versions">
+      <div className="brief-v2-versions-label">Versions</div>
+      <div className="brief-v2-versions-tabs">
+        <button
+          type="button"
+          onClick={() => onSelect('latest')}
+          className={`brief-v2-vtab ${viewedVersion === 'latest' ? 'is-active' : ''}`}
+        >
+          Latest
+        </button>
+        {ordered.map(snap => {
+          const active = viewedVersion === snap.id
+          return (
+            <div key={snap.id} className="brief-v2-vtab-wrap">
+              <button
+                type="button"
+                onClick={() => onSelect(snap.id)}
+                className={`brief-v2-vtab ${active ? 'is-active' : ''}`}
+                title={snap.createdAt ? new Date(snap.createdAt).toLocaleString() : ''}
+              >
+                {snap.label}
+              </button>
+              {active && onRestore && (
+                <button
+                  type="button"
+                  onClick={() => onRestore(snap.id)}
+                  className="brief-v2-vtab-restore"
+                  title="Promote this version to Latest"
+                >
+                  Restore
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Pending changes banner ────────────────────────────────────────
+// Amber prompt when there's an outstanding client review with
+// status='changes_requested'. The Revise button triggers the modal
+// which auto-prefills the note.
+function PendingChangesBanner({ note, onRevise, revising }) {
+  return (
+    <div className="brief-v2-pending-banner">
+      <ExclamationTriangleIcon style={{ width: 22, height: 22, color: '#d97706', flexShrink: 0, marginTop: 1 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="brief-v2-pending-banner-title">Your client requested changes</div>
+        <div className="brief-v2-pending-banner-note">"{note}"</div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRevise?.()}
+        disabled={revising}
+        className="brief-v2-pending-banner-btn"
+      >
+        <SparklesIconInline /> {revising ? 'Revising…' : 'Revise with AI'}
+      </button>
+    </div>
+  )
+}
+
+// ── Revision meta banner ──────────────────────────────────────────
+// Quiet info banner on the Latest tab after a revision lands so the
+// designer can see what feedback drove the current version.
+function RevisionMetaBanner({ meta }) {
+  const when = meta.revisedAt
+    ? new Date(meta.revisedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    : null
+  return (
+    <div className="brief-v2-revmeta-banner">
+      <SparklesIconInline />
+      <div style={{ minWidth: 0 }}>
+        <div className="brief-v2-revmeta-banner-title">
+          Revised {when ? `on ${when}` : 'recently'} with this feedback:
+        </div>
+        <div className="brief-v2-revmeta-banner-note">"{meta.feedback}"</div>
       </div>
     </div>
   )
@@ -2343,6 +2524,109 @@ function ResponsiveStyles() {
       }
       .brief-v2-banner-btn-primary:hover { background: var(--color-accent); opacity: 0.9; }
       .brief-v2-banner-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      /* ── Version tab strip ────────────────────────────────────── */
+      .brief-v2-versions {
+        display: flex; align-items: center; gap: 12px;
+        margin-bottom: 18px;
+        padding: 8px 12px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        flex-wrap: wrap;
+      }
+      .brief-v2-versions-label {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+        flex-shrink: 0;
+      }
+      .brief-v2-versions-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+      .brief-v2-vtab {
+        padding: 6px 12px;
+        background: transparent;
+        border: 1px solid var(--color-border);
+        border-radius: 100px;
+        font: 700 12px 'Urbanist', sans-serif;
+        color: var(--color-text-soft);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .brief-v2-vtab:hover { border-color: var(--color-text-soft); color: var(--color-text); }
+      .brief-v2-vtab.is-active {
+        background: var(--color-text);
+        color: var(--color-bg);
+        border-color: var(--color-text);
+      }
+      .brief-v2-vtab-wrap { display: inline-flex; align-items: center; gap: 6px; }
+      .brief-v2-vtab-restore {
+        background: transparent; border: none;
+        font: 700 11px 'Urbanist', sans-serif;
+        color: var(--color-accent);
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        padding: 0;
+      }
+      .brief-v2-vtab-restore:hover { opacity: 0.8; }
+
+      /* ── Pending client-changes banner (designer view) ────────── */
+      .brief-v2-pending-banner {
+        display: flex; gap: 12px; align-items: flex-start;
+        margin-bottom: 24px;
+        padding: 14px 16px;
+        background: rgba(245,158,11,0.07);
+        border: 1px solid rgba(245,158,11,0.30);
+        border-radius: 14px;
+      }
+      .brief-v2-pending-banner-title {
+        font: 800 13px 'Urbanist', sans-serif;
+        color: var(--color-text);
+        margin-bottom: 4px;
+      }
+      .brief-v2-pending-banner-note {
+        font-size: 13px;
+        color: var(--color-text-soft);
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+      .brief-v2-pending-banner-btn {
+        flex-shrink: 0;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 9px 16px;
+        background: var(--color-accent);
+        color: white;
+        border: none;
+        border-radius: 9px;
+        font: 700 12px 'Urbanist', sans-serif;
+        cursor: pointer;
+      }
+      .brief-v2-pending-banner-btn:hover { opacity: 0.92; }
+      .brief-v2-pending-banner-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+      /* ── Revision meta banner (latest tab info) ───────────────── */
+      .brief-v2-revmeta-banner {
+        display: flex; gap: 10px; align-items: flex-start;
+        margin-bottom: 18px;
+        padding: 10px 12px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        font-size: 12px;
+        color: var(--color-text-soft);
+      }
+      .brief-v2-revmeta-banner-title {
+        font: 700 11px 'Urbanist', sans-serif;
+        color: var(--color-text);
+        margin-bottom: 3px;
+      }
+      .brief-v2-revmeta-banner-note {
+        font-size: 12px;
+        font-style: italic;
+        color: var(--color-text-soft);
+        line-height: 1.5;
+      }
 
       .brief-v2-ds-grid {
         display: grid;

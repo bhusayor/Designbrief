@@ -17,7 +17,8 @@ import {
   callJSON,
   generateSubtasks,
 } from '../lib/api'
-import { translateBriefV2, isV2Result, scoreBriefV2 } from '../lib/briefV2Translator'
+import { translateBriefV2, reviseBriefV2, snapshotForRevisions, isV2Result, scoreBriefV2 } from '../lib/briefV2Translator'
+import BriefV2ReviseModal from '../components/brief/BriefV2ReviseModal'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
 import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
@@ -388,6 +389,228 @@ export default function Dashboard() {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
+
+  // ── Brief revision (Path 2 — AI re-translation with feedback) ────
+  // Snapshots the current brief into result.revisions[], then runs
+  // reviseBriefV2() with the feedback as context. The new sections
+  // replace the current ones; design system + score get recomputed
+  // off the revised content. Capped at 10 revisions (evicts the
+  // oldest beyond that). The brief view's tab strip becomes
+  // available as soon as revisions[] has at least one entry.
+  const [revising, setRevising] = useState(false)
+  const [reviseOpen, setReviseOpen] = useState(false)
+  const MAX_REVISIONS = 10
+
+  async function handleReviseBrief(feedback, { reviewId } = {}) {
+    if (!result || !isV2Result(result)) {
+      showToast?.('No brief to revise yet. Translate a brief first.', 'warning')
+      return
+    }
+    if (!String(feedback || '').trim()) {
+      showToast?.('Add some feedback before revising.', 'warning')
+      return
+    }
+    if (revising) return
+    setRevising(true)
+    setV2Streaming(true)
+
+    try {
+      // Snapshot the current state before mutating. revisions[]
+      // grows oldest-first; label the very first snapshot Original,
+      // subsequent ones Revision 1, Revision 2, etc.
+      const existingRevisions = Array.isArray(result.revisions) ? result.revisions : []
+      const isFirstRevision = existingRevisions.length === 0
+      const snapshot = snapshotForRevisions(result, {
+        label: isFirstRevision ? 'Original' : `Revision ${existingRevisions.length}`,
+      })
+      let nextRevisions = snapshot ? [...existingRevisions, snapshot] : existingRevisions
+      if (nextRevisions.length > MAX_REVISIONS) {
+        // Drop the oldest entries beyond the cap. We keep the
+        // Original whenever possible so the designer can always
+        // see where the brief started.
+        nextRevisions = [nextRevisions[0], ...nextRevisions.slice(-(MAX_REVISIONS - 1))]
+      }
+
+      // Seed the live sections with skeletons so the user sees the
+      // grid populate again as each section comes back, same UX as
+      // a fresh translation.
+      const skeletonSections = BRIEF_V2_SECTIONS.map(s => ({
+        id: s.id,
+        label: s.label,
+        items: s.items.map(it => ({ ...it, content: null })),
+      }))
+      const skeletonResult = {
+        ...result,
+        sections: skeletonSections,
+        designSystem: null,
+        score: null,
+        revisions: nextRevisions,
+        revisionMeta: {
+          revisedAt: new Date().toISOString(),
+          feedback: String(feedback).trim(),
+          reviewId: reviewId || null,
+          status: 'revising',
+        },
+      }
+      setResult(skeletonResult)
+      setActiveProjectBriefResult(skeletonResult)
+
+      // Run the AI revision. We pass the stored brief text we
+      // captured at initial translation; if for some reason that's
+      // missing (e.g. brief loaded from history without it), fall
+      // back to a synthetic brief reconstructed from the previous
+      // translation itself.
+      const originalBrief = storedBriefText || `(no original brief text on record)`
+      const revisedResult = await reviseBriefV2(originalBrief, snapshot, feedback, {
+        onSection: (sectionId, items, partial) => {
+          setResult(prev => prev ? {
+            ...prev,
+            sections: partial.sections.map(s => ({ ...s, items: [...s.items] })),
+          } : prev)
+          setActiveProjectBriefResult(prev => prev ? {
+            ...prev,
+            sections: partial.sections.map(s => ({ ...s, items: [...s.items] })),
+          } : prev)
+        },
+      })
+
+      if (!revisedResult?.sections) throw new Error('Revision returned empty')
+
+      // Compose the final result. Keep projectTitle from the new
+      // translation, but always keep the existing kanban / inspirations
+      // (those were derived from the previous run and the designer
+      // hasn't asked to rebuild them).
+      const finalRevised = {
+        ...result,
+        projectTitle: revisedResult.projectTitle || result.projectTitle,
+        sections: revisedResult.sections,
+        designSystem: null,
+        score: null,
+        revisions: nextRevisions,
+        revisionMeta: {
+          revisedAt: new Date().toISOString(),
+          feedback: String(feedback).trim(),
+          reviewId: reviewId || null,
+          status: 'complete',
+        },
+      }
+      setResult(finalRevised)
+      setActiveProjectBriefResult(finalRevised)
+      setV2Streaming(false)
+
+      // Re-extract design system + re-score in background.
+      try {
+        const newDS = await extractDesignSystem(finalRevised)
+        if (newDS) {
+          setResult(prev => prev ? { ...prev, designSystem: newDS } : prev)
+          setActiveProjectBriefResult(prev => prev ? { ...prev, designSystem: newDS } : prev)
+        }
+      } catch (e) { console.warn('[revise] DS extract failed', e?.message) }
+      scoreBriefV2(originalBrief, finalRevised).then(score => {
+        if (!score) return
+        setResult(prev => prev ? { ...prev, score } : prev)
+        setActiveProjectBriefResult(prev => prev ? { ...prev, score } : prev)
+      }).catch(() => {})
+
+      // Persist the new brief (with revisions[]) back to the project
+      // row so a reload preserves the history.
+      if (activeChat) {
+        try {
+          saveHistory({
+            id: activeChat,
+            section: 'translator',
+            title: finalRevised.projectTitle || 'Untitled Brief',
+            ts: Date.now(),
+            pinned: false,
+            data: { brief: storedBriefText || '', result: finalRevised },
+          })
+        } catch (e) {
+          console.warn('[revise] persist failed', e?.message)
+        }
+      }
+
+      showToast?.('Brief revised. The new version is the latest tab.', 'success')
+    } catch (err) {
+      console.error('[revise] failed', err)
+      setV2Streaming(false)
+      showToast?.('Revision failed. Please try again.', 'error')
+    } finally {
+      setRevising(false)
+    }
+  }
+
+  // Restore a snapshot from revisions[] back to the live latest
+  // (swap with the current). Used by the per-version "Restore"
+  // button — escape hatch if a revision went off the rails.
+  function handleRestoreRevision(snapshotId) {
+    if (!result || !Array.isArray(result.revisions)) return
+    const snap = result.revisions.find(s => s.id === snapshotId)
+    if (!snap) return
+    // Snapshot the CURRENT version first so the restore is undoable
+    // (it becomes the new last entry in revisions[]).
+    const existing = Array.isArray(result.revisions) ? result.revisions : []
+    const currentSnap = snapshotForRevisions(result, {
+      label: `Revision ${existing.length}`,
+    })
+    const nextRevisions = (existing.filter(s => s.id !== snapshotId)).concat(currentSnap ? [currentSnap] : [])
+    const restored = {
+      ...result,
+      projectTitle: snap.projectTitle || result.projectTitle,
+      sections: snap.sections,
+      designSystem: snap.designSystem || null,
+      score: snap.score || null,
+      revisions: nextRevisions.slice(-MAX_REVISIONS),
+      revisionMeta: snap.revisionMeta || null,
+    }
+    setResult(restored)
+    setActiveProjectBriefResult(restored)
+    if (activeChat) {
+      try {
+        saveHistory({
+          id: activeChat,
+          section: 'translator',
+          title: restored.projectTitle || 'Untitled Brief',
+          ts: Date.now(),
+          pinned: false,
+          data: { brief: storedBriefText || '', result: restored },
+        })
+      } catch (e) { console.warn('[restore] persist failed', e?.message) }
+    }
+    showToast?.(`Restored "${snap.label}" as the latest brief.`, 'success')
+  }
+
+  // ── Pending client review (auto-fetch the latest review for this
+  // project so the Revise modal can prefill the client's note) ────
+  const [pendingReview, setPendingReview] = useState(null)
+  useEffect(() => {
+    if (!activeChat || !authUser) { setPendingReview(null); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const tok = session?.access_token
+        if (!tok) return
+        const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+        if (!apiBase) return
+        const r = await fetch(`${apiBase}/api/brief-reviews/by-project/${activeChat}`, {
+          headers: { Authorization: `Bearer ${tok}` },
+        })
+        if (!r.ok) return
+        const body = await r.json().catch(() => ({}))
+        if (cancelled) return
+        // by-project returns the freshest review for the project.
+        // Treat 'changes_requested' as actionable; 'pending' /
+        // 'approved' have nothing to revise on.
+        const review = body?.review
+        if (review?.status === 'changes_requested' && review.decision_note) {
+          setPendingReview(review)
+        } else {
+          setPendingReview(null)
+        }
+      } catch { /* swallow */ }
+    })()
+    return () => { cancelled = true }
+  }, [activeChat, authUser, result?.revisionMeta?.revisedAt])
 
   // ── Translation ───────────────────────────────────────────────────────────
 
@@ -858,6 +1081,18 @@ export default function Dashboard() {
             onJumpToKanban={() => navigate('team')}
             onExportPdf={handleDownload}
             onBuildBoard={() => navigate('team')}
+            onRevise={() => setReviseOpen(true)}
+            onRestore={handleRestoreRevision}
+            revising={revising}
+            pendingReviewNote={pendingReview?.decision_note || null}
+          />
+          <BriefV2ReviseModal
+            open={reviseOpen}
+            onClose={() => setReviseOpen(false)}
+            pendingReview={pendingReview}
+            onSubmit={async (feedback, meta) => {
+              await handleReviseBrief(feedback, meta)
+            }}
           />
         </div>
       )

@@ -363,6 +363,86 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// reviseBriefV2 — re-run the 5-section translator with extra context
+// so the model addresses client feedback while preserving the parts
+// of the brief that weren't called out.
+//
+//   originalBriefText   — the raw brief the designer typed initially
+//   previousTranslation — the current result (sections + design system)
+//   feedback            — the client's note ("the audience is too broad…")
+//
+// Builds an augmented brief text that includes the previous output as
+// reference + the feedback as direction, then routes through the
+// normal translateBriefV2() so the same section streaming, skeleton
+// state, and error handling all just work.
+// ────────────────────────────────────────────────────────────────────
+export async function reviseBriefV2(originalBriefText, previousTranslation, feedback, { onSection } = {}) {
+  const slim = serializePreviousTranslation(previousTranslation)
+  const augmentedBrief = `${originalBriefText}
+
+--- PREVIOUS TRANSLATION ---
+${slim}
+
+--- CLIENT FEEDBACK ---
+${String(feedback || '').trim()}
+
+INSTRUCTIONS: This is a REVISION. The client has reviewed the previous translation and provided the feedback above. Re-translate the brief, addressing the feedback specifically. Maintain accuracy with the original brief and preserve the parts of the previous translation the feedback didn't call out — only change what needs to change. Project title can stay the same unless the feedback explicitly asks for a rename.`
+
+  return translateBriefV2(augmentedBrief, { onSection })
+}
+
+// Serialise the previous translation into a slim string the AI can
+// read. We strip the framework metadata (id, key, shape, title) and
+// only keep section labels + item contents so the prompt stays well
+// under the context limit even on multi-revision threads.
+function serializePreviousTranslation(prev) {
+  if (!prev?.sections) return '(no previous translation)'
+  const lines = []
+  for (const section of prev.sections) {
+    lines.push(`## ${section.label}`)
+    for (const item of section.items || []) {
+      if (item.content == null) continue
+      let value = ''
+      if (typeof item.content === 'string') value = item.content
+      else {
+        try { value = JSON.stringify(item.content) } catch { value = String(item.content) }
+      }
+      // Keep each item line short; the AI just needs gist context.
+      if (value.length > 500) value = value.slice(0, 500) + '…'
+      lines.push(`- ${item.title}: ${value}`)
+    }
+    lines.push('')
+  }
+  return lines.join('\n')
+}
+
+// ────────────────────────────────────────────────────────────────────
+// snapshotForRevisions — copies the version-specific fields off a
+// brief result into a new object that can be pushed onto the
+// revisions[] history array. We deliberately leave OUT the
+// revisions[] field itself (no nesting) and onSection-related
+// metadata, just the renderable state.
+// ────────────────────────────────────────────────────────────────────
+export function snapshotForRevisions(result, { label } = {}) {
+  if (!result?.sections) return null
+  return {
+    id: `v${Date.now().toString(36)}`,
+    label: label || 'Snapshot',
+    createdAt: new Date().toISOString(),
+    projectTitle: result.projectTitle || 'Untitled brief',
+    sections: structuredCloneSafe(result.sections),
+    designSystem: result.designSystem ? structuredCloneSafe(result.designSystem) : null,
+    score: result.score ? structuredCloneSafe(result.score) : null,
+    revisionMeta: result.revisionMeta ? structuredCloneSafe(result.revisionMeta) : null,
+  }
+}
+
+function structuredCloneSafe(v) {
+  try { return typeof structuredClone === 'function' ? structuredClone(v) : JSON.parse(JSON.stringify(v)) }
+  catch { return JSON.parse(JSON.stringify(v)) }
+}
+
+// ────────────────────────────────────────────────────────────────────
 // enrichCompetitorUrls — for each competitor without a URL, fire a
 // /api/web-search query against Brave and adopt the top result's
 // URL. Failure is silent (the card just renders without a link).
