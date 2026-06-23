@@ -20,11 +20,14 @@
   --color-sidebar-item-hover:  rgba(0,0,0,0.04);
   --color-sidebar-item-active: #E8E8E8;
 
-  /* Text */
+  /* Text. Values tuned for WCAG AA contrast against --color-bg
+     (#FFFFFF) and --color-surface (#F7F8FA): text 21:1, soft 10:1,
+     muted 5.0:1 (≥4.5:1 for normal text), placeholder 3:1 (large
+     decorative only). */
   --color-text:             #0F0F0F;
   --color-text-soft:        #3D3D3D;
-  --color-text-muted:       #8C8C8C;
-  --color-text-placeholder: #C0C0C0;
+  --color-text-muted:       #6F6F6F;
+  --color-text-placeholder: #B5B5B5;
 
   /* Borders */
   --color-border:        #EAEAEA;
@@ -136,11 +139,13 @@
   --color-sidebar-item-hover:  rgba(255,255,255,0.04);
   --color-sidebar-item-active: #303030;
 
-  /* Text */
+  /* Text. Tuned for WCAG AA on --color-bg (#0E0E0E): text 18:1,
+     soft 8.5:1, muted 5.5:1 (≥4.5:1 normal text), placeholder
+     3.1:1 (large decorative only). */
   --color-text:             #F0F0F0;
   --color-text-soft:        #A8A8A8;
-  --color-text-muted:       #606060;
-  --color-text-placeholder: #404040;
+  --color-text-muted:       #8B8B8B;
+  --color-text-placeholder: #5A5A5A;
 
   /* Borders */
   --color-border:        #242424;

@@ -199,7 +199,12 @@ Return JSON exactly in this shape:
 
 brand_personality: exactly 3-5 traits.
 emotional_direction: one entry per journey step. Mirror the step titles you'd expect from section 1.
-color_direction: ALL hex values are required and must be real 6-digit hex strings starting with #. Use real colour names (not generic ones like "Blue"). Light and dark token maps must use ACTUAL real hex values appropriate for each mode; do not just lighten or invert each other mechanically.
+color_direction:
+- ALL hex values are required and must be real 6-digit hex strings starting with #.
+- Use real colour names (not generic ones like "Blue").
+- Light and dark token maps must use ACTUAL real hex values appropriate for each mode; do not just lighten or invert each other mechanically.
+- DO NOT use teal, cyan, turquoise, or any hue between #00C7C7 and #1AA899 unless the brief explicitly asks for it. Teal is overused in SaaS / tech brands and reads as default. Lean into less common hue families (warm purples, indigos, deep greens, ochres, terracottas, slates) instead.
+- All foreground / background pairs in light.text on light.background, dark.text on dark.background, and primary / onPrimary must hit at least 4.5:1 contrast ratio (WCAG AA for normal text). Pick onPrimary as the colour that gets >4.5:1 against primary.
 typography_direction: family names must be real (and on Google Fonts if google=true) so they render in the live preview. Weights must exist on the family. Scale numbers are unit-less px.
 moodboard_direction.references: 4-8 entries. Mix product sites (Linear, Stripe, Vercel, Notion, etc), pattern libraries (Mobbin, Dribbble shots, Awwwards winners), and individual designers/studios where relevant. Every URL must be a plausible real homepage or specific page — do not invent fake URLs. If you are not confident a URL is real, omit the reference rather than guessing wildly.
 
@@ -284,6 +289,20 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
     })),
   }
 
+  // Per-section token budgets. The direction section's JSON balloons
+  // to a colour palette with swatches + light/dark token maps + a
+  // full typography scale (desktop + mobile) + moodboard refs, so
+  // it needs significantly more headroom than the others. A truncated
+  // response means JSON parse fails silently and the items never
+  // populate — the UI hangs on the skeleton state forever.
+  const MAX_TOKENS = {
+    understand:  3500,
+    interrogate: 3500,
+    direction:   6500,   // bumped — colour palette + type scale + moodboard
+    landscape:   4000,   // bumped — competitor URL + strength + weakness
+    boundaries:  3500,
+  }
+
   // Each section call returns a Promise of its parsed section data.
   // We await Promise.all but also fire onSection() the moment each
   // individual promise resolves (not waiting for the slowest one).
@@ -295,9 +314,16 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
         taskType: 'brief_translation',
         system: prompt.system,
         userMessage: prompt.user(briefText),
-        maxTokens: 3500,
+        maxTokens: MAX_TOKENS[sectionId] || 3500,
       })
       const parsed = safeJsonParse(text)
+      // Hard parse failure (returned empty {}) almost always means
+      // the response was truncated. Log loudly so we catch it next
+      // time instead of letting the UI hang silently.
+      if (!parsed || Object.keys(parsed).length === 0) {
+        console.error('[translateBriefV2]', sectionId, 'parse returned empty — likely token truncation. Response length:', text?.length, 'first 200 chars:', String(text || '').slice(0, 200))
+        throw new Error('parse_empty')
+      }
       const scrubbed = scrubDashes(parsed) || {}
 
       // Title only comes from the 'understand' section.
@@ -318,9 +344,16 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
       return { sectionId, ok: true }
     } catch (e) {
       console.warn('[translateBriefV2] section failed', sectionId, e?.message)
-      // Leave items with content: null so the UI shows them as
-      // failed-to-load rather than the whole brief blowing up.
-      try { onSection?.(sectionId, [], result, e) } catch {}
+      // Mark every item in the failed section so the UI can surface
+      // "failed to load" + a retry button instead of an endless
+      // skeleton.
+      const sectionResult = result.sections.find(s => s.id === sectionId)
+      if (sectionResult) {
+        for (const item of sectionResult.items) {
+          if (item.content == null) item.content = { __error: true, reason: e?.message || 'failed' }
+        }
+        try { onSection?.(sectionId, sectionResult.items, result, e) } catch {}
+      }
       return { sectionId, ok: false, error: e?.message }
     }
   })

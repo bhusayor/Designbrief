@@ -95,18 +95,9 @@ export default function BriefV2View({
     <div className="brief-v2-root">
       <ResponsiveStyles />
 
-      {/* Tablet horizontal tab bar — visible only 768-1023 */}
-      <nav className="brief-v2-tabbar" aria-label="Sections">
-        {sections.map(s => (
-          <button
-            key={s.id}
-            onClick={() => scrollToSection(s.id)}
-            className={`brief-v2-tab ${activeSectionId === s.id ? 'is-active' : ''}`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </nav>
+      {/* Top tab bar removed — the brief reads as a single flowing
+          document now; the natural section-glyph headers serve as
+          jump targets via scroll. */}
 
       <div className="brief-v2-layout">
         {/* Translation map sidebar removed — designers can use the
@@ -226,10 +217,21 @@ function SectionHeader({ index, label, sectionId }) {
 // ────────────────────────────────────────────────────────────────────
 function BriefCard({ item }) {
   const isLoading = item.content === null || item.content === undefined
-  const isFullWidth = item.shape === 'rows' || item.shape === 'journey' || item.shape === 'competitors' || item.shape === 'inventory'
+  const isError   = item.content && typeof item.content === 'object' && item.content.__error === true
+  // Rich/wide shapes get a full-row card. The colour palette, type
+  // system, and moodboard refs also need the breathing room — added
+  // here so the grid has a clear 2-up-then-stack rhythm.
+  const isFullWidth =
+    item.shape === 'rows' ||
+    item.shape === 'journey' ||
+    item.shape === 'competitors' ||
+    item.shape === 'inventory' ||
+    item.shape === 'roles' ||
+    item.shape === 'levels' ||
+    item.shape === 'moodboard'
 
   return (
-    <article className={`brief-v2-card ${isFullWidth ? 'is-wide' : ''} ${isLoading ? 'is-loading' : ''}`}>
+    <article className={`brief-v2-card ${isFullWidth ? 'is-wide' : ''} ${isLoading ? 'is-loading' : ''} ${isError ? 'is-error' : ''}`}>
       <div className="brief-v2-card-head">
         <span className="brief-v2-card-num">{String(item.id).padStart(2, '0')}</span>
         <h3 className="brief-v2-card-title">{item.title}</h3>
@@ -238,9 +240,20 @@ function BriefCard({ item }) {
         )}
       </div>
       <div className="brief-v2-card-body">
-        {isLoading
-          ? <Skeleton shape={item.shape} />
-          : <ItemContent shape={item.shape} content={item.content} item={item} />}
+        {isError ? (
+          <div className="brief-v2-card-error">
+            <p className="brief-v2-card-error-title">This item failed to translate.</p>
+            <p className="brief-v2-card-error-sub">
+              {item.content.reason === 'parse_empty'
+                ? 'The model response was incomplete. Try re-running the translation.'
+                : `Reason: ${item.content.reason || 'unknown'}.`}
+            </p>
+          </div>
+        ) : isLoading ? (
+          <Skeleton shape={item.shape} />
+        ) : (
+          <ItemContent shape={item.shape} content={item.content} item={item} />
+        )}
       </div>
     </article>
   )
@@ -1364,34 +1377,7 @@ function ResponsiveStyles() {
         color: var(--color-text);
       }
 
-      /* Tab bar is the universal section nav now (sidebar removed).
-         Sticky to the top so it stays accessible while scrolling. */
-      .brief-v2-tabbar {
-        display: flex;
-        gap: 6px;
-        overflow-x: auto;
-        padding: 12px clamp(20px, 4vw, 56px);
-        background: var(--color-bg);
-        border-bottom: 1px solid var(--color-border);
-        position: sticky;
-        top: 0;
-        z-index: 5;
-        scrollbar-width: thin;
-      }
-      .brief-v2-tab {
-        flex-shrink: 0;
-        padding: 7px 14px;
-        background: transparent;
-        border: 1px solid var(--color-border);
-        border-radius: 100px;
-        font: 600 12px 'Urbanist', sans-serif;
-        color: var(--color-text-soft);
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.15s, border-color 0.15s, color 0.15s;
-      }
-      .brief-v2-tab:hover { border-color: var(--color-text-soft); color: var(--color-text); }
-      .brief-v2-tab.is-active { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); }
+      /* Top tab bar removed — no styles needed. */
 
       .brief-v2-layout {
         /* Full-width single column — the Translation map sidebar
@@ -2151,7 +2137,6 @@ function ResponsiveStyles() {
       /* ── Tablet (768-1023) ───────────────────────────────────── */
       @media (max-width: 1023px) {
         .brief-v2-layout { padding: 24px 24px 16px; }
-        .brief-v2-tabbar { padding: 12px 24px; }
         .brief-v2-card-grid { grid-template-columns: 1fr; }
         .brief-v2-card.is-wide { grid-column: auto; }
         .brief-v2-ds-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
