@@ -369,7 +369,12 @@ function formatDate(iso) {
 }
 
 const shell = {
-  minHeight: '100dvh',
+  // #root has overflow:hidden + height:100dvh globally so the
+  // designer-app stays viewport-locked with its own internal
+  // scrollers. The public review page needs to scroll naturally
+  // for the client, so we make THIS shell the scroll container.
+  height: '100dvh',
+  overflowY: 'auto',
   background: 'var(--color-bg)',
   paddingBottom: 120, // leave room for the sticky decision bar
 }

@@ -33,7 +33,11 @@ export default function BriefV2ShareModal({
     if (open) {
       setEmail(defaultClientEmail)
       setName(defaultClientName)
-      setMessage(defaultMessage || defaultMessageBody({ name: defaultClientName }))
+      // Start empty so the designer's blockquote on the public review
+      // page only shows when they consciously wrote something. The
+      // previous default-fill was being sent verbatim and appearing
+      // on every client's review screen as a stock greeting.
+      setMessage(defaultMessage || '')
       setShareUrl('')
       setCopied(false)
       setError('')
@@ -54,8 +58,12 @@ export default function BriefV2ShareModal({
 
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
-  async function handleSend(e) {
-    e?.preventDefault?.()
+  // Submission modes:
+  //   'send'      — create the review row and email the client
+  //   'link-only' — create the row, skip the email, return the link
+  //                 so the designer can share it manually (useful
+  //                 when client mailservers eat onboarding@resend.dev)
+  async function submit(mode) {
     if (!validEmail || submitting) return
     setSubmitting(true)
     setError('')
@@ -79,6 +87,7 @@ export default function BriefV2ShareModal({
           client_email: email.trim(),
           client_name: name.trim() || null,
           designer_message: message.trim() || null,
+          skip_email: mode === 'link-only',
         }),
       })
 
@@ -90,13 +99,25 @@ export default function BriefV2ShareModal({
       }
 
       setShareUrl(body.share_url || '')
-      setEmailStatus(body.email || null)
+      // When the designer chose link-only, mark email as
+      // intentionally skipped so the success screen shows the
+      // right wording rather than a false "Sent to…".
+      setEmailStatus(
+        mode === 'link-only'
+          ? { sent: false, skipped: true }
+          : (body.email || null)
+      )
       setSubmitting(false)
     } catch (err) {
       console.error('[BriefV2ShareModal] create failed', err)
       setError(err?.message || 'Could not send. Try again.')
       setSubmitting(false)
     }
+  }
+
+  function handleSend(e) {
+    e?.preventDefault?.()
+    submit('send')
   }
 
   function copyLink() {
@@ -226,6 +247,25 @@ export default function BriefV2ShareModal({
                 Cancel
               </button>
               <button
+                type="button"
+                onClick={() => submit('link-only')}
+                disabled={!validEmail || submitting}
+                title="Create the review link without sending an email"
+                style={{
+                  padding: '10px 14px',
+                  background: 'transparent',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text)',
+                  borderRadius: 9,
+                  font: '700 13px Urbanist, sans-serif',
+                  cursor: (!validEmail || submitting) ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <ClipboardDocumentIcon style={{ width: 14, height: 14 }} />
+                Get link
+              </button>
+              <button
                 type="submit"
                 disabled={!validEmail || submitting}
                 style={{
@@ -245,7 +285,22 @@ export default function BriefV2ShareModal({
           </form>
         ) : (
           <div style={{ padding: '18px 24px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {emailStatus?.sent !== false ? (
+            {emailStatus?.skipped ? (
+              <div style={{
+                padding: '12px 14px',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 10,
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <CheckIcon style={{ width: 18, height: 18, color: 'var(--color-text)', flexShrink: 0, marginTop: 1 }} />
+                <div style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.5 }}>
+                  Link ready. <span style={{ color: 'var(--color-text-muted)' }}>
+                    Copy it below and send to <strong>{email}</strong> via your preferred channel.
+                  </span>
+                </div>
+              </div>
+            ) : emailStatus?.sent !== false ? (
               <div style={{
                 padding: '12px 14px',
                 background: 'rgba(16,185,129,0.07)',
@@ -358,15 +413,6 @@ const inputStyle = {
   outline: 'none',
 }
 
-function defaultMessageBody({ name }) {
-  const greet = name?.split(/\s+/)?.[0] ? `Hi ${name.split(/\s+/)[0]},` : 'Hi,'
-  return [
-    greet,
-    '',
-    "I've put together the brief for our project. Could you take a few minutes to read through it and let me know if it captures what you have in mind?",
-    '',
-    'Add a comment to any section if something is off, or approve when you are happy with it.',
-    '',
-    'Thanks.',
-  ].join('\n')
-}
+// defaultMessageBody removed — the message field now starts empty
+// so the client's review page only shows a blockquote when the
+// designer actually wrote something personal.

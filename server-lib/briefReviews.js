@@ -53,7 +53,7 @@ export async function createBriefReview(req, res) {
   const { data: { user }, error: userErr } = await supabase.auth.getUser(authHeader.slice(7))
   if (userErr || !user) return res.status(401).json({ error: 'invalid_session' })
 
-  const { project_id, intake_submission_id, client_email, client_name, designer_message } = req.body || {}
+  const { project_id, intake_submission_id, client_email, client_name, designer_message, skip_email } = req.body || {}
   if (!project_id && !intake_submission_id) {
     return res.status(400).json({ error: 'bad_request', message: 'project_id or intake_submission_id required' })
   }
@@ -106,8 +106,17 @@ export async function createBriefReview(req, res) {
   // row exists and the designer can copy the link manually — but we
   // capture the failure mode so the API response tells the designer
   // exactly what went wrong instead of leaving them guessing.
+  //
+  // skip_email=true is the "Get link" path — the designer wants to
+  // share the URL manually (e.g. via Slack, iMessage) and is
+  // deliberately bypassing Resend. The row still gets created.
   const reviewUrl = `${appUrl(req)}/review/${share_token}`
-  let emailResult = { sent: false, error: null }
+  let emailResult = skip_email
+    ? { sent: false, skipped: true, error: null }
+    : { sent: false, error: null }
+  if (skip_email) {
+    return res.status(200).json({ ok: true, review, share_url: reviewUrl, email: emailResult })
+  }
   try {
     const safeName = String(designerName).replace(/[<>"]/g, '').trim() || 'Your designer'
     const html = renderInviteHtml({
