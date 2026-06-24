@@ -261,13 +261,13 @@ export default function BriefV2View({
             )
           })}
 
-          {(displayedDesignSystem || (designSystemBuilding && !isViewingOldVersion)) && (
-            <DesignSystemPanel
-              ds={displayedDesignSystem}
-              briefResult={{ ...result, sections: displayedSections }}
-              building={designSystemBuilding && !isViewingOldVersion}
-            />
-          )}
+          {/* Design system panel intentionally not rendered in the
+              result view. The extracted designSystem object still
+              lives on result.designSystem and is consumed by the
+              kanban + AI builder pipelines downstream — it just
+              isn't shown to the designer here since the brief
+              cards already surface the same content (palette,
+              typography, etc) in their proper sections. */}
 
           <div style={{ height: 80 }} />
         </main>
