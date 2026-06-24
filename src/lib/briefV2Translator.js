@@ -222,7 +222,18 @@ Return JSON exactly in this shape:
           "note":  "<1 short line on what to study about it (layout? colour? motion?)>"
         }
       ]
-    }
+    },
+    "design_personality_ratings": [
+      { "trait": "Professional",  "stars": 4, "note": "<one short line on the call>" },
+      { "trait": "Premium",       "stars": 5, "note": "..." },
+      { "trait": "Playful",       "stars": 2, "note": "..." },
+      { "trait": "Corporate",     "stars": 1, "note": "..." },
+      { "trait": "Innovative",    "stars": 3, "note": "..." },
+      { "trait": "Trustworthy",   "stars": 5, "note": "..." },
+      { "trait": "Technical",     "stars": 2, "note": "..." },
+      { "trait": "Minimal",       "stars": 4, "note": "..." },
+      { "trait": "Expressive",    "stars": 3, "note": "..." }
+    ]
   }
 }
 
@@ -236,6 +247,7 @@ color_direction:
 - All foreground / background pairs in light.text on light.background, dark.text on dark.background, and primary / onPrimary must hit at least 4.5:1 contrast ratio (WCAG AA for normal text). Pick onPrimary as the colour that gets >4.5:1 against primary.
 typography_direction: family names must be real (and on Google Fonts if google=true) so they render in the live preview. Weights must exist on the family. Scale numbers are unit-less px.
 moodboard_direction.references: 4-8 entries. Mix product sites (Linear, Stripe, Vercel, Notion, etc), pattern libraries (Mobbin, Dribbble shots, Awwwards winners), and individual designers/studios where relevant. Every URL must be a plausible real homepage or specific page, do not invent fake URLs. If you are not confident a URL is real, omit the reference rather than guessing wildly.
+design_personality_ratings: rate this product's design personality on each of the 9 standard dimensions from 1-5 stars. Be DECISIVE — avoid rating 3 ("middle") as a default; only use 3 if the brand genuinely sits in the middle of that axis. The "note" is one short line on why this rating fits the product.
 
 Brief:
 ${briefText}`,
@@ -294,6 +306,92 @@ Return JSON exactly in this shape:
 
 scope_constraints: 4-8 boundaries. Each on its own line.
 content_inventory: one entry per deliverable from section 1's deliverables list. If the brief did not specify what content exists, status is "Unknown".
+
+Brief:
+${briefText}`,
+  },
+
+  // ── Product Decisions ────────────────────────────────────────────
+  // Senior-level calls about WHAT to build. Sits between Understand
+  // and Interrogate so the Reality Check has decisions to react to.
+  product_decisions: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Make the senior product decisions for this brief. Be DECISIVE. Categorise features into Core / Supporting / Enhancement / Deprioritize. State the positioning and trust strategy with conviction.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "features_hierarchy": {
+      "core":         ["<critical features the product cannot ship without. 3-6 entries.>"],
+      "supporting":   ["<features that strengthen the core but aren't required at MVP. 3-6 entries.>"],
+      "enhancement":  ["<features for later phases that delight or deepen the product. 2-5 entries.>"],
+      "deprioritize": [
+        { "name": "<feature to leave out>", "reason": "<one sentence on why this is a distraction>" }
+      ]
+    },
+    "positioning":     "<2 short sentences. How this product positions in market + the competitive advantage in one breath. Decisive.>",
+    "trust_strategy":  "<1-2 short sentences. How design + content + product earn user trust. Be specific (social proof, transparency, brand cues).>"
+  }
+}
+
+features_hierarchy.deprioritize: 2-5 entries with a real reason.
+All lists are decisions, not suggestions. Write as "Use X" not "Consider X".
+
+Brief:
+${briefText}`,
+  },
+
+  // ── Information Hierarchy ────────────────────────────────────────
+  // Ranked content importance — what users see first, second, third.
+  info_hierarchy: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Rank the content this product's primary surface needs to show, in priority order. This maps directly to page composition decisions.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "ranked_content": [
+      {
+        "name": "<content block name, e.g. 'Value Proposition' or 'Pricing'>",
+        "reason": "<one short sentence on why it ranks here for THIS product>"
+      }
+    ]
+  }
+}
+
+ranked_content: 5-9 entries in priority order, position 1 = most important. Common blocks: Value Proposition, Product Demo, Social Proof, Features, Pricing, FAQ, About, Onboarding CTA, Trust Markers. Use only the ones relevant to this product. Decide based on the conversion goal.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── Build Priorities ─────────────────────────────────────────────
+  // Phased build plan with explicit business impact per phase.
+  build_priorities: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define the build sequence for this product. Three phases. Each phase has a clear purpose and business impact. Be decisive about what ships when.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "build_phases": [
+      {
+        "name":             "Phase 1",
+        "purpose":          "<1 short sentence on what this phase exists to do>",
+        "items":            ["<concrete deliverable for this phase>", "..."],
+        "business_impact":  "<1 short sentence on the business outcome this phase unlocks>"
+      },
+      { "name": "Phase 2", "purpose": "...", "items": [...], "business_impact": "..." },
+      { "name": "Phase 3", "purpose": "...", "items": [...], "business_impact": "..." }
+    ]
+  }
+}
+
+Phase 1: MVP — minimum to test the core value prop.
+Phase 2: Activation — features that drive conversion + retention.
+Phase 3: Scale — features that compound + differentiate.
+
+items: 3-6 concrete deliverables per phase.
 
 Brief:
 ${briefText}`,
@@ -358,12 +456,15 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
   // response means JSON parse fails silently and the items never
   // populate, the UI hangs on the skeleton state forever.
   const MAX_TOKENS = {
-    understand:  3500,
-    interrogate: 3500,
-    direction:   6500,   // bumped, colour palette + type scale + moodboard
-    landscape:   4000,   // bumped, competitor URL + strength + weakness
-    boundaries:  3500,
-    verdict:     2000,   // 12 short fields, decisive but tight
+    understand:        3500,
+    product_decisions: 2500, // 4-tier features + 2 short text fields
+    interrogate:       3500,
+    direction:         7500, // bumped further, colour + type + moodboard + 9 personality ratings
+    info_hierarchy:    1500, // single ranked list with short reasons
+    landscape:         4000,
+    boundaries:        3500,
+    build_priorities:  2500, // 3 phases × ~5 items + meta
+    verdict:           2000,
   }
 
   // Each section call returns a Promise of its parsed section data.

@@ -52,16 +52,40 @@ export const BRIEF_V2_SECTIONS = [
       { id: 11, key: 'questions',       title: 'Questions for Your Client', shape: 'numbered_list' },
     ],
   },
+  // ── Product Decisions ────────────────────────────────────────────
+  // Senior-level calls about WHAT to build before we get into the
+  // visual + structural territory. Sits between Understand and
+  // Interrogate so the Reality Check has features to react to.
+  {
+    id: 'product_decisions',
+    label: 'Product decisions',
+    items: [
+      { id: 22, key: 'features_hierarchy', title: 'Feature Hierarchy', shape: 'features_hierarchy' },
+      { id: 23, key: 'positioning',         title: 'Positioning & Advantage', shape: 'text' },
+      { id: 24, key: 'trust_strategy',      title: 'Trust Strategy',  shape: 'text' },
+    ],
+  },
   {
     id: 'direction',
     label: 'Define the direction',
     items: [
-      { id: 12, key: 'brand_personality',    title: 'Brand Personality',     shape: 'list' },
-      { id: 13, key: 'tone_mood',            title: 'Tone & Mood',           shape: 'text' },
-      { id: 14, key: 'emotional_direction',  title: 'Emotional Direction',   shape: 'journey' },
-      { id: 15, key: 'color_direction',      title: 'Color Direction',       shape: 'roles' },
-      { id: 16, key: 'typography_direction', title: 'Typography Direction',  shape: 'levels' },
-      { id: 17, key: 'moodboard_direction',  title: 'Moodboard Direction',   shape: 'moodboard' },
+      { id: 12, key: 'brand_personality',          title: 'Brand Personality',         shape: 'list' },
+      { id: 13, key: 'tone_mood',                  title: 'Tone & Mood',               shape: 'text' },
+      { id: 14, key: 'emotional_direction',        title: 'Emotional Direction',       shape: 'journey' },
+      { id: 15, key: 'color_direction',            title: 'Color Direction',           shape: 'roles' },
+      { id: 16, key: 'typography_direction',       title: 'Typography Direction',      shape: 'levels' },
+      { id: 17, key: 'moodboard_direction',        title: 'Moodboard Direction',       shape: 'moodboard' },
+      { id: 25, key: 'design_personality_ratings', title: 'Design Personality Profile', shape: 'star_ratings' },
+    ],
+  },
+  // ── Information Hierarchy ────────────────────────────────────────
+  // After we know the brand direction, decide what users see first /
+  // second / third. Maps directly to page composition decisions.
+  {
+    id: 'info_hierarchy',
+    label: 'Information hierarchy',
+    items: [
+      { id: 26, key: 'ranked_content', title: 'Content Importance Ranking', shape: 'ranked_list' },
     ],
   },
   {
@@ -80,6 +104,17 @@ export const BRIEF_V2_SECTIONS = [
       { id: 21, key: 'content_inventory',   title: 'Content & Asset Inventory',    shape: 'inventory' },
     ],
   },
+  // ── Build Priorities ────────────────────────────────────────────
+  // Three-phase build plan with explicit business impact per phase.
+  // Lands right before the verdict so the closing memo can reference
+  // the build sequence.
+  {
+    id: 'build_priorities',
+    label: 'Build priorities',
+    items: [
+      { id: 27, key: 'build_phases', title: 'Build Phases', shape: 'phases' },
+    ],
+  },
   // ── Section 6: Director's Verdict ────────────────────────────────
   // The decisive editorial close. Designers / clients read this first
   // when they only have 60 seconds with the brief. Renders as a
@@ -88,7 +123,7 @@ export const BRIEF_V2_SECTIONS = [
     id: 'verdict',
     label: "Director's verdict",
     items: [
-      { id: 22, key: 'director_verdict', title: "Director's Verdict", shape: 'verdict' },
+      { id: 28, key: 'director_verdict', title: "Director's Verdict", shape: 'verdict' },
     ],
   },
 ]
@@ -156,6 +191,10 @@ export function emptyContentForShape(shape) {
     case 'inventory':     return []
     case 'verdict':       return {}
     case 'moodboard':     return {}
+    case 'features_hierarchy': return { core: [], supporting: [], enhancement: [], deprioritize: [] }
+    case 'ranked_list':   return []
+    case 'phases':        return []
+    case 'star_ratings':  return []
     default:              return null
   }
 }

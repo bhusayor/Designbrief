@@ -369,6 +369,15 @@ const SECTION_LAYOUT = {
       ['user_journey',         'full'],
     ],
   },
+  product_decisions: {
+    title:   'Product Decisions',
+    eyebrow: 'What we are building, and what we are not',
+    layout: [
+      ['features_hierarchy', 'full'],
+      ['positioning',        'half'],
+      ['trust_strategy',     'half'],
+    ],
+  },
   interrogate: {
     title:   'The Reality Check',
     eyebrow: 'Risks, gaps, and assumptions',
@@ -383,12 +392,20 @@ const SECTION_LAYOUT = {
     title:   'The Creative Direction',
     eyebrow: 'How the brand should look and feel',
     layout: [
-      ['brand_personality',    'half'],
-      ['tone_mood',            'half'],
-      ['color_direction',      'full'],
-      ['typography_direction', 'full'],
-      ['emotional_direction',  'half'],
-      ['moodboard_direction',  'half'],
+      ['brand_personality',          'half'],
+      ['tone_mood',                  'half'],
+      ['design_personality_ratings', 'full'],
+      ['color_direction',            'full'],
+      ['typography_direction',       'full'],
+      ['emotional_direction',        'half'],
+      ['moodboard_direction',        'half'],
+    ],
+  },
+  info_hierarchy: {
+    title:   'Information Hierarchy',
+    eyebrow: 'What users see first, second, third',
+    layout: [
+      ['ranked_content', 'full'],
     ],
   },
   landscape: {
@@ -407,6 +424,13 @@ const SECTION_LAYOUT = {
       ['content_inventory', 'full'],
     ],
   },
+  build_priorities: {
+    title:   'Build Priorities',
+    eyebrow: 'What ships first, second, third',
+    layout: [
+      ['build_phases', 'full'],
+    ],
+  },
   verdict: {
     title:   "Director's Verdict",
     eyebrow: 'Decisive close — read this if you read nothing else',
@@ -420,12 +444,15 @@ const SECTION_LAYOUT = {
 // section number glyph + the eyebrow. Tints stay subtle so the
 // content cards lead the page, not the dividers.
 const SECTION_TONES = {
-  understand:  { tint: 'rgba(59,130,246,0.10)',  ink: '#1d4ed8' },  // blue-700
-  interrogate: { tint: 'rgba(245,158,11,0.10)',  ink: '#b45309' },  // amber-700
-  direction:   { tint: 'rgba(139,92,246,0.10)',  ink: '#6d28d9' },  // violet-700
-  landscape:   { tint: 'rgba(16,185,129,0.10)',  ink: '#047857' },  // emerald-700
-  boundaries:  { tint: 'rgba(239,68,68,0.10)',   ink: '#b91c1c' },  // red-700
-  verdict:     { tint: 'rgba(15,23,42,0.10)',    ink: '#0f172a' },  // slate-900, neutral editorial
+  understand:        { tint: 'rgba(59,130,246,0.10)',  ink: '#1d4ed8' },  // blue-700
+  product_decisions: { tint: 'rgba(168,85,247,0.10)',  ink: '#7e22ce' },  // purple-700
+  interrogate:       { tint: 'rgba(245,158,11,0.10)',  ink: '#b45309' },  // amber-700
+  direction:         { tint: 'rgba(139,92,246,0.10)',  ink: '#6d28d9' },  // violet-700
+  info_hierarchy:    { tint: 'rgba(14,165,233,0.10)',  ink: '#0369a1' },  // sky-700
+  landscape:         { tint: 'rgba(16,185,129,0.10)',  ink: '#047857' },  // emerald-700
+  boundaries:        { tint: 'rgba(239,68,68,0.10)',   ink: '#b91c1c' },  // red-700
+  build_priorities:  { tint: 'rgba(249,115,22,0.10)',  ink: '#c2410c' },  // orange-700 / terracotta
+  verdict:           { tint: 'rgba(15,23,42,0.10)',    ink: '#0f172a' },  // slate-900, neutral editorial
 }
 
 // ── Floating table of contents ─────────────────────────────────────
@@ -742,6 +769,10 @@ function ItemContent({ shape, content, item }) {
     case 'inventory':      return <InventoryContent value={content} />
     case 'moodboard':      return <MoodboardContent value={content} />
     case 'verdict':        return <VerdictContent value={content} />
+    case 'features_hierarchy': return <FeaturesHierarchyContent value={content} />
+    case 'ranked_list':    return <RankedListContent value={content} />
+    case 'phases':         return <PhasesContent value={content} />
+    case 'star_ratings':   return <StarRatingsContent value={content} />
     default:               return <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>{JSON.stringify(content, null, 2)}</pre>
   }
 }
@@ -1876,6 +1907,142 @@ function prettyHost(url) {
 // recommendation). Editorial weight by default — designers should
 // be able to read this section in 30 seconds and have a complete
 // picture of the project's direction.
+// ── Features hierarchy (4-tier) ────────────────────────────────────
+// core / supporting / enhancement / deprioritize as a 4-quadrant
+// editorial grid. deprioritize rows include a reason for the cut.
+function FeaturesHierarchyContent({ value }) {
+  const v = (value && typeof value === 'object') ? value : {}
+  const tiers = [
+    { key: 'core',         label: 'Core',         tone: 'good',     hint: 'Ship first. Without these the product is incomplete.' },
+    { key: 'supporting',   label: 'Supporting',   tone: 'info',     hint: 'Strengthen the core; not required at MVP.' },
+    { key: 'enhancement',  label: 'Enhancement',  tone: 'neutral',  hint: 'Later phases. Delight + depth.' },
+    { key: 'deprioritize', label: 'Deprioritize', tone: 'warn',     hint: 'Leave out. Distractions.' },
+  ]
+  return (
+    <div className="brief-v2-fh">
+      {tiers.map(t => {
+        const items = Array.isArray(v[t.key]) ? v[t.key] : []
+        if (!items.length) return null
+        return (
+          <div key={t.key} className={`brief-v2-fh-tier brief-v2-fh-tier-${t.tone}`}>
+            <div className="brief-v2-fh-tier-head">
+              <span className="brief-v2-fh-tier-label">{t.label}</span>
+              <span className="brief-v2-fh-tier-count">{items.length}</span>
+            </div>
+            <p className="brief-v2-fh-tier-hint">{t.hint}</p>
+            <ul className="brief-v2-fh-list">
+              {items.map((it, i) => {
+                if (typeof it === 'string') {
+                  return <li key={i} className="brief-v2-fh-item">{it}</li>
+                }
+                return (
+                  <li key={i} className="brief-v2-fh-item">
+                    <span className="brief-v2-fh-item-name">{it.name || '-'}</span>
+                    {it.reason && <span className="brief-v2-fh-item-reason"> · {it.reason}</span>}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Ranked list (information hierarchy) ────────────────────────────
+// Ordered list with a big rank number on the left + content name +
+// reason text. Reads like a "what users see first" page-composition
+// brief.
+function RankedListContent({ value }) {
+  const list = Array.isArray(value) ? value : []
+  if (!list.length) return <p className="brief-v2-text">No ranking yet.</p>
+  return (
+    <ol className="brief-v2-ranked">
+      {list.map((item, i) => {
+        const name = typeof item === 'string' ? item : (item.name || `Item ${i + 1}`)
+        const reason = typeof item === 'object' ? item.reason : ''
+        return (
+          <li key={i} className="brief-v2-ranked-row">
+            <span className="brief-v2-ranked-num">{String(i + 1).padStart(2, '0')}</span>
+            <div className="brief-v2-ranked-body">
+              <div className="brief-v2-ranked-name">{name}</div>
+              {reason && <div className="brief-v2-ranked-reason">{reason}</div>}
+            </div>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+// ── Build phases ───────────────────────────────────────────────────
+// Three-phase build plan with purpose + items list + business impact
+// per phase. Renders as a horizontal phase track on desktop, stacked
+// on tablet/mobile.
+function PhasesContent({ value }) {
+  const phases = Array.isArray(value) ? value : []
+  if (!phases.length) return <p className="brief-v2-text">No build plan yet.</p>
+  return (
+    <ol className="brief-v2-phases">
+      {phases.map((p, i) => (
+        <li key={i} className="brief-v2-phase">
+          <div className="brief-v2-phase-head">
+            <span className="brief-v2-phase-num">{String(i + 1).padStart(2, '0')}</span>
+            <span className="brief-v2-phase-name">{p.name || `Phase ${i + 1}`}</span>
+          </div>
+          {p.purpose && (
+            <p className="brief-v2-phase-purpose">{p.purpose}</p>
+          )}
+          {Array.isArray(p.items) && p.items.length > 0 && (
+            <ul className="brief-v2-phase-items">
+              {p.items.map((it, j) => (
+                <li key={j}>{it}</li>
+              ))}
+            </ul>
+          )}
+          {p.business_impact && (
+            <div className="brief-v2-phase-impact">
+              <span className="brief-v2-phase-impact-label">IMPACT</span>
+              {p.business_impact}
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+// ── Star ratings (design personality profile) ──────────────────────
+// 9 standardised dimensions rated 1-5 stars with a one-line rationale.
+// Uses a two-column layout: trait name + filled-star indicator + note.
+function StarRatingsContent({ value }) {
+  const list = Array.isArray(value) ? value : []
+  if (!list.length) return <p className="brief-v2-text">No personality profile yet.</p>
+  return (
+    <ul className="brief-v2-stars">
+      {list.map((r, i) => {
+        const stars = Math.max(0, Math.min(5, Math.round(Number(r.stars) || 0)))
+        return (
+          <li key={i} className="brief-v2-star-row">
+            <span className="brief-v2-star-trait">{r.trait || '-'}</span>
+            <span className="brief-v2-star-meter" aria-label={`${stars} of 5`}>
+              {[1,2,3,4,5].map(n => (
+                <span
+                  key={n}
+                  className={`brief-v2-star ${n <= stars ? 'is-on' : ''}`}
+                  aria-hidden
+                >★</span>
+              ))}
+            </span>
+            {r.note && <span className="brief-v2-star-note">{r.note}</span>}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 function VerdictContent({ value }) {
   const v = (value && typeof value === 'object') ? value : {}
   if (!v.product_summary && !v.final_recommendation && !v.most_important_screen) {
@@ -2975,6 +3142,219 @@ function ResponsiveStyles() {
         min-width: 22px;
       }
       .brief-v2-toc-label { font: 700 13px 'Urbanist', sans-serif; }
+
+      /* ── Features hierarchy (4-tier grid) ────────────────────── */
+      .brief-v2-fh {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      @media (max-width: 767px) {
+        .brief-v2-fh { grid-template-columns: 1fr; }
+      }
+      .brief-v2-fh-tier {
+        padding: 14px 14px 12px;
+        border: 1px solid var(--color-border);
+        border-left: 3px solid;
+        border-radius: 10px;
+        background: var(--color-surface);
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v2-fh-tier-good    { border-left-color: #10b981; }
+      .brief-v2-fh-tier-info    { border-left-color: #3b82f6; }
+      .brief-v2-fh-tier-neutral { border-left-color: #94a3b8; }
+      .brief-v2-fh-tier-warn    { border-left-color: #b45309; }
+      .brief-v2-fh-tier-head {
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      .brief-v2-fh-tier-label {
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--color-text);
+      }
+      .brief-v2-fh-tier-count {
+        font: 800 11px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-fh-tier-hint {
+        margin: 0;
+        font-size: 11px;
+        color: var(--color-text-muted);
+        line-height: 1.5;
+      }
+      .brief-v2-fh-list {
+        list-style: none; padding: 0; margin: 4px 0 0;
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      .brief-v2-fh-item {
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-text);
+        padding-left: 14px;
+        position: relative;
+      }
+      .brief-v2-fh-item::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 9px;
+        width: 4px; height: 4px;
+        border-radius: 50%;
+        background: var(--color-text-muted);
+      }
+      .brief-v2-fh-item-name { font-weight: 700; }
+      .brief-v2-fh-item-reason { color: var(--color-text-soft); }
+
+      /* ── Ranked list (information hierarchy) ─────────────────── */
+      .brief-v2-ranked {
+        list-style: none; padding: 0; margin: 0;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v2-ranked-row {
+        display: grid;
+        grid-template-columns: 40px 1fr;
+        gap: 14px;
+        padding: 12px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        align-items: start;
+      }
+      .brief-v2-ranked-num {
+        font: 800 22px 'Urbanist', sans-serif;
+        line-height: 1;
+        color: var(--color-text-muted);
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        padding-top: 2px;
+      }
+      .brief-v2-ranked-body { min-width: 0; }
+      .brief-v2-ranked-name {
+        font: 800 14px 'Urbanist', sans-serif;
+        color: var(--color-text);
+        margin-bottom: 3px;
+      }
+      .brief-v2-ranked-reason {
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--color-text-soft);
+      }
+
+      /* ── Build phases ────────────────────────────────────────── */
+      .brief-v2-phases {
+        list-style: none; padding: 0; margin: 0;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      @media (max-width: 1023px) {
+        .brief-v2-phases { grid-template-columns: 1fr; }
+      }
+      .brief-v2-phase {
+        padding: 16px 16px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .brief-v2-phase-head {
+        display: flex; align-items: center; gap: 10px;
+      }
+      .brief-v2-phase-num {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px;
+        background: var(--color-text);
+        color: var(--color-bg);
+        border-radius: 8px;
+        font: 800 12px 'JetBrains Mono', monospace;
+      }
+      .brief-v2-phase-name {
+        font: 800 14px 'Urbanist', sans-serif;
+        color: var(--color-text);
+      }
+      .brief-v2-phase-purpose {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--color-text-soft);
+      }
+      .brief-v2-phase-items {
+        list-style: none; padding: 0; margin: 0;
+        display: flex; flex-direction: column; gap: 5px;
+      }
+      .brief-v2-phase-items li {
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-text);
+        padding-left: 14px;
+        position: relative;
+      }
+      .brief-v2-phase-items li::before {
+        content: '✓';
+        position: absolute;
+        left: 0; top: 0;
+        color: #10b981;
+        font-weight: 800;
+      }
+      .brief-v2-phase-impact {
+        margin-top: auto;
+        padding: 8px 10px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 7px;
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--color-text);
+        display: flex; flex-direction: column; gap: 3px;
+      }
+      .brief-v2-phase-impact-label {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.12em;
+        color: var(--color-text-muted);
+      }
+
+      /* ── Star ratings (design personality profile) ───────────── */
+      .brief-v2-stars {
+        list-style: none; padding: 0; margin: 0;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      @media (max-width: 1023px) {
+        .brief-v2-stars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 600px) {
+        .brief-v2-stars { grid-template-columns: 1fr; }
+      }
+      .brief-v2-star-row {
+        padding: 11px 12px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 9px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v2-star-trait {
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--color-text);
+      }
+      .brief-v2-star-meter {
+        display: inline-flex; gap: 1px;
+        font-size: 15px;
+        line-height: 1;
+      }
+      .brief-v2-star {
+        color: var(--color-border);
+        transition: color 0.15s;
+      }
+      .brief-v2-star.is-on { color: #f59e0b; }
+      .brief-v2-star-note {
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--color-text-soft);
+        margin-top: 2px;
+      }
 
       /* ── Director's verdict ──────────────────────────────────── */
       .brief-v2-verdict {
