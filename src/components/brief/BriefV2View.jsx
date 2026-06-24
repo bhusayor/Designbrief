@@ -407,6 +407,13 @@ const SECTION_LAYOUT = {
       ['content_inventory', 'full'],
     ],
   },
+  verdict: {
+    title:   "Director's Verdict",
+    eyebrow: 'Decisive close — read this if you read nothing else',
+    layout: [
+      ['director_verdict', 'full'],
+    ],
+  },
 }
 
 // Section accent palette — each section has a hue applied to the
@@ -418,6 +425,7 @@ const SECTION_TONES = {
   direction:   { tint: 'rgba(139,92,246,0.10)',  ink: '#6d28d9' },  // violet-700
   landscape:   { tint: 'rgba(16,185,129,0.10)',  ink: '#047857' },  // emerald-700
   boundaries:  { tint: 'rgba(239,68,68,0.10)',   ink: '#b91c1c' },  // red-700
+  verdict:     { tint: 'rgba(15,23,42,0.10)',    ink: '#0f172a' },  // slate-900, neutral editorial
 }
 
 // ── Floating table of contents ─────────────────────────────────────
@@ -733,6 +741,7 @@ function ItemContent({ shape, content, item }) {
     case 'competitors':    return <CompetitorsContent value={content} />
     case 'inventory':      return <InventoryContent value={content} />
     case 'moodboard':      return <MoodboardContent value={content} />
+    case 'verdict':        return <VerdictContent value={content} />
     default:               return <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>{JSON.stringify(content, null, 2)}</pre>
   }
 }
@@ -1860,6 +1869,75 @@ function prettyHost(url) {
 }
 
 // ── Moodboard direction (references) ───────────────────────────────
+// ── Director's verdict ─────────────────────────────────────────────
+// The decisive editorial close. Renders as a 3-column data grid for
+// the discrete priority calls (priorities, screen, feature, etc) +
+// two narrative paragraphs at the top (product_summary, final
+// recommendation). Editorial weight by default — designers should
+// be able to read this section in 30 seconds and have a complete
+// picture of the project's direction.
+function VerdictContent({ value }) {
+  const v = (value && typeof value === 'object') ? value : {}
+  if (!v.product_summary && !v.final_recommendation && !v.most_important_screen) {
+    return <p className="brief-v2-text">No verdict yet.</p>
+  }
+  const calls = [
+    { label: 'UX priority',           value: v.ux_priority },
+    { label: 'Conversion priority',   value: v.conversion_priority },
+    { label: 'Visual style',          value: v.visual_style },
+    { label: 'Product feel',          value: v.product_feel },
+    { label: 'Most important screen', value: v.most_important_screen, mono: true },
+    { label: 'Most important feature',value: v.most_important_feature, mono: true },
+  ].filter(c => c.value)
+  const risks = [
+    { label: 'Biggest opportunity',     value: v.biggest_opportunity,     tone: 'good' },
+    { label: 'Biggest design risk',     value: v.biggest_design_risk,     tone: 'warn' },
+    { label: 'Biggest UX risk',         value: v.biggest_ux_risk,         tone: 'warn' },
+    { label: 'Biggest conversion risk', value: v.biggest_conversion_risk, tone: 'warn' },
+  ].filter(r => r.value)
+  return (
+    <div className="brief-v2-verdict">
+      {v.product_summary && (
+        <div className="brief-v2-verdict-lead">
+          <div className="brief-v2-verdict-lead-label">SUMMARY</div>
+          <p>{v.product_summary}</p>
+        </div>
+      )}
+
+      {calls.length > 0 && (
+        <ul className="brief-v2-verdict-calls">
+          {calls.map((c, i) => (
+            <li key={i} className="brief-v2-verdict-call">
+              <span className="brief-v2-verdict-call-label">{c.label}</span>
+              <span className={`brief-v2-verdict-call-value ${c.mono ? 'is-mono' : ''}`}>
+                {c.value}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {risks.length > 0 && (
+        <ul className="brief-v2-verdict-risks">
+          {risks.map((r, i) => (
+            <li key={i} className={`brief-v2-verdict-risk brief-v2-verdict-risk-${r.tone}`}>
+              <span className="brief-v2-verdict-risk-label">{r.label}</span>
+              <span className="brief-v2-verdict-risk-text">{r.value}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {v.final_recommendation && (
+        <div className="brief-v2-verdict-final">
+          <div className="brief-v2-verdict-final-label">FINAL RECOMMENDATION — DESIGN DIRECTOR</div>
+          <p>{v.final_recommendation}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MoodboardContent({ value }) {
   // Backwards-compatible: old shape was a plain string.
   if (typeof value === 'string') {
@@ -2897,6 +2975,121 @@ function ResponsiveStyles() {
         min-width: 22px;
       }
       .brief-v2-toc-label { font: 700 13px 'Urbanist', sans-serif; }
+
+      /* ── Director's verdict ──────────────────────────────────── */
+      .brief-v2-verdict {
+        display: flex; flex-direction: column; gap: 18px;
+      }
+      .brief-v2-verdict-lead {
+        padding: 14px 16px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-left: 3px solid var(--color-accent);
+        border-radius: 10px;
+      }
+      .brief-v2-verdict-lead-label {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.14em;
+        color: var(--color-text-muted);
+        margin-bottom: 5px;
+      }
+      .brief-v2-verdict-lead p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.55;
+        color: var(--color-text);
+        font-weight: 600;
+      }
+      .brief-v2-verdict-calls {
+        list-style: none; padding: 0; margin: 0;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .brief-v2-verdict-call {
+        padding: 11px 12px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 9px;
+        display: flex; flex-direction: column; gap: 4px;
+        min-width: 0;
+      }
+      .brief-v2-verdict-call-label {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-verdict-call-value {
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--color-text);
+        font-weight: 700;
+      }
+      .brief-v2-verdict-call-value.is-mono {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      @media (max-width: 767px) {
+        .brief-v2-verdict-calls { grid-template-columns: 1fr; }
+      }
+      @media (min-width: 768px) and (max-width: 1023px) {
+        .brief-v2-verdict-calls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      .brief-v2-verdict-risks {
+        list-style: none; padding: 0; margin: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .brief-v2-verdict-risk {
+        padding: 11px 13px;
+        border-radius: 9px;
+        border: 1px solid;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v2-verdict-risk-good {
+        background: rgba(16,185,129,0.06);
+        border-color: rgba(16,185,129,0.30);
+      }
+      .brief-v2-verdict-risk-warn {
+        background: rgba(180,83,9,0.08);
+        border-color: rgba(180,83,9,0.40);
+      }
+      .brief-v2-verdict-risk-label {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+      }
+      .brief-v2-verdict-risk-good .brief-v2-verdict-risk-label { color: #047857; }
+      .brief-v2-verdict-risk-warn .brief-v2-verdict-risk-label { color: #b45309; }
+      .brief-v2-verdict-risk-text {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--color-text);
+      }
+      @media (max-width: 600px) {
+        .brief-v2-verdict-risks { grid-template-columns: 1fr; }
+      }
+      .brief-v2-verdict-final {
+        padding: 18px 20px;
+        background: var(--color-text);
+        color: var(--color-bg);
+        border-radius: 12px;
+      }
+      .brief-v2-verdict-final-label {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.16em;
+        color: rgba(255,255,255,0.55);
+        margin-bottom: 8px;
+      }
+      .brief-v2-verdict-final p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.6;
+        font-weight: 600;
+      }
 
       /* ── Section rhythm: more breathing room between sections,
          editorial divider line above each header. */

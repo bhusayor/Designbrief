@@ -80,6 +80,17 @@ export const BRIEF_V2_SECTIONS = [
       { id: 21, key: 'content_inventory',   title: 'Content & Asset Inventory',    shape: 'inventory' },
     ],
   },
+  // ── Section 6: Director's Verdict ────────────────────────────────
+  // The decisive editorial close. Designers / clients read this first
+  // when they only have 60 seconds with the brief. Renders as a
+  // single rich 'verdict' card (key-targeted custom renderer).
+  {
+    id: 'verdict',
+    label: "Director's verdict",
+    items: [
+      { id: 22, key: 'director_verdict', title: "Director's Verdict", shape: 'verdict' },
+    ],
+  },
 ]
 
 // Flat lookup: key → item descriptor (with section back-pointer).
@@ -143,6 +154,8 @@ export function emptyContentForShape(shape) {
     case 'journey':       return []
     case 'competitors':   return []
     case 'inventory':     return []
+    case 'verdict':       return {}
+    case 'moodboard':     return {}
     default:              return null
   }
 }

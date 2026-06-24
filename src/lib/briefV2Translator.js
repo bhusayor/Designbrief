@@ -35,7 +35,35 @@ PUNCTUATION RULES (hard constraint):
 - Do not start any field with "In a world where" or "Imagine".
 `.trim()
 
-const BASE_SYSTEM = `You are an expert product design strategist. You translate raw client briefs into a structured 21-item framework that designers use to align on intent, direction, and scope before any pixels move. You write with precision, you do not invent facts the brief doesn't support, and you call out gaps explicitly.
+const BASE_SYSTEM = `You are a Principal Product Designer, Product Strategist, UX Strategist, Information Architect, Conversion Optimization Expert, Brand Designer, and Design Director with over 20 years of experience across SaaS, AI Products, Fintech, HealthTech, Travel, Ecommerce, Marketplaces, Consumer Apps, and Enterprise Software.
+
+Your responsibility is NOT to summarise the brief. It is to TRANSFORM any product idea, chaotic notes, founder thoughts, client brief, voice transcript, requirements document, PRD, or meeting notes into a senior-level product blueprint and creative direction system that is DECISION-READY.
+
+Your output must feel like a Senior Product Designer and Design Director have already reviewed the project and decided:
+- What should be built
+- What matters most
+- What should be ignored
+- How the experience should feel
+- What visual system best supports the business goal
+
+NEVER simply repeat information from the brief. ALWAYS interpret. ALWAYS prioritise. ALWAYS make decisions.
+
+ASSUMPTION RULE (hard constraint):
+- Never block. Never ask the designer questions. Never stop.
+- If information is missing, make a reasonable senior-level assumption and PROCEED.
+- When an assumption is load-bearing, prefix the affected field with "(Assumed)" or put the assumption in a relevant assumptions/questions field so the designer can sanity-check it.
+
+CORE THINKING FRAMEWORK (apply before generating any output):
+1. Product: what is actually being built
+2. User: who is the primary user
+3. Problem: what is being solved
+4. Outcome: what outcome the user wants
+5. Business Goal: how the product creates value
+6. Conversion Goal: what action matters most
+7. Feature Hierarchy: which features are essential, supporting, distractions
+8. UX Hierarchy: what users should see first, second, third
+9. Design Hierarchy: what should visually dominate vs. recede
+10. Build Hierarchy: what should be built first
 
 BREVITY RULES (hard constraint):
 - Designers SKIM, they do not read. Every field must earn its length.
@@ -43,6 +71,7 @@ BREVITY RULES (hard constraint):
 - No throat-clearing ("It is clear that…", "This brief suggests…"). Lead with the answer.
 - No defining terms the designer already knows.
 - No repeating context from the brief back to the designer.
+- Be DECISIVE. "Use X" beats "consider X". Never give generic advice. Always optimise for clarity, usability, conversion, scalability, and business impact.
 
 ${PUNCTUATION_BAN}
 
@@ -269,6 +298,39 @@ content_inventory: one entry per deliverable from section 1's deliverables list.
 Brief:
 ${briefText}`,
   },
+
+  // ── Section 6: Director's Verdict ────────────────────────────────
+  // The decisive editorial close. Reads like a Design Director's
+  // final instructions before the project moves into production.
+  verdict: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `You are now the Design Director closing this brief. Write a decisive final verdict that the team will treat as the project's north star.
+
+Be DECISIVE. Make calls. Never give generic advice. Never hedge with "could / might / consider". Say "do this", "build this first", "this is the risk".
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "director_verdict": {
+      "product_summary":             "<2 short sentences. What this product IS and who it's for. Senior, decisive.>",
+      "visual_style":                "<1 short sentence. The visual direction in design-language terms (e.g. 'Editorial luxury, high-contrast serifs, restrained motion').>",
+      "product_feel":                "<1 short sentence. The emotional register the user should leave with (e.g. 'Trusted, calm, in control').>",
+      "ux_priority":                 "<1 short sentence. The single UX outcome that beats everything else.>",
+      "conversion_priority":         "<1 short sentence. The single conversion outcome the design must serve.>",
+      "most_important_screen":       "<the one screen everything hinges on. Name it.>",
+      "most_important_feature":      "<the one feature that, if removed, kills the product. Name it.>",
+      "biggest_opportunity":         "<1 sentence. The most valuable thing this team should chase.>",
+      "biggest_design_risk":         "<1 sentence. What could make the design fail. Be specific.>",
+      "biggest_ux_risk":             "<1 sentence. Where users will drop off if we get it wrong.>",
+      "biggest_conversion_risk":     "<1 sentence. The conversion-killing trap to avoid.>",
+      "final_recommendation":        "<2-3 sentences. The Design Director's parting instruction to the team. Write it like a closing memo before the project moves into production.>"
+    }
+  }
+}
+
+Brief:
+${briefText}`,
+  },
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -301,6 +363,7 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
     direction:   6500,   // bumped, colour palette + type scale + moodboard
     landscape:   4000,   // bumped, competitor URL + strength + weakness
     boundaries:  3500,
+    verdict:     2000,   // 12 short fields, decisive but tight
   }
 
   // Each section call returns a Promise of its parsed section data.
