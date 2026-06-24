@@ -104,6 +104,50 @@ export const BRIEF_V2_SECTIONS = [
       { id: 21, key: 'content_inventory',   title: 'Content & Asset Inventory',    shape: 'inventory' },
     ],
   },
+  // ── System Foundations ──────────────────────────────────────────
+  // The mechanical underpinnings every screen leans on: spacing
+  // scale, grid system, component primitives. One section, three
+  // crisp items so the foundations don't sprawl.
+  {
+    id: 'system_foundations',
+    label: 'System foundations',
+    items: [
+      { id: 29, key: 'spacing_system',   title: 'Spacing System',   shape: 'spacing_scale' },
+      { id: 30, key: 'grid_system',      title: 'Grid System',      shape: 'grid_system' },
+      { id: 31, key: 'component_system', title: 'Component System', shape: 'component_system' },
+    ],
+  },
+  // ── Visual Language ─────────────────────────────────────────────
+  // Photography, illustration, icon, motion, empty + loading state
+  // direction in one card. Saves having seven tiny separate cards.
+  {
+    id: 'visual_language',
+    label: 'Visual language',
+    items: [
+      { id: 32, key: 'visual_language', title: 'Visual Language', shape: 'visual_language' },
+    ],
+  },
+  // ── Inspiration Library ─────────────────────────────────────────
+  // Categorised inspiration refs (layout / motion / dashboard / etc),
+  // each with product name + what-to-borrow / what-to-avoid / why.
+  {
+    id: 'inspiration_library',
+    label: 'Inspiration library',
+    items: [
+      { id: 33, key: 'inspiration_library', title: 'Inspiration Library', shape: 'inspiration_grid' },
+    ],
+  },
+  // ── Builder Guidance ────────────────────────────────────────────
+  // Per-feature build instructions: purpose, value (user + business),
+  // required components, success criteria, failure conditions.
+  // Drives the downstream AI builder pipeline.
+  {
+    id: 'builder_guidance',
+    label: 'Builder guidance',
+    items: [
+      { id: 34, key: 'ai_builder_guidance', title: 'AI Builder Guidance', shape: 'builder_guidance' },
+    ],
+  },
   // ── Build Priorities ────────────────────────────────────────────
   // Three-phase build plan with explicit business impact per phase.
   // Lands right before the verdict so the closing memo can reference
@@ -195,6 +239,12 @@ export function emptyContentForShape(shape) {
     case 'ranked_list':   return []
     case 'phases':        return []
     case 'star_ratings':  return []
+    case 'spacing_scale': return { scale: [], rationale: '' }
+    case 'grid_system':   return {}
+    case 'component_system': return {}
+    case 'visual_language':  return {}
+    case 'inspiration_grid': return []
+    case 'builder_guidance': return []
     default:              return null
   }
 }

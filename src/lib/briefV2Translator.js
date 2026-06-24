@@ -397,6 +397,131 @@ Brief:
 ${briefText}`,
   },
 
+  // ── System Foundations ──────────────────────────────────────────
+  // Spacing scale + grid system + component primitives in one call.
+  // These translate directly into Tailwind / CSS tokens downstream.
+  system_foundations: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define the mechanical design system foundations for this product. Be DECISIVE about density, scale, and component personality based on the brand and the product category.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "spacing_system": {
+      "scale": [4, 8, 12, 16, 24, 32, 48, 64, 96],
+      "section_spacing":   "<1 short sentence on the spacing between page sections>",
+      "component_spacing": "<1 short sentence on the spacing between components within a section>",
+      "content_spacing":   "<1 short sentence on the spacing between content elements inside a component>"
+    },
+    "grid_system": {
+      "mobile":  { "columns": 4,  "margin": "16px", "gutter": "12px", "max_width": "100%" },
+      "tablet":  { "columns": 8,  "margin": "32px", "gutter": "16px", "max_width": "100%" },
+      "desktop": { "columns": 12, "margin": "64px", "gutter": "24px", "max_width": "1280px" },
+      "rationale": "<1 short sentence connecting the grid to the brand + content density>"
+    },
+    "component_system": {
+      "border_radius": { "small": "4px", "medium": "8px", "large": "16px" },
+      "radius_rationale": "<1 short sentence on how the radius matches brand personality>",
+      "shadows":        { "small": "<one short CSS shadow value>", "medium": "<...>", "large": "<...>" },
+      "elevation_rationale": "<1 short sentence on the elevation language: flat / layered / glassmorphic>",
+      "density": "Compact | Comfortable | Spacious",
+      "density_rationale": "<1 short sentence on why this density fits the product>"
+    }
+  }
+}
+
+spacing_system.scale: choose 7-9 values from a standard 4-based scale that fits the chosen density. Compact = tighter, Spacious = wider gaps.
+grid_system: pick column counts that fit the product (4/8/12 is the most common, but a portfolio might use 6/8/10). margin = container padding from viewport edge; gutter = gap between columns.
+component_system.shadows: use real CSS values like "0 1px 2px rgba(15,23,42,0.04)". Premium products lean subtle; playful products can be more pronounced.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── Visual Language ─────────────────────────────────────────────
+  // Photography / illustration / icon / motion / imagery / empty
+  // state / loading state direction. One card, seven micro-fields.
+  visual_language: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Set the visual language direction for this product. Each field is one short sentence, decisive.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "visual_language": {
+      "photography":     "<1 sentence. Photo style + treatment direction.>",
+      "illustration":    "<1 sentence. Illustration style direction (or 'none' if photography-led).>",
+      "icon":            "<1 sentence. Icon style: filled / outline / duotone, stroke weight, corner.>",
+      "motion":          "<1 sentence. Motion language: instant / measured / fluid / elastic. Where motion is used.>",
+      "imagery":         "<1 sentence. Imagery framing direction: full-bleed / contained / silhouettes / product close-ups.>",
+      "empty_state":     "<1 sentence. Empty-state treatment direction: explain + next-action / minimal / illustrated.>",
+      "loading_state":   "<1 sentence. Loading-state treatment direction: skeleton / spinner / shimmer / progressive.>"
+    }
+  }
+}
+
+Brief:
+${briefText}`,
+  },
+
+  // ── Inspiration Library ─────────────────────────────────────────
+  // Categorised reference grid. Each ref has product name + what to
+  // borrow + what to avoid + why this product is relevant here.
+  inspiration_library: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Build a categorised inspiration library for this product. For each category, name a real, well-known product + what to borrow + what to avoid + why it fits THIS brief.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "inspiration_library": [
+      {
+        "category":       "Layout | Motion | Dashboard | Landing Page | Pricing | Onboarding | Trust Building",
+        "name":           "<real product name>",
+        "url":            "<best-guess homepage URL or 'none' if not confident>",
+        "what_to_borrow": "<one short line>",
+        "what_to_avoid":  "<one short line>",
+        "why":            "<one short line on why it fits this brief>"
+      }
+    ]
+  }
+}
+
+inspiration_library: 6-8 entries across as many categories as relevant. Pick brands the designer knows (Linear, Stripe, Notion, Vercel, Apple, Figma, Loom, Superhuman, Pitch, Cron, etc.). Be confident — never invent fake products. Omit URL if you are not sure it's real.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── Builder Guidance ────────────────────────────────────────────
+  // Per-feature build instructions for the downstream AI builder.
+  builder_guidance: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `For each of the 3-5 most important features in this product, write build guidance for the AI builder.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "ai_builder_guidance": [
+      {
+        "feature":           "<feature name>",
+        "purpose":           "<1 short line on what this feature does>",
+        "user_value":        "<1 short line on what the user gets>",
+        "business_value":    "<1 short line on what the business gets>",
+        "components":        ["<component 1>", "<component 2>", "..."],
+        "success_criteria":  "<1 short line on what success looks like>",
+        "failure_conditions":"<1 short line on the most common way this can fail>"
+      }
+    ]
+  }
+}
+
+ai_builder_guidance: 3-5 entries for the most important features. components = the UI primitives the builder needs (e.g. "card", "modal", "data table", "form", "side sheet"). Be concrete — these instructions are read by an AI that builds the actual components.
+
+Brief:
+${briefText}`,
+  },
+
   // ── Section 6: Director's Verdict ────────────────────────────────
   // The decisive editorial close. Reads like a Design Director's
   // final instructions before the project moves into production.
@@ -456,15 +581,19 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
   // response means JSON parse fails silently and the items never
   // populate, the UI hangs on the skeleton state forever.
   const MAX_TOKENS = {
-    understand:        3500,
-    product_decisions: 2500, // 4-tier features + 2 short text fields
-    interrogate:       3500,
-    direction:         7500, // bumped further, colour + type + moodboard + 9 personality ratings
-    info_hierarchy:    1500, // single ranked list with short reasons
-    landscape:         4000,
-    boundaries:        3500,
-    build_priorities:  2500, // 3 phases × ~5 items + meta
-    verdict:           2000,
+    understand:          3500,
+    product_decisions:   2500, // 4-tier features + 2 short text fields
+    interrogate:         3500,
+    direction:           7500, // bumped, colour + type + moodboard + 9 personality ratings
+    info_hierarchy:      1500,
+    landscape:           4000,
+    boundaries:          3500,
+    system_foundations:  3500, // spacing scale + grid (3 devices) + component primitives
+    visual_language:     1500, // 7 short fields
+    inspiration_library: 2500, // ~7 refs × 5 fields
+    builder_guidance:    3500, // up to 5 features × 7 fields
+    build_priorities:    2500,
+    verdict:             2000,
   }
 
   // Each section call returns a Promise of its parsed section data.

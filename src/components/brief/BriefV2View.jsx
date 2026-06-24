@@ -424,6 +424,36 @@ const SECTION_LAYOUT = {
       ['content_inventory', 'full'],
     ],
   },
+  system_foundations: {
+    title:   'System Foundations',
+    eyebrow: 'Spacing, grid, and component primitives',
+    layout: [
+      ['spacing_system',   'full'],
+      ['grid_system',      'full'],
+      ['component_system', 'full'],
+    ],
+  },
+  visual_language: {
+    title:   'Visual Language',
+    eyebrow: 'Photography, motion, icons, empty + loading states',
+    layout: [
+      ['visual_language', 'full'],
+    ],
+  },
+  inspiration_library: {
+    title:   'Inspiration Library',
+    eyebrow: 'Real references to study, with explicit calls',
+    layout: [
+      ['inspiration_library', 'full'],
+    ],
+  },
+  builder_guidance: {
+    title:   'Builder Guidance',
+    eyebrow: 'Per-feature instructions for the build pipeline',
+    layout: [
+      ['ai_builder_guidance', 'full'],
+    ],
+  },
   build_priorities: {
     title:   'Build Priorities',
     eyebrow: 'What ships first, second, third',
@@ -444,15 +474,19 @@ const SECTION_LAYOUT = {
 // section number glyph + the eyebrow. Tints stay subtle so the
 // content cards lead the page, not the dividers.
 const SECTION_TONES = {
-  understand:        { tint: 'rgba(59,130,246,0.10)',  ink: '#1d4ed8' },  // blue-700
-  product_decisions: { tint: 'rgba(168,85,247,0.10)',  ink: '#7e22ce' },  // purple-700
-  interrogate:       { tint: 'rgba(245,158,11,0.10)',  ink: '#b45309' },  // amber-700
-  direction:         { tint: 'rgba(139,92,246,0.10)',  ink: '#6d28d9' },  // violet-700
-  info_hierarchy:    { tint: 'rgba(14,165,233,0.10)',  ink: '#0369a1' },  // sky-700
-  landscape:         { tint: 'rgba(16,185,129,0.10)',  ink: '#047857' },  // emerald-700
-  boundaries:        { tint: 'rgba(239,68,68,0.10)',   ink: '#b91c1c' },  // red-700
-  build_priorities:  { tint: 'rgba(249,115,22,0.10)',  ink: '#c2410c' },  // orange-700 / terracotta
-  verdict:           { tint: 'rgba(15,23,42,0.10)',    ink: '#0f172a' },  // slate-900, neutral editorial
+  understand:          { tint: 'rgba(59,130,246,0.10)',  ink: '#1d4ed8' },  // blue-700
+  product_decisions:   { tint: 'rgba(168,85,247,0.10)',  ink: '#7e22ce' },  // purple-700
+  interrogate:         { tint: 'rgba(245,158,11,0.10)',  ink: '#b45309' },  // amber-700
+  direction:           { tint: 'rgba(139,92,246,0.10)',  ink: '#6d28d9' },  // violet-700
+  info_hierarchy:      { tint: 'rgba(14,165,233,0.10)',  ink: '#0369a1' },  // sky-700
+  landscape:           { tint: 'rgba(16,185,129,0.10)',  ink: '#047857' },  // emerald-700
+  boundaries:          { tint: 'rgba(239,68,68,0.10)',   ink: '#b91c1c' },  // red-700
+  system_foundations:  { tint: 'rgba(100,116,139,0.10)', ink: '#334155' },  // slate-700
+  visual_language:     { tint: 'rgba(217,70,239,0.10)',  ink: '#a21caf' },  // fuchsia-700
+  inspiration_library: { tint: 'rgba(244,63,94,0.10)',   ink: '#be123c' },  // rose-700
+  builder_guidance:    { tint: 'rgba(34,197,94,0.10)',   ink: '#15803d' },  // green-700
+  build_priorities:    { tint: 'rgba(249,115,22,0.10)',  ink: '#c2410c' },  // orange-700 / terracotta
+  verdict:             { tint: 'rgba(15,23,42,0.10)',    ink: '#0f172a' },  // slate-900, neutral editorial
 }
 
 // ── Floating table of contents ─────────────────────────────────────
@@ -773,6 +807,12 @@ function ItemContent({ shape, content, item }) {
     case 'ranked_list':    return <RankedListContent value={content} />
     case 'phases':         return <PhasesContent value={content} />
     case 'star_ratings':   return <StarRatingsContent value={content} />
+    case 'spacing_scale':  return <SpacingScaleContent value={content} />
+    case 'grid_system':    return <GridSystemContent value={content} />
+    case 'component_system': return <ComponentSystemContent value={content} />
+    case 'visual_language':  return <VisualLanguageContent value={content} />
+    case 'inspiration_grid': return <InspirationGridContent value={content} />
+    case 'builder_guidance': return <BuilderGuidanceContent value={content} />
     default:               return <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>{JSON.stringify(content, null, 2)}</pre>
   }
 }
@@ -2036,6 +2076,281 @@ function StarRatingsContent({ value }) {
               ))}
             </span>
             {r.note && <span className="brief-v2-star-note">{r.note}</span>}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+// ── Spacing scale ──────────────────────────────────────────────────
+// Visual bar chart of the scale values + 3 short rationale lines.
+function SpacingScaleContent({ value }) {
+  const v = (value && typeof value === 'object') ? value : {}
+  const scale = Array.isArray(v.scale) ? v.scale : []
+  if (!scale.length && !v.section_spacing) return <p className="brief-v2-text">No spacing system yet.</p>
+  return (
+    <div className="brief-v2-spacing">
+      {scale.length > 0 && (
+        <div className="brief-v2-spacing-bars">
+          {scale.map((n, i) => (
+            <div key={i} className="brief-v2-spacing-col">
+              <div className="brief-v2-spacing-bar" style={{ height: `${Math.min(96, Number(n) || 0)}px` }} />
+              <div className="brief-v2-spacing-num">{n}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <ul className="brief-v2-spacing-rules">
+        {v.section_spacing   && <li><strong>Section spacing.</strong> {v.section_spacing}</li>}
+        {v.component_spacing && <li><strong>Component spacing.</strong> {v.component_spacing}</li>}
+        {v.content_spacing   && <li><strong>Content spacing.</strong> {v.content_spacing}</li>}
+      </ul>
+    </div>
+  )
+}
+
+// ── Grid system ────────────────────────────────────────────────────
+// 3 device tables (mobile / tablet / desktop) showing columns,
+// margin, gutter, max-width per breakpoint.
+function GridSystemContent({ value }) {
+  const v = (value && typeof value === 'object') ? value : {}
+  const devices = [
+    { key: 'mobile',  label: 'Mobile',  hint: '< 768' },
+    { key: 'tablet',  label: 'Tablet',  hint: '768 – 1023' },
+    { key: 'desktop', label: 'Desktop', hint: '≥ 1024' },
+  ]
+  if (!v.mobile && !v.tablet && !v.desktop) return <p className="brief-v2-text">No grid system yet.</p>
+  return (
+    <div className="brief-v2-grid-sys">
+      <div className="brief-v2-grid-sys-cards">
+        {devices.map(d => {
+          const g = v[d.key] || {}
+          return (
+            <div key={d.key} className="brief-v2-grid-sys-card">
+              <div className="brief-v2-grid-sys-head">
+                <span className="brief-v2-grid-sys-label">{d.label}</span>
+                <span className="brief-v2-grid-sys-hint">{d.hint}</span>
+              </div>
+              <dl className="brief-v2-grid-sys-spec">
+                <dt>Columns</dt><dd>{g.columns ?? '-'}</dd>
+                <dt>Margin</dt><dd>{g.margin ?? '-'}</dd>
+                <dt>Gutter</dt><dd>{g.gutter ?? '-'}</dd>
+                {g.max_width && <><dt>Max width</dt><dd>{g.max_width}</dd></>}
+              </dl>
+            </div>
+          )
+        })}
+      </div>
+      {v.rationale && <p className="brief-v2-grid-sys-rationale">{v.rationale}</p>}
+    </div>
+  )
+}
+
+// ── Component system ───────────────────────────────────────────────
+// Radius scale, shadow scale, density, with rationale lines.
+function ComponentSystemContent({ value }) {
+  const v = (value && typeof value === 'object') ? value : {}
+  const radius = v.border_radius || {}
+  const shadows = v.shadows || {}
+  if (!radius.small && !shadows.small && !v.density) return <p className="brief-v2-text">No component system yet.</p>
+  return (
+    <div className="brief-v2-comp-sys">
+      {/* Radius row */}
+      {(radius.small || radius.medium || radius.large) && (
+        <div className="brief-v2-comp-sys-block">
+          <div className="brief-v2-comp-sys-label">Border radius</div>
+          <div className="brief-v2-comp-sys-radii">
+            {['small', 'medium', 'large'].map(k => radius[k] ? (
+              <div key={k} className="brief-v2-comp-sys-radius">
+                <div
+                  className="brief-v2-comp-sys-radius-swatch"
+                  style={{ borderRadius: radius[k] }}
+                />
+                <div className="brief-v2-comp-sys-radius-meta">
+                  <span className="brief-v2-comp-sys-radius-key">{k}</span>
+                  <span className="brief-v2-comp-sys-radius-val">{radius[k]}</span>
+                </div>
+              </div>
+            ) : null)}
+          </div>
+          {v.radius_rationale && <p className="brief-v2-comp-sys-note">{v.radius_rationale}</p>}
+        </div>
+      )}
+
+      {/* Shadow row */}
+      {(shadows.small || shadows.medium || shadows.large) && (
+        <div className="brief-v2-comp-sys-block">
+          <div className="brief-v2-comp-sys-label">Elevation</div>
+          <div className="brief-v2-comp-sys-shadows">
+            {['small', 'medium', 'large'].map(k => shadows[k] ? (
+              <div key={k} className="brief-v2-comp-sys-shadow">
+                <div
+                  className="brief-v2-comp-sys-shadow-swatch"
+                  style={{ boxShadow: shadows[k] }}
+                />
+                <div className="brief-v2-comp-sys-radius-meta">
+                  <span className="brief-v2-comp-sys-radius-key">{k}</span>
+                </div>
+              </div>
+            ) : null)}
+          </div>
+          {v.elevation_rationale && <p className="brief-v2-comp-sys-note">{v.elevation_rationale}</p>}
+        </div>
+      )}
+
+      {/* Density */}
+      {v.density && (
+        <div className="brief-v2-comp-sys-block">
+          <div className="brief-v2-comp-sys-label">Density</div>
+          <div className="brief-v2-comp-sys-density">
+            <span className="brief-v2-comp-sys-density-val">{v.density}</span>
+          </div>
+          {v.density_rationale && <p className="brief-v2-comp-sys-note">{v.density_rationale}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Visual language ────────────────────────────────────────────────
+// 7-field micro-card grid (photography / illustration / icon / etc).
+function VisualLanguageContent({ value }) {
+  const v = (value && typeof value === 'object') ? value : {}
+  const fields = [
+    { key: 'photography',   label: 'Photography',     icon: '📷' },
+    { key: 'illustration',  label: 'Illustration',    icon: '✦' },
+    { key: 'icon',          label: 'Icon style',      icon: '◇' },
+    { key: 'motion',        label: 'Motion',          icon: '↗' },
+    { key: 'imagery',       label: 'Imagery framing', icon: '▭' },
+    { key: 'empty_state',   label: 'Empty state',     icon: '∅' },
+    { key: 'loading_state', label: 'Loading state',   icon: '◐' },
+  ].filter(f => v[f.key])
+  if (!fields.length) return <p className="brief-v2-text">No visual language defined yet.</p>
+  return (
+    <div className="brief-v2-vl">
+      {fields.map(f => (
+        <div key={f.key} className="brief-v2-vl-card">
+          <div className="brief-v2-vl-head">
+            <span className="brief-v2-vl-icon" aria-hidden>{f.icon}</span>
+            <span className="brief-v2-vl-label">{f.label}</span>
+          </div>
+          <p className="brief-v2-vl-text">{v[f.key]}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Inspiration grid ───────────────────────────────────────────────
+// Categorised reference cards. Each has category chip + name + url +
+// borrow / avoid / why bullets.
+function InspirationGridContent({ value }) {
+  const list = Array.isArray(value) ? value : []
+  if (!list.length) return <p className="brief-v2-text">No inspiration refs yet.</p>
+  return (
+    <div className="brief-v2-insp">
+      {list.map((it, i) => (
+        <article key={i} className="brief-v2-insp-card">
+          <div className="brief-v2-insp-head">
+            {it.category && <span className="brief-v2-insp-cat">{it.category}</span>}
+            <h3 className="brief-v2-insp-name">{it.name || 'Reference'}</h3>
+            {it.url && it.url !== 'none' && (
+              <a
+                href={it.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="brief-v2-insp-url"
+              >
+                {prettyHost(it.url)} ↗
+              </a>
+            )}
+          </div>
+          <dl className="brief-v2-insp-spec">
+            {it.what_to_borrow && (
+              <>
+                <dt className="brief-v2-insp-dt-good">Borrow</dt>
+                <dd>{it.what_to_borrow}</dd>
+              </>
+            )}
+            {it.what_to_avoid && (
+              <>
+                <dt className="brief-v2-insp-dt-bad">Avoid</dt>
+                <dd>{it.what_to_avoid}</dd>
+              </>
+            )}
+            {it.why && (
+              <>
+                <dt className="brief-v2-insp-dt-why">Why it fits</dt>
+                <dd>{it.why}</dd>
+              </>
+            )}
+          </dl>
+        </article>
+      ))}
+    </div>
+  )
+}
+
+// ── Builder guidance ───────────────────────────────────────────────
+// Per-feature accordion: purpose / user value / business value /
+// components / success criteria / failure conditions.
+function BuilderGuidanceContent({ value }) {
+  const list = Array.isArray(value) ? value : []
+  const [openIdx, setOpenIdx] = useState(0)
+  if (!list.length) return <p className="brief-v2-text">No builder guidance yet.</p>
+  return (
+    <ul className="brief-v2-bg">
+      {list.map((g, i) => {
+        const isOpen = openIdx === i
+        return (
+          <li key={i} className="brief-v2-bg-item">
+            <button
+              type="button"
+              className="brief-v2-bg-head"
+              onClick={() => setOpenIdx(isOpen ? -1 : i)}
+              aria-expanded={isOpen}
+            >
+              <span className="brief-v2-bg-feature">{g.feature || `Feature ${i + 1}`}</span>
+              <span className="brief-v2-bg-chevron">{isOpen ? '−' : '+'}</span>
+            </button>
+            {isOpen && (
+              <div className="brief-v2-bg-body">
+                {g.purpose && (
+                  <div className="brief-v2-bg-row"><span>PURPOSE</span><p>{g.purpose}</p></div>
+                )}
+                <div className="brief-v2-bg-twocol">
+                  {g.user_value && (
+                    <div className="brief-v2-bg-row"><span>USER VALUE</span><p>{g.user_value}</p></div>
+                  )}
+                  {g.business_value && (
+                    <div className="brief-v2-bg-row"><span>BUSINESS VALUE</span><p>{g.business_value}</p></div>
+                  )}
+                </div>
+                {Array.isArray(g.components) && g.components.length > 0 && (
+                  <div className="brief-v2-bg-row">
+                    <span>COMPONENTS</span>
+                    <div className="brief-v2-bg-chips">
+                      {g.components.map((c, j) => (
+                        <span key={j} className="brief-v2-bg-chip">{c}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="brief-v2-bg-twocol">
+                  {g.success_criteria && (
+                    <div className="brief-v2-bg-row brief-v2-bg-row-good">
+                      <span>SUCCESS</span><p>{g.success_criteria}</p>
+                    </div>
+                  )}
+                  {g.failure_conditions && (
+                    <div className="brief-v2-bg-row brief-v2-bg-row-bad">
+                      <span>FAILURE</span><p>{g.failure_conditions}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </li>
         )
       })}
@@ -3354,6 +3669,326 @@ function ResponsiveStyles() {
         line-height: 1.5;
         color: var(--color-text-soft);
         margin-top: 2px;
+      }
+
+      /* ── Spacing scale ────────────────────────────────────────── */
+      .brief-v2-spacing { display: flex; flex-direction: column; gap: 14px; }
+      .brief-v2-spacing-bars {
+        display: flex; align-items: flex-end; gap: 10px;
+        padding: 16px 14px 8px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        overflow-x: auto;
+      }
+      .brief-v2-spacing-col { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; min-width: 28px; }
+      .brief-v2-spacing-bar {
+        width: 100%;
+        background: linear-gradient(180deg, var(--color-accent), rgba(139,92,246,0.45));
+        border-radius: 3px 3px 0 0;
+        min-height: 4px;
+      }
+      .brief-v2-spacing-num {
+        font: 700 10px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-spacing-rules {
+        list-style: none; padding: 0; margin: 0;
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      .brief-v2-spacing-rules li {
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--color-text-soft);
+        padding-left: 14px;
+        position: relative;
+      }
+      .brief-v2-spacing-rules li::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 8px;
+        width: 4px; height: 4px;
+        border-radius: 50%;
+        background: var(--color-text-muted);
+      }
+      .brief-v2-spacing-rules strong { color: var(--color-text); font-weight: 700; }
+
+      /* ── Grid system ──────────────────────────────────────────── */
+      .brief-v2-grid-sys { display: flex; flex-direction: column; gap: 12px; }
+      .brief-v2-grid-sys-cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      @media (max-width: 767px) {
+        .brief-v2-grid-sys-cards { grid-template-columns: 1fr; }
+      }
+      .brief-v2-grid-sys-card {
+        padding: 12px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+      }
+      .brief-v2-grid-sys-head {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .brief-v2-grid-sys-label {
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text);
+      }
+      .brief-v2-grid-sys-hint {
+        font: 600 10px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-grid-sys-spec {
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        gap: 4px 10px;
+        margin: 0;
+      }
+      .brief-v2-grid-sys-spec dt {
+        font: 700 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-grid-sys-spec dd {
+        margin: 0;
+        font: 700 12px 'JetBrains Mono', monospace;
+        color: var(--color-text);
+      }
+      .brief-v2-grid-sys-rationale {
+        margin: 0;
+        font-size: 12px;
+        color: var(--color-text-soft);
+        line-height: 1.55;
+      }
+
+      /* ── Component system ─────────────────────────────────────── */
+      .brief-v2-comp-sys { display: flex; flex-direction: column; gap: 14px; }
+      .brief-v2-comp-sys-block {
+        padding: 12px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .brief-v2-comp-sys-label {
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-comp-sys-radii,
+      .brief-v2-comp-sys-shadows {
+        display: flex; gap: 18px; flex-wrap: wrap;
+      }
+      .brief-v2-comp-sys-radius,
+      .brief-v2-comp-sys-shadow {
+        display: flex; flex-direction: column; gap: 6px; align-items: center;
+      }
+      .brief-v2-comp-sys-radius-swatch {
+        width: 56px; height: 56px;
+        background: var(--color-accent);
+      }
+      .brief-v2-comp-sys-shadow-swatch {
+        width: 56px; height: 56px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+      }
+      .brief-v2-comp-sys-radius-meta { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+      .brief-v2-comp-sys-radius-key {
+        font: 700 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text-soft);
+      }
+      .brief-v2-comp-sys-radius-val {
+        font: 600 10px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-comp-sys-density {
+        display: inline-flex;
+      }
+      .brief-v2-comp-sys-density-val {
+        padding: 6px 14px;
+        background: var(--color-text);
+        color: var(--color-bg);
+        border-radius: 100px;
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .brief-v2-comp-sys-note {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--color-text-soft);
+      }
+
+      /* ── Visual language ──────────────────────────────────────── */
+      .brief-v2-vl {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 10px;
+      }
+      .brief-v2-vl-card {
+        padding: 12px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      .brief-v2-vl-head {
+        display: flex; align-items: center; gap: 8px;
+      }
+      .brief-v2-vl-icon {
+        font-size: 14px;
+        line-height: 1;
+        color: var(--color-accent);
+      }
+      .brief-v2-vl-label {
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-vl-text {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--color-text);
+      }
+
+      /* ── Inspiration grid ─────────────────────────────────────── */
+      .brief-v2-insp {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+      }
+      .brief-v2-insp-card {
+        padding: 14px 16px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .brief-v2-insp-head { display: flex; flex-direction: column; gap: 4px; }
+      .brief-v2-insp-cat {
+        align-self: flex-start;
+        padding: 3px 9px;
+        background: rgba(139,92,246,0.10);
+        color: var(--color-accent);
+        border: 1px solid rgba(139,92,246,0.25);
+        border-radius: 100px;
+        font: 700 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+      }
+      .brief-v2-insp-name {
+        margin: 0;
+        font: 800 14px 'Urbanist', sans-serif;
+        color: var(--color-text);
+      }
+      .brief-v2-insp-url {
+        align-self: flex-start;
+        font: 600 11px 'JetBrains Mono', monospace;
+        color: var(--color-accent);
+        text-decoration: none;
+        padding: 2px 7px;
+        border: 1px solid rgba(139,92,246,0.25);
+        border-radius: 6px;
+      }
+      .brief-v2-insp-url:hover { background: rgba(139,92,246,0.08); }
+      .brief-v2-insp-spec {
+        display: grid;
+        grid-template-columns: 70px 1fr;
+        gap: 6px 10px;
+        margin: 0;
+      }
+      .brief-v2-insp-spec dt {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .brief-v2-insp-dt-good { color: #047857; }
+      .brief-v2-insp-dt-bad  { color: #b91c1c; }
+      .brief-v2-insp-dt-why  { color: var(--color-text-muted); }
+      .brief-v2-insp-spec dd {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-text);
+      }
+
+      /* ── Builder guidance (accordion) ─────────────────────────── */
+      .brief-v2-bg {
+        list-style: none; padding: 0; margin: 0;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v2-bg-item {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .brief-v2-bg-head {
+        width: 100%;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 14px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+      }
+      .brief-v2-bg-feature {
+        font: 800 13px 'Urbanist', sans-serif;
+        color: var(--color-text);
+      }
+      .brief-v2-bg-chevron {
+        font: 700 16px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-bg-body {
+        padding: 0 14px 14px;
+        display: flex; flex-direction: column; gap: 10px;
+        border-top: 1px solid var(--color-border);
+        padding-top: 12px;
+      }
+      .brief-v2-bg-twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      @media (max-width: 600px) { .brief-v2-bg-twocol { grid-template-columns: 1fr; } }
+      .brief-v2-bg-row {
+        padding: 10px 12px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v2-bg-row span {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.12em;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-bg-row p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--color-text);
+      }
+      .brief-v2-bg-row-good { border-left: 3px solid #10b981; }
+      .brief-v2-bg-row-bad  { border-left: 3px solid #b91c1c; }
+      .brief-v2-bg-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+      .brief-v2-bg-chip {
+        padding: 3px 9px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        font: 600 10px 'JetBrains Mono', monospace;
+        color: var(--color-text);
       }
 
       /* ── Director's verdict ──────────────────────────────────── */
