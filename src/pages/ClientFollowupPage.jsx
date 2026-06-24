@@ -19,14 +19,12 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { useContext, useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import AppContext from '../context/AppContext'
 import { ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline'
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-)
+// Reuse the canonical app client instead of spawning a second one.
+// Multiple createClient calls compete on auth-state storage and
+// can hang unrelated Supabase requests on the Dashboard.
+import { supabase } from '../lib/supabase'
 
 export default function ClientFollowupPage() {
   const { activeFollowupToken } = useContext(AppContext)

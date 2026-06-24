@@ -26,7 +26,6 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { useContext, useEffect, useMemo, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import AppContext from '../context/AppContext'
 import {
   ArrowLeftIcon,
@@ -36,12 +35,14 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 
-// Standalone client, no app session is required to read public form
-// rows + call the public RPCs.
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-)
+// Reuse the canonical app supabase client instead of spawning a
+// second one. Spawning a second createClient with no storageKey
+// puts it on the default 'sb-<projectref>-auth-token' key, which
+// collides with the ClientFollowupPage client and triggers the
+// "Multiple GoTrueClient instances detected" warning + can cause
+// auth-state races that hang unrelated calls (like the credit
+// check on the Dashboard).
+import { supabase } from '../lib/supabase'
 
 // localStorage key for the in-progress draft. Keyed by form id so a
 // client opening multiple share links on the same device doesn't get
