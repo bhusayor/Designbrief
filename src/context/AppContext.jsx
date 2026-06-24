@@ -1221,14 +1221,22 @@ export function AppProvider({ children }) {
       })
       // Log into credit_usage_log so the Billing page can group by action.
       // RLS lets the user insert their own rows; failures here must NOT
-      // block the AI action that just succeeded.
+      // block the AI action that just succeeded. Wrapped in a 5s
+      // timeout race because we've seen Supabase hang on these calls
+      // — same root cause as the profile read timeout in credits.js.
       try {
         const { CREDIT_COSTS } = mod
-        await supabase.from('credit_usage_log').insert({
-          user_id: authUser?.id,
-          action,
-          credits: CREDIT_COSTS?.[action] || 0,
-        })
+        await Promise.race([
+          supabase.from('credit_usage_log').insert({
+            user_id: authUser?.id,
+            action,
+            credits: CREDIT_COSTS?.[action] || 0,
+          }),
+          new Promise(resolve => setTimeout(() => {
+            console.warn('[consumeCredits] credit_usage_log insert hung after 5s, continuing anyway')
+            resolve(null)
+          }, 5000)),
+        ])
       } catch {}
       if (remaining === 0) {
         showToast?.('No credits remaining. Upgrade to continue.', 'error')
