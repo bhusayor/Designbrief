@@ -69,13 +69,32 @@ export const BRIEF_V2_SECTIONS = [
     id: 'direction',
     label: 'Define the direction',
     items: [
-      { id: 12, key: 'brand_personality',          title: 'Brand Personality',         shape: 'list' },
-      { id: 13, key: 'tone_mood',                  title: 'Tone & Mood',               shape: 'text' },
-      { id: 14, key: 'emotional_direction',        title: 'Emotional Direction',       shape: 'journey' },
-      { id: 15, key: 'color_direction',            title: 'Color Direction',           shape: 'roles' },
-      { id: 16, key: 'typography_direction',       title: 'Typography Direction',      shape: 'levels' },
-      { id: 17, key: 'moodboard_direction',        title: 'Moodboard Direction',       shape: 'moodboard' },
+      { id: 12, key: 'brand_personality',          title: 'Brand Personality',          shape: 'list' },
+      { id: 13, key: 'tone_mood',                  title: 'Tone & Mood',                shape: 'text' },
+      { id: 14, key: 'emotional_direction',        title: 'Emotional Direction',        shape: 'journey' },
+      { id: 17, key: 'moodboard_direction',        title: 'Moodboard Direction',        shape: 'moodboard' },
       { id: 25, key: 'design_personality_ratings', title: 'Design Personality Profile', shape: 'star_ratings' },
+    ],
+  },
+  // ── Color Strategy ──────────────────────────────────────────────
+  // Pulled out of Direction into its own section so the deep analysis
+  // (psychology, why-it-fits-X, semantic palette, default theme rec)
+  // gets the real estate it deserves.
+  {
+    id: 'color_strategy',
+    label: 'Color strategy',
+    items: [
+      { id: 15, key: 'color_direction', title: 'Color Strategy', shape: 'roles' },
+    ],
+  },
+  // ── Typography System ────────────────────────────────────────────
+  // Same treatment: extracted so display/heading/body/mono can each
+  // have a real card + the weights table + per-device type scale.
+  {
+    id: 'typography_system',
+    label: 'Typography system',
+    items: [
+      { id: 16, key: 'typography_direction', title: 'Typography System', shape: 'levels' },
     ],
   },
   // ── Information Hierarchy ────────────────────────────────────────

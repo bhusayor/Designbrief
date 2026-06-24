@@ -154,11 +154,7 @@ ${briefText}`,
   // ── Section 3: Define the direction ──────────────────────────────
   direction: {
     system: BASE_SYSTEM,
-    user: (briefText) => `Translate the strategic direction in this brief into items 12-17.
-
-COLOR: propose an actual palette with names + hex codes that match the brand personality. The "swatches" array is the brand palette. The "light" and "dark" maps are full surface tokens for a live preview in each theme.
-
-TYPOGRAPHY: name actual fonts (prefer Google Fonts so they render in-browser). Specify weights, letter-spacing, and a full type scale for desktop + mobile.
+    user: (briefText) => `Translate the strategic direction in this brief. Focus on brand personality, tone, emotional journey, moodboard, and a 9-trait star personality profile. Colour + typography live in their own dedicated sections, do NOT include them here.
 
 Return JSON exactly in this shape:
 {
@@ -170,47 +166,6 @@ Return JSON exactly in this shape:
     "emotional_direction": [
       { "step": 1, "stage": "<journey stage name, mirror the user_journey step titles from section 1>", "emotion": "<what the user should feel here>" }
     ],
-    "color_direction": {
-      "swatches": [
-        { "role": "Primary",    "name": "<descriptive colour name, e.g. Indigo Violet>", "hex": "#RRGGBB", "intent": "<one short line on where this is used>" },
-        { "role": "Secondary",  "name": "<...>", "hex": "#RRGGBB", "intent": "<...>" },
-        { "role": "Accent",     "name": "<...>", "hex": "#RRGGBB", "intent": "<...>" },
-        { "role": "Neutral 900","name": "<...>", "hex": "#RRGGBB", "intent": "Primary text" },
-        { "role": "Neutral 500","name": "<...>", "hex": "#RRGGBB", "intent": "Muted text + dividers" },
-        { "role": "Neutral 100","name": "<...>", "hex": "#RRGGBB", "intent": "Soft surface" }
-      ],
-      "light": {
-        "background": "#RRGGBB", "surface": "#RRGGBB", "text": "#RRGGBB", "muted": "#RRGGBB", "border": "#RRGGBB", "primary": "#RRGGBB", "onPrimary": "#RRGGBB"
-      },
-      "dark": {
-        "background": "#RRGGBB", "surface": "#RRGGBB", "text": "#RRGGBB", "muted": "#RRGGBB", "border": "#RRGGBB", "primary": "#RRGGBB", "onPrimary": "#RRGGBB"
-      },
-      "avoid": "<one short line. Colours that must never appear, with reason>"
-    },
-    "typography_direction": {
-      "display": { "family": "<actual font name>", "google": true, "weights": [600, 700], "tracking": "<e.g. -0.02em>", "notes": "<one short line on character / when to use>" },
-      "body":    { "family": "<actual font name>", "google": true, "weights": [400, 500], "tracking": "<e.g. 0>", "notes": "<short line>" },
-      "label":   { "family": "<actual font name>", "google": true, "weights": [500],      "tracking": "<e.g. 0.04em>", "notes": "<short line>" },
-      "scale": {
-        "desktop": [
-          { "token": "Display", "size": 64, "lineHeight": 72, "weight": 700, "useFor": "Hero" },
-          { "token": "H1",      "size": 48, "lineHeight": 56, "weight": 700, "useFor": "Page titles" },
-          { "token": "H2",      "size": 32, "lineHeight": 40, "weight": 600, "useFor": "Section headers" },
-          { "token": "H3",      "size": 24, "lineHeight": 32, "weight": 600, "useFor": "Subsections" },
-          { "token": "Body",    "size": 16, "lineHeight": 24, "weight": 400, "useFor": "Long-form" },
-          { "token": "Caption", "size": 12, "lineHeight": 16, "weight": 500, "useFor": "Metadata" }
-        ],
-        "mobile": [
-          { "token": "Display", "size": 40, "lineHeight": 48, "weight": 700, "useFor": "Hero" },
-          { "token": "H1",      "size": 32, "lineHeight": 40, "weight": 700, "useFor": "Page titles" },
-          { "token": "H2",      "size": 24, "lineHeight": 32, "weight": 600, "useFor": "Section headers" },
-          { "token": "H3",      "size": 20, "lineHeight": 28, "weight": 600, "useFor": "Subsections" },
-          { "token": "Body",    "size": 15, "lineHeight": 24, "weight": 400, "useFor": "Long-form" },
-          { "token": "Caption", "size": 12, "lineHeight": 16, "weight": 500, "useFor": "Metadata" }
-        ]
-      },
-      "avoid": "<short line. Typographic directions that would contradict the brand>"
-    },
     "moodboard_direction": {
       "summary": "<1-2 short sentences on aesthetic territories: UI style, imagery treatment, layout feel>",
       "avoid": "<1 short sentence. Visual directions to stay away from>",
@@ -239,15 +194,180 @@ Return JSON exactly in this shape:
 
 brand_personality: exactly 3-5 traits.
 emotional_direction: one entry per journey step. Mirror the step titles you'd expect from section 1.
-color_direction:
-- ALL hex values are required and must be real 6-digit hex strings starting with #.
-- Use real colour names (not generic ones like "Blue").
-- Light and dark token maps must use ACTUAL real hex values appropriate for each mode; do not just lighten or invert each other mechanically.
-- DO NOT use teal, cyan, turquoise, or any hue between #00C7C7 and #1AA899 unless the brief explicitly asks for it. Teal is overused in SaaS / tech brands and reads as default. Lean into less common hue families (warm purples, indigos, deep greens, ochres, terracottas, slates) instead.
-- All foreground / background pairs in light.text on light.background, dark.text on dark.background, and primary / onPrimary must hit at least 4.5:1 contrast ratio (WCAG AA for normal text). Pick onPrimary as the colour that gets >4.5:1 against primary.
-typography_direction: family names must be real (and on Google Fonts if google=true) so they render in the live preview. Weights must exist on the family. Scale numbers are unit-less px.
 moodboard_direction.references: 4-8 entries. Mix product sites (Linear, Stripe, Vercel, Notion, etc), pattern libraries (Mobbin, Dribbble shots, Awwwards winners), and individual designers/studios where relevant. Every URL must be a plausible real homepage or specific page, do not invent fake URLs. If you are not confident a URL is real, omit the reference rather than guessing wildly.
 design_personality_ratings: rate this product's design personality on each of the 9 standard dimensions from 1-5 stars. Be DECISIVE — avoid rating 3 ("middle") as a default; only use 3 if the brand genuinely sits in the middle of that axis. The "note" is one short line on why this rating fits the product.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── Color Strategy ──────────────────────────────────────────────
+  // Deep colour analysis: brand palette + semantic palette + light
+  // and dark theme tokens + a recommended default theme. Each brand
+  // colour comes with psychology, why-it-fits-X breakdown, and a
+  // competitor comparison so designers can defend the call.
+  color_strategy: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define the complete colour strategy for this product. Be DECISIVE — these are recommendations the team will defend in a presentation, not a list of options.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "color_direction": {
+      "swatches": [
+        {
+          "role":       "Primary",
+          "name":       "<descriptive colour name, e.g. Indigo Violet>",
+          "hex":        "#RRGGBB",
+          "intent":     "<one short line on where this is used>",
+          "psychology": "<one short line on what this hue communicates psychologically>",
+          "why_fits":   "<one short line on why it fits the brand>",
+          "why_conversion": "<one short line on why it supports the conversion goal>",
+          "why_audience":   "<one short line on why it fits the audience>",
+          "why_industry":   "<one short line on why it fits the industry>",
+          "competitor":     "<one short line comparing the choice to direct competitors>"
+        },
+        { "role": "Secondary",  "name": "...", "hex": "#RRGGBB", "intent": "...", "psychology": "...", "why_fits": "...", "why_conversion": "...", "why_audience": "...", "why_industry": "...", "competitor": "..." },
+        { "role": "Accent",     "name": "...", "hex": "#RRGGBB", "intent": "...", "psychology": "...", "why_fits": "...", "why_conversion": "...", "why_audience": "...", "why_industry": "...", "competitor": "..." },
+        { "role": "Neutral 900","name": "...", "hex": "#RRGGBB", "intent": "Primary text" },
+        { "role": "Neutral 500","name": "...", "hex": "#RRGGBB", "intent": "Muted text + dividers" },
+        { "role": "Neutral 100","name": "...", "hex": "#RRGGBB", "intent": "Soft surface" }
+      ],
+      "semantic": {
+        "success": { "hex": "#RRGGBB", "name": "<colour name>" },
+        "warning": { "hex": "#RRGGBB", "name": "..." },
+        "error":   { "hex": "#RRGGBB", "name": "..." },
+        "info":    { "hex": "#RRGGBB", "name": "..." }
+      },
+      "light": {
+        "background": "#RRGGBB", "surface": "#RRGGBB", "card": "#RRGGBB", "border": "#RRGGBB",
+        "primary": "#RRGGBB", "secondary": "#RRGGBB", "accent": "#RRGGBB",
+        "text": "#RRGGBB", "text_secondary": "#RRGGBB",
+        "onPrimary": "#RRGGBB",
+        "muted": "#RRGGBB"
+      },
+      "dark": {
+        "background": "#RRGGBB", "surface": "#RRGGBB", "card": "#RRGGBB", "border": "#RRGGBB",
+        "primary": "#RRGGBB", "secondary": "#RRGGBB", "accent": "#RRGGBB",
+        "text": "#RRGGBB", "text_secondary": "#RRGGBB",
+        "onPrimary": "#RRGGBB",
+        "muted": "#RRGGBB"
+      },
+      "default_theme": {
+        "mode": "Light | Dark",
+        "user_expectations":  "<one short line>",
+        "industry_standards": "<one short line>",
+        "accessibility":      "<one short line>",
+        "conversion_impact":  "<one short line>"
+      },
+      "avoid": "<one short line. Colours that must never appear, with reason>"
+    }
+  }
+}
+
+Rules:
+- ALL hex values are required and must be real 6-digit hex strings starting with #.
+- Use real colour names (not generic ones like "Blue"). Lean into editorial names that match the brand (Indigo Violet, Aso-Oke Night, Deep Mahogany, Ochre Sun, Slate Storm, etc).
+- For Primary / Secondary / Accent: write all six analytical fields (psychology, why_fits, why_conversion, why_audience, why_industry, competitor). For Neutral 900/500/100: just intent.
+- Light and dark token maps must use ACTUAL real hex values appropriate for each mode; do not just lighten or invert each other mechanically.
+- semantic.success / warning / error / info: industry-standard semantic palette tuned to fit the brand's overall hue family.
+- DO NOT use teal, cyan, turquoise, or any hue between #00C7C7 and #1AA899 unless the brief explicitly asks for it. Teal is overused in SaaS / tech brands and reads as default. Lean into less common hue families (warm purples, indigos, deep greens, ochres, terracottas, slates) instead.
+- All foreground / background pairs in light.text on light.background, dark.text on dark.background, primary / onPrimary must hit at least 4.5:1 contrast ratio (WCAG AA for normal text). Pick onPrimary as the colour that gets >4.5:1 against primary.
+- default_theme.mode: pick ONE (Light or Dark). The four rationale lines should be DECISIVE about why this default is right for this product specifically.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── Typography System ────────────────────────────────────────────
+  // Display / Heading / Body / Mono with per-font analysis +
+  // complete weights table + responsive type scale.
+  typography_system: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define the complete typography system for this product. Name REAL fonts (prefer Google Fonts so they render in-browser). Cover four type roles + the weight scale + a responsive type scale.
+
+Return JSON exactly in this shape:
+{
+  "items": {
+    "typography_direction": {
+      "display": {
+        "family":         "<actual font name>",
+        "google":         true,
+        "weights":        [400, 600, 700],
+        "tracking":       "-0.02em",
+        "notes":          "<one short line on character / when to use>",
+        "personality":    "<one short line on the font's personality>",
+        "readability":    "<one short line on its readability at display sizes>",
+        "accessibility":  "<one short line on accessibility considerations>",
+        "product_fit":    "<one short line on why it fits this product>"
+      },
+      "heading": {
+        "family": "...", "google": true, "weights": [600, 700], "tracking": "-0.01em",
+        "notes": "...", "personality": "...", "readability": "...", "accessibility": "...", "product_fit": "..."
+      },
+      "body": {
+        "family": "...", "google": true, "weights": [400, 500, 600], "tracking": "0",
+        "notes": "...", "personality": "...", "readability": "...", "accessibility": "...", "product_fit": "..."
+      },
+      "mono": {
+        "family": "...", "google": true, "weights": [400, 500], "tracking": "0",
+        "notes": "...", "personality": "...", "readability": "...", "accessibility": "...", "product_fit": "..."
+      },
+      "weights": [
+        { "name": "Thin",       "value": 100, "usage": "<one short line, or 'unused' if not in the brand'>" },
+        { "name": "Extra Light","value": 200, "usage": "..." },
+        { "name": "Light",      "value": 300, "usage": "..." },
+        { "name": "Regular",    "value": 400, "usage": "..." },
+        { "name": "Medium",     "value": 500, "usage": "..." },
+        { "name": "SemiBold",   "value": 600, "usage": "..." },
+        { "name": "Bold",       "value": 700, "usage": "..." },
+        { "name": "ExtraBold",  "value": 800, "usage": "..." }
+      ],
+      "scale": {
+        "desktop": [
+          { "token": "Display XL", "size": 80, "lineHeight": 88, "weight": 700, "letterSpacing": "-0.03em", "useFor": "Hero" },
+          { "token": "Display L",  "size": 64, "lineHeight": 72, "weight": 700, "letterSpacing": "-0.02em", "useFor": "Section opener" },
+          { "token": "Display M",  "size": 48, "lineHeight": 56, "weight": 700, "letterSpacing": "-0.02em", "useFor": "Major statement" },
+          { "token": "H1",         "size": 40, "lineHeight": 48, "weight": 700, "letterSpacing": "-0.01em", "useFor": "Page title" },
+          { "token": "H2",         "size": 32, "lineHeight": 40, "weight": 600, "letterSpacing": "-0.01em", "useFor": "Section header" },
+          { "token": "H3",         "size": 24, "lineHeight": 32, "weight": 600, "letterSpacing": "0",       "useFor": "Subsection" },
+          { "token": "H4",         "size": 20, "lineHeight": 28, "weight": 600, "letterSpacing": "0",       "useFor": "Card title" },
+          { "token": "H5",         "size": 18, "lineHeight": 26, "weight": 600, "letterSpacing": "0",       "useFor": "Strong label" },
+          { "token": "H6",         "size": 16, "lineHeight": 24, "weight": 600, "letterSpacing": "0",       "useFor": "Inline emphasis" },
+          { "token": "Body XL",    "size": 18, "lineHeight": 28, "weight": 400, "letterSpacing": "0",       "useFor": "Lead paragraph" },
+          { "token": "Body L",     "size": 16, "lineHeight": 26, "weight": 400, "letterSpacing": "0",       "useFor": "Long-form" },
+          { "token": "Body M",     "size": 14, "lineHeight": 22, "weight": 400, "letterSpacing": "0",       "useFor": "UI text" },
+          { "token": "Body S",     "size": 13, "lineHeight": 20, "weight": 400, "letterSpacing": "0",       "useFor": "Dense UI" },
+          { "token": "Caption",    "size": 12, "lineHeight": 16, "weight": 500, "letterSpacing": "0.02em",  "useFor": "Metadata" }
+        ],
+        "mobile": [
+          { "token": "Display XL", "size": 48, "lineHeight": 56, "weight": 700, "letterSpacing": "-0.02em", "useFor": "Hero" },
+          { "token": "Display L",  "size": 40, "lineHeight": 48, "weight": 700, "letterSpacing": "-0.02em", "useFor": "Section opener" },
+          { "token": "Display M",  "size": 32, "lineHeight": 40, "weight": 700, "letterSpacing": "-0.01em", "useFor": "Major statement" },
+          { "token": "H1",         "size": 28, "lineHeight": 36, "weight": 700, "letterSpacing": "-0.01em", "useFor": "Page title" },
+          { "token": "H2",         "size": 24, "lineHeight": 32, "weight": 600, "letterSpacing": "-0.01em", "useFor": "Section header" },
+          { "token": "H3",         "size": 20, "lineHeight": 28, "weight": 600, "letterSpacing": "0",       "useFor": "Subsection" },
+          { "token": "H4",         "size": 18, "lineHeight": 26, "weight": 600, "letterSpacing": "0",       "useFor": "Card title" },
+          { "token": "H5",         "size": 16, "lineHeight": 24, "weight": 600, "letterSpacing": "0",       "useFor": "Strong label" },
+          { "token": "H6",         "size": 15, "lineHeight": 22, "weight": 600, "letterSpacing": "0",       "useFor": "Inline emphasis" },
+          { "token": "Body XL",    "size": 17, "lineHeight": 26, "weight": 400, "letterSpacing": "0",       "useFor": "Lead paragraph" },
+          { "token": "Body L",     "size": 16, "lineHeight": 24, "weight": 400, "letterSpacing": "0",       "useFor": "Long-form" },
+          { "token": "Body M",     "size": 15, "lineHeight": 23, "weight": 400, "letterSpacing": "0",       "useFor": "UI text" },
+          { "token": "Body S",     "size": 13, "lineHeight": 20, "weight": 400, "letterSpacing": "0",       "useFor": "Dense UI" },
+          { "token": "Caption",    "size": 12, "lineHeight": 16, "weight": 500, "letterSpacing": "0.02em",  "useFor": "Metadata" }
+        ]
+      },
+      "avoid": "<short line. Typographic directions that would contradict the brand>"
+    }
+  }
+}
+
+Rules:
+- family names must be real (and on Google Fonts if google=true) so they render in the live preview.
+- Weights specified in the per-font weights[] arrays MUST exist on that family. Don't ask for 700 if the font only ships 400/500.
+- weights[] (the standalone table): include all 8 standard weights. For weights the brand doesn't use, set usage to "unused". Be specific where they ARE used (e.g. "Hero headlines + brand signatures").
+- Scale numbers are unit-less px. letterSpacing uses em units (e.g. "-0.02em") or "0".
+- Be DECISIVE about choosing distinct fonts for display / heading / body / mono unless deliberately the same — pairing the same font for display + heading is fine if it's a versatile family; never collapse body + display to the same.
 
 Brief:
 ${briefText}`,
@@ -582,16 +702,21 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
   // populate, the UI hangs on the skeleton state forever.
   const MAX_TOKENS = {
     understand:          3500,
-    product_decisions:   2500, // 4-tier features + 2 short text fields
+    product_decisions:   2500,
     interrogate:         3500,
-    direction:           7500, // bumped, colour + type + moodboard + 9 personality ratings
+    // direction trimmed — colour and typography moved to their own
+    // sections, so this budget only covers personality + tone +
+    // emotional journey + moodboard + 9 star ratings.
+    direction:           4500,
+    color_strategy:      6500, // 3 swatches × 8 fields + semantic + light + dark + default_theme
+    typography_system:   7000, // 4 fonts × 9 fields + 8 weights + responsive scale (14 styles × 2 devices)
     info_hierarchy:      1500,
     landscape:           4000,
     boundaries:          3500,
-    system_foundations:  3500, // spacing scale + grid (3 devices) + component primitives
-    visual_language:     1500, // 7 short fields
-    inspiration_library: 2500, // ~7 refs × 5 fields
-    builder_guidance:    3500, // up to 5 features × 7 fields
+    system_foundations:  3500,
+    visual_language:     1500,
+    inspiration_library: 2500,
+    builder_guidance:    3500,
     build_priorities:    2500,
     verdict:             2000,
   }

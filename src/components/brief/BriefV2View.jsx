@@ -395,10 +395,22 @@ const SECTION_LAYOUT = {
       ['brand_personality',          'half'],
       ['tone_mood',                  'half'],
       ['design_personality_ratings', 'full'],
-      ['color_direction',            'full'],
-      ['typography_direction',       'full'],
       ['emotional_direction',        'half'],
       ['moodboard_direction',        'half'],
+    ],
+  },
+  color_strategy: {
+    title:   'Color Strategy',
+    eyebrow: 'Palette, semantic system, and recommended default theme',
+    layout: [
+      ['color_direction', 'full'],
+    ],
+  },
+  typography_system: {
+    title:   'Typography System',
+    eyebrow: 'Display, heading, body, mono — with weights + responsive scale',
+    layout: [
+      ['typography_direction', 'full'],
     ],
   },
   info_hierarchy: {
@@ -478,6 +490,8 @@ const SECTION_TONES = {
   product_decisions:   { tint: 'rgba(168,85,247,0.10)',  ink: '#7e22ce' },  // purple-700
   interrogate:         { tint: 'rgba(245,158,11,0.10)',  ink: '#b45309' },  // amber-700
   direction:           { tint: 'rgba(139,92,246,0.10)',  ink: '#6d28d9' },  // violet-700
+  color_strategy:      { tint: 'rgba(236,72,153,0.10)',  ink: '#be185d' },  // pink-700
+  typography_system:   { tint: 'rgba(99,102,241,0.10)',  ink: '#4338ca' },  // indigo-700
   info_hierarchy:      { tint: 'rgba(14,165,233,0.10)',  ink: '#0369a1' },  // sky-700
   landscape:           { tint: 'rgba(16,185,129,0.10)',  ink: '#047857' },  // emerald-700
   boundaries:          { tint: 'rgba(239,68,68,0.10)',   ink: '#b91c1c' },  // red-700
@@ -1388,27 +1402,34 @@ function RolesContent({ value }) {
 
   return (
     <div className="brief-v2-palette">
-      {/* Swatch grid */}
+      {/* Swatch grid (with optional per-swatch deep analysis) */}
       {swatches && swatches.length > 0 && (
         <div className="brief-v2-swatch-grid">
           {swatches.map((s, i) => (
-            <div key={i} className="brief-v2-swatch">
-              <div className="brief-v2-swatch-chip" style={{ background: s.hex }} aria-hidden />
-              <div className="brief-v2-swatch-meta">
-                <div className="brief-v2-swatch-role">{s.role}</div>
-                <div className="brief-v2-swatch-name">{s.name}</div>
-                <button
-                  type="button"
-                  onClick={() => copyHex(s.hex)}
-                  className="brief-v2-swatch-hex"
-                  title="Copy hex"
-                >
-                  {copied === s.hex ? 'Copied' : s.hex}
-                </button>
-                {s.intent && <div className="brief-v2-swatch-intent">{s.intent}</div>}
-              </div>
-            </div>
+            <SwatchCard key={i} swatch={s} copied={copied} onCopy={copyHex} />
           ))}
+        </div>
+      )}
+
+      {/* Semantic colour strip */}
+      {v.semantic && (v.semantic.success || v.semantic.error) && (
+        <div className="brief-v2-semantic">
+          <div className="brief-v2-semantic-label">Semantic palette</div>
+          <div className="brief-v2-semantic-row">
+            {['success', 'warning', 'error', 'info'].map(k => {
+              const sem = v.semantic[k]
+              if (!sem || !sem.hex) return null
+              return (
+                <div key={k} className="brief-v2-semantic-chip">
+                  <div className="brief-v2-semantic-swatch" style={{ background: sem.hex }} />
+                  <div className="brief-v2-semantic-meta">
+                    <span className="brief-v2-semantic-name">{k}</span>
+                    <span className="brief-v2-semantic-hex">{sem.hex}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -1504,10 +1525,93 @@ function RolesContent({ value }) {
         </div>
       )}
 
+      {/* Recommended default theme */}
+      {v.default_theme && v.default_theme.mode && (
+        <div className="brief-v2-default-theme">
+          <div className="brief-v2-default-theme-head">
+            <span className="brief-v2-default-theme-label">RECOMMENDED DEFAULT</span>
+            <span className="brief-v2-default-theme-mode">{v.default_theme.mode}</span>
+          </div>
+          <dl className="brief-v2-default-theme-spec">
+            {v.default_theme.user_expectations && (
+              <>
+                <dt>User expectations</dt>
+                <dd>{v.default_theme.user_expectations}</dd>
+              </>
+            )}
+            {v.default_theme.industry_standards && (
+              <>
+                <dt>Industry standards</dt>
+                <dd>{v.default_theme.industry_standards}</dd>
+              </>
+            )}
+            {v.default_theme.accessibility && (
+              <>
+                <dt>Accessibility</dt>
+                <dd>{v.default_theme.accessibility}</dd>
+              </>
+            )}
+            {v.default_theme.conversion_impact && (
+              <>
+                <dt>Conversion impact</dt>
+                <dd>{v.default_theme.conversion_impact}</dd>
+              </>
+            )}
+          </dl>
+        </div>
+      )}
+
       {v.avoid && (
         <div className="brief-v2-roles-avoid">
           <span className="brief-v2-roles-avoid-label">Never</span> {v.avoid}
         </div>
+      )}
+    </div>
+  )
+}
+
+// SwatchCard — single colour swatch with optional expand-to-show
+// deep analysis (psychology + why-it-fits breakdown + competitor
+// comparison). Designers get the scannable view by default, click
+// the swatch card to drill in.
+function SwatchCard({ swatch: s, copied, onCopy }) {
+  const [open, setOpen] = useState(false)
+  const hasDeep = s.psychology || s.why_fits || s.why_conversion || s.why_audience || s.why_industry || s.competitor
+  return (
+    <div className={`brief-v2-swatch ${open ? 'is-open' : ''}`}>
+      <div className="brief-v2-swatch-chip" style={{ background: s.hex }} aria-hidden />
+      <div className="brief-v2-swatch-meta">
+        <div className="brief-v2-swatch-role">{s.role}</div>
+        <div className="brief-v2-swatch-name">{s.name}</div>
+        <button
+          type="button"
+          onClick={() => onCopy(s.hex)}
+          className="brief-v2-swatch-hex"
+          title="Copy hex"
+        >
+          {copied === s.hex ? 'Copied' : s.hex}
+        </button>
+        {s.intent && <div className="brief-v2-swatch-intent">{s.intent}</div>}
+        {hasDeep && (
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            className="brief-v2-swatch-toggle"
+            aria-expanded={open}
+          >
+            {open ? 'Hide rationale' : 'Why this colour'}
+          </button>
+        )}
+      </div>
+      {open && hasDeep && (
+        <dl className="brief-v2-swatch-rationale">
+          {s.psychology     && (<><dt>Psychology</dt><dd>{s.psychology}</dd></>)}
+          {s.why_fits       && (<><dt>Why it fits</dt><dd>{s.why_fits}</dd></>)}
+          {s.why_conversion && (<><dt>Conversion</dt><dd>{s.why_conversion}</dd></>)}
+          {s.why_audience   && (<><dt>Audience</dt><dd>{s.why_audience}</dd></>)}
+          {s.why_industry   && (<><dt>Industry</dt><dd>{s.why_industry}</dd></>)}
+          {s.competitor     && (<><dt>vs Competitors</dt><dd>{s.competitor}</dd></>)}
+        </dl>
       )}
     </div>
   )
@@ -1531,19 +1635,22 @@ function LevelsContent({ value }) {
   const [device, setDevice] = useState('desktop')
 
   const display = isObj(v.display) ? v.display : null
+  const heading = isObj(v.heading) ? v.heading : null
   const body    = isObj(v.body)    ? v.body    : null
-  const label   = isObj(v.label)   ? v.label   : null
+  const mono    = isObj(v.mono)    ? v.mono    : null
+  const label   = isObj(v.label)   ? v.label   : null  // legacy
   const scale = v.scale && (Array.isArray(v.scale.desktop) || Array.isArray(v.scale.mobile)) ? v.scale : null
+  const weights = Array.isArray(v.weights) ? v.weights : null
 
   // Inject Google Font links once per family on mount + when families change.
   useEffect(() => {
-    [display, body, label].forEach(f => {
+    [display, heading, body, mono, label].forEach(f => {
       if (f?.family && f.google !== false) ensureGoogleFont(f.family, f.weights || [400, 700])
     })
-  }, [display?.family, body?.family, label?.family])
+  }, [display?.family, heading?.family, body?.family, mono?.family, label?.family])
 
   // Legacy fallback.
-  if (!display && !body && !label && !scale) {
+  if (!display && !heading && !body && !mono && !label && !scale) {
     const rows = [
       ['Display', v.display],
       ['Body',    v.body],
@@ -1573,12 +1680,43 @@ function LevelsContent({ value }) {
 
   return (
     <div className="brief-v2-type">
-      {/* Family cards */}
+      {/* Family cards — display / heading / body / mono (4 roles).
+          Falls back to legacy 'label' role when 'heading' / 'mono'
+          aren't present, so older briefs still render. */}
       <div className="brief-v2-type-families">
         {display && <FontFamilyCard role="Display" font={display} />}
+        {heading && <FontFamilyCard role="Heading" font={heading} />}
         {body    && <FontFamilyCard role="Body"    font={body} />}
-        {label   && <FontFamilyCard role="Label"   font={label} />}
+        {mono    && <FontFamilyCard role="Mono"    font={mono} />}
+        {!heading && !mono && label && <FontFamilyCard role="Label" font={label} />}
       </div>
+
+      {/* Weights table — full 8-step scale with per-weight usage */}
+      {weights && weights.length > 0 && (
+        <div className="brief-v2-weights">
+          <div className="brief-v2-weights-head">Font weight usage</div>
+          <ul className="brief-v2-weights-list">
+            {weights.map((w, i) => {
+              const unused = String(w.usage || '').toLowerCase() === 'unused'
+              return (
+                <li key={i} className={`brief-v2-weight ${unused ? 'is-unused' : ''}`}>
+                  <span
+                    className="brief-v2-weight-name"
+                    style={{
+                      fontFamily: bodyFam !== 'inherit' ? `"${bodyFam}", sans-serif` : 'inherit',
+                      fontWeight: w.value || 400,
+                    }}
+                  >
+                    {w.name || `Weight ${w.value}`}
+                  </span>
+                  <span className="brief-v2-weight-value">{w.value}</span>
+                  <span className="brief-v2-weight-usage">{w.usage || '-'}</span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* Type scale */}
       {activeScale && activeScale.length > 0 && (
@@ -1619,7 +1757,7 @@ function LevelsContent({ value }) {
                   const fam = row.token && /caption|label|meta/i.test(row.token)
                     ? (label?.family || bodyFam)
                     : (row.token && /body|paragraph/i.test(row.token) ? bodyFam : (display?.family || bodyFam))
-                  const spacing = row.tracking || row.spacing || (
+                  const spacing = row.letterSpacing || row.tracking || row.spacing || (
                     /h1|display/i.test(row.token || '') ? '-0.02em' :
                     /h2|h3|h4/i.test(row.token || '')  ? '-0.01em' :
                     /caption|label/i.test(row.token || '') ? '0.01em' :
@@ -1664,9 +1802,11 @@ function LevelsContent({ value }) {
 }
 
 function FontFamilyCard({ role, font }) {
+  const [open, setOpen] = useState(false)
   if (!font) return null
   const family = font.family || 'System'
   const weights = Array.isArray(font.weights) ? font.weights : []
+  const hasDeep = font.personality || font.readability || font.accessibility || font.product_fit || font.why_fits
   return (
     <div className="brief-v2-type-card">
       <div className="brief-v2-type-card-role">{role}</div>
@@ -1684,6 +1824,27 @@ function FontFamilyCard({ role, font }) {
         {weights.length ? weights.join(' / ') : '-'}{font.tracking ? ` · ${font.tracking}` : ''}
       </div>
       {font.notes && <div className="brief-v2-type-card-notes">{font.notes}</div>}
+      {hasDeep && (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            className="brief-v2-type-card-toggle"
+            aria-expanded={open}
+          >
+            {open ? 'Hide rationale' : 'Why this font'}
+          </button>
+          {open && (
+            <dl className="brief-v2-type-card-rationale">
+              {font.personality   && (<><dt>Personality</dt><dd>{font.personality}</dd></>)}
+              {font.readability   && (<><dt>Readability</dt><dd>{font.readability}</dd></>)}
+              {font.accessibility && (<><dt>Accessibility</dt><dd>{font.accessibility}</dd></>)}
+              {font.product_fit   && (<><dt>Product fit</dt><dd>{font.product_fit}</dd></>)}
+              {font.why_fits      && (<><dt>Why it fits</dt><dd>{font.why_fits}</dd></>)}
+            </dl>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -4420,6 +4581,127 @@ function ResponsiveStyles() {
       }
       .brief-v2-swatch-hex:hover { background: var(--color-text); color: var(--color-bg); }
       .brief-v2-swatch-intent { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; margin-top: 3px; }
+      .brief-v2-swatch-toggle {
+        margin-top: 8px;
+        background: transparent; border: none; padding: 0;
+        font: 700 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.02em;
+        color: var(--color-accent);
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        align-self: flex-start;
+      }
+      .brief-v2-swatch.is-open .brief-v2-swatch-chip { height: 48px; transition: height 0.18s ease; }
+      .brief-v2-swatch-rationale {
+        grid-column: 1 / -1;
+        margin: 4px 12px 12px;
+        padding: 10px 12px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        gap: 5px 10px;
+      }
+      .brief-v2-swatch-rationale dt {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-swatch-rationale dd {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--color-text);
+      }
+
+      /* Semantic palette strip */
+      .brief-v2-semantic {
+        padding: 12px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+      }
+      .brief-v2-semantic-label {
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+        margin-bottom: 10px;
+      }
+      .brief-v2-semantic-row { display: flex; gap: 10px; flex-wrap: wrap; }
+      .brief-v2-semantic-chip {
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 10px 6px 6px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 100px;
+      }
+      .brief-v2-semantic-swatch {
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        border: 1px solid var(--color-border);
+      }
+      .brief-v2-semantic-meta { display: flex; flex-direction: column; gap: 1px; line-height: 1.1; }
+      .brief-v2-semantic-name {
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text);
+      }
+      .brief-v2-semantic-hex {
+        font: 600 10px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+      }
+
+      /* Recommended default theme card */
+      .brief-v2-default-theme {
+        padding: 14px 16px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-left: 3px solid var(--color-accent);
+        border-radius: 10px;
+      }
+      .brief-v2-default-theme-head {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .brief-v2-default-theme-label {
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.14em;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-default-theme-mode {
+        padding: 4px 12px;
+        background: var(--color-text);
+        color: var(--color-bg);
+        border-radius: 100px;
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .brief-v2-default-theme-spec {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 6px 12px;
+        margin: 0;
+      }
+      .brief-v2-default-theme-spec dt {
+        font: 700 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.04em;
+        color: var(--color-text-soft);
+      }
+      .brief-v2-default-theme-spec dd {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--color-text);
+      }
+      @media (max-width: 600px) {
+        .brief-v2-default-theme-spec { grid-template-columns: 1fr; }
+      }
 
       .brief-v2-theme-preview {
         border: 1px solid var(--color-border);
@@ -4546,6 +4828,83 @@ function ResponsiveStyles() {
       .brief-v2-type-card-name { font-size: 22px; color: var(--color-text); line-height: 1.1; }
       .brief-v2-type-card-meta { font-size: 11px; color: var(--color-text-muted); font-family: 'JetBrains Mono', monospace; }
       .brief-v2-type-card-notes { font-size: 11px; color: var(--color-text-soft); line-height: 1.45; margin-top: 3px; }
+      .brief-v2-type-card-toggle {
+        margin-top: 8px;
+        background: transparent; border: none; padding: 0;
+        font: 700 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.02em;
+        color: var(--color-accent);
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        align-self: flex-start;
+      }
+      .brief-v2-type-card-rationale {
+        margin: 4px 0 0;
+        padding: 10px 12px;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        gap: 5px 10px;
+      }
+      .brief-v2-type-card-rationale dt {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-type-card-rationale dd {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--color-text);
+      }
+
+      /* Font weights table */
+      .brief-v2-weights {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .brief-v2-weights-head {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--color-border);
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-weights-list { list-style: none; padding: 0; margin: 0; }
+      .brief-v2-weight {
+        display: grid;
+        grid-template-columns: 130px 60px 1fr;
+        gap: 16px;
+        align-items: center;
+        padding: 9px 14px;
+        border-top: 1px solid var(--color-border);
+      }
+      .brief-v2-weight:first-child { border-top: none; }
+      .brief-v2-weight.is-unused { opacity: 0.45; }
+      .brief-v2-weight-name {
+        font-size: 14px;
+        color: var(--color-text);
+      }
+      .brief-v2-weight-value {
+        font: 700 11px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+        text-align: right;
+      }
+      .brief-v2-weight-usage {
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--color-text-soft);
+      }
+      @media (max-width: 600px) {
+        .brief-v2-weight { grid-template-columns: 100px 50px 1fr; gap: 10px; padding: 8px 12px; }
+      }
 
       .brief-v2-type-scale {
         border: 1px solid var(--color-border);
