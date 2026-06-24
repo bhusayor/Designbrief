@@ -128,8 +128,8 @@ export default function BriefV2ReviseModal({
             <div style={{
               marginBottom: 12,
               padding: '8px 11px',
-              background: 'rgba(245,158,11,0.07)',
-              border: '1px solid rgba(245,158,11,0.30)',
+              background: 'rgba(245,158,11,0.16)',
+              border: '1px solid rgba(180,83,9,0.55)',
               borderRadius: 9,
               fontSize: 12,
               color: 'var(--color-text)',

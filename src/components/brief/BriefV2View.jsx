@@ -2021,7 +2021,7 @@ function PendingChangesBanner({ note, comments, onRevise, onResolve, revising })
 
   return (
     <div className="brief-v2-pending-banner">
-      <ExclamationTriangleIcon style={{ width: 22, height: 22, color: '#d97706', flexShrink: 0, marginTop: 1 }} />
+      <ExclamationTriangleIcon style={{ width: 22, height: 22, color: '#b45309', flexShrink: 0, marginTop: 1 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="brief-v2-pending-banner-title">
           {useThread
@@ -2418,8 +2418,13 @@ function ResponsiveStyles() {
         gap: 12px;
         align-items: start;
         padding: 11px 13px;
-        background: rgba(245,158,11,0.05);
-        border: 1px solid rgba(245,158,11,0.22);
+        /* WCAG: previous 0.05 / 0.22 was barely visible against the
+           page bg in both light + dark modes, the row read as
+           neutral instead of "warning". Bumped the tint + border
+           opacity so the amber semantic is unmistakable while text
+           still passes contrast against the page bg. */
+        background: rgba(245,158,11,0.14);
+        border: 1px solid rgba(180,83,9,0.50);
         border-radius: 10px;
       }
       .brief-v2-redflag-num {
@@ -2430,8 +2435,13 @@ function ResponsiveStyles() {
         color: white;
         flex-shrink: 0;
       }
-      .brief-v2-redflag-num-critical { background: #ef4444; }
-      .brief-v2-redflag-num-warn     { background: #f59e0b; }
+      /* WCAG: white text on these solid backgrounds. amber-500
+         (#f59e0b) only gives 2.05:1 vs white and red-500 (#ef4444)
+         gives 3.76:1 — both fail AA 4.5:1. Bumped to amber-700 +
+         red-700 so the numbered circles announce themselves
+         properly. */
+      .brief-v2-redflag-num-critical { background: #b91c1c; }
+      .brief-v2-redflag-num-warn     { background: #b45309; }
       .brief-v2-redflag-num-ok       { background: #6b7280; }
       .brief-v2-redflag-text {
         font-size: 13px; line-height: 1.55;
@@ -2441,7 +2451,7 @@ function ResponsiveStyles() {
       .brief-v2-redflag-sev {
         align-self: start;
         padding: 3px 8px;
-        background: #ef4444;
+        background: #b91c1c; /* red-700 — passes 4.5:1 with white */
         color: white;
         border-radius: 100px;
         font: 800 9px 'Urbanist', sans-serif;
@@ -2465,7 +2475,7 @@ function ResponsiveStyles() {
         color: white;
       }
       .brief-v2-tone-band-good .brief-v2-tone-icon { background: #10b981; }
-      .brief-v2-tone-band-bad  .brief-v2-tone-icon { background: #ef4444; }
+      .brief-v2-tone-band-bad  .brief-v2-tone-icon { background: #b91c1c; }
       .brief-v2-tone-label {
         font: 800 9px 'Urbanist', sans-serif; letter-spacing: 0.12em; text-transform: uppercase;
         color: var(--color-text-muted);
@@ -2540,7 +2550,7 @@ function ResponsiveStyles() {
         letter-spacing: 0.02em;
       }
       .brief-v2-srbar-pill-good { background: #10b981; color: white; }
-      .brief-v2-srbar-pill-warn { background: #f59e0b; color: white; }
+      .brief-v2-srbar-pill-warn { background: #b45309; color: white; }
       .brief-v2-srbar-actions { display: flex; gap: 8px; }
       .brief-v2-srbar-btn {
         display: inline-flex; align-items: center; gap: 5px;
@@ -2553,7 +2563,7 @@ function ResponsiveStyles() {
       .brief-v2-srbar-btn:disabled { opacity: 0.55; cursor: not-allowed; }
       .brief-v2-srbar-btn-good { background: #10b981; color: white; }
       .brief-v2-srbar-btn-good:hover:not(:disabled) { opacity: 0.92; }
-      .brief-v2-srbar-btn-warn { background: #f59e0b; color: white; }
+      .brief-v2-srbar-btn-warn { background: #b45309; color: white; }
       .brief-v2-srbar-btn-warn:hover:not(:disabled) { opacity: 0.92; }
       .brief-v2-srbar-btn-ghost {
         background: transparent;
@@ -2683,8 +2693,8 @@ function ResponsiveStyles() {
       .brief-v2-badged-text { flex: 1; font-size: 13px; line-height: 1.5; color: var(--color-text); min-width: 0; }
 
       .brief-v2-badge { font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 100px; letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0; }
-      .brief-v2-badge-critical { background: #ef4444; color: white; }
-      .brief-v2-badge-warn     { background: #f59e0b; color: white; }
+      .brief-v2-badge-critical { background: #b91c1c; color: white; }
+      .brief-v2-badge-warn     { background: #b45309; color: white; }
       .brief-v2-badge-ok       { background: #10b981; color: white; }
       .brief-v2-badge-neutral  { background: var(--color-text-muted); color: var(--color-bg); }
 
@@ -2707,15 +2717,16 @@ function ResponsiveStyles() {
       .brief-v2-roles-value { font-size: 13px; line-height: 1.5; color: var(--color-text); }
       .brief-v2-roles-avoid {
         margin-top: 12px; padding: 9px 10px;
-        background: rgba(239,68,68,0.05);
-        border: 1px dashed rgba(239,68,68,0.35);
+        background: rgba(239,68,68,0.10);
+        border: 1px dashed rgba(185,28,28,0.55);
         border-radius: 9px;
         font-size: 12px; line-height: 1.55; color: var(--color-text);
       }
       .brief-v2-roles-avoid-label {
         display: inline-block;
         font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
-        color: #ef4444; margin-right: 6px;
+        color: #b91c1c; /* red-700 — passes AA on the light red tint */
+        margin-right: 6px;
       }
 
       /* ── Colour palette renderer ─────────────────────────────── */
@@ -3277,25 +3288,38 @@ function ResponsiveStyles() {
       }
       .brief-v2-vtab-restore:hover { opacity: 0.8; }
 
-      /* ── Pending client-changes banner (designer view) ────────── */
+      /* ── Pending client-changes banner (designer view) ──────────
+         The main "amber alert" surface. Previous 0.07 / 0.30 amber
+         tints + #d97706 icon looked decorative rather than urgent
+         and barely cleared 3:1 contrast in dark mode. This version
+         hits WCAG AA on every text element. */
       .brief-v2-pending-banner {
         display: flex; gap: 12px; align-items: flex-start;
         margin-bottom: 24px;
         padding: 14px 16px;
-        background: rgba(245,158,11,0.07);
-        border: 1px solid rgba(245,158,11,0.30);
+        background: rgba(245,158,11,0.16);
+        border: 1px solid rgba(180,83,9,0.55);
         border-radius: 14px;
       }
       .brief-v2-pending-banner-title {
         font: 800 13px 'Urbanist', sans-serif;
-        color: var(--color-text);
+        /* explicit amber-800 so the title reads as a warning even
+           against page bg, instead of inheriting plain --color-text */
+        color: #92400e;
         margin-bottom: 4px;
       }
       .brief-v2-pending-banner-note {
         font-size: 13px;
-        color: var(--color-text-soft);
+        color: var(--color-text); /* darker than text-soft — passes AA on the amber tint */
         line-height: 1.55;
         white-space: pre-wrap;
+      }
+      /* Dark-mode override: amber-800 reads almost black on the
+         already-dark tinted bg. Lighten the heading + soften the
+         note so both clear 4.5:1 against the dark amber wash. */
+      @media (prefers-color-scheme: dark) {
+        .brief-v2-pending-banner-title { color: #fcd34d; }
+        .brief-v2-pending-banner-note  { color: rgba(255,255,255,0.92); }
       }
       .brief-v2-pending-banner-btn {
         flex-shrink: 0;

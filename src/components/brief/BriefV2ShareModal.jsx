@@ -400,8 +400,8 @@ export default function BriefV2ShareModal({
             ) : (
               <div style={{
                 padding: '12px 14px',
-                background: 'rgba(245,158,11,0.07)',
-                border: '1px solid rgba(245,158,11,0.30)',
+                background: 'rgba(245,158,11,0.16)',
+                border: '1px solid rgba(180,83,9,0.55)',
                 borderRadius: 10,
                 display: 'flex', alignItems: 'flex-start', gap: 10,
               }}>
