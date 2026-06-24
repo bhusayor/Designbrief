@@ -29,8 +29,8 @@ import {
 
 const PUNCTUATION_BAN = `
 PUNCTUATION RULES (hard constraint):
-- NEVER use em dashes (-) or en dashes (-). Anywhere. Use a comma, a
-  semicolon, two short sentences, or a plain hyphen.
+- NEVER use em dashes (—) or en dashes (–). Anywhere. Use a comma,
+  a semicolon, two short sentences, or a plain hyphen.
 - Do not use ellipses (…).
 - Do not start any field with "In a world where" or "Imagine".
 `.trim()
@@ -195,7 +195,7 @@ Return JSON exactly in this shape:
 brand_personality: exactly 3-5 traits.
 emotional_direction: one entry per journey step. Mirror the step titles you'd expect from section 1.
 moodboard_direction.references: 4-8 entries. Mix product sites (Linear, Stripe, Vercel, Notion, etc), pattern libraries (Mobbin, Dribbble shots, Awwwards winners), and individual designers/studios where relevant. Every URL must be a plausible real homepage or specific page, do not invent fake URLs. If you are not confident a URL is real, omit the reference rather than guessing wildly.
-design_personality_ratings: rate this product's design personality on each of the 9 standard dimensions from 1-5 stars. Be DECISIVE — avoid rating 3 ("middle") as a default; only use 3 if the brand genuinely sits in the middle of that axis. The "note" is one short line on why this rating fits the product.
+design_personality_ratings: rate this product's design personality on each of the 9 standard dimensions from 1-5 stars. Be DECISIVE, avoid rating 3 ("middle") as a default; only use 3 if the brand genuinely sits in the middle of that axis. The "note" is one short line on why this rating fits the product.
 
 Brief:
 ${briefText}`,
@@ -208,7 +208,7 @@ ${briefText}`,
   // competitor comparison so designers can defend the call.
   color_strategy: {
     system: BASE_SYSTEM,
-    user: (briefText) => `Define the complete colour strategy for this product. Be DECISIVE — these are recommendations the team will defend in a presentation, not a list of options.
+    user: (briefText) => `Define the complete colour strategy for this product. Be DECISIVE, these are recommendations the team will defend in a presentation, not a list of options.
 
 Return JSON exactly in this shape:
 {
@@ -367,7 +367,7 @@ Rules:
 - Weights specified in the per-font weights[] arrays MUST exist on that family. Don't ask for 700 if the font only ships 400/500.
 - weights[] (the standalone table): include all 8 standard weights. For weights the brand doesn't use, set usage to "unused". Be specific where they ARE used (e.g. "Hero headlines + brand signatures").
 - Scale numbers are unit-less px. letterSpacing uses em units (e.g. "-0.02em") or "0".
-- Be DECISIVE about choosing distinct fonts for display / heading / body / mono unless deliberately the same — pairing the same font for display + heading is fine if it's a versatile family; never collapse body + display to the same.
+- Be DECISIVE about choosing distinct fonts for display / heading / body / mono unless deliberately the same, pairing the same font for display + heading is fine if it's a versatile family; never collapse body + display to the same.
 
 Brief:
 ${briefText}`,
@@ -462,7 +462,7 @@ ${briefText}`,
   },
 
   // ── Information Hierarchy ────────────────────────────────────────
-  // Ranked content importance — what users see first, second, third.
+  // Ranked content importance, what users see first, second, third.
   info_hierarchy: {
     system: BASE_SYSTEM,
     user: (briefText) => `Rank the content this product's primary surface needs to show, in priority order. This maps directly to page composition decisions.
@@ -507,9 +507,9 @@ Return JSON exactly in this shape:
   }
 }
 
-Phase 1: MVP — minimum to test the core value prop.
-Phase 2: Activation — features that drive conversion + retention.
-Phase 3: Scale — features that compound + differentiate.
+Phase 1: MVP, minimum to test the core value prop.
+Phase 2: Activation, features that drive conversion + retention.
+Phase 3: Scale, features that compound + differentiate.
 
 items: 3-6 concrete deliverables per phase.
 
@@ -607,7 +607,7 @@ Return JSON exactly in this shape:
   }
 }
 
-inspiration_library: 6-8 entries across as many categories as relevant. Pick brands the designer knows (Linear, Stripe, Notion, Vercel, Apple, Figma, Loom, Superhuman, Pitch, Cron, etc.). Be confident — never invent fake products. Omit URL if you are not sure it's real.
+inspiration_library: 6-8 entries across as many categories as relevant. Pick brands the designer knows (Linear, Stripe, Notion, Vercel, Apple, Figma, Loom, Superhuman, Pitch, Cron, etc.). Be confident, never invent fake products. Omit URL if you are not sure it's real.
 
 Brief:
 ${briefText}`,
@@ -636,7 +636,7 @@ Return JSON exactly in this shape:
   }
 }
 
-ai_builder_guidance: 3-5 entries for the most important features. components = the UI primitives the builder needs (e.g. "card", "modal", "data table", "form", "side sheet"). Be concrete — these instructions are read by an AI that builds the actual components.
+ai_builder_guidance: 3-5 entries for the most important features. components = the UI primitives the builder needs (e.g. "card", "modal", "data table", "form", "side sheet"). Be concrete, these instructions are read by an AI that builds the actual components.
 
 Brief:
 ${briefText}`,
@@ -704,12 +704,12 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
     understand:          3500,
     product_decisions:   2500,
     interrogate:         3500,
-    // direction trimmed — colour and typography moved to their own
+    // direction trimmed, colour and typography moved to their own
     // sections, so this budget only covers personality + tone +
     // emotional journey + moodboard + 9 star ratings.
     direction:           4500,
-    color_strategy:      6500, // 3 swatches × 8 fields + semantic + light + dark + default_theme
-    typography_system:   7000, // 4 fonts × 9 fields + 8 weights + responsive scale (14 styles × 2 devices)
+    color_strategy:      8500, // bumped from 6500, was overflowing + truncating to empty JSON
+    typography_system:   8500, // bumped from 7000, same overflow risk on the 14×2 type scale
     info_hierarchy:      1500,
     landscape:           4000,
     boundaries:          3500,
@@ -721,10 +721,13 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
     verdict:             2000,
   }
 
-  // Each section call returns a Promise of its parsed section data.
-  // We await Promise.all but also fire onSection() the moment each
-  // individual promise resolves (not waiting for the slowest one).
-  const sectionPromises = BRIEF_V2_SECTIONS.map(async (sectionDef) => {
+  // Section call worker, extracted so we can run the full set in
+  // throttled batches instead of all 15 at once. 15 parallel
+  // Sonnet calls reliably trip Anthropic Tier 1 rate limits (50 RPM
+  // for Sonnet) AND were causing the heaviest two sections
+  // (color_strategy + typography_system) to silently fail when
+  // their response landed near a rate-limit window edge.
+  async function runSection(sectionDef, attempt = 0) {
     const sectionId = sectionDef.id
     const prompt = SECTION_PROMPTS[sectionId]
     try {
@@ -761,6 +764,16 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
       }
       return { sectionId, ok: true }
     } catch (e) {
+      // Rate-limit detection, retry once with a short backoff
+      // before giving up. Most "section failed" reports trace back
+      // to a 429 on the first burst of parallel calls.
+      const msg = String(e?.message || '').toLowerCase()
+      const isRateLimit = msg.includes('429') || msg.includes('rate') || msg.includes('overloaded')
+      if (isRateLimit && attempt === 0) {
+        console.warn('[translateBriefV2]', sectionId, 'rate-limited, retrying once after 1500ms')
+        await new Promise(r => setTimeout(r, 1500))
+        return runSection(sectionDef, 1)
+      }
       console.warn('[translateBriefV2] section failed', sectionId, e?.message)
       // Mark every item in the failed section so the UI can surface
       // "failed to load" + a retry button instead of an endless
@@ -774,9 +787,19 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
       }
       return { sectionId, ok: false, error: e?.message }
     }
-  })
+  }
 
-  await Promise.all(sectionPromises)
+  // Run sections in waves of WAVE_SIZE. Sonnet's Tier 1 limit is
+  // 50 RPM; 15 simultaneous bursts plus the post-translation
+  // scoring + design-system extraction calls were tripping 429s
+  // and cascading. Waves of 4 keep us safely under any tier.
+  const WAVE_SIZE = 4
+  for (let i = 0; i < BRIEF_V2_SECTIONS.length; i += WAVE_SIZE) {
+    const wave = BRIEF_V2_SECTIONS.slice(i, i + WAVE_SIZE)
+    // Within a wave, sections fire in parallel for speed. Between
+    // waves, we await so the next batch doesn't pile on.
+    await Promise.all(wave.map(s => runSection(s)))
+  }
   return result
 }
 

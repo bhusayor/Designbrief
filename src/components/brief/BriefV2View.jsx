@@ -178,11 +178,30 @@ export default function BriefV2View({
             </header>
           )}
 
-          {/* Quick Read strip — four KPI cards distilling the
+          {/* Quick Read strip, four KPI cards distilling the
               brief's most-asked questions into a glance. Hides on
               very narrow screens by falling into a horizontal
               scroll snap rail. */}
           <QuickReadStrip sections={sections} />
+
+          {/* Streaming progress bar, visible only while the brief
+              is still being generated. Gives the designer constant
+              feedback that the system is working, even if the
+              section they're looking at hasn't filled in yet. */}
+          {!allDone && (
+            <div className="brief-v2-progressbar" role="status" aria-label="Translation progress">
+              <div className="brief-v2-progressbar-meta">
+                <span className="brief-v2-progressbar-label">Generating brief</span>
+                <span className="brief-v2-progressbar-count">{completedItems} / {totalItems}</span>
+              </div>
+              <div className="brief-v2-progressbar-track">
+                <div
+                  className="brief-v2-progressbar-fill"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Version tab strip, only when there's at least one
               older snapshot to compare against. Latest tab is left;
@@ -240,58 +259,93 @@ export default function BriefV2View({
             />
           )}
 
-          {sections.map((section, sectionIdx) => {
-            const decision = sectionDecisions?.[section.id] || null
-            const showReview = !!onSectionDecision
-            const cfg = SECTION_LAYOUT[section.id]
-            const display = cfg || { title: section.label, eyebrow: '', layout: section.items.map(i => [i.key, 'full']) }
-            // Map layout config to actual item objects (in declared
-            // order). Items not present in the section data fall
-            // through silently.
-            const orderedCells = display.layout
-              .map(([key, width]) => {
-                const item = section.items.find(i => i.key === key)
-                return item ? { item, width } : null
-              })
+          {/* Chapters wrap the 15 sections into 5 editorial groupings.
+              Each chapter has a big print-style header (chapter number
+              + label + tagline) then its sections render inside.
+              Verdict is rendered separately below so it lands as the
+              decisive close. Sections not assigned to a chapter fall
+              into a final "Other" group so legacy briefs never lose
+              content. */}
+          {CHAPTERS.map((chapter, chapterIdx) => {
+            const chapterSections = chapter.sectionIds
+              .map(id => sections.find(s => s.id === id))
               .filter(Boolean)
+            if (chapterSections.length === 0) return null
+            // Chapter loading state: dim header until at least one
+            // section in the chapter has streamed in.
+            const anyDone = chapterSections.some(s =>
+              s.items.some(i => i.content != null && i.content !== undefined && !(typeof i.content === 'object' && i.content.__error))
+            )
             return (
-              <section
-                key={section.id}
-                id={`brief-v2-${section.id}`}
-                ref={el => (sectionRefs.current[section.id] = el)}
-                className={`brief-v2-section ${decision?.status ? `brief-v2-section-${decision.status}` : ''}`}
-              >
-                <SectionHeader
-                  index={sectionIdx + 1}
-                  title={display.title}
-                  eyebrow={display.eyebrow}
-                  sectionId={section.id}
+              <div key={chapter.id} className="brief-v2-chapter">
+                <ChapterHeader
+                  number={chapterIdx + 1}
+                  label={chapter.label}
+                  tagline={chapter.tagline}
+                  loading={!anyDone}
                 />
-                {showReview && (
-                  <SectionReviewBar
-                    sectionId={section.id}
-                    decision={decision}
-                    onDecide={onSectionDecision}
+                {chapterSections.map(section => (
+                  <SectionBlock
+                    key={section.id}
+                    section={section}
+                    sectionRefs={sectionRefs}
+                    sectionDecisions={sectionDecisions}
+                    onSectionDecision={onSectionDecision}
                   />
-                )}
-                <div className="brief-v2-grid">
-                  {orderedCells.map(({ item, width }) => (
-                    <div
-                      key={item.id}
-                      className={`brief-v2-cell brief-v2-cell-${width}`}
-                    >
-                      <BriefCard item={item} />
-                    </div>
-                  ))}
-                </div>
-              </section>
+                ))}
+              </div>
             )
           })}
+
+          {/* Verdict rendered as a special standalone closing block,
+              not as a chapter. Reads as the editorial conclusion. */}
+          {(() => {
+            const verdict = sections.find(s => s.id === 'verdict')
+            if (!verdict) return null
+            return (
+              <div className="brief-v2-chapter brief-v2-chapter-verdict">
+                <ChapterHeader
+                  number="06"
+                  label="Verdict"
+                  tagline="The Design Director's decisive close."
+                  loading={!verdict.items.some(i => i.content != null && !(typeof i.content === 'object' && i.content.__error))}
+                />
+                <SectionBlock
+                  section={verdict}
+                  sectionRefs={sectionRefs}
+                  sectionDecisions={sectionDecisions}
+                  onSectionDecision={onSectionDecision}
+                />
+              </div>
+            )
+          })()}
+
+          {/* Catch-all for sections not assigned to any chapter (legacy
+              briefs or framework additions). Renders without a chapter
+              header so they don't disrupt the editorial flow. */}
+          {(() => {
+            const claimed = new Set([...CHAPTERS.flatMap(c => c.sectionIds), 'verdict'])
+            const orphans = sections.filter(s => !claimed.has(s.id))
+            if (!orphans.length) return null
+            return (
+              <div className="brief-v2-chapter">
+                {orphans.map(section => (
+                  <SectionBlock
+                    key={section.id}
+                    section={section}
+                    sectionRefs={sectionRefs}
+                    sectionDecisions={sectionDecisions}
+                    onSectionDecision={onSectionDecision}
+                  />
+                ))}
+              </div>
+            )
+          })()}
 
           {/* Design system panel intentionally not rendered in the
               result view. The extracted designSystem object still
               lives on result.designSystem and is consumed by the
-              kanban + AI builder pipelines downstream — it just
+              kanban + AI builder pipelines downstream, it just
               isn't shown to the designer here since the brief
               cards already surface the same content (palette,
               typography, etc) in their proper sections. */}
@@ -300,7 +354,7 @@ export default function BriefV2View({
         </main>
       </div>
 
-      {/* Floating table of contents — bottom-right on desktop +
+      {/* Floating table of contents, bottom-right on desktop +
           mobile. Opens a panel listing all 5 sections; click a
           section to scroll-snap to its header. */}
       <FloatingTOC
@@ -345,7 +399,7 @@ export default function BriefV2View({
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Section layout — per-section editorial title, eyebrow, and item-
+// Section layout, per-section editorial title, eyebrow, and item-
 // to-cell-width mapping. The view reorders + re-sizes each item's
 // card based on this config, so direction (the showpiece) gets
 // full-width palette + typography while boundaries gets a tidy
@@ -355,6 +409,47 @@ export default function BriefV2View({
 // Items present in the section but missing from the layout fall
 // through silently (so framework additions don't break the view).
 // ────────────────────────────────────────────────────────────────────
+// Chapter groupings, wraps the 15 section IDs into 5 editorial
+// chapters so the brief reads like a magazine with chapters
+// rather than 15 cards in a list. Each chapter has a tone +
+// number + label + tagline. Sections are rendered inside their
+// chapter; sections not in any chapter (legacy briefs) fall to
+// an "Other" chapter at the bottom so nothing's lost.
+const CHAPTERS = [
+  {
+    id: 'strategy',
+    label: 'Strategy',
+    tagline: 'What we are solving, what we are building, and what could go wrong.',
+    sectionIds: ['understand', 'product_decisions', 'interrogate'],
+  },
+  {
+    id: 'direction',
+    label: 'Creative Direction',
+    tagline: 'How the brand should look, feel, and read at every scale.',
+    sectionIds: ['direction', 'color_strategy', 'typography_system', 'info_hierarchy'],
+  },
+  {
+    id: 'landscape',
+    label: 'Landscape',
+    tagline: 'Who else lives in this space and what to study.',
+    sectionIds: ['landscape', 'inspiration_library'],
+  },
+  {
+    id: 'system',
+    label: 'System',
+    tagline: 'The mechanical foundations the build pipeline runs on.',
+    sectionIds: ['system_foundations', 'visual_language', 'builder_guidance'],
+  },
+  {
+    id: 'plan',
+    label: 'Plan',
+    tagline: 'Scope, content boundaries, and the build sequence.',
+    sectionIds: ['boundaries', 'build_priorities'],
+  },
+]
+// Verdict gets its own treatment outside the chapter loop so it
+// reads as the decisive close, not just chapter 6.
+
 const SECTION_LAYOUT = {
   understand: {
     title:   'The Problem',
@@ -408,7 +503,7 @@ const SECTION_LAYOUT = {
   },
   typography_system: {
     title:   'Typography System',
-    eyebrow: 'Display, heading, body, mono — with weights + responsive scale',
+    eyebrow: 'Display, heading, body, mono, with weights + responsive scale',
     layout: [
       ['typography_direction', 'full'],
     ],
@@ -475,14 +570,14 @@ const SECTION_LAYOUT = {
   },
   verdict: {
     title:   "Director's Verdict",
-    eyebrow: 'Decisive close — read this if you read nothing else',
+    eyebrow: 'Decisive close, read this if you read nothing else',
     layout: [
       ['director_verdict', 'full'],
     ],
   },
 }
 
-// Section accent palette — each section has a hue applied to the
+// Section accent palette, each section has a hue applied to the
 // section number glyph + the eyebrow. Tints stay subtle so the
 // content cards lead the page, not the dividers.
 const SECTION_TONES = {
@@ -582,21 +677,91 @@ function FloatingTOC({ sections, activeId, onJump }) {
   )
 }
 
-// Editorial section header — large section number on the left,
+// Editorial section header, large section number on the left,
 // eyebrow + title stack on the right. Reads like a magazine spread
 // rather than a chip + label row.
+// ── Chapter header ─────────────────────────────────────────────────
+// Print-style chapter divider. Bigger than a section header, sits
+// above a group of related sections. Shows a pulsating dot while
+// the chapter is still loading.
+function ChapterHeader({ number, label, tagline, loading }) {
+  return (
+    <header className="brief-v2-chapter-header">
+      <div className="brief-v2-chapter-rule" aria-hidden />
+      <div className="brief-v2-chapter-row">
+        <span className="brief-v2-chapter-num">CHAPTER {typeof number === 'number' ? String(number).padStart(2, '0') : number}</span>
+        <h2 className="brief-v2-chapter-label">{label}</h2>
+      </div>
+      <div className="brief-v2-chapter-tagline-row">
+        <p className="brief-v2-chapter-tagline">{tagline}</p>
+        {loading && (
+          <span className="brief-v2-chapter-status" aria-label="Loading">
+            <span className="brief-v2-chapter-dot" />
+            <span>Generating</span>
+          </span>
+        )}
+      </div>
+    </header>
+  )
+}
+
+// ── Section block ──────────────────────────────────────────────────
+// Extracted from the chapter loop so we can render a section either
+// inside a chapter or standalone (for the verdict / orphan groups).
+// Uses the same SECTION_LAYOUT config as before for ordering + cell
+// widths.
+function SectionBlock({ section, sectionRefs, sectionDecisions, onSectionDecision }) {
+  const decision = sectionDecisions?.[section.id] || null
+  const showReview = !!onSectionDecision
+  const cfg = SECTION_LAYOUT[section.id]
+  const display = cfg || { title: section.label, eyebrow: '', layout: section.items.map(i => [i.key, 'full']) }
+  const orderedCells = display.layout
+    .map(([key, width]) => {
+      const item = section.items.find(i => i.key === key)
+      return item ? { item, width } : null
+    })
+    .filter(Boolean)
+  return (
+    <section
+      id={`brief-v2-${section.id}`}
+      ref={el => { if (sectionRefs?.current) sectionRefs.current[section.id] = el }}
+      className={`brief-v2-section ${decision?.status ? `brief-v2-section-${decision.status}` : ''}`}
+    >
+      <SectionHeader
+        title={display.title}
+        eyebrow={display.eyebrow}
+        sectionId={section.id}
+      />
+      {showReview && (
+        <SectionReviewBar
+          sectionId={section.id}
+          decision={decision}
+          onDecide={onSectionDecision}
+        />
+      )}
+      <div className="brief-v2-grid">
+        {orderedCells.map(({ item, width }) => (
+          <div
+            key={item.id}
+            className={`brief-v2-cell brief-v2-cell-${width}`}
+          >
+            <BriefCard item={item} />
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function SectionHeader({ index, title, eyebrow, sectionId }) {
   const tone = SECTION_TONES[sectionId] || SECTION_TONES.understand
-  const num = String(index).padStart(2, '0')
   return (
     <div className="brief-v2-section-header">
       <span
-        className="brief-v2-section-num"
-        style={{ color: tone.ink }}
+        className="brief-v2-section-dot"
+        style={{ background: tone.ink }}
         aria-hidden
-      >
-        {num}
-      </span>
+      />
       <div className="brief-v2-section-headtext">
         {eyebrow && (
           <span
@@ -1055,22 +1220,22 @@ function QuickReadStrip({ sections }) {
   const journey   = understand?.items?.find(i => i.key === 'user_journey')?.content
   const scope     = boundaries?.items?.find(i => i.key === 'scope_constraints')?.content
 
-  // Bail until at least one source has streamed in — avoids a row of
-  // empty "—" cards on the very first paint.
+  // Bail until at least one source has streamed in, avoids a row of
+  // empty "-" cards on the very first paint.
   const ready = [audience, success, delivs, scope].some(v => v != null && (typeof v === 'string' ? v.trim() : true))
   if (!ready) return null
 
   const cards = [
     {
       label: 'Audience',
-      value: firstSentence(audience) || '—',
+      value: firstSentence(audience) || '-',
       hint: typeof audience === 'string' && /Not for:/i.test(audience)
         ? 'with exclusions' : '',
       hue: '#3b82f6',
     },
     {
       label: 'Goal',
-      value: firstSentence(success) || '—',
+      value: firstSentence(success) || '-',
       hint: '',
       hue: '#10b981',
     },
@@ -1078,7 +1243,7 @@ function QuickReadStrip({ sections }) {
       label: 'Deliverables',
       value: Array.isArray(delivs)
         ? `${delivs.length} item${delivs.length === 1 ? '' : 's'}`
-        : '—',
+        : '-',
       hint: Array.isArray(journey) ? `${journey.length} touchpoints` : '',
       hue: '#8b5cf6',
     },
@@ -1086,7 +1251,7 @@ function QuickReadStrip({ sections }) {
       label: 'Constraints',
       value: Array.isArray(scope)
         ? `${scope.length} bound${scope.length === 1 ? '' : 's'}`
-        : '—',
+        : '-',
       hint: '',
       hue: '#b45309',
     },
@@ -1118,7 +1283,7 @@ function firstSentence(v) {
 // word (CHAOS / THIN / GOOD / STRONG / EXCELLENT) above a donut
 // ring + score, the AI's one-line summary, and three sub-score
 // bars colour-coded by performance. Replaces the previous compact
-// popover badge — clients open the brief and immediately see
+// popover badge, clients open the brief and immediately see
 // where it sits.
 function BriefScoreBadge({ score }) {
   if (!score || typeof score.overall !== 'number') return null
@@ -1570,7 +1735,7 @@ function RolesContent({ value }) {
   )
 }
 
-// SwatchCard — single colour swatch with optional expand-to-show
+// SwatchCard, single colour swatch with optional expand-to-show
 // deep analysis (psychology + why-it-fits breakdown + competitor
 // comparison). Designers get the scannable view by default, click
 // the swatch card to drill in.
@@ -1680,7 +1845,7 @@ function LevelsContent({ value }) {
 
   return (
     <div className="brief-v2-type">
-      {/* Family cards — display / heading / body / mono (4 roles).
+      {/* Family cards, display / heading / body / mono (4 roles).
           Falls back to legacy 'label' role when 'heading' / 'mono'
           aren't present, so older briefs still render. */}
       <div className="brief-v2-type-families">
@@ -1691,7 +1856,7 @@ function LevelsContent({ value }) {
         {!heading && !mono && label && <FontFamilyCard role="Label" font={label} />}
       </div>
 
-      {/* Weights table — full 8-step scale with per-weight usage */}
+      {/* Weights table, full 8-step scale with per-weight usage */}
       {weights && weights.length > 0 && (
         <div className="brief-v2-weights">
           <div className="brief-v2-weights-head">Font weight usage</div>
@@ -1849,7 +2014,7 @@ function FontFamilyCard({ role, font }) {
   )
 }
 
-// One-word sample for the table layout — full sentences don't fit
+// One-word sample for the table layout, full sentences don't fit
 // in a single table cell at size H1 (48px).
 function sampleShort(token) {
   const t = String(token || '').toLowerCase()
@@ -2105,7 +2270,7 @@ function prettyHost(url) {
 // The decisive editorial close. Renders as a 3-column data grid for
 // the discrete priority calls (priorities, screen, feature, etc) +
 // two narrative paragraphs at the top (product_summary, final
-// recommendation). Editorial weight by default — designers should
+// recommendation). Editorial weight by default, designers should
 // be able to read this section in 30 seconds and have a complete
 // picture of the project's direction.
 // ── Features hierarchy (4-tier) ────────────────────────────────────
@@ -2278,7 +2443,7 @@ function GridSystemContent({ value }) {
   const v = (value && typeof value === 'object') ? value : {}
   const devices = [
     { key: 'mobile',  label: 'Mobile',  hint: '< 768' },
-    { key: 'tablet',  label: 'Tablet',  hint: '768 – 1023' },
+    { key: 'tablet',  label: 'Tablet',  hint: '768-1023' },
     { key: 'desktop', label: 'Desktop', hint: '≥ 1024' },
   ]
   if (!v.mobile && !v.tablet && !v.desktop) return <p className="brief-v2-text">No grid system yet.</p>
@@ -2573,7 +2738,7 @@ function VerdictContent({ value }) {
 
       {v.final_recommendation && (
         <div className="brief-v2-verdict-final">
-          <div className="brief-v2-verdict-final-label">FINAL RECOMMENDATION — DESIGN DIRECTOR</div>
+          <div className="brief-v2-verdict-final-label">FINAL RECOMMENDATION, DESIGN DIRECTOR</div>
           <p>{v.final_recommendation}</p>
         </div>
       )}
@@ -3475,7 +3640,7 @@ function ResponsiveStyles() {
       }
       /* WCAG: white text on these solid backgrounds. amber-500
          (#f59e0b) only gives 2.05:1 vs white and red-500 (#ef4444)
-         gives 3.76:1 — both fail AA 4.5:1. Bumped to amber-700 +
+         gives 3.76:1, both fail AA 4.5:1. Bumped to amber-700 +
          red-700 so the numbered circles announce themselves
          properly. */
       .brief-v2-redflag-num-critical { background: #b91c1c; }
@@ -3489,7 +3654,7 @@ function ResponsiveStyles() {
       .brief-v2-redflag-sev {
         align-self: start;
         padding: 3px 8px;
-        background: #b91c1c; /* red-700 — passes 4.5:1 with white */
+        background: #b91c1c; /* red-700, passes 4.5:1 with white */
         color: white;
         border-radius: 100px;
         font: 800 9px 'Urbanist', sans-serif;
@@ -4267,25 +4432,31 @@ function ResponsiveStyles() {
         font-weight: 600;
       }
 
-      /* ── Section rhythm: more breathing room between sections,
-         editorial divider line above each header. */
+      /* ── Section rhythm inside chapters. Chapter header provides
+         the heavy divider; section dividers between sections within
+         a chapter are lighter (no top border, just whitespace). */
       .brief-v2-section {
-        margin-top: 56px;
-        padding-top: 32px;
-        border-top: 1px solid var(--color-border);
+        margin-top: 36px;
+        padding-top: 8px;
         scroll-margin-top: 80px;
       }
-      .brief-v2-section:first-of-type {
-        margin-top: 28px;
-        padding-top: 0;
-        border-top: none;
+      .brief-v2-chapter > .brief-v2-section:first-of-type {
+        margin-top: 4px;
       }
       .brief-v2-section-header {
-        display: flex; align-items: flex-start; gap: 18px;
-        margin-bottom: 22px;
-        padding: 8px 0;
+        display: flex; align-items: center; gap: 12px;
+        margin-bottom: 20px;
+        padding: 4px 0;
+      }
+      .brief-v2-section-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 9px;
+        align-self: flex-start;
       }
       .brief-v2-section-num {
+        /* kept for back-compat; new chapter layout uses dots */
         font: 800 36px 'Urbanist', sans-serif;
         line-height: 0.9;
         letter-spacing: -0.02em;
@@ -4302,7 +4473,7 @@ function ResponsiveStyles() {
       .brief-v2-section-approved          { /* accent supplied by inner bar */ }
       .brief-v2-section-changes_requested { /* accent supplied by inner bar */ }
 
-      /* ── Per-section layout grid — 12-col system so cards can
+      /* ── Per-section layout grid, 12-col system so cards can
          declare full / half (and future third / quarter) widths
          intentionally. */
       .brief-v2-grid {
@@ -4540,7 +4711,7 @@ function ResponsiveStyles() {
       .brief-v2-roles-avoid-label {
         display: inline-block;
         font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
-        color: #b91c1c; /* red-700 — passes AA on the light red tint */
+        color: #b91c1c; /* red-700, passes AA on the light red tint */
         margin-right: 6px;
       }
 
@@ -5224,6 +5395,136 @@ function ResponsiveStyles() {
         border-radius: 5px;
         animation: briefv2shimmer 1.4s ease-in-out infinite;
       }
+      /* Whole-card pulse while waiting for content. Makes it
+         visually obvious which cards are still generating vs
+         which have streamed in. */
+      .brief-v2-card.is-loading {
+        position: relative;
+        overflow: hidden;
+        animation: briefv2pulse 2s ease-in-out infinite;
+      }
+      .brief-v2-card.is-loading::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          110deg,
+          transparent 30%,
+          rgba(139,92,246,0.06) 50%,
+          transparent 70%
+        );
+        background-size: 200% 100%;
+        animation: briefv2sweep 1.8s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes briefv2sweep {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+
+      /* ── Chapter dividers ─────────────────────────────────────── */
+      .brief-v2-chapter { margin-bottom: 12px; }
+      .brief-v2-chapter-header {
+        margin: 64px 0 32px;
+        padding-top: 24px;
+      }
+      .brief-v2-chapter:first-of-type .brief-v2-chapter-header { margin-top: 32px; }
+      .brief-v2-chapter-rule {
+        height: 1px;
+        background: var(--color-text);
+        opacity: 0.85;
+        margin-bottom: 18px;
+      }
+      .brief-v2-chapter-row {
+        display: flex; align-items: baseline; gap: 18px;
+        flex-wrap: wrap;
+      }
+      .brief-v2-chapter-num {
+        font: 800 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.18em;
+        color: var(--color-text-muted);
+        flex-shrink: 0;
+      }
+      .brief-v2-chapter-label {
+        margin: 0;
+        font: 800 40px 'Urbanist', sans-serif;
+        letter-spacing: -0.02em;
+        line-height: 1;
+        color: var(--color-text);
+      }
+      .brief-v2-chapter-tagline-row {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 16px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .brief-v2-chapter-tagline {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--color-text-soft);
+        max-width: 680px;
+      }
+      .brief-v2-chapter-status {
+        display: inline-flex; align-items: center; gap: 6px;
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--color-accent);
+      }
+      .brief-v2-chapter-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--color-accent);
+        animation: briefv2pulse 1.4s ease-in-out infinite;
+      }
+      .brief-v2-chapter-verdict .brief-v2-chapter-label { color: var(--color-text); }
+      @media (max-width: 600px) {
+        .brief-v2-chapter-label { font-size: 30px; }
+        .brief-v2-chapter-header { margin: 48px 0 22px; padding-top: 18px; }
+      }
+
+      /* ── Streaming progress bar ───────────────────────────────── */
+      .brief-v2-progressbar {
+        padding: 12px 16px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        margin-bottom: 24px;
+      }
+      .brief-v2-progressbar-meta {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .brief-v2-progressbar-label {
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.06em;
+        color: var(--color-text);
+        display: flex; align-items: center; gap: 8px;
+      }
+      .brief-v2-progressbar-label::before {
+        content: '';
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--color-accent);
+        animation: briefv2pulse 1.4s ease-in-out infinite;
+      }
+      .brief-v2-progressbar-count {
+        font: 700 11px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-progressbar-track {
+        height: 4px;
+        background: var(--color-border);
+        border-radius: 100px;
+        overflow: hidden;
+      }
+      .brief-v2-progressbar-fill {
+        height: 100%;
+        background: var(--color-accent);
+        border-radius: 100px;
+        transition: width 0.6s ease;
+      }
 
       .brief-v2-banner {
         background: linear-gradient(135deg, rgba(139,92,246,0.10), rgba(99,102,241,0.06));
@@ -5363,7 +5664,7 @@ function ResponsiveStyles() {
       }
       .brief-v2-pending-comment {
         padding: 10px 12px;
-        /* Recessed inside the banner — sits at --color-bg so it
+        /* Recessed inside the banner, sits at --color-bg so it
            feels inset (one layer deeper than the surrounding
            surface). The previous semi-white + amber border looked
            muddy on dark backgrounds. */
