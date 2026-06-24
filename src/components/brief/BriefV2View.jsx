@@ -2021,7 +2021,9 @@ function PendingChangesBanner({ note, comments, onRevise, onResolve, revising })
 
   return (
     <div className="brief-v2-pending-banner">
-      <ExclamationTriangleIcon style={{ width: 22, height: 22, color: '#b45309', flexShrink: 0, marginTop: 1 }} />
+      <div className="brief-v2-pending-banner-icon" aria-hidden>
+        <ExclamationTriangleIcon style={{ width: 16, height: 16 }} />
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="brief-v2-pending-banner-title">
           {useThread
@@ -3289,37 +3291,46 @@ function ResponsiveStyles() {
       .brief-v2-vtab-restore:hover { opacity: 0.8; }
 
       /* ── Pending client-changes banner (designer view) ──────────
-         The main "amber alert" surface. Previous 0.07 / 0.30 amber
-         tints + #d97706 icon looked decorative rather than urgent
-         and barely cleared 3:1 contrast in dark mode. This version
-         hits WCAG AA on every text element. */
+         Premium dark surface treatment: clean elevated neutral
+         (--color-surface) with a 3px terracotta indicator on the
+         left edge. The accent is confined to the border + icon
+         chip; the body itself sits on the same surface language
+         as the rest of the dark UI so the alert announces itself
+         without shouting in amber wash.
+         Terracotta #c2410c chosen over amber-700 for an editorial
+         feel that pairs with luxury / heritage palettes; swap to
+         #a16207 (muted amber) or #059669 (emerald) by overriding
+         the --pending-accent token below. */
       .brief-v2-pending-banner {
-        display: flex; gap: 12px; align-items: flex-start;
+        --pending-accent: #c2410c;
+        display: flex; gap: 14px; align-items: flex-start;
         margin-bottom: 24px;
-        padding: 14px 16px;
-        background: rgba(245,158,11,0.16);
-        border: 1px solid rgba(180,83,9,0.55);
-        border-radius: 14px;
+        padding: 16px 18px 16px 16px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-left: 3px solid var(--pending-accent);
+        border-radius: 12px;
+      }
+      .brief-v2-pending-banner-icon {
+        width: 32px; height: 32px;
+        border-radius: 9px;
+        background: rgba(194,65,12,0.14);
+        color: var(--pending-accent);
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        margin-top: 1px;
       }
       .brief-v2-pending-banner-title {
-        font: 800 13px 'Urbanist', sans-serif;
-        /* explicit amber-800 so the title reads as a warning even
-           against page bg, instead of inheriting plain --color-text */
-        color: #92400e;
-        margin-bottom: 4px;
+        font: 800 14px 'Urbanist', sans-serif;
+        color: var(--color-text);
+        margin-bottom: 5px;
+        letter-spacing: -0.005em;
       }
       .brief-v2-pending-banner-note {
         font-size: 13px;
-        color: var(--color-text); /* darker than text-soft — passes AA on the amber tint */
-        line-height: 1.55;
+        color: var(--color-text-soft);
+        line-height: 1.6;
         white-space: pre-wrap;
-      }
-      /* Dark-mode override: amber-800 reads almost black on the
-         already-dark tinted bg. Lighten the heading + soften the
-         note so both clear 4.5:1 against the dark amber wash. */
-      @media (prefers-color-scheme: dark) {
-        .brief-v2-pending-banner-title { color: #fcd34d; }
-        .brief-v2-pending-banner-note  { color: rgba(255,255,255,0.92); }
       }
       .brief-v2-pending-banner-btn {
         flex-shrink: 0;
@@ -3340,15 +3351,19 @@ function ResponsiveStyles() {
         display: flex; flex-direction: column; gap: 8px;
       }
       .brief-v2-pending-comment {
-        padding: 9px 11px;
-        background: rgba(255,255,255,0.55);
-        border: 1px solid rgba(245,158,11,0.20);
+        padding: 10px 12px;
+        /* Recessed inside the banner — sits at --color-bg so it
+           feels inset (one layer deeper than the surrounding
+           surface). The previous semi-white + amber border looked
+           muddy on dark backgrounds. */
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
         border-radius: 8px;
       }
       .brief-v2-pending-comment-resolved {
-        background: var(--color-surface);
+        background: transparent;
         border-color: var(--color-border);
-        opacity: 0.6;
+        opacity: 0.55;
       }
       .brief-v2-pending-comment-meta {
         display: flex; align-items: center; justify-content: space-between;
