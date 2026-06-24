@@ -178,6 +178,12 @@ export default function BriefV2View({
             </header>
           )}
 
+          {/* Quick Read strip — four KPI cards distilling the
+              brief's most-asked questions into a glance. Hides on
+              very narrow screens by falling into a horizontal
+              scroll snap rail. */}
+          <QuickReadStrip sections={sections} />
+
           {/* Version tab strip, only when there's at least one
               older snapshot to compare against. Latest tab is left;
               older versions stack to the right, newest first. */}
@@ -234,9 +240,20 @@ export default function BriefV2View({
             />
           )}
 
-          {sections.map(section => {
+          {sections.map((section, sectionIdx) => {
             const decision = sectionDecisions?.[section.id] || null
             const showReview = !!onSectionDecision
+            const cfg = SECTION_LAYOUT[section.id]
+            const display = cfg || { title: section.label, eyebrow: '', layout: section.items.map(i => [i.key, 'full']) }
+            // Map layout config to actual item objects (in declared
+            // order). Items not present in the section data fall
+            // through silently.
+            const orderedCells = display.layout
+              .map(([key, width]) => {
+                const item = section.items.find(i => i.key === key)
+                return item ? { item, width } : null
+              })
+              .filter(Boolean)
             return (
               <section
                 key={section.id}
@@ -244,7 +261,12 @@ export default function BriefV2View({
                 ref={el => (sectionRefs.current[section.id] = el)}
                 className={`brief-v2-section ${decision?.status ? `brief-v2-section-${decision.status}` : ''}`}
               >
-                <SectionHeader index={sections.indexOf(section) + 1} label={section.label} sectionId={section.id} />
+                <SectionHeader
+                  index={sectionIdx + 1}
+                  title={display.title}
+                  eyebrow={display.eyebrow}
+                  sectionId={section.id}
+                />
                 {showReview && (
                   <SectionReviewBar
                     sectionId={section.id}
@@ -252,9 +274,14 @@ export default function BriefV2View({
                     onDecide={onSectionDecision}
                   />
                 )}
-                <div className="brief-v2-card-grid">
-                  {section.items.map(item => (
-                    <BriefCard key={item.id} item={item} />
+                <div className="brief-v2-grid">
+                  {orderedCells.map(({ item, width }) => (
+                    <div
+                      key={item.id}
+                      className={`brief-v2-cell brief-v2-cell-${width}`}
+                    >
+                      <BriefCard item={item} />
+                    </div>
                   ))}
                 </div>
               </section>
@@ -272,6 +299,19 @@ export default function BriefV2View({
           <div style={{ height: 80 }} />
         </main>
       </div>
+
+      {/* Floating table of contents — bottom-right on desktop +
+          mobile. Opens a panel listing all 5 sections; click a
+          section to scroll-snap to its header. */}
+      <FloatingTOC
+        sections={sections.map((s, i) => ({
+          id: s.id,
+          label: SECTION_LAYOUT[s.id]?.title || s.label,
+          index: i + 1,
+        }))}
+        activeId={activeSectionId}
+        onJump={scrollToSection}
+      />
 
       <BriefV2ShareModal
         open={shareOpen}
@@ -305,36 +345,186 @@ export default function BriefV2View({
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Section header, circular section icon + title chip
+// Section layout — per-section editorial title, eyebrow, and item-
+// to-cell-width mapping. The view reorders + re-sizes each item's
+// card based on this config, so direction (the showpiece) gets
+// full-width palette + typography while boundaries gets a tidy
+// 2-up grid.
+//
+// width: 'full' = 12 cols, 'half' = 6 cols.
+// Items present in the section but missing from the layout fall
+// through silently (so framework additions don't break the view).
 // ────────────────────────────────────────────────────────────────────
-const SECTION_GLYPHS = {
-  understand:  '01',
-  interrogate: '02',
-  direction:   '03',
-  landscape:   '04',
-  boundaries:  '05',
-}
-const SECTION_TONES = {
-  understand:  { tint: 'rgba(59,130,246,0.10)',  ink: '#3b82f6' },
-  interrogate: { tint: 'rgba(245,158,11,0.10)',  ink: '#d97706' },
-  direction:   { tint: 'rgba(139,92,246,0.10)',  ink: '#8b5cf6' },
-  landscape:   { tint: 'rgba(16,185,129,0.10)',  ink: '#10b981' },
-  boundaries:  { tint: 'rgba(239,68,68,0.10)',   ink: '#ef4444' },
+const SECTION_LAYOUT = {
+  understand: {
+    title:   'The Problem',
+    eyebrow: 'What we are really solving',
+    layout: [
+      ['core_problem_clarity', 'full'],
+      ['project_intent',       'half'],
+      ['business_context',     'half'],
+      ['target_audience',      'full'],
+      ['success_definition',   'half'],
+      ['deliverables',         'half'],
+      ['user_journey',         'full'],
+    ],
+  },
+  interrogate: {
+    title:   'The Reality Check',
+    eyebrow: 'Risks, gaps, and assumptions',
+    layout: [
+      ['red_flags',       'full'],
+      ['wants_vs_needs',  'half'],
+      ['assumptions_log', 'half'],
+      ['questions',       'full'],
+    ],
+  },
+  direction: {
+    title:   'The Creative Direction',
+    eyebrow: 'How the brand should look and feel',
+    layout: [
+      ['brand_personality',    'half'],
+      ['tone_mood',            'half'],
+      ['color_direction',      'full'],
+      ['typography_direction', 'full'],
+      ['emotional_direction',  'half'],
+      ['moodboard_direction',  'half'],
+    ],
+  },
+  landscape: {
+    title:   'The Landscape',
+    eyebrow: 'Who else lives in this space',
+    layout: [
+      ['reference_audit',     'full'],
+      ['competitor_analysis', 'full'],
+    ],
+  },
+  boundaries: {
+    title:   'The Plan',
+    eyebrow: 'Scope and content boundaries',
+    layout: [
+      ['scope_constraints', 'full'],
+      ['content_inventory', 'full'],
+    ],
+  },
 }
 
-function SectionHeader({ index, label, sectionId }) {
+// Section accent palette — each section has a hue applied to the
+// section number glyph + the eyebrow. Tints stay subtle so the
+// content cards lead the page, not the dividers.
+const SECTION_TONES = {
+  understand:  { tint: 'rgba(59,130,246,0.10)',  ink: '#1d4ed8' },  // blue-700
+  interrogate: { tint: 'rgba(245,158,11,0.10)',  ink: '#b45309' },  // amber-700
+  direction:   { tint: 'rgba(139,92,246,0.10)',  ink: '#6d28d9' },  // violet-700
+  landscape:   { tint: 'rgba(16,185,129,0.10)',  ink: '#047857' },  // emerald-700
+  boundaries:  { tint: 'rgba(239,68,68,0.10)',   ink: '#b91c1c' },  // red-700
+}
+
+// ── Floating table of contents ─────────────────────────────────────
+// Bottom-right pill that toggles a section list. Designed to feel
+// like a discrete utility (not a primary nav), so it stays small +
+// dark + tucked into the corner. Active section highlights.
+function FloatingTOC({ sections, activeId, onJump }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    function onKey(e) { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+  if (!sections || sections.length === 0) return null
+  return (
+    <>
+      {open && (
+        <div
+          className="brief-v2-toc-backdrop"
+          onClick={() => setOpen(false)}
+          aria-hidden
+        />
+      )}
+      {open && (
+        <nav
+          className="brief-v2-toc-panel"
+          aria-label="Section navigation"
+        >
+          <div className="brief-v2-toc-header">
+            <span>Jump to</span>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="brief-v2-toc-close"
+              aria-label="Close section list"
+            >
+              ✕
+            </button>
+          </div>
+          <ul className="brief-v2-toc-list">
+            {sections.map(s => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => { onJump?.(s.id); setOpen(false) }}
+                  className={`brief-v2-toc-item ${activeId === s.id ? 'is-active' : ''}`}
+                >
+                  <span className="brief-v2-toc-num">
+                    {String(s.index).padStart(2, '0')}
+                  </span>
+                  <span className="brief-v2-toc-label">{s.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="brief-v2-toc-fab"
+        aria-expanded={open}
+        aria-label="Jump to section"
+      >
+        <span className="brief-v2-toc-fab-icon" aria-hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </span>
+        <span className="brief-v2-toc-fab-text">Sections</span>
+      </button>
+    </>
+  )
+}
+
+// Editorial section header — large section number on the left,
+// eyebrow + title stack on the right. Reads like a magazine spread
+// rather than a chip + label row.
+function SectionHeader({ index, title, eyebrow, sectionId }) {
   const tone = SECTION_TONES[sectionId] || SECTION_TONES.understand
-  const glyph = SECTION_GLYPHS[sectionId] || String(index).padStart(2, '0')
+  const num = String(index).padStart(2, '0')
   return (
     <div className="brief-v2-section-header">
       <span
-        className="brief-v2-section-glyph"
-        style={{ background: tone.tint, color: tone.ink, borderColor: tone.tint }}
+        className="brief-v2-section-num"
+        style={{ color: tone.ink }}
         aria-hidden
       >
-        {glyph}
+        {num}
       </span>
-      <h2 className="brief-v2-section-title">{label}</h2>
+      <div className="brief-v2-section-headtext">
+        {eyebrow && (
+          <span
+            className="brief-v2-section-eyebrow"
+            style={{ color: tone.ink }}
+          >
+            {eyebrow}
+          </span>
+        )}
+        <h2 className="brief-v2-section-title">{title}</h2>
+      </div>
     </div>
   )
 }
@@ -754,6 +944,79 @@ function HeroSummary({ sections }) {
   return (
     <p className="brief-v2-hero-summary">{text}</p>
   )
+}
+
+// ── Quick Read strip ────────────────────────────────────────────────
+// Four small KPI-style cards below the hero that distill the brief's
+// most-asked-of questions into a single line each. Pulled
+// deterministically from the existing items, so no extra AI cost.
+// Hidden if the brief is still streaming and none of the source
+// items have arrived yet.
+function QuickReadStrip({ sections }) {
+  const understand = sections.find(s => s.id === 'understand')
+  const boundaries = sections.find(s => s.id === 'boundaries')
+  const audience  = understand?.items?.find(i => i.key === 'target_audience')?.content
+  const success   = understand?.items?.find(i => i.key === 'success_definition')?.content
+  const delivs    = understand?.items?.find(i => i.key === 'deliverables')?.content
+  const journey   = understand?.items?.find(i => i.key === 'user_journey')?.content
+  const scope     = boundaries?.items?.find(i => i.key === 'scope_constraints')?.content
+
+  // Bail until at least one source has streamed in — avoids a row of
+  // empty "—" cards on the very first paint.
+  const ready = [audience, success, delivs, scope].some(v => v != null && (typeof v === 'string' ? v.trim() : true))
+  if (!ready) return null
+
+  const cards = [
+    {
+      label: 'Audience',
+      value: firstSentence(audience) || '—',
+      hint: typeof audience === 'string' && /Not for:/i.test(audience)
+        ? 'with exclusions' : '',
+      hue: '#3b82f6',
+    },
+    {
+      label: 'Goal',
+      value: firstSentence(success) || '—',
+      hint: '',
+      hue: '#10b981',
+    },
+    {
+      label: 'Deliverables',
+      value: Array.isArray(delivs)
+        ? `${delivs.length} item${delivs.length === 1 ? '' : 's'}`
+        : '—',
+      hint: Array.isArray(journey) ? `${journey.length} touchpoints` : '',
+      hue: '#8b5cf6',
+    },
+    {
+      label: 'Constraints',
+      value: Array.isArray(scope)
+        ? `${scope.length} bound${scope.length === 1 ? '' : 's'}`
+        : '—',
+      hint: '',
+      hue: '#b45309',
+    },
+  ]
+
+  return (
+    <div className="brief-v2-quickread">
+      {cards.map((c, i) => (
+        <div key={i} className="brief-v2-quickread-card">
+          <div className="brief-v2-quickread-label" style={{ color: c.hue }}>
+            {c.label}
+          </div>
+          <div className="brief-v2-quickread-value">{c.value}</div>
+          {c.hint && <div className="brief-v2-quickread-hint">{c.hint}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function firstSentence(v) {
+  if (typeof v !== 'string') return ''
+  const m = v.trim().match(/^[^.!?]{8,180}([.!?]|$)/)
+  return (m ? m[0] : v.trim()).trim()
 }
 
 // ── Brief score card ───────────────────────────────────────────────
@@ -2290,6 +2553,58 @@ function ResponsiveStyles() {
         color: var(--color-text-soft);
         max-width: 640px;
       }
+
+      /* ── Quick Read strip ────────────────────────────────────── */
+      .brief-v2-quickread {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 4px 0 28px;
+      }
+      .brief-v2-quickread-card {
+        padding: 14px 16px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        display: flex; flex-direction: column; gap: 4px;
+        min-width: 0;
+      }
+      .brief-v2-quickread-label {
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .brief-v2-quickread-value {
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--color-text);
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+      .brief-v2-quickread-hint {
+        font: 600 11px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+      }
+      @media (max-width: 1023px) {
+        .brief-v2-quickread { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 600px) {
+        .brief-v2-quickread {
+          display: flex;
+          gap: 10px;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding-bottom: 4px;
+        }
+        .brief-v2-quickread-card {
+          flex: 0 0 78%;
+          scroll-snap-align: start;
+        }
+      }
       .brief-v2-hero-meta  { font-size: 12px; color: var(--color-text-muted); }
       .brief-v2-hero-pulse { color: var(--color-accent); animation: briefv2pulse 1.4s ease-in-out infinite; }
       .brief-v2-hero-row { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
@@ -2485,26 +2800,155 @@ function ResponsiveStyles() {
       }
       .brief-v2-tone-text { font-size: 13px; line-height: 1.55; color: var(--color-text); }
 
-      .brief-v2-section { margin-bottom: 36px; scroll-margin-top: 80px; }
-      .brief-v2-section-header {
-        display: flex; align-items: center; gap: 12px;
-        margin-bottom: 18px;
-        position: sticky; top: 0; z-index: 4;
-        background: linear-gradient(to bottom, var(--color-bg) 60%, transparent);
-        padding: 10px 0;
-      }
-      .brief-v2-section-glyph {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 36px; height: 36px;
-        border-radius: 10px;
-        border: 1px solid;
-        font: 800 12px 'JetBrains Mono', monospace;
+      /* ── Floating TOC ──────────────────────────────────────── */
+      .brief-v2-toc-fab {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 30;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 10px 16px 10px 14px;
+        background: var(--color-text);
+        color: var(--color-bg);
+        border: none;
+        border-radius: 100px;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.20);
+        font: 800 12px 'Urbanist', sans-serif;
         letter-spacing: 0.04em;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .brief-v2-toc-fab:hover { transform: translateY(-1px); box-shadow: 0 16px 36px rgba(0,0,0,0.28); }
+      .brief-v2-toc-fab-icon { display: inline-flex; align-items: center; }
+      @media (max-width: 600px) {
+        .brief-v2-toc-fab {
+          right: 16px; bottom: 16px;
+          width: 48px; height: 48px;
+          padding: 0;
+          justify-content: center;
+          border-radius: 50%;
+        }
+        .brief-v2-toc-fab-text { display: none; }
+      }
+      .brief-v2-toc-backdrop {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45);
+        backdrop-filter: blur(4px);
+        z-index: 28;
+      }
+      .brief-v2-toc-panel {
+        position: fixed;
+        right: 24px; bottom: 84px;
+        z-index: 31;
+        width: 280px;
+        max-width: calc(100vw - 32px);
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        box-shadow: 0 20px 48px rgba(0,0,0,0.30);
+        overflow: hidden;
+      }
+      @media (max-width: 600px) {
+        .brief-v2-toc-panel {
+          right: 16px; left: 16px; bottom: 76px;
+          width: auto; max-width: none;
+        }
+      }
+      .brief-v2-toc-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--color-border);
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-toc-close {
+        background: transparent; border: none; cursor: pointer;
+        color: var(--color-text-muted);
+        font: 600 13px 'Urbanist', sans-serif;
+        line-height: 1;
+        padding: 4px 6px;
+      }
+      .brief-v2-toc-list { list-style: none; margin: 0; padding: 6px; }
+      .brief-v2-toc-item {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%;
+        padding: 10px 12px;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        text-align: left;
+        cursor: pointer;
+        color: var(--color-text-soft);
+        transition: background 0.15s, color 0.15s;
+      }
+      .brief-v2-toc-item:hover {
+        background: var(--color-surface);
+        color: var(--color-text);
+      }
+      .brief-v2-toc-item.is-active {
+        background: var(--color-surface);
+        color: var(--color-text);
+      }
+      .brief-v2-toc-num {
+        font: 800 11px 'JetBrains Mono', monospace;
+        color: var(--color-text-muted);
+        min-width: 22px;
+      }
+      .brief-v2-toc-label { font: 700 13px 'Urbanist', sans-serif; }
+
+      /* ── Section rhythm: more breathing room between sections,
+         editorial divider line above each header. */
+      .brief-v2-section {
+        margin-top: 56px;
+        padding-top: 32px;
+        border-top: 1px solid var(--color-border);
+        scroll-margin-top: 80px;
+      }
+      .brief-v2-section:first-of-type {
+        margin-top: 28px;
+        padding-top: 0;
+        border-top: none;
+      }
+      .brief-v2-section-header {
+        display: flex; align-items: flex-start; gap: 18px;
+        margin-bottom: 22px;
+        padding: 8px 0;
+      }
+      .brief-v2-section-num {
+        font: 800 36px 'Urbanist', sans-serif;
+        line-height: 0.9;
+        letter-spacing: -0.02em;
         flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .brief-v2-section-headtext { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+      .brief-v2-section-eyebrow {
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
       }
       /* Per-section client review status accents on the wrapping section */
       .brief-v2-section-approved          { /* accent supplied by inner bar */ }
       .brief-v2-section-changes_requested { /* accent supplied by inner bar */ }
+
+      /* ── Per-section layout grid — 12-col system so cards can
+         declare full / half (and future third / quarter) widths
+         intentionally. */
+      .brief-v2-grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 16px;
+      }
+      .brief-v2-cell-full  { grid-column: span 12; min-width: 0; }
+      .brief-v2-cell-half  { grid-column: span 6;  min-width: 0; }
+      .brief-v2-cell-third { grid-column: span 4;  min-width: 0; }
+      @media (max-width: 1023px) {
+        .brief-v2-cell-half  { grid-column: span 12; }
+        .brief-v2-cell-third { grid-column: span 12; }
+      }
+      .brief-v2-cell > .brief-v2-card { height: 100%; }
 
       /* ── SectionReviewBar ─────────────────────────────────────── */
       .brief-v2-srbar {
@@ -2619,7 +3063,7 @@ function ResponsiveStyles() {
         border: 1px solid var(--color-border);
         text-transform: uppercase; font-weight: 700;
       }
-      .brief-v2-section-title { font-size: 20px; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
+      .brief-v2-section-title { font-size: 26px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; margin: 0; color: var(--color-text); }
 
       .brief-v2-card-grid {
         display: grid;
@@ -3538,8 +3982,12 @@ function ResponsiveStyles() {
         .brief-v2-layout { padding: 16px 14px 12px; }
         .brief-v2-hero { padding: 20px 18px; border-radius: 14px; }
         .brief-v2-hero-title { font-size: 24px; }
-        .brief-v2-section-header { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 0 6px; }
-        .brief-v2-section-title { font-size: 18px; }
+        .brief-v2-section { margin-top: 36px; padding-top: 24px; }
+        .brief-v2-section-header { gap: 14px; }
+        .brief-v2-section-num { font-size: 30px; }
+        .brief-v2-section-title { font-size: 20px; }
+        .brief-v2-section-eyebrow { font-size: 9px; }
+        .brief-v2-grid { gap: 12px; }
         .brief-v2-card { padding: 14px; border-radius: 12px; }
         .brief-v2-card-title { font-size: 16px; font-weight: 800; }
         .brief-v2-row { grid-template-columns: 1fr; gap: 10px; }
