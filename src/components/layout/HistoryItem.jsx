@@ -6,11 +6,11 @@ import {
   TrashIcon,
   EllipsisHorizontalIcon,
 } from '@heroicons/react/24/outline';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
 
-// Lightweight pill that shows where a sidebar project came from:
-// • intake source → green "Client"
-// • section='team' → purple "Team"
-// • everything else → blue "Brief"
+// Origin pill — only shown for non-brief sources (Client intake +
+// Team Collab). Brief is the default project type, so flagging it
+// with a tag is visual noise; absence of a tag implies brief.
 function OriginPill({ item }) {
   let label, bg, border, color
   if (item.source === 'intake') {
@@ -24,10 +24,8 @@ function OriginPill({ item }) {
     border = 'rgba(124,58,237,0.25)'
     color = '#7C3AED'
   } else {
-    label = 'Brief'
-    bg = 'rgba(14,165,233,0.10)'
-    border = 'rgba(14,165,233,0.25)'
-    color = '#0369A1'
+    // Brief — the default. No pill rendered so the list stays calm.
+    return null
   }
   return (
     <span style={{
@@ -53,7 +51,9 @@ function formatDate(ts) {
   const now = new Date();
   const diffDays = Math.floor((now - d) / 86400000);
   if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
+  // Use day-count for everything from 1 day onwards so the labels
+  // read consistently (1d / 2d / 6d) instead of mixing "Yesterday"
+  // into the otherwise numeric sequence.
   if (diffDays < 7) return `${diffDays}d ago`;
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
@@ -78,6 +78,8 @@ export default function HistoryItem({
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState(item.title);
   const [hovered, setHovered] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const menuRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -98,10 +100,23 @@ export default function HistoryItem({
 
   function handleMenu(key) {
     setMenuOpen(false);
-    if (key === 'delete') onDelete?.(item.id);
+    // Delete defers to a confirm modal so a stray click can't nuke
+    // a project. Pin / Rename / Share remain immediate.
+    if (key === 'delete') setConfirmDelete(true);
     else if (key === 'pin') onPin?.(item.id);
     else if (key === 'rename') { setRenameVal(item.title); setRenaming(true); }
     else if (key === 'share') onShare?.(item);
+  }
+
+  async function confirmDeleteNow() {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await Promise.resolve(onDelete?.(item.id));
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
   }
 
   function commitRename() {
@@ -309,6 +324,20 @@ export default function HistoryItem({
           })}
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={confirmDelete}
+        title="Delete project?"
+        description={(
+          <>
+            <strong>{item.title || 'Untitled'}</strong> will be removed from your
+            recents. This cannot be undone.
+          </>
+        )}
+        busy={deleting}
+        onCancel={() => { if (!deleting) setConfirmDelete(false) }}
+        onConfirm={confirmDeleteNow}
+      />
     </div>
   );
 }
