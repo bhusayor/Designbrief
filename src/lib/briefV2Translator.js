@@ -683,6 +683,7 @@ ${briefText}`,
 // Returns the full v2 result object with schemaVersion stamped.
 // ────────────────────────────────────────────────────────────────────
 export async function translateBriefV2(briefText, { onSection } = {}) {
+  console.log('[translateBriefV2] start. brief length:', briefText?.length || 0, 'sections:', BRIEF_V2_SECTIONS.length)
   const result = {
     schemaVersion: BRIEF_V2_SCHEMA_VERSION,
     projectTitle: 'Untitled brief',
@@ -730,6 +731,11 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
   async function runSection(sectionDef, attempt = 0) {
     const sectionId = sectionDef.id
     const prompt = SECTION_PROMPTS[sectionId]
+    if (!prompt) {
+      console.error('[translateBriefV2]', sectionId, 'has NO PROMPT in SECTION_PROMPTS — schema/prompt mismatch')
+      return { sectionId, ok: false, error: 'no_prompt' }
+    }
+    console.log('[translateBriefV2]', sectionId, attempt > 0 ? `retry attempt ${attempt}` : 'firing')
     try {
       const { text } = await callClaude({
         taskType: 'brief_translation',
@@ -737,6 +743,7 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
         userMessage: prompt.user(briefText),
         maxTokens: MAX_TOKENS[sectionId] || 3500,
       })
+      console.log('[translateBriefV2]', sectionId, 'returned. text length:', text?.length || 0)
       const parsed = safeJsonParse(text)
       // Hard parse failure (returned empty {}) almost always means
       // the response was truncated. Log loudly so we catch it next
@@ -796,10 +803,13 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
   const WAVE_SIZE = 4
   for (let i = 0; i < BRIEF_V2_SECTIONS.length; i += WAVE_SIZE) {
     const wave = BRIEF_V2_SECTIONS.slice(i, i + WAVE_SIZE)
+    console.log('[translateBriefV2] wave', i / WAVE_SIZE + 1, 'firing', wave.map(s => s.id).join(', '))
     // Within a wave, sections fire in parallel for speed. Between
     // waves, we await so the next batch doesn't pile on.
     await Promise.all(wave.map(s => runSection(s)))
+    console.log('[translateBriefV2] wave', i / WAVE_SIZE + 1, 'complete')
   }
+  console.log('[translateBriefV2] all sections complete')
   return result
 }
 

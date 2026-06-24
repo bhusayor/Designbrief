@@ -676,11 +676,15 @@ export default function Dashboard() {
 
 
   async function handleTranslate() {
+    console.log('[handleTranslate] click. v2Streaming:', v2Streaming, 'input length:', input?.length || 0, 'files:', attachedFiles?.length || 0)
     // Already mid-flight, don't fire twice.
     // Block double-fires while the result is streaming in. The old
     // 'loading' phase is gone, re-entry during the V2 stream is
     // gated by v2Streaming instead.
-    if (v2Streaming) return
+    if (v2Streaming) {
+      console.warn('[handleTranslate] BLOCKED — v2Streaming is true. If a previous translation failed silently this flag may be stuck. Forcing reset + continuing.')
+      setV2Streaming(false)
+    }
 
     let fullContext = input.trim()
     attachedFiles.forEach(f => {
@@ -688,10 +692,12 @@ export default function Dashboard() {
         fullContext += '\n\n--- Attached: ' + f.name + ' ---\n' + f.content
     })
     if (!fullContext.trim()) {
+      console.warn('[handleTranslate] BLOCKED — empty input')
       // Silent return hid the reason from the user, surface it.
       showToast?.('Paste a brief or attach a file first', 'warning')
       return
     }
+    console.log('[handleTranslate] context length:', fullContext.length)
 
     // Pop straight into the result view with skeleton cards. The
     // V2 translator streams each section in as soon as its call
@@ -721,8 +727,11 @@ export default function Dashboard() {
     // we surface a generic retry toast so the click is always
     // acknowledged.
     if (consumeCredits) {
+      console.log('[handleTranslate] checking credits...')
       const r = await consumeCredits('brief_translation')
+      console.log('[handleTranslate] credits result:', r)
       if (!r.ok) {
+        console.warn('[handleTranslate] BLOCKED — credit check failed:', r.reason)
         if (r.reason && r.reason !== 'insufficient_credits') {
           showToast?.('Could not start translation. Try again in a moment.', 'error')
         }
@@ -785,6 +794,7 @@ export default function Dashboard() {
       setCreditsUsed(prev => prev + 1)
 
       const fullBrief = fullContext + templateContext + connectorContext
+      console.log('[handleTranslate] calling translateBriefV2. fullBrief length:', fullBrief.length)
 
       const finalResult = await translateBriefV2(fullBrief, {
         onSection: (sectionId, items, partialResult) => {
@@ -881,6 +891,8 @@ export default function Dashboard() {
         data: { brief: fullBrief, result: resultWithMeta },
       })
     } catch (err) {
+      console.error('[handleTranslate] CAUGHT ERROR:', err)
+      console.error('[handleTranslate] error stack:', err?.stack)
       clearInterval(msgTimerRef.current)
       // Recognise timeout-class errors so we can give a more
       // actionable message than the raw "interrupted" line.
@@ -895,6 +907,7 @@ export default function Dashboard() {
         'error'
       )
       setPhase('input')
+      setV2Streaming(false)
     }
   }
 
