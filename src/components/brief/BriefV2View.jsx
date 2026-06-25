@@ -1585,63 +1585,50 @@ function RolesContent({ value }) {
 
   return (
     <div className="brief-v2-palette">
-      {/* Swatch grid (with optional per-swatch deep analysis) */}
-      {swatches && swatches.length > 0 && (
-        <div className="brief-v2-swatch-grid">
-          {swatches.map((s, i) => (
-            <SwatchCard key={i} swatch={s} copied={copied} onCopy={copyHex} />
-          ))}
-        </div>
-      )}
-
-      {/* Semantic colour strip */}
-      {v.semantic && (v.semantic.success || v.semantic.error) && (
-        <div className="brief-v2-semantic">
-          <div className="brief-v2-semantic-label">Semantic palette</div>
-          <div className="brief-v2-semantic-row">
-            {['success', 'warning', 'error', 'info'].map(k => {
-              const sem = v.semantic[k]
-              if (!sem || !sem.hex) return null
-              return (
-                <div key={k} className="brief-v2-semantic-chip">
-                  <div className="brief-v2-semantic-swatch" style={{ background: sem.hex }} />
-                  <div className="brief-v2-semantic-meta">
-                    <span className="brief-v2-semantic-name">{k}</span>
-                    <span className="brief-v2-semantic-hex">{sem.hex}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Live theme preview */}
-      {tokens && (
-        <div className="brief-v2-theme-preview">
-          <div className="brief-v2-theme-head">
-            <span className="brief-v2-theme-title">Live preview</span>
-            <div className="brief-v2-theme-toggle" role="tablist" aria-label="Theme">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={theme === 'light'}
-                onClick={() => setTheme('light')}
-                className={`brief-v2-theme-tab ${theme === 'light' ? 'is-active' : ''}`}
-              >Light</button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={theme === 'dark'}
-                onClick={() => setTheme('dark')}
-                className={`brief-v2-theme-tab ${theme === 'dark' ? 'is-active' : ''}`}
-              >Dark</button>
+      {/* Side-by-side palette + live preview, the editorial reference
+          layout. Palette stacks vertically on the left with a tonal
+          stripe per swatch; the Mac-window preview sits on the
+          right with its own Light/Dark toggle. Collapses to single
+          column on narrow screens. */}
+      <div className="brief-v2-palette-split">
+        {/* LEFT — palette stack */}
+        {swatches && swatches.length > 0 && (
+          <div className="brief-v2-palette-stack">
+            <div className="brief-v2-palette-stack-label">COLOUR PALETTE</div>
+            <div className="brief-v2-swatch-stack">
+              {swatches.map((s, i) => (
+                <SwatchRow key={i} swatch={s} copied={copied} onCopy={copyHex} />
+              ))}
             </div>
           </div>
-          <div
-            className="brief-v2-theme-stage"
-            style={{ background: tokens.background, borderColor: tokens.border }}
-          >
+        )}
+
+        {/* RIGHT — live brand preview (mac window) */}
+        {tokens && (
+          <div className="brief-v2-theme-preview">
+            <div className="brief-v2-theme-head">
+              <span className="brief-v2-theme-title">LIVE BRAND PREVIEW</span>
+              <div className="brief-v2-theme-toggle" role="tablist" aria-label="Theme">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={theme === 'light'}
+                  onClick={() => setTheme('light')}
+                  className={`brief-v2-theme-tab ${theme === 'light' ? 'is-active' : ''}`}
+                >Light</button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={theme === 'dark'}
+                  onClick={() => setTheme('dark')}
+                  className={`brief-v2-theme-tab ${theme === 'dark' ? 'is-active' : ''}`}
+                >Dark</button>
+              </div>
+            </div>
+            <div
+              className="brief-v2-theme-stage"
+              style={{ background: tokens.background, borderColor: tokens.border }}
+            >
             {/* Mac window mockup so the live preview feels like a
                 real app screen, not a stranded card. */}
             <div
@@ -1704,6 +1691,32 @@ function RolesContent({ value }) {
                 </div>
               </div>
             </div>
+          </div>
+          </div>
+        )}
+      </div>
+      {/* /palette-split */}
+
+      {/* Semantic colour strip (moved BELOW the palette+preview split
+          so the editorial top half stays focused on the brand colours
+          + their preview). */}
+      {v.semantic && (v.semantic.success || v.semantic.error) && (
+        <div className="brief-v2-semantic">
+          <div className="brief-v2-semantic-label">Semantic palette</div>
+          <div className="brief-v2-semantic-row">
+            {['success', 'warning', 'error', 'info'].map(k => {
+              const sem = v.semantic[k]
+              if (!sem || !sem.hex) return null
+              return (
+                <div key={k} className="brief-v2-semantic-chip">
+                  <div className="brief-v2-semantic-swatch" style={{ background: sem.hex }} />
+                  <div className="brief-v2-semantic-meta">
+                    <span className="brief-v2-semantic-name">{k}</span>
+                    <span className="brief-v2-semantic-hex">{sem.hex}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -1798,6 +1811,130 @@ function SwatchCard({ swatch: s, copied, onCopy }) {
       )}
     </div>
   )
+}
+
+// ── SwatchRow ──────────────────────────────────────────────────────
+// Editorial layout: square chip on the left + name (large) + hex
+// (mono muted) + role (muted), all on one row, with a horizontal
+// TONAL STRIPE spanning the full width below. The stripe shows 8
+// programmatically-generated lightness stops of the base hue so the
+// designer immediately sees how the colour scales for tints and
+// shades. Reference: design-director's brand spec layout.
+//
+// The "deep analysis" rationale (psychology / why_fits / etc.) is
+// preserved as a discoverable toggle — click the row name to expand.
+function SwatchRow({ swatch: s, copied, onCopy }) {
+  const [open, setOpen] = useState(false)
+  if (!s || !s.hex) return null
+  const hasDeep = s.psychology || s.why_fits || s.why_conversion || s.why_audience || s.why_industry || s.competitor
+  const stops = tonalScale(s.hex, 8)
+  const isCopied = copied === s.hex
+  return (
+    <div className="brief-v2-swatch-row">
+      <div className="brief-v2-swatch-row-head">
+        <button
+          type="button"
+          className="brief-v2-swatch-row-chip"
+          style={{ background: s.hex }}
+          onClick={() => onCopy?.(s.hex)}
+          aria-label={`Copy ${s.hex}`}
+        />
+        <div className="brief-v2-swatch-row-meta">
+          <button
+            type="button"
+            className="brief-v2-swatch-row-name"
+            onClick={() => hasDeep && setOpen(o => !o)}
+            disabled={!hasDeep}
+            aria-expanded={hasDeep ? open : undefined}
+          >
+            {s.name || s.role || 'Untitled'}
+          </button>
+          <button
+            type="button"
+            className="brief-v2-swatch-row-hex"
+            onClick={() => onCopy?.(s.hex)}
+            title="Copy hex"
+          >
+            {isCopied ? 'Copied' : s.hex.toUpperCase()}
+          </button>
+          {s.role && (
+            <div className="brief-v2-swatch-row-role">{s.role}</div>
+          )}
+        </div>
+      </div>
+      {/* Tonal stripe — lightness scale from the base hue */}
+      <div className="brief-v2-swatch-row-scale" aria-hidden>
+        {stops.map((c, i) => (
+          <span
+            key={i}
+            className="brief-v2-swatch-row-scale-step"
+            style={{ background: c }}
+          />
+        ))}
+      </div>
+      {/* Deep rationale, toggled by clicking the name */}
+      {open && hasDeep && (
+        <dl className="brief-v2-swatch-row-rationale">
+          {s.intent         && (<><dt>Intent</dt><dd>{s.intent}</dd></>)}
+          {s.psychology     && (<><dt>Psychology</dt><dd>{s.psychology}</dd></>)}
+          {s.why_fits       && (<><dt>Why it fits</dt><dd>{s.why_fits}</dd></>)}
+          {s.why_conversion && (<><dt>Conversion</dt><dd>{s.why_conversion}</dd></>)}
+          {s.why_audience   && (<><dt>Audience</dt><dd>{s.why_audience}</dd></>)}
+          {s.why_industry   && (<><dt>Industry</dt><dd>{s.why_industry}</dd></>)}
+          {s.competitor     && (<><dt>vs Competitors</dt><dd>{s.competitor}</dd></>)}
+        </dl>
+      )}
+    </div>
+  )
+}
+
+// Tonal scale: produce N lightness stops of the same hue, lightest
+// to darkest. Uses HSL space so saturation/hue stay stable while
+// only lightness varies. Works for any reasonable hex input.
+function tonalScale(hex, steps = 8) {
+  const { h, s } = hexToHsl(hex)
+  // Lightness range 92% → 12% gives a usable tint/shade scale that
+  // still reads as the same colour family.
+  const top = 92, bot = 12
+  const out = []
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1)
+    const l = top - (top - bot) * t
+    out.push(hslToHex(h, s, l))
+  }
+  return out
+}
+
+function hexToHsl(hex) {
+  const m = String(hex || '').replace('#', '').padEnd(6, '0').slice(0, 6)
+  const r = parseInt(m.slice(0, 2), 16) / 255
+  const g = parseInt(m.slice(2, 4), 16) / 255
+  const b = parseInt(m.slice(4, 6), 16) / 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  let h = 0, s = 0
+  const l = (max + min) / 2
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break
+      case g: h = (b - r) / d + 2; break
+      case b: h = (r - g) / d + 4; break
+    }
+    h *= 60
+  }
+  return { h, s: s * 100, l: l * 100 }
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100
+  const k = (n) => (n + h / 30) % 12
+  const a = s * Math.min(l, 1 - l)
+  const f = (n) => {
+    const c = l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
+    return Math.round(c * 255).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
 }
 
 // ── Typography (rich) ──────────────────────────────────────────────
@@ -4878,7 +5015,135 @@ function ResponsiveStyles() {
       }
 
       /* ── Colour palette renderer ─────────────────────────────── */
-      .brief-v2-palette { display: flex; flex-direction: column; gap: 16px; }
+      .brief-v2-palette { display: flex; flex-direction: column; gap: 24px; }
+
+      /* Editorial split: palette stack LEFT, mac-window preview
+         RIGHT. Reference layout. Collapses to single column under
+         900px so the swatch rows stay readable. */
+      .brief-v2-palette-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+        gap: 24px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .brief-v2-palette-split { grid-template-columns: 1fr; }
+      }
+
+      .brief-v2-palette-stack {
+        display: flex; flex-direction: column; gap: 14px;
+        min-width: 0;
+      }
+      .brief-v2-palette-stack-label {
+        font: 800 11px 'Urbanist', sans-serif;
+        letter-spacing: 0.14em;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-swatch-stack {
+        display: flex; flex-direction: column; gap: 18px;
+      }
+
+      /* Individual swatch row: chip + name/hex/role on top, tonal
+         stripe spanning full width below. Mirrors the reference. */
+      .brief-v2-swatch-row {
+        display: flex; flex-direction: column; gap: 10px;
+        min-width: 0;
+      }
+      .brief-v2-swatch-row-head {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 16px;
+        align-items: center;
+      }
+      .brief-v2-swatch-row-chip {
+        width: 64px; height: 64px;
+        border-radius: 10px;
+        border: 1px solid var(--color-border);
+        cursor: pointer;
+        padding: 0;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        transition: transform 0.12s;
+      }
+      .brief-v2-swatch-row-chip:hover { transform: scale(1.04); }
+      .brief-v2-swatch-row-meta {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        column-gap: 12px;
+        row-gap: 2px;
+        min-width: 0;
+        align-items: baseline;
+      }
+      .brief-v2-swatch-row-name {
+        grid-column: 1; grid-row: 1;
+        text-align: left;
+        background: none; border: none; padding: 0;
+        font: 800 22px 'Urbanist', sans-serif;
+        letter-spacing: -0.01em;
+        color: var(--color-text);
+        cursor: pointer;
+        line-height: 1.2;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .brief-v2-swatch-row-name:disabled { cursor: default; }
+      .brief-v2-swatch-row-name:hover:not(:disabled) {
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 4px;
+      }
+      .brief-v2-swatch-row-hex {
+        grid-column: 2; grid-row: 1;
+        background: none; border: none; padding: 0;
+        font: 600 13px 'JetBrains Mono', monospace;
+        letter-spacing: 0.02em;
+        color: var(--color-text-muted);
+        cursor: pointer;
+      }
+      .brief-v2-swatch-row-hex:hover { color: var(--color-text-soft); }
+      .brief-v2-swatch-row-role {
+        grid-column: 1 / span 2; grid-row: 2;
+        font: 500 12px 'Urbanist', sans-serif;
+        color: var(--color-text-muted);
+      }
+      .brief-v2-swatch-row-scale {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        height: 8px;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+      }
+      .brief-v2-swatch-row-scale-step {
+        display: block;
+        height: 100%;
+      }
+      .brief-v2-swatch-row-rationale {
+        margin: 4px 0 0;
+        padding: 12px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        column-gap: 14px;
+        row-gap: 6px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .brief-v2-swatch-row-rationale dt {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+        padding-top: 1px;
+      }
+      .brief-v2-swatch-row-rationale dd {
+        margin: 0;
+        color: var(--color-text);
+      }
+
       .brief-v2-swatch-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
