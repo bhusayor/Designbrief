@@ -68,6 +68,12 @@ export default function BriefV2View({
   pendingReviewNote = null, // legacy single-note (used as fallback when comments[] is empty)
   pendingComments = [],     // full thread from the client. Designer can mark each addressed individually.
   onResolveComment = null,  // (commentId) → void
+  // Client-review-page interactivity: answers map per question
+  // index + a setter. When set, the Questions card renders
+  // optional textareas under each question for the client to
+  // answer; answers bundle into the Request-changes submit.
+  clientAnswers = null,
+  onClientAnswer = null,
   showCompletionBanner = false,
   designSystemBuilding = false,
 }) {
@@ -291,6 +297,8 @@ export default function BriefV2View({
                     sectionRefs={sectionRefs}
                     sectionDecisions={sectionDecisions}
                     onSectionDecision={onSectionDecision}
+                    clientAnswers={clientAnswers}
+                    onClientAnswer={onClientAnswer}
                   />
                 ))}
               </div>
@@ -315,6 +323,8 @@ export default function BriefV2View({
                   sectionRefs={sectionRefs}
                   sectionDecisions={sectionDecisions}
                   onSectionDecision={onSectionDecision}
+                  clientAnswers={clientAnswers}
+                  onClientAnswer={onClientAnswer}
                 />
               </div>
             )
@@ -336,6 +346,8 @@ export default function BriefV2View({
                     sectionRefs={sectionRefs}
                     sectionDecisions={sectionDecisions}
                     onSectionDecision={onSectionDecision}
+                    clientAnswers={clientAnswers}
+                    onClientAnswer={onClientAnswer}
                   />
                 ))}
               </div>
@@ -710,7 +722,7 @@ function ChapterHeader({ number, label, tagline, loading }) {
 // inside a chapter or standalone (for the verdict / orphan groups).
 // Uses the same SECTION_LAYOUT config as before for ordering + cell
 // widths.
-function SectionBlock({ section, sectionRefs, sectionDecisions, onSectionDecision }) {
+function SectionBlock({ section, sectionRefs, sectionDecisions, onSectionDecision, clientAnswers, onClientAnswer }) {
   const decision = sectionDecisions?.[section.id] || null
   const showReview = !!onSectionDecision
   const cfg = SECTION_LAYOUT[section.id]
@@ -745,7 +757,11 @@ function SectionBlock({ section, sectionRefs, sectionDecisions, onSectionDecisio
             key={item.id}
             className={`brief-v2-cell brief-v2-cell-${width}`}
           >
-            <BriefCard item={item} />
+            <BriefCard
+              item={item}
+              clientAnswers={clientAnswers}
+              onClientAnswer={onClientAnswer}
+            />
           </div>
         ))}
       </div>
@@ -915,7 +931,7 @@ function SectionReviewBar({ sectionId, decision, onDecide }) {
 // ────────────────────────────────────────────────────────────────────
 // Generic card chrome + content router
 // ────────────────────────────────────────────────────────────────────
-function BriefCard({ item }) {
+function BriefCard({ item, clientAnswers, onClientAnswer }) {
   const isLoading = item.content === null || item.content === undefined
   const isError   = item.content && typeof item.content === 'object' && item.content.__error === true
   // Rich/wide shapes get a full-row card. The colour palette, type
@@ -952,7 +968,13 @@ function BriefCard({ item }) {
         ) : isLoading ? (
           <Skeleton shape={item.shape} />
         ) : (
-          <ItemContent shape={item.shape} content={item.content} item={item} />
+          <ItemContent
+            shape={item.shape}
+            content={item.content}
+            item={item}
+            clientAnswers={clientAnswers}
+            onClientAnswer={onClientAnswer}
+          />
         )}
       </div>
     </article>
@@ -962,7 +984,7 @@ function BriefCard({ item }) {
 // ────────────────────────────────────────────────────────────────────
 // Item shape → renderer map
 // ────────────────────────────────────────────────────────────────────
-function ItemContent({ shape, content, item }) {
+function ItemContent({ shape, content, item, clientAnswers, onClientAnswer }) {
   // Key-targeted overrides for items that deserve a visual treatment
   // distinct from the bare shape renderer.
   if (item?.key === 'brand_personality') return <BrandPersonalityContent value={content} />
@@ -974,7 +996,7 @@ function ItemContent({ shape, content, item }) {
     case 'list':           return <ListContent value={content} />
     case 'rows':           return <RowsContent value={content} />
     case 'badged_list':    return <BadgedListContent value={content} statuses={item.statuses} />
-    case 'numbered_list':  return <QuestionsContent value={content} />
+    case 'numbered_list':  return <QuestionsContent value={content} clientAnswers={clientAnswers} onClientAnswer={item?.key === 'questions' ? onClientAnswer : null} />
     case 'roles':          return <RolesContent value={content} />
     case 'levels':         return <LevelsContent value={content} />
     case 'journey':        return <JourneyContent value={content} />
@@ -1471,38 +1493,33 @@ function statusVariant(s) {
   return 'neutral'
 }
 
-// ── Questions accordion / numbered list ────────────────────────────
-function QuestionsContent({ value }) {
+// ── Questions (flat numbered list, optional answer inputs) ──────────
+// Designer-side: read-only flat list.
+// Client-review-side: each question gets an optional textarea so the
+// client can type an answer that bundles with the Request-changes
+// submit at the bottom of the page.
+function QuestionsContent({ value, clientAnswers, onClientAnswer }) {
   const list = Array.isArray(value) ? value : []
-  const [openIdx, setOpenIdx] = useState(null)
+  const interactive = typeof onClientAnswer === 'function'
   if (!list.length) return <p className="brief-v2-text">No questions.</p>
   return (
     <ol className="brief-v2-questions">
       {list.map((q, i) => {
-        const isOpen = openIdx === i
+        const answer = clientAnswers?.[i] || ''
         return (
           <li key={i} className="brief-v2-question">
-            <button
-              onClick={() => setOpenIdx(isOpen ? null : i)}
-              className="brief-v2-question-btn"
-              aria-expanded={isOpen}
-            >
+            <div className="brief-v2-question-row">
               <span className="brief-v2-question-num">{String(i + 1).padStart(2, '0')}</span>
               <span className="brief-v2-question-text">{q}</span>
-              <ChevronDownIcon
-                style={{
-                  width: 14, height: 14,
-                  transform: isOpen ? 'rotate(180deg)' : 'none',
-                  transition: 'transform 0.15s',
-                  flexShrink: 0,
-                }}
+            </div>
+            {interactive && (
+              <textarea
+                value={answer}
+                onChange={e => onClientAnswer(i, e.target.value)}
+                placeholder="Type your answer here (optional)"
+                rows={2}
+                className="brief-v2-question-answer"
               />
-            </button>
-            {isOpen && (
-              <div className="brief-v2-question-meta">
-                <span><PaperAirplaneIcon style={{ width: 11, height: 11 }} /> Priority {i + 1}</span>
-                <span><QuestionMarkCircleIcon style={{ width: 11, height: 11 }} /> Blocks progress until answered</span>
-              </div>
             )}
           </li>
         )
@@ -3160,6 +3177,82 @@ function VersionTabStrip({ revisions, viewedVersion, onSelect, onRestore }) {
 // Amber prompt when there's an outstanding client review with
 // status='changes_requested'. The Revise button triggers the modal
 // which auto-prefills the note.
+// Parses the ANSWERED: / CHANGES: protocol the client review page
+// uses to bundle question answers + free-text change requests into
+// one comment body. Returns { answers: [{q, a}], changes: string }
+// for structured comments, or null when the body is plain text.
+function parseBundledComment(body) {
+  const text = String(body || '')
+  if (!text.includes('ANSWERED:') && !text.includes('CHANGES:')) return null
+  const result = { answers: [], changes: '' }
+  // Pull the ANSWERED block (everything between ANSWERED: and the
+  // next CHANGES: marker or end-of-string).
+  const ansMatch = text.match(/ANSWERED:\s*([\s\S]*?)(?:\n\s*CHANGES:|$)/i)
+  if (ansMatch) {
+    const ansBlock = ansMatch[1].trim()
+    // Each Q/A is two lines: "Q1. ..." then "A1. ..."
+    const lines = ansBlock.split('\n')
+    let currentQ = null
+    for (const line of lines) {
+      const qMatch = line.match(/^Q\d+\.\s*(.+)$/)
+      const aMatch = line.match(/^A\d+\.\s*(.+)$/)
+      if (qMatch) {
+        if (currentQ) result.answers.push({ q: currentQ, a: '' })
+        currentQ = qMatch[1].trim()
+      } else if (aMatch && currentQ) {
+        result.answers.push({ q: currentQ, a: aMatch[1].trim() })
+        currentQ = null
+      } else if (line.trim() && currentQ) {
+        // Multi-line answer continuation
+        const last = result.answers[result.answers.length - 1]
+        if (last) last.a += '\n' + line.trim()
+        else currentQ += ' ' + line.trim()
+      }
+    }
+    if (currentQ) result.answers.push({ q: currentQ, a: '' })
+  }
+  const chgMatch = text.match(/CHANGES:\s*([\s\S]*)$/i)
+  if (chgMatch) result.changes = chgMatch[1].trim()
+  return result
+}
+
+// Renders a comment body either as a Q→A structured list (when the
+// body matches the ANSWERED:/CHANGES: protocol) or as plain text.
+function CommentBody({ body }) {
+  const parsed = parseBundledComment(body)
+  if (!parsed) {
+    return <div className="brief-v2-pending-comment-body">{body}</div>
+  }
+  return (
+    <div className="brief-v2-pending-comment-body">
+      {parsed.answers.length > 0 && (
+        <div className="brief-v2-pending-qalist">
+          {parsed.answers.map((qa, i) => (
+            <div key={i} className="brief-v2-pending-qa">
+              <div className="brief-v2-pending-qa-q">
+                <span className="brief-v2-pending-qa-tag">Q</span>
+                <span>{qa.q}</span>
+              </div>
+              {qa.a && (
+                <div className="brief-v2-pending-qa-a">
+                  <span className="brief-v2-pending-qa-tag brief-v2-pending-qa-tag-a">A</span>
+                  <span>{qa.a}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {parsed.changes && (
+        <div className="brief-v2-pending-changes">
+          <div className="brief-v2-pending-changes-label">Additional changes</div>
+          <div className="brief-v2-pending-changes-text">{parsed.changes}</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PendingChangesBanner({ note, comments, onRevise, onResolve, revising }) {
   // Thread mode when an array of comments is passed; legacy
   // single-note fallback when only `note` is set.
@@ -3199,7 +3292,7 @@ function PendingChangesBanner({ note, comments, onRevise, onResolve, revising })
                       </button>
                     )}
                   </div>
-                  <div className="brief-v2-pending-comment-body">{c.body}</div>
+                  <CommentBody body={c.body} />
                 </li>
               ))}
             </ul>
@@ -3222,7 +3315,7 @@ function PendingChangesBanner({ note, comments, onRevise, onResolve, revising })
                           <span className="brief-v2-pending-comment-when">{formatThreadDate(c.created_at)}</span>
                           <span className="brief-v2-pending-comment-addressed">Addressed</span>
                         </div>
-                        <div className="brief-v2-pending-comment-body">{c.body}</div>
+                        <CommentBody body={c.body} />
                       </li>
                     ))}
                   </ul>
@@ -4684,18 +4777,55 @@ function ResponsiveStyles() {
       .brief-v2-badge-ok       { background: #10b981; color: white; }
       .brief-v2-badge-neutral  { background: var(--color-text-muted); color: var(--color-bg); }
 
-      .brief-v2-questions { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; counter-reset: q; }
-      .brief-v2-question { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
-      .brief-v2-question-btn {
-        display: flex; align-items: center; gap: 10px;
-        width: 100%; padding: 10px 12px;
-        background: transparent; border: none; cursor: pointer;
-        text-align: left; font-family: inherit;
+      .brief-v2-questions { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+      .brief-v2-question {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex; flex-direction: column; gap: 8px;
       }
-      .brief-v2-question-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-text-muted); flex-shrink: 0; }
-      .brief-v2-question-text { flex: 1; font-size: 13px; line-height: 1.5; color: var(--color-text); min-width: 0; }
-      .brief-v2-question-meta { padding: 0 12px 10px; font-size: 11px; color: var(--color-text-muted); display: flex; gap: 14px; flex-wrap: wrap; }
-      .brief-v2-question-meta span { display: inline-flex; align-items: center; gap: 5px; }
+      .brief-v2-question-row {
+        display: flex; align-items: flex-start; gap: 12px;
+      }
+      .brief-v2-question-num {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--color-text-muted);
+        flex-shrink: 0;
+        padding-top: 2px;
+      }
+      .brief-v2-question-text {
+        flex: 1;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--color-text);
+        min-width: 0;
+      }
+      .brief-v2-question-answer {
+        width: 100%;
+        margin-left: 24px; /* indent under the question text */
+        max-width: calc(100% - 24px);
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-family: inherit;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--color-text);
+        resize: vertical;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .brief-v2-question-answer:focus {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 3px rgba(139,92,246,0.10);
+      }
+      @media (max-width: 600px) {
+        .brief-v2-question-answer { margin-left: 0; max-width: 100%; }
+      }
 
       .brief-v2-roles { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
       .brief-v2-roles li { display: grid; grid-template-columns: 100px 1fr; gap: 12px; align-items: start; padding: 9px 10px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 9px; }
@@ -5704,6 +5834,62 @@ function ResponsiveStyles() {
       .brief-v2-pending-comment-body {
         font-size: 13px;
         line-height: 1.55;
+        color: var(--color-text);
+        white-space: pre-wrap;
+      }
+
+      /* ── Q&A pair rendering inside the amber banner ───────────── */
+      .brief-v2-pending-qalist {
+        display: flex; flex-direction: column;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .brief-v2-pending-qa {
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        display: flex; flex-direction: column;
+        gap: 6px;
+      }
+      .brief-v2-pending-qa-q,
+      .brief-v2-pending-qa-a {
+        display: flex; align-items: flex-start;
+        gap: 8px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .brief-v2-pending-qa-q { color: var(--color-text-soft); }
+      .brief-v2-pending-qa-a { color: var(--color-text); font-weight: 500; }
+      .brief-v2-pending-qa-tag {
+        flex-shrink: 0;
+        width: 20px; height: 20px;
+        border-radius: 5px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font: 800 11px 'JetBrains Mono', monospace;
+        background: var(--color-border);
+        color: var(--color-text-muted);
+      }
+      .brief-v2-pending-qa-tag-a {
+        background: rgba(16,185,129,0.18);
+        color: #047857;
+      }
+      .brief-v2-pending-changes {
+        padding: 10px 12px;
+        background: rgba(180,83,9,0.10);
+        border: 1px solid rgba(180,83,9,0.30);
+        border-radius: 8px;
+      }
+      .brief-v2-pending-changes-label {
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: #b45309;
+        margin-bottom: 5px;
+      }
+      .brief-v2-pending-changes-text {
+        font-size: 13px;
+        line-height: 1.5;
         color: var(--color-text);
         white-space: pre-wrap;
       }

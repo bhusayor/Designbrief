@@ -22,14 +22,50 @@ export default function BriefV2ReviseModal({
 
   useEffect(() => {
     if (open) {
-      // Prefill: prefer the full thread (concatenated, numbered)
-      // over the legacy single-note decision_note. Designer can
-      // edit before submitting.
+      // Prefill the textarea with the full client thread structured
+      // into two sections the AI can clearly parse:
+      //   CLIENT ANSWERS TO YOUR QUESTIONS
+      //   Q: ...   A: ...   (one block per answered question)
+      //
+      //   ADDITIONAL CHANGES REQUESTED
+      //   <free-text changes from across the thread>
+      //
+      // This format means the AI revision pass treats answers as
+      // authoritative facts to incorporate + treats changes as
+      // direction to apply, instead of mashing them together.
       let initial = ''
       if (Array.isArray(pendingComments) && pendingComments.length > 0) {
-        initial = pendingComments
-          .map((c, i) => `${i + 1}. ${String(c.body || '').trim()}`)
-          .join('\n\n')
+        const allAnswers = []
+        const allChanges = []
+        for (const c of pendingComments) {
+          const parsed = parseBundledComment(c.body)
+          if (parsed) {
+            for (const qa of parsed.answers) {
+              if (qa.a) allAnswers.push(qa)
+            }
+            if (parsed.changes) allChanges.push(parsed.changes)
+          } else if (c.body) {
+            // Plain-text comment (legacy / didn't use the protocol).
+            // Treat as a change request.
+            allChanges.push(c.body)
+          }
+        }
+        const parts = []
+        if (allAnswers.length) {
+          parts.push(
+            'CLIENT ANSWERS TO YOUR QUESTIONS:\n' +
+            allAnswers.map(qa => `Q: ${qa.q}\nA: ${qa.a}`).join('\n\n')
+          )
+        }
+        if (allChanges.length) {
+          parts.push(
+            'ADDITIONAL CHANGES REQUESTED:\n' +
+            allChanges.map((c, i) =>
+              allChanges.length > 1 ? `${i + 1}. ${c}` : c
+            ).join('\n\n')
+          )
+        }
+        initial = parts.join('\n\n')
       } else if (pendingReview?.decision_note) {
         initial = pendingReview.decision_note
       }
@@ -38,6 +74,36 @@ export default function BriefV2ReviseModal({
       setTimeout(() => taRef.current?.focus(), 30)
     }
   }, [open, pendingReview?.id, pendingComments?.length])
+
+  // Local copy of the parser so the modal stays self-contained.
+  // Same format used by ClientBriefReview when bundling answers
+  // and by the PendingChangesBanner when rendering Q→A pairs.
+  function parseBundledComment(body) {
+    const text = String(body || '')
+    if (!text.includes('ANSWERED:') && !text.includes('CHANGES:')) return null
+    const result = { answers: [], changes: '' }
+    const ansMatch = text.match(/ANSWERED:\s*([\s\S]*?)(?:\n\s*CHANGES:|$)/i)
+    if (ansMatch) {
+      const ansBlock = ansMatch[1].trim()
+      const lines = ansBlock.split('\n')
+      let currentQ = null
+      for (const line of lines) {
+        const qMatch = line.match(/^Q\d+\.\s*(.+)$/)
+        const aMatch = line.match(/^A\d+\.\s*(.+)$/)
+        if (qMatch) {
+          if (currentQ) result.answers.push({ q: currentQ, a: '' })
+          currentQ = qMatch[1].trim()
+        } else if (aMatch && currentQ) {
+          result.answers.push({ q: currentQ, a: aMatch[1].trim() })
+          currentQ = null
+        }
+      }
+      if (currentQ) result.answers.push({ q: currentQ, a: '' })
+    }
+    const chgMatch = text.match(/CHANGES:\s*([\s\S]*)$/i)
+    if (chgMatch) result.changes = chgMatch[1].trim()
+    return result
+  }
 
   useEffect(() => {
     if (!open) return

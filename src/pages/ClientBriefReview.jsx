@@ -36,6 +36,23 @@ export default function ClientBriefReview() {
   // Decision UI state
   const [submitting, setSubmitting] = useState(false)
 
+  // Per-question answers keyed by question index. Optional — empty
+  // answers are filtered out before submit. Bundled with any free-
+  // text change-request note on submit so the designer sees both
+  // structured answers + unstructured asks in one banner.
+  const [answers, setAnswers] = useState({})
+  const handleAnswer = (idx, text) => {
+    setAnswers(prev => ({ ...prev, [idx]: text }))
+  }
+
+  // Extract the questions list so we can pair index → question text
+  // when posting the answers. Reads from the brief content.
+  const questions = (() => {
+    const interrogate = data?.brief?.sections?.find(s => s.id === 'interrogate')
+    const qItem = interrogate?.items?.find(i => i.key === 'questions')
+    return Array.isArray(qItem?.content) ? qItem.content : []
+  })()
+
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -220,18 +237,26 @@ export default function ClientBriefReview() {
           result={brief}
           isStreaming={false}
           showCompletionBanner={false}
+          clientAnswers={answers}
+          onClientAnswer={handleAnswer}
         />
       </div>
 
       {/* Feedback thread + composer. Always visible regardless of
           decision state so the client can keep iterating, change
-          their mind, or add follow-up notes. */}
+          their mind, or add follow-up notes. Any per-question
+          answers the client typed above get bundled into the comment
+          body when they submit, so the designer sees both Q&A pairs
+          and free-text change requests in one banner. */}
       <div style={container}>
         <FeedbackThread
           comments={data.comments || []}
           isApproved={isApproved}
           approvedAt={review.approved_at}
-          onAddComment={async (body) => {
+          hasUnsentAnswers={Object.values(answers).some(a => String(a || '').trim())}
+          onAddComment={async (freeText) => {
+            const body = bundleAnswersAndText(answers, questions, freeText)
+            if (!body) return // nothing to send
             const r = await fetch(`${API_BASE}/api/brief-reviews/by-token/${activeReviewToken}/comments`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -245,8 +270,36 @@ export default function ClientBriefReview() {
               review: { ...prev.review, status: 'changes_requested' },
               comments: [...(prev.comments || []), newComment].filter(Boolean),
             } : prev)
+            // Clear answers + free-text on success so the client
+            // doesn't accidentally re-send the same answers.
+            setAnswers({})
           }}
-          onApprove={() => submitDecision('approved')}
+          onApprove={async () => {
+            // If the client typed any answers, ship them as a
+            // comment before flipping the status to approved.
+            // Order matters: comment first so its status='open',
+            // then decision so review.status='approved' wins.
+            const body = bundleAnswersAndText(answers, questions, '')
+            if (body) {
+              try {
+                const r = await fetch(`${API_BASE}/api/brief-reviews/by-token/${activeReviewToken}/comments`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ body, section_id: 'overall' }),
+                })
+                const j = r.ok ? await r.json().catch(() => ({})) : null
+                const newComment = j?.comment
+                if (newComment) {
+                  setData(prev => prev ? {
+                    ...prev,
+                    comments: [...(prev.comments || []), newComment].filter(Boolean),
+                  } : prev)
+                }
+                setAnswers({})
+              } catch { /* fall through to approval anyway */ }
+            }
+            await submitDecision('approved')
+          }}
           submittingApprove={submitting}
           designerPrimary={designer.primary}
         />
@@ -260,7 +313,48 @@ export default function ClientBriefReview() {
 // composer with Send note + Approve actions. The decision is
 // reversible: client can approve, then later add another note, then
 // approve again. Each action just creates a new event.
-function FeedbackThread({ comments, isApproved, approvedAt, onAddComment, onApprove, submittingApprove, designerPrimary }) {
+// Bundle per-question answers + an optional free-text change-request
+// note into one comment body. The format is a plain-text protocol
+// (no JSON column needed) the designer-side renderer parses:
+//
+//   ANSWERED:
+//   Q1. <question text>
+//   A1. <client answer>
+//
+//   Q2. ...
+//
+//   CHANGES:
+//   <free text>
+//
+// Either section can be absent. Returns empty string when nothing
+// to send so callers can early-return.
+function bundleAnswersAndText(answersMap, questionsList, freeText) {
+  const answered = Object.entries(answersMap || {})
+    .filter(([, a]) => String(a || '').trim())
+    .map(([idx, a]) => ({
+      idx: Number(idx),
+      q: questionsList[Number(idx)],
+      a: String(a).trim(),
+    }))
+    .filter(e => e.q)
+    .sort((x, y) => x.idx - y.idx)
+  const trimmedFree = String(freeText || '').trim()
+  if (!answered.length && !trimmedFree) return ''
+  let body = ''
+  if (answered.length) {
+    body += 'ANSWERED:\n'
+    body += answered
+      .map(e => `Q${e.idx + 1}. ${e.q}\nA${e.idx + 1}. ${e.a}`)
+      .join('\n\n')
+  }
+  if (trimmedFree) {
+    if (body) body += '\n\n'
+    body += `CHANGES:\n${trimmedFree}`
+  }
+  return body
+}
+
+function FeedbackThread({ comments, isApproved, approvedAt, onAddComment, onApprove, submittingApprove, designerPrimary, hasUnsentAnswers }) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [sendErr, setSendErr] = useState('')
@@ -327,10 +421,25 @@ function FeedbackThread({ comments, isApproved, approvedAt, onAddComment, onAppr
 
       {/* Composer */}
       <div style={composerWrap}>
+        {hasUnsentAnswers && (
+          <div style={{
+            padding: '8px 10px',
+            background: 'var(--color-bg)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            fontSize: 12,
+            color: 'var(--color-text-soft)',
+            marginBottom: 8,
+            lineHeight: 1.45,
+          }}>
+            You have unsent answers to the designer's questions. They'll be
+            included when you click Send note or Approve brief.
+          </div>
+        )}
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Type a note about anything you'd like changed. e.g. The audience should be more specific."
+          placeholder="Type a note about anything you'd like changed (optional if you've answered questions above)."
           rows={3}
           style={composerTextarea}
           disabled={sending}
@@ -350,11 +459,11 @@ function FeedbackThread({ comments, isApproved, approvedAt, onAddComment, onAppr
           <button
             type="button"
             onClick={send}
-            disabled={sending || !draft.trim()}
+            disabled={sending || (!draft.trim() && !hasUnsentAnswers)}
             style={{
               ...(isApproved ? primaryBtn(designerPrimary) : ghostBtn),
-              opacity: (sending || !draft.trim()) ? 0.55 : 1,
-              cursor: (sending || !draft.trim()) ? 'not-allowed' : 'pointer',
+              opacity: (sending || (!draft.trim() && !hasUnsentAnswers)) ? 0.55 : 1,
+              cursor: (sending || (!draft.trim() && !hasUnsentAnswers)) ? 'not-allowed' : 'pointer',
             }}
           >
             {sending ? 'Sending…' : 'Send note'}
