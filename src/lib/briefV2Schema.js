@@ -71,8 +71,6 @@ export const BRIEF_V2_SECTIONS = [
     items: [
       { id: 12, key: 'brand_personality',          title: 'Brand Personality',          shape: 'list' },
       { id: 13, key: 'tone_mood',                  title: 'Tone & Mood',                shape: 'text' },
-      { id: 14, key: 'emotional_direction',        title: 'Emotional Direction',        shape: 'journey' },
-      { id: 17, key: 'moodboard_direction',        title: 'Moodboard Direction',        shape: 'moodboard' },
       { id: 25, key: 'design_personality_ratings', title: 'Design Personality Profile', shape: 'star_ratings' },
     ],
   },
@@ -97,21 +95,10 @@ export const BRIEF_V2_SECTIONS = [
       { id: 16, key: 'typography_direction', title: 'Typography System', shape: 'levels' },
     ],
   },
-  // ── Information Hierarchy ────────────────────────────────────────
-  // After we know the brand direction, decide what users see first /
-  // second / third. Maps directly to page composition decisions.
-  {
-    id: 'info_hierarchy',
-    label: 'Information hierarchy',
-    items: [
-      { id: 26, key: 'ranked_content', title: 'Content Importance Ranking', shape: 'ranked_list' },
-    ],
-  },
   {
     id: 'landscape',
     label: 'Situate in the landscape',
     items: [
-      { id: 18, key: 'reference_audit',     title: 'Reference Audit',     shape: 'text' },
       { id: 19, key: 'competitor_analysis', title: 'Competitor Analysis', shape: 'competitors' },
     ],
   },

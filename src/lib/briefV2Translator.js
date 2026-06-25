@@ -73,6 +73,12 @@ BREVITY RULES (hard constraint):
 - No repeating context from the brief back to the designer.
 - Be DECISIVE. "Use X" beats "consider X". Never give generic advice. Always optimise for clarity, usability, conversion, scalability, and business impact.
 
+ORIGINALITY RULES (hard constraint):
+- Do NOT default to the standard AI-website skeleton: Hero / Logo Cloud / Features / Testimonials / Pricing / FAQ / CTA. This template is overused and produces boring, identical-looking products.
+- Always design FOR THIS SPECIFIC PRODUCT. A fashion brand site shouldn't look like a SaaS landing page. A fintech shouldn't look like a portfolio. Let the product's industry, audience, and brand personality drive structure.
+- Avoid clichéd component names ("Hero section", "Features grid"). Reframe in product-specific language ("Collection lookbook", "Live transfer demo", "Practitioner finder").
+- When suggesting layouts, sections, or visual patterns, ask: "Does this read as generic AI output, or does this feel hand-crafted for THIS product?" Always pick the latter.
+
 ${PUNCTUATION_BAN}
 
 Respond ONLY with valid JSON. No markdown, no preamble, no code fences.`
@@ -154,7 +160,7 @@ ${briefText}`,
   // ── Section 3: Define the direction ──────────────────────────────
   direction: {
     system: BASE_SYSTEM,
-    user: (briefText) => `Translate the strategic direction in this brief. Focus on brand personality, tone, emotional journey, moodboard, and a 9-trait star personality profile. Colour + typography live in their own dedicated sections, do NOT include them here.
+    user: (briefText) => `Translate the strategic direction in this brief. Three items only: brand personality (free-form traits), tone & mood (positive/negative register), and a 9-trait star personality profile. Colour + typography + inspiration live in their own dedicated sections, do NOT include them here.
 
 Return JSON exactly in this shape:
 {
@@ -163,21 +169,6 @@ Return JSON exactly in this shape:
       "<trait>: <one-line explanation of what this trait means for design decisions>"
     ],
     "tone_mood": "<1 short sentence on what it should FEEL like, plus one sentence starting 'Never feel like:' calling out the wrong register>",
-    "emotional_direction": [
-      { "step": 1, "stage": "<journey stage name, mirror the user_journey step titles from section 1>", "emotion": "<what the user should feel here>" }
-    ],
-    "moodboard_direction": {
-      "summary": "<1-2 short sentences on aesthetic territories: UI style, imagery treatment, layout feel>",
-      "avoid": "<1 short sentence. Visual directions to stay away from>",
-      "references": [
-        {
-          "label": "<descriptive label, e.g. 'Linear marketing site' or 'Stripe Press editorial layout'>",
-          "type":  "Site | Product | Designer | Article | Pattern",
-          "url":   "<best-guess URL where this reference lives, e.g. https://linear.app or https://mobbin.com/apps/linear-web>",
-          "note":  "<1 short line on what to study about it (layout? colour? motion?)>"
-        }
-      ]
-    },
     "design_personality_ratings": [
       { "trait": "Professional",  "stars": 4, "note": "<one short line on the call>" },
       { "trait": "Premium",       "stars": 5, "note": "..." },
@@ -193,8 +184,6 @@ Return JSON exactly in this shape:
 }
 
 brand_personality: exactly 3-5 traits.
-emotional_direction: one entry per journey step. Mirror the step titles you'd expect from section 1.
-moodboard_direction.references: 4-8 entries. Mix product sites (Linear, Stripe, Vercel, Notion, etc), pattern libraries (Mobbin, Dribbble shots, Awwwards winners), and individual designers/studios where relevant. Every URL must be a plausible real homepage or specific page, do not invent fake URLs. If you are not confident a URL is real, omit the reference rather than guessing wildly.
 design_personality_ratings: rate this product's design personality on each of the 9 standard dimensions from 1-5 stars. Be DECISIVE, avoid rating 3 ("middle") as a default; only use 3 if the brand genuinely sits in the middle of that axis. The "note" is one short line on why this rating fits the product.
 
 Brief:
@@ -284,7 +273,7 @@ ${briefText}`,
   // complete weights table + responsive type scale.
   typography_system: {
     system: BASE_SYSTEM,
-    user: (briefText) => `Define the complete typography system for this product. Name REAL fonts (prefer Google Fonts so they render in-browser). Cover four type roles + the weight scale + a responsive type scale.
+    user: (briefText) => `Define the complete typography system for this product. Maximum TWO font families: one display (for headings + hero) and one body (for everything else). Name REAL fonts (prefer Google Fonts so they render in-browser).
 
 Return JSON exactly in this shape:
 {
@@ -301,16 +290,8 @@ Return JSON exactly in this shape:
         "accessibility":  "<one short line on accessibility considerations>",
         "product_fit":    "<one short line on why it fits this product>"
       },
-      "heading": {
-        "family": "...", "google": true, "weights": [600, 700], "tracking": "-0.01em",
-        "notes": "...", "personality": "...", "readability": "...", "accessibility": "...", "product_fit": "..."
-      },
       "body": {
         "family": "...", "google": true, "weights": [400, 500, 600], "tracking": "0",
-        "notes": "...", "personality": "...", "readability": "...", "accessibility": "...", "product_fit": "..."
-      },
-      "mono": {
-        "family": "...", "google": true, "weights": [400, 500], "tracking": "0",
         "notes": "...", "personality": "...", "readability": "...", "accessibility": "...", "product_fit": "..."
       },
       "weights": [
@@ -363,11 +344,12 @@ Return JSON exactly in this shape:
 }
 
 Rules:
+- TWO fonts maximum: display and body. Pair them carefully (e.g. high-contrast serif display + clean sans body, or geometric display + humanist body). Do not produce more than two families.
 - family names must be real (and on Google Fonts if google=true) so they render in the live preview.
 - Weights specified in the per-font weights[] arrays MUST exist on that family. Don't ask for 700 if the font only ships 400/500.
 - weights[] (the standalone table): include all 8 standard weights. For weights the brand doesn't use, set usage to "unused". Be specific where they ARE used (e.g. "Hero headlines + brand signatures").
 - Scale numbers are unit-less px. letterSpacing uses em units (e.g. "-0.02em") or "0".
-- Be DECISIVE about choosing distinct fonts for display / heading / body / mono unless deliberately the same, pairing the same font for display + heading is fine if it's a versatile family; never collapse body + display to the same.
+- Display and body must be different families (never use the same family for both).
 
 Brief:
 ${briefText}`,
@@ -376,12 +358,11 @@ ${briefText}`,
   // ── Section 4: Situate in the landscape ──────────────────────────
   landscape: {
     system: BASE_SYSTEM,
-    user: (briefText) => `Produce items 18-19: situate this brief in its competitive landscape.
+    user: (briefText) => `Situate this brief in its competitive landscape via a competitor analysis only.
 
 Return JSON exactly in this shape:
 {
   "items": {
-    "reference_audit": "<1-2 sentences. What any references reveal about taste / expectations / blind spots. If none in the brief, start with: 'No references provided.' then one sentence on what that absence itself reveals>",
     "competitor_analysis": [
       {
         "name": "<competitor name>",
@@ -456,30 +437,6 @@ Return JSON exactly in this shape:
 
 features_hierarchy.deprioritize: 2-5 entries with a real reason.
 All lists are decisions, not suggestions. Write as "Use X" not "Consider X".
-
-Brief:
-${briefText}`,
-  },
-
-  // ── Information Hierarchy ────────────────────────────────────────
-  // Ranked content importance, what users see first, second, third.
-  info_hierarchy: {
-    system: BASE_SYSTEM,
-    user: (briefText) => `Rank the content this product's primary surface needs to show, in priority order. This maps directly to page composition decisions.
-
-Return JSON exactly in this shape:
-{
-  "items": {
-    "ranked_content": [
-      {
-        "name": "<content block name, e.g. 'Value Proposition' or 'Pricing'>",
-        "reason": "<one short sentence on why it ranks here for THIS product>"
-      }
-    ]
-  }
-}
-
-ranked_content: 5-9 entries in priority order, position 1 = most important. Common blocks: Value Proposition, Product Demo, Social Proof, Features, Pricing, FAQ, About, Onboarding CTA, Trust Markers. Use only the ones relevant to this product. Decide based on the conversion goal.
 
 Brief:
 ${briefText}`,
@@ -607,7 +564,7 @@ Return JSON exactly in this shape:
   }
 }
 
-inspiration_library: 6-8 entries across as many categories as relevant. Pick brands the designer knows (Linear, Stripe, Notion, Vercel, Apple, Figma, Loom, Superhuman, Pitch, Cron, etc.). Be confident, never invent fake products. Omit URL if you are not sure it's real.
+inspiration_library: 6-8 entries. PROJECT-SPECIFIC ONLY — every reference must directly relate to THIS product's category, audience, or strategic positioning. Do NOT default to a generic shortlist of SaaS staples (Linear, Stripe, Vercel) unless the brief is actually for a B2B dev-tool SaaS. For a fashion brand, look at fashion houses + editorial sites. For a fintech, look at Wise, Cash App, Revolut, Mercury. For a hospitality product, look at Airbnb, Bēhance hotels, Aman, Soho House. The "why" field must explicitly connect the reference back to a specific aspect of THIS brief (audience, vibe, layout problem, conversion pattern) — generic "good design inspiration" reasons are rejected. Be confident, never invent fake products. Omit URL if you are not sure it's real.
 
 Brief:
 ${briefText}`,
@@ -711,7 +668,6 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
     direction:           4500,
     color_strategy:      8500, // bumped from 6500, was overflowing + truncating to empty JSON
     typography_system:   8500, // bumped from 7000, same overflow risk on the 14×2 type scale
-    info_hierarchy:      1500,
     landscape:           4000,
     boundaries:          3500,
     system_foundations:  3500,

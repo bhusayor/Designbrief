@@ -825,11 +825,18 @@ export default function Dashboard() {
       // a failure doesn't block the brief view from rendering. The
       // hero badge in BriefV2View reads result.score and hides
       // itself if score is null.
+      console.log('[handleTranslate] firing scoreBriefV2...')
       scoreBriefV2(fullBrief, finalResult).then(score => {
-        if (!score) return
+        console.log('[handleTranslate] scoreBriefV2 result:', score)
+        if (!score) {
+          console.warn('[handleTranslate] score is null/undefined — badge will not render')
+          return
+        }
         setResult(prev => prev ? { ...prev, score } : prev)
         setActiveProjectBriefResult(prev => prev ? { ...prev, score } : prev)
-      }).catch(() => {})
+      }).catch((e) => {
+        console.error('[handleTranslate] scoreBriefV2 threw:', e)
+      })
 
       // Competitor URL enrichment was previously a second pass that
       // hit /api/web-search to verify Claude's URL guesses. Pulled

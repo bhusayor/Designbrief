@@ -173,11 +173,13 @@ export default function BriefV2View({
                   <h1 className="brief-v2-hero-title">{displayedProjectTitle}</h1>
                   <HeroPills result={result} />
                   <HeroSummary sections={sections} />
-                  <div className="brief-v2-hero-meta">
-                    21-item framework · {sections.length} sections
-                    {isStreaming && !allDone && <span className="brief-v2-hero-pulse"> · generating…</span>}
-                    {revising && <span className="brief-v2-hero-pulse"> · revising…</span>}
-                  </div>
+                  {(isStreaming && !allDone) || revising ? (
+                    <div className="brief-v2-hero-meta">
+                      <span className="brief-v2-hero-pulse">
+                        {revising ? 'Revising…' : 'Generating…'}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 {displayedScore && <BriefScoreBadge score={displayedScore} />}
               </div>
@@ -438,7 +440,7 @@ const CHAPTERS = [
     id: 'direction',
     label: 'Creative Direction',
     tagline: 'How the brand should look, feel, and read at every scale.',
-    sectionIds: ['direction', 'color_strategy', 'typography_system', 'info_hierarchy'],
+    sectionIds: ['direction', 'color_strategy', 'typography_system'],
   },
   {
     id: 'landscape',
@@ -502,8 +504,6 @@ const SECTION_LAYOUT = {
       ['brand_personality',          'half'],
       ['tone_mood',                  'half'],
       ['design_personality_ratings', 'full'],
-      ['emotional_direction',        'half'],
-      ['moodboard_direction',        'half'],
     ],
   },
   color_strategy: {
@@ -515,23 +515,15 @@ const SECTION_LAYOUT = {
   },
   typography_system: {
     title:   'Typography System',
-    eyebrow: 'Display, heading, body, mono, with weights + responsive scale',
+    eyebrow: 'Display + body — paired type system with weights + responsive scale',
     layout: [
       ['typography_direction', 'full'],
-    ],
-  },
-  info_hierarchy: {
-    title:   'Information Hierarchy',
-    eyebrow: 'What users see first, second, third',
-    layout: [
-      ['ranked_content', 'full'],
     ],
   },
   landscape: {
     title:   'The Landscape',
     eyebrow: 'Who else lives in this space',
     layout: [
-      ['reference_audit',     'full'],
       ['competitor_analysis', 'full'],
     ],
   },
@@ -949,7 +941,11 @@ function BriefCard({ item, clientAnswers, onClientAnswer }) {
   return (
     <article className={`brief-v2-card ${isFullWidth ? 'is-wide' : ''} ${isLoading ? 'is-loading' : ''} ${isError ? 'is-error' : ''}`}>
       <div className="brief-v2-card-head">
-        <span className="brief-v2-card-num">{String(item.id).padStart(2, '0')}</span>
+        {/* Item-number badge removed: item IDs are stable identifiers,
+            not sequential positions. Showing them produced disjointed
+            numbering (01 next to 31) once the framework grew past the
+            original 21 items. Chapter + section headers carry the
+            navigational structure now. */}
         <h3 className="brief-v2-card-title">{item.title}</h3>
         {item.key === 'questions' && Array.isArray(item.content) && (
           <span className="brief-v2-card-badge">{item.content.length}</span>
@@ -1236,7 +1232,6 @@ function HeroSummary({ sections }) {
 function QuickReadStrip({ sections }) {
   const understand = sections.find(s => s.id === 'understand')
   const boundaries = sections.find(s => s.id === 'boundaries')
-  const audience  = understand?.items?.find(i => i.key === 'target_audience')?.content
   const success   = understand?.items?.find(i => i.key === 'success_definition')?.content
   const delivs    = understand?.items?.find(i => i.key === 'deliverables')?.content
   const journey   = understand?.items?.find(i => i.key === 'user_journey')?.content
@@ -1244,22 +1239,19 @@ function QuickReadStrip({ sections }) {
 
   // Bail until at least one source has streamed in, avoids a row of
   // empty "-" cards on the very first paint.
-  const ready = [audience, success, delivs, scope].some(v => v != null && (typeof v === 'string' ? v.trim() : true))
+  const ready = [success, delivs, scope].some(v => v != null && (typeof v === 'string' ? v.trim() : true))
   if (!ready) return null
 
+  // Audience card removed — it duplicated the Target Audience card
+  // inside section 1 (The Problem). Goal now takes the full half-
+  // width so its longer success-definition copy doesn't truncate.
   const cards = [
     {
-      label: 'Audience',
-      value: firstSentence(audience) || '-',
-      hint: typeof audience === 'string' && /Not for:/i.test(audience)
-        ? 'with exclusions' : '',
-      hue: '#3b82f6',
-    },
-    {
       label: 'Goal',
-      value: firstSentence(success) || '-',
+      value: success || '-', // full sentence, not just firstSentence — width allows it now
       hint: '',
       hue: '#10b981',
+      wide: true, // takes 2× the column width
     },
     {
       label: 'Deliverables',
@@ -1282,7 +1274,7 @@ function QuickReadStrip({ sections }) {
   return (
     <div className="brief-v2-quickread">
       {cards.map((c, i) => (
-        <div key={i} className="brief-v2-quickread-card">
+        <div key={i} className={`brief-v2-quickread-card ${c.wide ? 'is-wide' : ''}`}>
           <div className="brief-v2-quickread-label" style={{ color: c.hue }}>
             {c.label}
           </div>
@@ -1308,11 +1300,20 @@ function firstSentence(v) {
 // popover badge, clients open the brief and immediately see
 // where it sits.
 function BriefScoreBadge({ score }) {
-  if (!score || typeof score.overall !== 'number') return null
-  // Server returns 0-100; the editorial card uses a 0-10 scale so
-  // the donut + sub-scores read like an exam grade.
-  const tenth = (n) => Math.max(0, Math.min(10, Math.round((Number(n) || 0) / 10)))
-  const overall = tenth(score.overall)
+  // Tolerate varied AI output: overall might land as string ("78"),
+  // number (78), or already-tenths (7.8 or 8). Coerce defensively
+  // so the badge renders whenever there's anything resembling a
+  // score, instead of silently dropping out.
+  if (!score) return null
+  const rawOverall = Number(score.overall ?? score.score ?? 0)
+  if (!Number.isFinite(rawOverall) || rawOverall <= 0) return null
+  // Treat 0-10 input as already-tenths; 0-100 input as percentage.
+  const tenth = (n) => {
+    const v = Number(n) || 0
+    if (v <= 10) return Math.max(0, Math.min(10, Math.round(v)))
+    return Math.max(0, Math.min(10, Math.round(v / 10)))
+  }
+  const overall = tenth(rawOverall)
   const tone = scoreTone(overall)
   const verdict = (score.rating || verdictFor(overall)).toUpperCase()
   const subs = Array.isArray(score.sub) ? score.sub.slice(0, 3) : []
@@ -2072,25 +2073,37 @@ function ensureGoogleFont(family, weights) {
   document.head.appendChild(link)
 }
 
-// ── Journey / emotional direction ───────────────────────────────────
+// ── Journey (horizontal flowchart) ─────────────────────────────────
+// Renders the user journey as a connected node graph rather than a
+// vertical text list. Each step is a node card (number + title +
+// action + emotion chip); nodes are joined by arrow connectors. On
+// narrow screens the flow wraps to multi-row + reverses connector
+// direction so it still reads naturally.
 function JourneyContent({ value }) {
   const steps = Array.isArray(value) ? value : []
   if (!steps.length) return <p className="brief-v2-text">No journey yet.</p>
   return (
-    <ol className="brief-v2-journey">
-      {steps.map((s, i) => (
-        <li key={i} className="brief-v2-journey-step">
-          <span className="brief-v2-journey-num">{s.step || i + 1}</span>
-          <div className="brief-v2-journey-body">
-            <div className="brief-v2-journey-title">{s.title || s.stage || 'Step'}</div>
-            {s.action && <div className="brief-v2-journey-action">{s.action}</div>}
-            {(s.emotion || s.feeling) && (
-              <span className="brief-v2-journey-emotion">{s.emotion || s.feeling}</span>
+    <div className="brief-v2-flow-wrap">
+      <ol className="brief-v2-flow">
+        {steps.map((s, i) => (
+          <li key={i} className="brief-v2-flow-step">
+            <div className="brief-v2-flow-node">
+              <span className="brief-v2-flow-num">{String(s.step || i + 1).padStart(2, '0')}</span>
+              <div className="brief-v2-flow-body">
+                <div className="brief-v2-flow-title">{s.title || s.stage || 'Step'}</div>
+                {s.action && <div className="brief-v2-flow-action">{s.action}</div>}
+                {(s.emotion || s.feeling) && (
+                  <span className="brief-v2-flow-emotion">{s.emotion || s.feeling}</span>
+                )}
+              </div>
+            </div>
+            {i < steps.length - 1 && (
+              <span className="brief-v2-flow-arrow" aria-hidden>→</span>
             )}
-          </div>
-        </li>
-      ))}
-    </ol>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 
@@ -3533,12 +3546,19 @@ function ResponsiveStyles() {
         max-width: 640px;
       }
 
-      /* ── Quick Read strip ────────────────────────────────────── */
+      /* ── Quick Read strip ──────────────────────────────────────
+         3 cards across, Goal card takes 2 columns so the longer
+         success-definition text doesn't truncate. */
       .brief-v2-quickread {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 12px;
         margin: 4px 0 28px;
+      }
+      .brief-v2-quickread-card.is-wide { grid-column: span 2; }
+      @media (max-width: 767px) {
+        .brief-v2-quickread { grid-template-columns: 1fr; }
+        .brief-v2-quickread-card.is-wide { grid-column: span 1; }
       }
       .brief-v2-quickread-card {
         padding: 14px 16px;
@@ -3558,11 +3578,17 @@ function ResponsiveStyles() {
         line-height: 1.4;
         color: var(--color-text);
         font-weight: 700;
+        /* Narrow cards (Deliverables, Constraints) clamp to two
+           lines; wide cards (Goal) allow up to five lines so the
+           full success-definition sentence fits. */
         overflow: hidden;
         text-overflow: ellipsis;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
+      }
+      .brief-v2-quickread-card.is-wide .brief-v2-quickread-value {
+        -webkit-line-clamp: 5;
       }
       .brief-v2-quickread-hint {
         font: 600 11px 'Urbanist', sans-serif;
@@ -4492,12 +4518,14 @@ function ResponsiveStyles() {
         border-color: rgba(180,83,9,0.40);
       }
       .brief-v2-verdict-risk-label {
-        font: 800 9px 'Urbanist', sans-serif;
+        font: 800 10px 'Urbanist', sans-serif;
         letter-spacing: 0.10em;
         text-transform: uppercase;
       }
-      .brief-v2-verdict-risk-good .brief-v2-verdict-risk-label { color: #047857; }
-      .brief-v2-verdict-risk-warn .brief-v2-verdict-risk-label { color: #b45309; }
+      /* WCAG: darker risk-label inks so they clear 4.5:1 against the
+         amber/emerald-tinted card backgrounds. emerald-800 + amber-800. */
+      .brief-v2-verdict-risk-good .brief-v2-verdict-risk-label { color: #065f46; }
+      .brief-v2-verdict-risk-warn .brief-v2-verdict-risk-label { color: #92400e; }
       .brief-v2-verdict-risk-text {
         font-size: 13px;
         line-height: 1.5;
@@ -4512,11 +4540,15 @@ function ResponsiveStyles() {
         color: var(--color-bg);
         border-radius: 12px;
       }
+      /* WCAG fix: white at 55% opacity on slate-900 yields ~3.6:1
+         contrast which fails AA for small text. Switched to a solid
+         slate-300 (#CBD5E1) which gives ~10:1 on slate-900 and
+         reads clearly as an eyebrow without looking shouty. */
       .brief-v2-verdict-final-label {
-        font: 800 9px 'Urbanist', sans-serif;
-        letter-spacing: 0.16em;
-        color: rgba(255,255,255,0.55);
-        margin-bottom: 8px;
+        font: 800 10px 'Urbanist', sans-serif;
+        letter-spacing: 0.14em;
+        color: #cbd5e1;
+        margin-bottom: 10px;
       }
       .brief-v2-verdict-final p {
         margin: 0;
@@ -5292,6 +5324,67 @@ function ResponsiveStyles() {
         .brief-v2-type-row { grid-template-columns: 1fr; gap: 8px; }
       }
 
+      /* ── User journey horizontal flowchart ───────────────────── */
+      .brief-v2-flow-wrap { overflow-x: auto; padding: 4px 0 12px; }
+      .brief-v2-flow {
+        list-style: none; padding: 0; margin: 0;
+        display: flex; align-items: stretch; gap: 0;
+        min-width: max-content;
+      }
+      .brief-v2-flow-step {
+        display: flex; align-items: center; gap: 12px;
+      }
+      .brief-v2-flow-node {
+        display: flex; flex-direction: column; gap: 6px;
+        padding: 12px 14px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        width: 200px;
+        min-height: 120px;
+      }
+      .brief-v2-flow-num {
+        font: 800 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.06em;
+        color: var(--color-accent);
+      }
+      .brief-v2-flow-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+      .brief-v2-flow-title {
+        font: 800 13px 'Urbanist', sans-serif;
+        color: var(--color-text);
+        line-height: 1.25;
+      }
+      .brief-v2-flow-action {
+        font-size: 12px;
+        color: var(--color-text-soft);
+        line-height: 1.45;
+      }
+      .brief-v2-flow-emotion {
+        margin-top: auto;
+        align-self: flex-start;
+        padding: 3px 9px;
+        border-radius: 100px;
+        background: rgba(139,92,246,0.12);
+        color: var(--color-accent);
+        font: 800 9px 'Urbanist', sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: lowercase;
+      }
+      .brief-v2-flow-arrow {
+        font-size: 22px;
+        color: var(--color-text-muted);
+        font-weight: 300;
+        line-height: 1;
+        padding: 0 2px;
+        user-select: none;
+      }
+      @media (max-width: 600px) {
+        .brief-v2-flow-node { width: 160px; min-height: 100px; padding: 10px 12px; }
+        .brief-v2-flow-arrow { font-size: 18px; }
+      }
+
+      /* Legacy journey CSS — still loaded for any old brief that
+         hits the prior class names through cache. */
       .brief-v2-journey { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
       .brief-v2-journey-step { display: grid; grid-template-columns: 32px 1fr; gap: 12px; padding: 10px 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; }
       .brief-v2-journey-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--color-accent); padding-top: 1px; }
