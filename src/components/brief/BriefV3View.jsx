@@ -268,6 +268,12 @@ function ShapeRenderer({ section }) {
     case 'principles':          return <PrinciplesRenderer      content={c} />
     case 'visual_direction':    return <VisualDirectionRenderer content={c} />
     case 'component_inventory': return <ComponentInventoryRenderer content={c} />
+    case 'ux_writing':          return <UxWritingRenderer        content={c} />
+    case 'design_tokens':       return <DesignTokensRenderer     content={c} />
+    case 'tech_considerations': return <TechConsiderationsRenderer content={c} />
+    case 'risk_register':       return <RiskRegisterRenderer     content={c} />
+    case 'success_metrics':     return <SuccessMetricsRenderer   content={c} />
+    case 'ai_package':          return <AiPackageRenderer        content={c} />
     default:
       return (
         <div className="brief-v3-unhandled">
@@ -1719,6 +1725,658 @@ function usageTone(u) {
   if (v === 'heavy')    return 'red'
   if (v === 'moderate') return 'amber'
   return 'emerald'
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 17. UxWritingRenderer
+//    Reading-level chip + voice/tone rules with Do/Don't pairs +
+//    per-surface writing patterns + a "forbidden phrases" callout.
+// ────────────────────────────────────────────────────────────────────
+function UxWritingRenderer({ content }) {
+  const c = content || {}
+  const rl = c.reading_level || {}
+  const surfaces = c.surfaces || {}
+  return (
+    <div className="brief-v3-uxw">
+      {(rl.grade || rl.reason) && (
+        <div className="brief-v3-uxw-reading">
+          <div className="brief-v3-uxw-reading-num">{rl.grade}</div>
+          <div className="brief-v3-uxw-reading-meta">
+            {rl.reason && <p>{rl.reason}</p>}
+            <div className="brief-v3-uxw-reading-spec">
+              {rl.max_sentence_length  && <span><strong>Sentence:</strong> {rl.max_sentence_length}</span>}
+              {rl.max_paragraph_length && <span><strong>Paragraph:</strong> {rl.max_paragraph_length}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.voice_rules) && c.voice_rules.length > 0 && (
+        <div className="brief-v3-uxw-block">
+          <div className="brief-v3-biz-block-label">Voice rules</div>
+          <div className="brief-v3-uxw-rules">
+            {c.voice_rules.map((r, i) => <DoDontCard key={i} item={r} title={r.rule} subtitle={r.why} />)}
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.tone_rules) && c.tone_rules.length > 0 && (
+        <div className="brief-v3-uxw-block">
+          <div className="brief-v3-biz-block-label">Tone by context</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Context</th><th>Tone</th><th>Example</th></tr></thead>
+            <tbody>
+              {c.tone_rules.map((t, i) => (
+                <tr key={i}>
+                  <td><strong>{t.context}</strong></td>
+                  <td><span className="brief-v3-pill brief-v3-pill-indigo">{t.tone}</span></td>
+                  <td><em>"{t.example}"</em></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="brief-v3-uxw-block">
+        <div className="brief-v3-biz-block-label">Per-surface patterns</div>
+        <div className="brief-v3-uxw-surfaces">
+          {['error_messages', 'confirmations', 'instructions', 'onboarding', 'button_labels', 'empty_states', 'notifications'].map(k => {
+            const list = Array.isArray(surfaces[k]) ? surfaces[k] : []
+            if (!list.length) return null
+            return (
+              <div key={k} className="brief-v3-uxw-surface">
+                <div className="brief-v3-uxw-surface-head">{uxwSurfaceLabel(k)}</div>
+                {list.map((p, i) => <DoDontCard key={i} item={p} title={p.pattern} compact />)}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      {Array.isArray(c.forbidden_phrases) && c.forbidden_phrases.length > 0 && (
+        <div className="brief-v3-uxw-forbidden">
+          <div className="brief-v3-uxw-forbidden-label">Forbidden phrases</div>
+          <div className="brief-v3-uxw-forbidden-list">
+            {c.forbidden_phrases.map((p, i) => <span key={i} className="brief-v3-uxw-forbidden-chip">"{p}"</span>)}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+function DoDontCard({ item, title, subtitle, compact }) {
+  return (
+    <div className={`brief-v3-dodont ${compact ? 'is-compact' : ''}`}>
+      {title && <div className="brief-v3-dodont-title">{title}</div>}
+      {subtitle && <div className="brief-v3-dodont-subtitle">{subtitle}</div>}
+      <div className="brief-v3-dodont-pair">
+        {item.do && (
+          <div className="brief-v3-dodont-half brief-v3-tone-emerald">
+            <span className="brief-v3-dodont-tag">Do</span>
+            <span>"{item.do}"</span>
+          </div>
+        )}
+        {item.dont && (
+          <div className="brief-v3-dodont-half brief-v3-tone-red">
+            <span className="brief-v3-dodont-tag">Don't</span>
+            <span>"{item.dont}"</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+function uxwSurfaceLabel(k) {
+  return ({
+    error_messages: 'Error messages',
+    confirmations:  'Confirmations',
+    instructions:   'Instructions',
+    onboarding:     'Onboarding',
+    button_labels:  'Button labels',
+    empty_states:   'Empty states',
+    notifications:  'Notifications',
+  })[k] || k
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 18. DesignTokensRenderer
+//    Token tables grouped by type. Color tokens render with the
+//    actual hex swatch; spacing + radius render a tiny visual demo
+//    so the scale is readable at a glance.
+// ────────────────────────────────────────────────────────────────────
+function DesignTokensRenderer({ content }) {
+  const c = content || {}
+  const t = c.tokens || {}
+  return (
+    <div className="brief-v3-tokens">
+      {Array.isArray(t.color) && t.color.length > 0 && (
+        <div className="brief-v3-tokens-block">
+          <div className="brief-v3-biz-block-label">Color tokens</div>
+          <div className="brief-v3-tokens-color-grid">
+            {t.color.map((tk, i) => (
+              <div key={i} className="brief-v3-tokens-color">
+                <div className="brief-v3-tokens-color-chip" style={{ background: tk.value }} />
+                <div className="brief-v3-tokens-color-meta">
+                  <span className="brief-v3-mono">{tk.name}</span>
+                  <span className="brief-v3-tokens-color-hex">{tk.value}</span>
+                  {tk.role && <span className="brief-v3-tokens-color-role">{tk.role}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {Array.isArray(t.typography) && t.typography.length > 0 && (
+        <div className="brief-v3-tokens-block">
+          <div className="brief-v3-biz-block-label">Typography tokens</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Token</th><th>Family</th><th>Size</th><th>Weight</th><th>Line</th><th>Tracking</th><th>Role</th></tr></thead>
+            <tbody>
+              {t.typography.map((tk, i) => (
+                <tr key={i}>
+                  <td><span className="brief-v3-mono">{tk.name}</span></td>
+                  <td>{tk.family}</td>
+                  <td>{tk.size}</td>
+                  <td>{tk.weight}</td>
+                  <td>{tk.lineHeight}</td>
+                  <td>{tk.letterSpacing}</td>
+                  <td>{tk.role}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="brief-v3-tokens-row">
+        <ScaleTokenBlock title="Spacing" tokens={t.spacing} unit="px" demo="space" />
+        <ScaleTokenBlock title="Radius"  tokens={t.radius}  unit="px" demo="radius" />
+      </div>
+      <div className="brief-v3-tokens-row">
+        <ScaleTokenBlock title="Elevation" tokens={t.elevation} demo="elevation" />
+        <ScaleTokenBlock title="Shadow"    tokens={t.shadow}    demo="shadow" />
+      </div>
+      {Array.isArray(t.motion) && t.motion.length > 0 && (
+        <div className="brief-v3-tokens-block">
+          <div className="brief-v3-biz-block-label">Motion tokens</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Token</th><th>Duration</th><th>Easing</th><th>Role</th></tr></thead>
+            <tbody>
+              {t.motion.map((tk, i) => (
+                <tr key={i}>
+                  <td><span className="brief-v3-mono">{tk.name}</span></td>
+                  <td>{tk.duration}</td>
+                  <td><span className="brief-v3-mono">{tk.easing}</span></td>
+                  <td>{tk.role}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="brief-v3-tokens-row">
+        {c.layout && (
+          <div className="brief-v3-tokens-block brief-v3-tokens-mini">
+            <div className="brief-v3-biz-block-label">Layout</div>
+            <dl className="brief-v3-tokens-kv">
+              {c.layout.container_max  && (<><dt>Container max</dt><dd>{c.layout.container_max}</dd></>)}
+              {c.layout.column_padding && (<><dt>Padding</dt><dd>{c.layout.column_padding}</dd></>)}
+              {c.layout.stack_default  && (<><dt>Stack</dt><dd>{c.layout.stack_default}</dd></>)}
+            </dl>
+          </div>
+        )}
+        {c.grid && (
+          <div className="brief-v3-tokens-block brief-v3-tokens-mini">
+            <div className="brief-v3-biz-block-label">Grid</div>
+            <dl className="brief-v3-tokens-kv">
+              {c.grid.columns   && (<><dt>Columns</dt><dd>{c.grid.columns}</dd></>)}
+              {c.grid.gutter    && (<><dt>Gutter</dt><dd>{c.grid.gutter}</dd></>)}
+              {c.grid.rationale && (<><dt>Why</dt><dd>{c.grid.rationale}</dd></>)}
+            </dl>
+          </div>
+        )}
+      </div>
+      {Array.isArray(c.breakpoints) && c.breakpoints.length > 0 && (
+        <div className="brief-v3-tokens-block">
+          <div className="brief-v3-biz-block-label">Breakpoints</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Name</th><th>Min width</th><th>Rationale</th></tr></thead>
+            <tbody>
+              {c.breakpoints.map((b, i) => (
+                <tr key={i}>
+                  <td><span className="brief-v3-mono">{b.name}</span></td>
+                  <td>{b.min}</td>
+                  <td>{b.rationale}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {Array.isArray(c.icon_sizes) && c.icon_sizes.length > 0 && (
+        <div className="brief-v3-tokens-block">
+          <div className="brief-v3-biz-block-label">Icon sizes</div>
+          <div className="brief-v3-tokens-icons">
+            {c.icon_sizes.map((ic, i) => {
+              const px = parseInt(ic.size, 10) || 16
+              return (
+                <div key={i} className="brief-v3-tokens-icon">
+                  <div className="brief-v3-tokens-icon-demo" style={{ width: px, height: px }} />
+                  <span className="brief-v3-mono">{ic.name}</span>
+                  <span className="brief-v3-tokens-icon-meta">{ic.size}{ic.stroke && ic.stroke !== 'N/A' ? ` · ${ic.stroke}` : ''}</span>
+                  {ic.role && <span className="brief-v3-tokens-icon-role">{ic.role}</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      {c.naming_convention && (
+        <div className="brief-v3-tokens-block brief-v3-tokens-naming">
+          <div className="brief-v3-biz-block-label">Naming convention</div>
+          <div className="brief-v3-tokens-naming-rule">{c.naming_convention.rule}</div>
+          {Array.isArray(c.naming_convention.examples) && (
+            <div className="brief-v3-tokens-naming-eg">
+              {c.naming_convention.examples.map((e, i) => (
+                <span key={i} className={`brief-v3-mono brief-v3-tokens-naming-chip ${i === 0 ? 'is-good' : 'is-bad'}`}>{i === 0 ? '✓' : '✗'} {e}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+function ScaleTokenBlock({ title, tokens, unit, demo }) {
+  const list = Array.isArray(tokens) ? tokens : []
+  if (!list.length) return null
+  return (
+    <div className="brief-v3-tokens-block brief-v3-tokens-mini">
+      <div className="brief-v3-biz-block-label">{title}</div>
+      <ul className="brief-v3-tokens-scale">
+        {list.map((t, i) => {
+          const px = parseInt(t.value, 10)
+          let demoEl = null
+          if (demo === 'space' && Number.isFinite(px))
+            demoEl = <span className="brief-v3-tokens-space-demo" style={{ width: Math.min(px, 64) }} />
+          else if (demo === 'radius' && Number.isFinite(px))
+            demoEl = <span className="brief-v3-tokens-radius-demo" style={{ borderRadius: px }} />
+          else if (demo === 'elevation' || demo === 'shadow')
+            demoEl = <span className="brief-v3-tokens-shadow-demo" style={{ boxShadow: t.value }} />
+          return (
+            <li key={i}>
+              {demoEl}
+              <span className="brief-v3-mono">{t.name}</span>
+              <span className="brief-v3-tokens-scale-val">{t.value}{unit && Number.isFinite(parseInt(t.value)) && !String(t.value).includes(unit) ? unit : ''}</span>
+              {t.role && <span className="brief-v3-tokens-scale-role">{t.role}</span>}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 19. TechConsiderationsRenderer
+//    APIs + backend + CMS + auth + permissions + perf + caching +
+//    offline + integrations + analytics + search.
+// ────────────────────────────────────────────────────────────────────
+function TechConsiderationsRenderer({ content }) {
+  const c = content || {}
+  return (
+    <div className="brief-v3-tech">
+      {Array.isArray(c.apis) && c.apis.length > 0 && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">APIs & services</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Name</th><th>Purpose</th><th>Type</th></tr></thead>
+            <tbody>
+              {c.apis.map((a, i) => (
+                <tr key={i}>
+                  <td><strong>{a.name}</strong></td>
+                  <td>{a.purpose}</td>
+                  <td><span className={`brief-v3-pill brief-v3-pill-${a.type === 'Internal' ? 'emerald' : a.type === 'Third-party' ? 'amber' : 'slate'}`}>{a.type}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {Array.isArray(c.backend) && c.backend.length > 0 && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">Backend</div>
+          <div className="brief-v3-tech-list">
+            {c.backend.map((b, i) => (
+              <div key={i} className="brief-v3-tech-item">
+                <div className="brief-v3-tech-item-head"><strong>{b.concern}</strong></div>
+                <div className="brief-v3-tech-item-row"><span>Approach</span><span>{b.approach}</span></div>
+                {b.rationale && <div className="brief-v3-tech-item-row"><span>Why</span><span>{b.rationale}</span></div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="brief-v3-tech-row">
+        {c.cms && (
+          <div className="brief-v3-tech-card">
+            <div className="brief-v3-tech-card-head">CMS</div>
+            <div className="brief-v3-tech-card-line"><span>Needed</span><span>{c.cms.needed ? 'Yes' : 'No'}</span></div>
+            {c.cms.approach && <div className="brief-v3-tech-card-line"><span>Approach</span><span>{c.cms.approach}</span></div>}
+            {c.cms.rationale && <div className="brief-v3-tech-card-line"><span>Why</span><span>{c.cms.rationale}</span></div>}
+          </div>
+        )}
+        {c.auth && (
+          <div className="brief-v3-tech-card">
+            <div className="brief-v3-tech-card-head">Auth</div>
+            <div className="brief-v3-tech-card-line"><span>Model</span><span>{c.auth.model}</span></div>
+            {c.auth.rationale && <div className="brief-v3-tech-card-line"><span>Why</span><span>{c.auth.rationale}</span></div>}
+          </div>
+        )}
+      </div>
+      {Array.isArray(c.permissions) && c.permissions.length > 0 && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">Permissions</div>
+          <div className="brief-v3-tech-perms">
+            {c.permissions.map((p, i) => (
+              <div key={i} className="brief-v3-tech-perm">
+                <div className="brief-v3-tech-perm-role">{p.role}</div>
+                <div className="brief-v3-tech-perm-cols">
+                  <div className="brief-v3-tone-emerald">
+                    <span className="brief-v3-tech-perm-tag">Can</span>
+                    <ul>{(p.can || []).map((x, xi) => <li key={xi}>{x}</li>)}</ul>
+                  </div>
+                  <div className="brief-v3-tone-red">
+                    <span className="brief-v3-tech-perm-tag">Cannot</span>
+                    <ul>{(p.cannot || []).map((x, xi) => <li key={xi}>{x}</li>)}</ul>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.performance_risks) && c.performance_risks.length > 0 && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">Performance risks</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Risk</th><th>Trigger</th><th>Mitigation</th></tr></thead>
+            <tbody>
+              {c.performance_risks.map((r, i) => (
+                <tr key={i}><td><strong>{r.risk}</strong></td><td>{r.trigger}</td><td>{r.mitigation}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {Array.isArray(c.caching) && c.caching.length > 0 && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">Caching strategy</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Layer</th><th>Strategy</th><th>Why</th></tr></thead>
+            <tbody>
+              {c.caching.map((ca, i) => (
+                <tr key={i}><td><span className="brief-v3-pill brief-v3-pill-indigo">{ca.layer}</span></td><td>{ca.strategy}</td><td>{ca.rationale}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {c.offline_strategy && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">Offline strategy</div>
+          <p className="brief-v3-tech-text">{c.offline_strategy}</p>
+        </div>
+      )}
+      {Array.isArray(c.integrations) && c.integrations.length > 0 && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">Integrations</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Service</th><th>Purpose</th><th>Risk</th></tr></thead>
+            <tbody>
+              {c.integrations.map((it, i) => (
+                <tr key={i}><td><strong>{it.service}</strong></td><td>{it.purpose}</td><td><span className={`brief-v3-pill brief-v3-pill-${severityTone(it.risk)}`}>{it.risk}</span></td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {c.analytics && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">Analytics</div>
+          <div className="brief-v3-tech-card">
+            <div className="brief-v3-tech-card-line"><span>Tool</span><span>{c.analytics.tool}</span></div>
+            {Array.isArray(c.analytics.key_events) && c.analytics.key_events.length > 0 && (
+              <ul className="brief-v3-tech-events">
+                {c.analytics.key_events.map((e, i) => <li key={i}><span className="brief-v3-mono">·</span> {e}</li>)}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+      {c.search_strategy && (
+        <div className="brief-v3-tech-block">
+          <div className="brief-v3-biz-block-label">Search strategy</div>
+          <p className="brief-v3-tech-text">{c.search_strategy}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 20. RiskRegisterRenderer
+//    3×3 likelihood × impact matrix with risk chips placed in cells,
+//    then a full risk table below with mitigation + owner.
+// ────────────────────────────────────────────────────────────────────
+function RiskRegisterRenderer({ content }) {
+  const risks = Array.isArray(content?.risks) ? content.risks : []
+  if (!risks.length) return <div className="brief-v3-empty">No risks identified.</div>
+  // Reuse the 3×3 matrix component pattern from PriorityMatrixRenderer,
+  // but for likelihood × impact + with risk-tone cell shading.
+  return (
+    <div className="brief-v3-risk">
+      <div className="brief-v3-biz-block-label">Risk heatmap</div>
+      <div className="brief-v3-matrix" role="table">
+        <div className="brief-v3-matrix-row brief-v3-matrix-axis-head">
+          <span className="brief-v3-matrix-corner" />
+          <span>Low impact</span>
+          <span>Medium</span>
+          <span>High impact</span>
+        </div>
+        {['High', 'Medium', 'Low'].map(likelihood => (
+          <div key={likelihood} className="brief-v3-matrix-row">
+            <span className="brief-v3-matrix-axis-side">{likelihood} likelihood</span>
+            {['Low', 'Medium', 'High'].map(impact => {
+              const cellRisks = risks.filter(r => norm(r.likelihood) === likelihood && norm(r.impact) === impact)
+              const cellTone = riskCellTone(likelihood, impact)
+              return (
+                <div key={impact} className={`brief-v3-matrix-cell brief-v3-matrix-cell-${cellTone}`}>
+                  <div className="brief-v3-matrix-cell-tag">{riskQuadrant(likelihood, impact)}</div>
+                  {cellRisks.length === 0
+                    ? <div className="brief-v3-matrix-cell-empty">-</div>
+                    : cellRisks.map((r, i) => (
+                        <div key={i} className="brief-v3-matrix-chip" title={r.mitigation || ''}>{r.risk}</div>
+                      ))
+                  }
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="brief-v3-biz-block-label">Register</div>
+      <table className="brief-v3-table">
+        <thead><tr><th>Category</th><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th><th>Owner</th></tr></thead>
+        <tbody>
+          {risks.map((r, i) => (
+            <tr key={i}>
+              <td><span className="brief-v3-pill brief-v3-pill-slate">{r.category}</span></td>
+              <td><strong>{r.risk}</strong></td>
+              <td><span className={`brief-v3-pill brief-v3-pill-${severityTone(r.likelihood)}`}>{r.likelihood}</span></td>
+              <td><span className={`brief-v3-pill brief-v3-pill-${severityTone(r.impact)}`}>{r.impact}</span></td>
+              <td>{r.mitigation}</td>
+              <td><span className="brief-v3-mono">{r.owner}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+function riskQuadrant(likelihood, impact) {
+  if (likelihood === 'High' && impact === 'High')   return 'critical'
+  if (likelihood === 'High' && impact === 'Low')    return 'monitor'
+  if (likelihood === 'Low'  && impact === 'High')   return 'plan'
+  if (likelihood === 'Low'  && impact === 'Low')    return 'accept'
+  return 'mitigate'
+}
+function riskCellTone(likelihood, impact) {
+  if (likelihood === 'High' && impact === 'High')   return 'avoid'    // red
+  if (likelihood === 'High' && impact === 'Low')    return 'consider' // amber
+  if (likelihood === 'Low'  && impact === 'High')   return 'bigbet'   // indigo (plan-for)
+  if (likelihood === 'Low'  && impact === 'Low')    return 'quickwin' // emerald (accept)
+  return 'consider'
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 21. SuccessMetricsRenderer
+//    KPI cards. Each card shows category, big target number,
+//    measurement method, baseline, cadence, ties_to.
+// ────────────────────────────────────────────────────────────────────
+function SuccessMetricsRenderer({ content }) {
+  const list = Array.isArray(content?.metrics) ? content.metrics : []
+  if (!list.length) return <div className="brief-v3-empty">No metrics yet.</div>
+  return (
+    <div className="brief-v3-metrics">
+      {list.map((m, i) => (
+        <div key={i} className="brief-v3-metric">
+          <div className="brief-v3-metric-head">
+            <span className={`brief-v3-pill brief-v3-pill-${metricCategoryTone(m.category)}`}>{m.category}</span>
+            <span className="brief-v3-pill brief-v3-pill-slate">{m.cadence}</span>
+          </div>
+          <div className="brief-v3-metric-name">{m.metric}</div>
+          <div className="brief-v3-metric-target">{m.target}</div>
+          {m.ties_to && <div className="brief-v3-metric-ties">{m.ties_to}</div>}
+          <dl className="brief-v3-metric-meta">
+            {m.baseline    && (<><dt>Baseline</dt><dd>{m.baseline}</dd></>)}
+            {m.measurement && (<><dt>How</dt><dd><span className="brief-v3-mono">{m.measurement}</span></dd></>)}
+          </dl>
+        </div>
+      ))}
+    </div>
+  )
+}
+function metricCategoryTone(cat) {
+  const c = String(cat || '').toLowerCase()
+  if (c.includes('convers') || c.includes('busin')) return 'amber'
+  if (c.includes('reten') || c.includes('adop'))    return 'emerald'
+  if (c.includes('error') || c.includes('bounce'))  return 'red'
+  if (c.includes('engage') || c.includes('time'))   return 'indigo'
+  return 'slate'
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 22. AiPackageRenderer
+//    Structured sections + a copy-to-clipboard "handoff prompt"
+//    block so this entire chapter can be pasted into another AI.
+// ────────────────────────────────────────────────────────────────────
+function AiPackageRenderer({ content }) {
+  const c = content || {}
+  const [copied, setCopied] = useState(false)
+  const fullPayload = useMemo(() => buildHandoffPayload(c), [c])
+  function copyAll() {
+    try {
+      navigator.clipboard.writeText(fullPayload)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {}
+  }
+  const blocks = [
+    ['Project summary',  c.project_summary,  'text'],
+    ['Audience',         c.audience,         'text'],
+    ['Visual direction', c.visual_direction, 'text'],
+    ['Goals',            c.goals,            'list'],
+    ['Requirements',     c.requirements,     'list'],
+    ['Flows',            c.flows,            'list'],
+    ['Components',       c.components,       'list'],
+    ['Constraints',      c.constraints,      'list'],
+    ['Design principles',c.design_principles,'list'],
+    ['Success metrics',  c.success_metrics,  'list'],
+  ].filter(([, v]) => v && (Array.isArray(v) ? v.length : String(v).trim()))
+  return (
+    <div className="brief-v3-aip">
+      <div className="brief-v3-aip-header">
+        <div>
+          <div className="brief-v3-aip-eyebrow">Ready for the next AI</div>
+          <div className="brief-v3-aip-tagline">Paste this into another model to keep moving.</div>
+        </div>
+        <button type="button" onClick={copyAll} className="brief-v3-aip-copy">
+          {copied ? '✓ Copied' : 'Copy full package'}
+        </button>
+      </div>
+      {c.handoff_prompt && (
+        <div className="brief-v3-aip-handoff">
+          <div className="brief-v3-aip-handoff-label">Handoff prompt</div>
+          <pre className="brief-v3-aip-handoff-body">{c.handoff_prompt}</pre>
+        </div>
+      )}
+      <div className="brief-v3-aip-blocks">
+        {blocks.map(([title, value, type], i) => (
+          <div key={i} className="brief-v3-aip-block">
+            <div className="brief-v3-aip-block-label">{title}</div>
+            {type === 'text'
+              ? <p className="brief-v3-aip-block-text">{value}</p>
+              : (
+                <ul className="brief-v3-aip-block-list">
+                  {value.map((v, vi) => <li key={vi}>{v}</li>)}
+                </ul>
+              )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+function buildHandoffPayload(c) {
+  if (!c) return ''
+  const lines = []
+  if (c.handoff_prompt) lines.push(c.handoff_prompt, '')
+  if (c.project_summary) lines.push('## Project', c.project_summary, '')
+  if (c.audience)        lines.push('## Audience', c.audience, '')
+  if (Array.isArray(c.goals) && c.goals.length) {
+    lines.push('## Goals')
+    c.goals.forEach(g => lines.push(`- ${g}`))
+    lines.push('')
+  }
+  if (Array.isArray(c.requirements) && c.requirements.length) {
+    lines.push('## Requirements')
+    c.requirements.forEach(r => lines.push(`- ${r}`))
+    lines.push('')
+  }
+  if (Array.isArray(c.flows) && c.flows.length) {
+    lines.push('## Flows')
+    c.flows.forEach(f => lines.push(`- ${f}`))
+    lines.push('')
+  }
+  if (Array.isArray(c.components) && c.components.length) {
+    lines.push('## Components')
+    c.components.forEach(co => lines.push(`- ${co}`))
+    lines.push('')
+  }
+  if (Array.isArray(c.constraints) && c.constraints.length) {
+    lines.push('## Constraints')
+    c.constraints.forEach(co => lines.push(`- ${co}`))
+    lines.push('')
+  }
+  if (c.visual_direction) lines.push('## Visual direction', c.visual_direction, '')
+  if (Array.isArray(c.design_principles) && c.design_principles.length) {
+    lines.push('## Design principles')
+    c.design_principles.forEach(p => lines.push(`- ${p}`))
+    lines.push('')
+  }
+  if (Array.isArray(c.success_metrics) && c.success_metrics.length) {
+    lines.push('## Success metrics')
+    c.success_metrics.forEach(m => lines.push(`- ${m}`))
+    lines.push('')
+  }
+  return lines.join('\n')
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -3822,6 +4480,496 @@ function V3Styles() {
       .brief-v3-comps-phase-reasoning {
         font: 500 12px/1.45 'Inter', sans-serif;
         color: var(--v3-ink-muted);
+      }
+
+      /* ── 17. UX Writing ───────────────────────────────────────── */
+      .brief-v3-uxw { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-uxw-block { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-uxw-reading {
+        display: grid; grid-template-columns: auto 1fr; gap: 24px;
+        align-items: center;
+        padding: 20px 24px;
+        background: var(--v3-ink);
+        color: var(--v3-bg);
+        border-radius: 12px;
+      }
+      .brief-v3-uxw-reading-num {
+        font: 700 32px 'Fraunces', serif;
+        color: var(--v3-bg);
+        white-space: nowrap;
+      }
+      .brief-v3-uxw-reading-meta { display: flex; flex-direction: column; gap: 8px; }
+      .brief-v3-uxw-reading-meta p {
+        margin: 0;
+        font: 500 14px/1.5 'Inter', sans-serif;
+        color: #CBD5E1;
+      }
+      .brief-v3-uxw-reading-spec {
+        display: flex; flex-wrap: wrap; gap: 14px;
+        font: 500 12px 'Inter', sans-serif;
+        color: #94A3B8;
+      }
+      .brief-v3-uxw-reading-spec strong { color: var(--v3-bg); font-weight: 700; }
+      .brief-v3-uxw-rules {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;
+      }
+      .brief-v3-dodont {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .brief-v3-dodont.is-compact { padding: 10px 12px; }
+      .brief-v3-dodont-title {
+        font: 700 13px 'Fraunces', serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-dodont-subtitle {
+        font: 500 11px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-dodont-pair {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      }
+      @media (max-width: 600px) { .brief-v3-dodont-pair { grid-template-columns: 1fr; } }
+      .brief-v3-dodont-half {
+        padding: 8px 10px;
+        background: var(--v3-bg);
+        border-radius: 6px;
+        border-left: 3px solid currentColor;
+        display: flex; flex-direction: column; gap: 3px;
+      }
+      .brief-v3-dodont-tag {
+        font: 700 8px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+      }
+      .brief-v3-dodont-half > span:last-child {
+        font: 500 12px/1.4 'Inter', sans-serif;
+        font-style: italic;
+        color: var(--v3-ink);
+      }
+      .brief-v3-uxw-surfaces { display: flex; flex-direction: column; gap: 16px; }
+      .brief-v3-uxw-surface {
+        display: flex; flex-direction: column; gap: 8px;
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+      }
+      .brief-v3-uxw-surface-head {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink);
+      }
+      .brief-v3-uxw-forbidden {
+        padding: 16px 18px;
+        background: rgba(180,56,56,0.08);
+        border: 1px solid rgba(180,56,56,0.30);
+        border-radius: 10px;
+      }
+      .brief-v3-uxw-forbidden-label {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-red);
+        margin-bottom: 8px;
+      }
+      .brief-v3-uxw-forbidden-list {
+        display: flex; flex-wrap: wrap; gap: 6px;
+      }
+      .brief-v3-uxw-forbidden-chip {
+        padding: 4px 10px;
+        background: var(--v3-bg);
+        border: 1px solid rgba(180,56,56,0.30);
+        border-radius: 4px;
+        font: 500 12px 'Fraunces', serif;
+        font-style: italic;
+        color: var(--v3-red);
+        text-decoration: line-through;
+      }
+
+      /* ── 18. Design Tokens ────────────────────────────────────── */
+      .brief-v3-tokens { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-tokens-block { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-tokens-row {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      }
+      @media (max-width: 700px) { .brief-v3-tokens-row { grid-template-columns: 1fr; } }
+      .brief-v3-tokens-mini {
+        padding: 16px 18px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+      }
+      .brief-v3-tokens-color-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;
+      }
+      .brief-v3-tokens-color {
+        display: grid; grid-template-columns: 40px 1fr; gap: 12px;
+        padding: 10px 12px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 8px;
+        align-items: center;
+      }
+      .brief-v3-tokens-color-chip {
+        width: 40px; height: 40px;
+        border-radius: 6px;
+        border: 1px solid var(--v3-line);
+      }
+      .brief-v3-tokens-color-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+      .brief-v3-tokens-color-meta .brief-v3-mono { font-size: 11px; }
+      .brief-v3-tokens-color-hex {
+        font: 500 10px 'JetBrains Mono', monospace;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-tokens-color-role {
+        font: 500 11px 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-tokens-scale { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+      .brief-v3-tokens-scale li {
+        display: grid;
+        grid-template-columns: 80px auto 1fr 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 6px 8px;
+        background: var(--v3-bg);
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      .brief-v3-tokens-scale li .brief-v3-mono { font-size: 11px; }
+      .brief-v3-tokens-space-demo {
+        display: inline-block;
+        height: 8px;
+        background: var(--v3-accent);
+        border-radius: 2px;
+      }
+      .brief-v3-tokens-radius-demo {
+        display: inline-block;
+        width: 40px; height: 40px;
+        background: var(--v3-accent);
+      }
+      .brief-v3-tokens-shadow-demo {
+        display: inline-block;
+        width: 40px; height: 24px;
+        background: var(--v3-bg);
+        border-radius: 4px;
+      }
+      .brief-v3-tokens-scale-val {
+        font: 500 11px 'JetBrains Mono', monospace;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-tokens-scale-role {
+        font: 500 11px 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-tokens-kv {
+        margin: 0;
+        display: grid; grid-template-columns: 100px 1fr;
+        column-gap: 14px; row-gap: 6px;
+      }
+      .brief-v3-tokens-kv dt {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        padding-top: 2px;
+      }
+      .brief-v3-tokens-kv dd {
+        margin: 0;
+        font: 500 12px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-tokens-icons {
+        display: flex; flex-wrap: wrap; gap: 14px;
+        padding: 12px 14px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+      }
+      .brief-v3-tokens-icon {
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        padding: 8px 12px;
+        background: var(--v3-bg);
+        border-radius: 6px;
+        min-width: 80px;
+      }
+      .brief-v3-tokens-icon-demo {
+        background: var(--v3-ink-muted);
+        border-radius: 2px;
+      }
+      .brief-v3-tokens-icon-meta {
+        font: 500 10px 'JetBrains Mono', monospace;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-tokens-icon-role {
+        font: 500 11px 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-tokens-naming { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-tokens-naming-rule {
+        padding: 10px 14px;
+        background: var(--v3-bg-2);
+        border-left: 3px solid var(--v3-accent);
+        border-radius: 4px;
+        font: 500 14px/1.5 'Fraunces', serif;
+        font-style: italic;
+        color: var(--v3-ink);
+      }
+      .brief-v3-tokens-naming-eg { display: flex; flex-wrap: wrap; gap: 8px; }
+      .brief-v3-tokens-naming-chip {
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+      }
+      .brief-v3-tokens-naming-chip.is-good { background: rgba(47,125,79,0.10);  color: var(--v3-emerald); }
+      .brief-v3-tokens-naming-chip.is-bad  { background: rgba(180,56,56,0.10);  color: var(--v3-red); }
+
+      /* ── 19. Tech Considerations ──────────────────────────────── */
+      .brief-v3-tech { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-tech-block { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-tech-row {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      }
+      @media (max-width: 700px) { .brief-v3-tech-row { grid-template-columns: 1fr; } }
+      .brief-v3-tech-list { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-tech-item {
+        padding: 12px 14px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-left: 3px solid var(--v3-indigo);
+        border-radius: 8px;
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      .brief-v3-tech-item-head strong {
+        font: 700 13px 'Fraunces', serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-tech-item-row {
+        display: grid; grid-template-columns: 70px 1fr; gap: 10px;
+        font: 500 12px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-tech-item-row > span:first-child {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        padding-top: 2px;
+      }
+      .brief-v3-tech-card {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v3-tech-card-head {
+        font: 700 12px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-accent-ink);
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--v3-line-soft);
+      }
+      .brief-v3-tech-card-line {
+        display: grid; grid-template-columns: 80px 1fr; gap: 10px;
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-tech-card-line > span:first-child {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        padding-top: 2px;
+      }
+      .brief-v3-tech-perms {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;
+      }
+      .brief-v3-tech-perm {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 8px;
+      }
+      .brief-v3-tech-perm-role {
+        font: 700 14px 'Fraunces', serif;
+        color: var(--v3-ink);
+        margin-bottom: 10px;
+      }
+      .brief-v3-tech-perm-cols {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      }
+      .brief-v3-tech-perm-cols > div {
+        padding: 10px 12px;
+        background: var(--v3-bg);
+        border-radius: 6px;
+        border-left: 3px solid currentColor;
+      }
+      .brief-v3-tech-perm-tag {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        margin-bottom: 4px;
+        display: block;
+      }
+      .brief-v3-tech-perm-cols ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+      .brief-v3-tech-perm-cols li {
+        font: 500 11px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-tech-text {
+        margin: 0;
+        padding: 12px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 8px;
+        font: 500 13px/1.5 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-tech-events { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+      .brief-v3-tech-events li {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+
+      /* ── 20. Risk Register ────────────────────────────────────── */
+      .brief-v3-risk {
+        display: flex; flex-direction: column; gap: 14px;
+      }
+
+      /* ── 21. Success Metrics ──────────────────────────────────── */
+      .brief-v3-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
+      }
+      .brief-v3-metric {
+        padding: 18px 22px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 12px;
+        border-top: 4px solid var(--v3-accent);
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v3-metric-head {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      }
+      .brief-v3-metric-name {
+        font: 500 13px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-metric-target {
+        font: 700 32px/1 'Fraunces', serif;
+        font-variant-numeric: oldstyle-nums;
+        color: var(--v3-accent-ink);
+        letter-spacing: -0.02em;
+      }
+      .brief-v3-metric-ties {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        font-style: italic;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-metric-meta {
+        margin: 8px 0 0;
+        display: grid; grid-template-columns: 80px 1fr;
+        column-gap: 10px; row-gap: 5px;
+        padding-top: 10px;
+        border-top: 1px solid var(--v3-line-soft);
+      }
+      .brief-v3-metric-meta dt {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        padding-top: 2px;
+      }
+      .brief-v3-metric-meta dd {
+        margin: 0;
+        font: 500 11px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+
+      /* ── 22. AI Package ───────────────────────────────────────── */
+      .brief-v3-aip { display: flex; flex-direction: column; gap: 20px; }
+      .brief-v3-aip-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 20px 24px;
+        background: var(--v3-ink);
+        color: var(--v3-bg);
+        border-radius: 12px;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .brief-v3-aip-eyebrow {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: #94A3B8;
+        margin-bottom: 4px;
+      }
+      .brief-v3-aip-tagline {
+        font: 600 15px 'Fraunces', serif;
+        color: var(--v3-bg);
+      }
+      .brief-v3-aip-copy {
+        padding: 10px 18px;
+        background: var(--v3-accent);
+        color: white;
+        border: none;
+        border-radius: 999px;
+        font: 700 12px 'Inter', sans-serif;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      .brief-v3-aip-copy:hover { opacity: 0.85; }
+      .brief-v3-aip-handoff {
+        padding: 16px 18px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-left: 4px solid var(--v3-accent);
+        border-radius: 10px;
+      }
+      .brief-v3-aip-handoff-label {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-accent-ink);
+        margin-bottom: 10px;
+      }
+      .brief-v3-aip-handoff-body {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font: 500 13px/1.6 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-aip-blocks {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;
+      }
+      .brief-v3-aip-block {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 8px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v3-aip-block-label {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-aip-block-text {
+        margin: 0;
+        font: 500 13px/1.5 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-aip-block-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+      .brief-v3-aip-block-list li {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+        padding-left: 12px; position: relative;
+      }
+      .brief-v3-aip-block-list li::before {
+        content: '·';
+        position: absolute; left: 0;
+        color: var(--v3-accent);
+        font-weight: 700;
       }
     `}</style>
   )

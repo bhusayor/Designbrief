@@ -628,6 +628,212 @@ build_order: 3 phases ordering components by build priority.
 Brief:
 ${briefText}`,
   },
+
+  // ── 17. UX Writing Guidelines ──────────────────────────────────
+  ux_writing: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define the UX writing guidelines. This is the RULES layer that sits above the content strategy: imperative copy rules + reading level + surface-by-surface writing patterns.
+
+Return JSON exactly in this shape:
+{
+  "reading_level": {
+    "grade":   "<US grade level, e.g. 'Grade 6-8' or 'Grade 10+ for technical surfaces'>",
+    "reason":  "<one short line on why this reading level fits the audience>",
+    "max_sentence_length": "<typical max word count per sentence>",
+    "max_paragraph_length":"<typical max sentences per paragraph>"
+  },
+  "voice_rules": [
+    { "rule": "<imperative writing rule, e.g. 'Use active voice always' or 'Address the user as you'>", "why": "<one short line>", "do":  "<short example>", "dont": "<short example>" }
+  ],
+  "tone_rules": [
+    { "context": "<where this tone applies>", "tone": "<the tone>", "example": "<one short copy example>" }
+  ],
+  "surfaces": {
+    "error_messages":    [ { "pattern": "<the rule>", "do": "<example>", "dont": "<example>" } ],
+    "confirmations":     [ { "pattern": "...", "do": "...", "dont": "..." } ],
+    "instructions":      [ { "pattern": "...", "do": "...", "dont": "..." } ],
+    "onboarding":        [ { "pattern": "...", "do": "...", "dont": "..." } ],
+    "button_labels":     [ { "pattern": "...", "do": "...", "dont": "..." } ],
+    "empty_states":      [ { "pattern": "...", "do": "...", "dont": "..." } ],
+    "notifications":     [ { "pattern": "...", "do": "...", "dont": "..." } ]
+  },
+  "forbidden_phrases": [ "<phrase the brand never uses, e.g. 'Oops!', 'Sorry for the inconvenience', generic CTAs like 'Click here'>" ]
+}
+
+voice_rules: 4-6 imperative rules. tone_rules: 3-5 contexts. Each surface in surfaces: 2-3 patterns. forbidden_phrases: 4-8 specific phrases to ban. Every do/dont pair must be CONCRETE, real copy strings, not abstract guidance.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 18. Design System Foundations (tokens) ─────────────────────
+  design_tokens: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Specify the Design System Foundations: design tokens + layout rules + breakpoints + grid + icon sizes + naming convention.
+
+Return JSON exactly in this shape:
+{
+  "tokens": {
+    "color":      [ { "name": "<kebab-case token, e.g. 'color-bg-default'>", "value": "#RRGGBB", "role": "<where it's used>" } ],
+    "typography": [ { "name": "<e.g. 'type-display-xl'>", "family": "<font family>", "size": "<px>", "weight": "<weight>", "lineHeight": "<px or unitless>", "letterSpacing": "<em>", "role": "<where used>" } ],
+    "spacing":    [ { "name": "<e.g. 'space-4'>", "value": "<px>", "role": "<typical use, e.g. 'Component padding'>" } ],
+    "radius":     [ { "name": "<e.g. 'radius-md'>", "value": "<px>", "role": "<typical use>" } ],
+    "elevation":  [ { "name": "<e.g. 'elevation-sm'>", "value": "<box-shadow CSS>", "role": "<typical use>" } ],
+    "shadow":     [ { "name": "<e.g. 'shadow-focus'>", "value": "<box-shadow CSS>", "role": "<typical use>" } ],
+    "motion":     [ { "name": "<e.g. 'motion-snap'>", "duration": "<ms>", "easing": "<cubic-bezier or named>", "role": "<typical use>" } ]
+  },
+  "layout": {
+    "container_max":  "<max content width, e.g. '1280px'>",
+    "column_padding": "<edge padding, e.g. '32px desktop / 16px mobile'>",
+    "stack_default":  "<default vertical rhythm between sections, e.g. '64px desktop / 40px mobile'>"
+  },
+  "breakpoints": [
+    { "name": "<e.g. 'sm'>", "min": "<px>", "rationale": "<one short line on why this breakpoint exists>" }
+  ],
+  "grid": {
+    "columns": "<column count>",
+    "gutter":  "<gutter px>",
+    "rationale":"<one short line>"
+  },
+  "icon_sizes": [
+    { "name": "<e.g. 'icon-sm'>", "size": "<px>", "stroke": "<px or 'N/A'>", "role": "<typical use>" }
+  ],
+  "naming_convention": {
+    "rule":     "<one short sentence stating the rule, e.g. 'category-property-modifier'>",
+    "examples": [ "<one good name>", "<one bad name (anti-example)>" ]
+  }
+}
+
+color: 8-14 tokens covering bg / surface / card / border / ink (text) / accent / semantic (success/warn/error/info). typography: 5-10 tokens (display + heading + body sizes). spacing: 6-10 tokens following a geometric scale. radius: 4-6. elevation: 3-5. shadow: 2-4. motion: 3-5. icon_sizes: 3-5. breakpoints: 3-5.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 19. Technical Considerations ───────────────────────────────
+  tech_considerations: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Surface the technical considerations a senior dev would need to plan this build. APIs, backend, CMS, auth, permissions, perf risks, caching, offline, integrations, analytics, search.
+
+Return JSON exactly in this shape:
+{
+  "apis": [
+    { "name": "<API or service>", "purpose": "<what it does for us>", "type": "Internal | Third-party | TBD" }
+  ],
+  "backend": [
+    { "concern": "<short>", "approach": "<recommended approach>", "rationale": "<one short line>" }
+  ],
+  "cms": {
+    "needed":   true,
+    "approach": "<recommended CMS strategy or 'None' if not needed>",
+    "rationale":"<one short line>"
+  },
+  "auth": {
+    "model":    "<auth model, e.g. 'Email magic link + Google SSO' or 'No auth required'>",
+    "rationale":"<one short line>"
+  },
+  "permissions": [
+    { "role": "<role name>", "can": [ "<what they can do>" ], "cannot": [ "<what they cannot do>" ] }
+  ],
+  "performance_risks": [
+    { "risk": "<short>", "trigger": "<what causes it>", "mitigation": "<short>" }
+  ],
+  "caching": [
+    { "layer": "<browser | CDN | server | DB>", "strategy": "<short>", "rationale": "<short>" }
+  ],
+  "offline_strategy": "<one short line on offline approach, or 'No offline support needed' if not applicable>",
+  "integrations": [
+    { "service": "<e.g. 'Stripe', 'Segment', 'Algolia'>", "purpose": "<short>", "risk": "Low | Medium | High" }
+  ],
+  "analytics": {
+    "tool":     "<recommended tool, e.g. 'PostHog', 'Plausible', 'Segment + Amplitude'>",
+    "key_events":[ "<event name + why we capture it>" ]
+  },
+  "search_strategy": "<one short line on search approach, or 'None' if no search needed>"
+}
+
+apis: 3-7. backend: 3-6 concerns. permissions: list roles that apply (often Guest / User / Admin / TBD). performance_risks: 3-5. caching: 2-4. integrations: 2-6. analytics.key_events: 5-10 events worth capturing.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 20. Risk Assessment ────────────────────────────────────────
+  risk_assessment: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Build the risk register. Every risk gets likelihood + impact + mitigation + owner.
+
+Return JSON exactly in this shape:
+{
+  "risks": [
+    {
+      "category":   "Business | UX | Technical | Content | Legal | Accessibility | Adoption | Performance",
+      "risk":       "<one short statement of the risk>",
+      "likelihood": "Low | Medium | High",
+      "impact":     "Low | Medium | High",
+      "mitigation": "<one short line on how to prevent or reduce it>",
+      "owner":      "<role responsible, e.g. 'Product', 'Design', 'Engineering', 'Legal'>"
+    }
+  ]
+}
+
+8-14 risks, spread across categories that actually apply. Prioritise risks the brief explicitly hints at OR that are obvious for this product type. Don't fabricate risks just to fill the table.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 21. Success Metrics ────────────────────────────────────────
+  success_metrics: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define measurable success metrics. Each metric has a SPECIFIC target, a measurement method, a baseline if knowable, and a check cadence.
+
+Return JSON exactly in this shape:
+{
+  "metrics": [
+    {
+      "category":    "Task completion | Conversion | Engagement | Retention | Adoption | Satisfaction | NPS | Time on task | Error rate | Bounce rate | Business",
+      "metric":      "<specific metric, e.g. 'Free-to-paid conversion in 14 days'>",
+      "target":      "<specific target with units, e.g. '> 8%'>",
+      "baseline":    "<current baseline if known, or 'Unknown' / 'N/A' if pre-launch>",
+      "measurement": "<how we measure it, e.g. 'PostHog funnel event signup→pricing.upgrade'>",
+      "cadence":     "Daily | Weekly | Monthly | Quarterly",
+      "ties_to":     "<the business goal this metric proves, in 1 short line>"
+    }
+  ]
+}
+
+6-12 metrics covering the categories most relevant to this product. Be SPECIFIC; reject "increase engagement". Use "DAU/MAU > 0.30 within Q2" or "Median time-to-first-action < 90s".
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 22. AI Design Package ──────────────────────────────────────
+  ai_package: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Produce the final AI Design Package: a concise, structured summary another AI could ingest to start designing or building immediately. No fluff; structured data.
+
+Return JSON exactly in this shape:
+{
+  "project_summary":  "<2 sentences max>",
+  "goals":            [ "<one line per goal>" ],
+  "audience":         "<1 sentence>",
+  "requirements":     [ "<one line per requirement>" ],
+  "flows":            [ "<one line per critical flow>" ],
+  "components":       [ "<one line per critical component>" ],
+  "constraints":      [ "<one line per constraint>" ],
+  "visual_direction": "<2-3 sentence summary>",
+  "design_principles":[ "<one line per principle>" ],
+  "success_metrics":  [ "<one line per key metric with target>" ],
+  "handoff_prompt":   "<a ready-to-paste prompt for a downstream AI, in 4-8 sentences, telling it everything it needs to start designing/building this product. Self-contained. No reference to 'this brief' or 'as discussed' — assume the receiving AI has only this prompt>"
+}
+
+This is the consolidation layer. Pull from the other chapters; do not invent new information. Keep every list to 5-9 entries — the package's value is condensation. The handoff_prompt is the single most important field: imagine pasting it into a fresh chat with another AI and getting useful design or code back.
+
+Brief:
+${briefText}`,
+  },
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -678,6 +884,12 @@ export async function translateBriefV3(briefText, { onSection } = {}) {
     design_principles:           3000,
     visual_direction:            4500,
     component_inventory:         3500,
+    ux_writing:                  4500,
+    design_tokens:               6500,  // token tables are wide
+    tech_considerations:         4500,
+    risk_assessment:             3500,
+    success_metrics:             3500,
+    ai_package:                  3000,
   }
 
   async function runSection(sectionDef, attempt = 0) {

@@ -101,6 +101,12 @@ export const BRIEF_V3_WIRED_KEYS = [
   'design_principles',
   'visual_direction',
   'component_inventory',
+  'ux_writing',
+  'design_tokens',
+  'tech_considerations',
+  'risk_assessment',
+  'success_metrics',
+  'ai_package',
 ]
 
 // Back-compat alias — Dashboard still imports the old name.
