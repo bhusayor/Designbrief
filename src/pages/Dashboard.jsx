@@ -18,12 +18,15 @@ import {
   generateSubtasks,
 } from '../lib/api'
 import { translateBriefV2, reviseBriefV2, snapshotForRevisions, isV2Result, scoreBriefV2 } from '../lib/briefV2Translator'
+import { translateBriefV3, isV3Result } from '../lib/briefV3Translator'
 import BriefV2ReviseModal from '../components/brief/BriefV2ReviseModal'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
+import { BRIEF_V3_SECTIONS, BRIEF_V3_SCHEMA_VERSION, BRIEF_V3_PHASE_1A_KEYS } from '../lib/briefV3Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
 import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
 import { exportV2BriefAsPdf } from '../lib/briefV2PdfExport'
 import BriefV2View from '../components/brief/BriefV2View'
+import BriefV3View from '../components/brief/BriefV3View'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
 import { supabase } from '../lib/supabase'
@@ -31,6 +34,26 @@ import { supabase } from '../lib/supabase'
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const uid = () => Math.random().toString(36).slice(2, 9)
+
+// V3 skeleton factory. Each section starts null (renders as
+// streaming) for wired keys, or marked __pending_phase for the
+// chapters Phase 1A doesn't ship yet (renderer surfaces them as
+// "Coming next").
+function buildV3Skeleton(title) {
+  return {
+    schemaVersion: BRIEF_V3_SCHEMA_VERSION,
+    projectTitle: title || 'Translating brief…',
+    sections: BRIEF_V3_SECTIONS.map(s => ({
+      key: s.key,
+      id: s.id,
+      title: s.title,
+      shape: s.shape,
+      tier: s.tier,
+      description: s.description,
+      content: BRIEF_V3_PHASE_1A_KEYS.includes(s.key) ? null : { __pending_phase: true },
+    })),
+  }
+}
 
 function buildPhasesLocal(taskDays) {
   if (!taskDays || typeof taskDays !== 'object') return []
@@ -699,27 +722,20 @@ export default function Dashboard() {
     }
     console.log('[handleTranslate] context length:', fullContext.length)
 
-    // Pop straight into the result view with skeleton cards. The
-    // V2 translator streams each section in as soon as its call
-    // resolves; BriefV2View handles the skeleton-to-real animation
-    // per item. Skipping the previous "Analysing brief…" loading
-    // screen makes the response feel immediate.
+    // Pop straight into the result view with a streaming skeleton.
+    // V3 translator (22-section Design Intelligence Document) streams
+    // each chapter in as soon as its call resolves; BriefV3View
+    // handles the skeleton-to-real animation per chapter. The
+    // skeleton is built from the V3 schema so the chapter nav fills
+    // the moment phase flips to 'result'.
     setStoredBriefText(fullContext)
     setStreamedText('')
     setStreamDone(true)
-    const earlySkeleton = {
-      schemaVersion: BRIEF_V2_SCHEMA_VERSION,
-      projectTitle: 'Translating brief…',
-      sections: BRIEF_V2_SECTIONS.map(s => ({
-        id: s.id,
-        label: s.label,
-        items: s.items.map(it => ({ ...it, content: null })),
-      })),
-    }
+    const earlySkeleton = buildV3Skeleton('Translating brief…')
     setResult(earlySkeleton)
     setActiveProjectBriefResult(earlySkeleton)
     setPhase('result')
-    setV2Streaming(true)
+    setV2Streaming(true)  // shared streaming flag, reused for V3
 
     // Free-plan credit gate (10 credits per translation). On insufficient
     // credits consumeCredits shows its own toast + opens the upgrade
@@ -794,18 +810,19 @@ export default function Dashboard() {
       setCreditsUsed(prev => prev + 1)
 
       const fullBrief = fullContext + templateContext + connectorContext
-      console.log('[handleTranslate] calling translateBriefV2. fullBrief length:', fullBrief.length)
+      console.log('[handleTranslate] calling translateBriefV3. fullBrief length:', fullBrief.length)
 
-      const finalResult = await translateBriefV2(fullBrief, {
-        onSection: (sectionId, items, partialResult) => {
-          // Force a new object reference so React picks up the change.
+      // V3 streaming: onSection fires per chapter with (key, content,
+      // partialResult). Push a new sections array so React re-renders.
+      const finalResult = await translateBriefV3(fullBrief, {
+        onSection: (_key, _content, partialResult) => {
           setResult({
             ...partialResult,
-            sections: partialResult.sections.map(s => ({ ...s, items: [...s.items] })),
+            sections: partialResult.sections.map(s => ({ ...s })),
           })
           setActiveProjectBriefResult({
             ...partialResult,
-            sections: partialResult.sections.map(s => ({ ...s, items: [...s.items] })),
+            sections: partialResult.sections.map(s => ({ ...s })),
           })
         },
       })
@@ -1146,6 +1163,22 @@ export default function Dashboard() {
   // ── Result phase ───────────────────────────────────────────────────────────
 
   if (phase === 'result' && result) {
+    // V3 result (Design Intelligence Document, 22 chapters) renders
+    // through BriefV3View. New translations from handleTranslate go
+    // through V3. V2 / legacy briefs keep rendering through their
+    // own renderers for back-compat.
+    if (isV3Result(result)) {
+      return (
+        <div className="brief-result-root" style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
+          <BriefV3View
+            result={result}
+            isStreaming={v2Streaming}
+            revising={revising}
+            onRevise={null /* Phase 1B: wire V3 revise modal */}
+          />
+        </div>
+      )
+    }
     // V2 result (21-item framework) renders through BriefV2View.
     // Older saved briefs use the legacy schema and continue to
     // render through ResultView for back-compat.
