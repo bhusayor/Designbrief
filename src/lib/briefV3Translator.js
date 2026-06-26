@@ -330,7 +330,300 @@ Return JSON exactly in this shape:
   ]
 }
 
-happy_path: 4-8 steps. alternatives: 2-4 branches. error_paths: 2-4 errors. edge_cases: 3-5 cases. decision_points: 2-4. Be SPECIFIC about node names — "Auth screen" beats "screen 2". Every step's "system" field describes what the product does in response (animation, redirect, validation, etc.).
+happy_path: 4-8 steps. alternatives: 2-4 branches. error_paths: 2-4 errors. edge_cases: 3-5 cases. decision_points: 2-4. Be SPECIFIC about node names ("Auth screen" beats "screen 2"). Every step's "system" field describes what the product does in response (animation, redirect, validation, etc.).
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 9. Information Architecture ────────────────────────────────
+  information_architecture: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define the Information Architecture. A site map tree + primary/secondary/utility navigation + content groupings + cross-cutting relationships + taxonomy.
+
+Return JSON exactly in this shape:
+{
+  "site_map": {
+    "name":     "<root, usually the product name>",
+    "type":     "root",
+    "children": [
+      {
+        "name": "<page/section name>",
+        "type": "page | section | flow | external",
+        "purpose": "<one short line on what lives here>",
+        "children": [ { "name": "...", "type": "...", "purpose": "...", "children": [] } ]
+      }
+    ]
+  },
+  "navigation": {
+    "primary":   [ { "label": "<nav label>", "destination": "<where it points>", "rationale": "<one short line>" } ],
+    "secondary": [ { "label": "...", "destination": "...", "rationale": "..." } ],
+    "utility":   [ { "label": "...", "destination": "...", "rationale": "..." } ]
+  },
+  "groupings": [
+    { "group": "<content group name>", "members": [ "<page/area>" ], "rationale": "<why these live together>" }
+  ],
+  "relationships": [
+    { "from": "<page/area>", "to": "<page/area>", "type": "Links to | Inherits | Depends on | Cross-references", "purpose": "<one short line>" }
+  ],
+  "taxonomy": [
+    { "term": "<a term used across the product>", "definition": "<short>", "synonyms": [ "<alt>" ] }
+  ],
+  "depth_warning": "<one short line if any branch is >3 levels deep and worth simplifying, or empty string>"
+}
+
+site_map: depth 2-3 typical. Don't invent generic page lists; let the brief drive what pages exist. Don't default to Home/About/Services/Contact unless the brief actually points there.
+navigation.primary: 3-6 items max. secondary + utility optional, 0-5 each.
+groupings: 2-5 logical groupings.
+relationships: 3-8 meaningful cross-links.
+taxonomy: 3-8 terms whose meaning must be consistent (decide them now).
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 10. Functional Requirements ────────────────────────────────
+  functional_requirements: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `List the functional requirements. Group features as core / supporting / future. For each feature, specify inputs / outputs / business rules / validation / permissions / all UI states.
+
+Return JSON exactly in this shape:
+{
+  "core": [
+    {
+      "feature":        "<feature name>",
+      "description":    "<one short sentence>",
+      "inputs":         [ "<what the user provides>" ],
+      "outputs":        [ "<what the system returns>" ],
+      "business_rules": [ "<rule the product must enforce>" ],
+      "validation":     [ "<input rule, e.g. 'Email must be unique'>" ],
+      "permissions":    [ "<who can do this, e.g. 'Authenticated, role=Admin'>" ],
+      "states": {
+        "empty":   "<what's shown when there's no data>",
+        "loading": "<what's shown while loading>",
+        "error":   "<what's shown on error>",
+        "success": "<what's shown after a successful action>",
+        "offline": "<what's shown when offline (or 'N/A' if no offline support needed)>"
+      },
+      "edge_cases": [ "<one short edge case>" ]
+    }
+  ],
+  "supporting":  [ { "<same shape>": "..." } ],
+  "future":      [ { "feature": "...", "description": "...", "rationale": "<why later, not now>" } ],
+  "dependencies": [
+    { "depends_on": "<other feature/system>", "needed_for": "<this feature>", "type": "Hard | Soft" }
+  ]
+}
+
+core: 3-7 features (the must-haves). supporting: 3-6 features. future: 2-5 deferred features. Be SPECIFIC; reject vague "user management".
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 11. Non-Functional Requirements ────────────────────────────
+  non_functional_requirements: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define the non-functional requirements. For each dimension that applies, name a specific target + the standard + a one-line reasoning.
+
+Return JSON exactly in this shape:
+{
+  "requirements": [
+    {
+      "category":  "Accessibility | Performance | Scalability | Localization | Privacy | Security | Responsiveness | Offline | Animation | Dark mode | Maintainability | Analytics | SEO | Compliance",
+      "target":    "<specific, measurable target, e.g. 'WCAG 2.2 AA across all surfaces' or 'LCP < 1.8s on 4G'>",
+      "standard":  "<the standard or framework backing it, or 'Internal' if bespoke>",
+      "rationale": "<one short line on why this target>",
+      "priority":  "Must | Should | Could"
+    }
+  ]
+}
+
+Cover 8-14 categories that actually apply to this product (skip categories that are genuinely N/A, but be honest, most products need at least Accessibility / Performance / Security / Responsiveness / Analytics). For each, give a SPECIFIC measurable target. "Fast" is rejected, use "LCP < 1.8s". "Secure" is rejected, use specifics like "OWASP Top 10 mitigations + CSP + HSTS".
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 12. Content Strategy ───────────────────────────────────────
+  content_strategy: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Define the content strategy. Content types + hierarchy + voice + tone + microcopy patterns for each surface.
+
+Return JSON exactly in this shape:
+{
+  "content_types": [
+    { "type": "<e.g. 'Product copy', 'Onboarding flow', 'Error states'>", "purpose": "<one short line>", "tone": "<the tone for this type>" }
+  ],
+  "hierarchy": [
+    { "level": 1, "label": "<what appears first>", "intent": "<one short line>" },
+    { "level": 2, "label": "...", "intent": "..." }
+  ],
+  "voice": {
+    "personality": "<3 adjectives that describe the brand voice, e.g. 'Direct, warm, witty'>",
+    "we_are":      [ "<one short line per attribute>" ],
+    "we_are_not":  [ "<one short line per anti-attribute>" ]
+  },
+  "tone_adapters": [
+    { "context": "<where the tone shifts, e.g. 'Error messages', 'Onboarding', 'Empty states'>", "tone": "<the tone for this context>", "example": "<a one-line copy example>" }
+  ],
+  "microcopy": {
+    "ctas":          [ { "context": "<surface>", "copy": "<exact copy>", "anti_pattern": "<what NOT to say here>" } ],
+    "errors":        [ { "context": "...", "copy": "...", "anti_pattern": "..." } ],
+    "empty_states":  [ { "context": "...", "copy": "...", "anti_pattern": "..." } ],
+    "notifications": [ { "context": "...", "copy": "...", "anti_pattern": "..." } ],
+    "success":       [ { "context": "...", "copy": "...", "anti_pattern": "..." } ]
+  },
+  "information_density": "Dense | Moderate | Spacious",
+  "density_rationale":   "<one short line on why this density fits the audience>"
+}
+
+content_types: 4-7 entries. hierarchy: 3-6 levels. tone_adapters: 4-7 contexts. microcopy sub-lists: 2-4 entries each, populated for surfaces that actually exist.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 13. Competitive Landscape ──────────────────────────────────
+  competitive_landscape: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Analyse the competitive landscape. 3-5 direct competitors + common patterns we should follow + standards we should meet + how to differentiate + anti-patterns to avoid + innovation opportunities.
+
+Return JSON exactly in this shape:
+{
+  "competitors": [
+    {
+      "name":            "<real competitor name>",
+      "url":             "<homepage URL only if you're confident from training data, else omit>",
+      "positioning":     "<how they position themselves, 1 short line>",
+      "dominant_pattern":"<their dominant layout / interaction pattern>",
+      "strength":        "<one short line on what they do best>",
+      "weakness":        "<one short line on where they fall short>",
+      "lesson":          "<the specific lesson for us, 1 short line>"
+    }
+  ],
+  "common_patterns": [
+    { "pattern": "<UX pattern most players use>", "should_follow": true, "reasoning": "<why or why not>" }
+  ],
+  "industry_standards": [
+    { "standard": "<implicit user expectation in this category>", "how_to_meet": "<one short line>" }
+  ],
+  "differentiators": [
+    { "diff": "<how we can stand out>", "leverage": "High | Medium | Low", "reasoning": "<one short line>" }
+  ],
+  "anti_patterns": [
+    { "pattern": "<bad pattern common in the space>", "why_avoid": "<one short line>" }
+  ],
+  "innovation_opportunities": [
+    { "opportunity": "<unconventional move worth considering>", "risk": "Low | Medium | High", "reasoning": "<one short line>" }
+  ]
+}
+
+competitors: 3-5. Real names only, omit URL if uncertain. common_patterns: 3-6. industry_standards: 3-6. differentiators: 3-5. anti_patterns: 2-4. innovation_opportunities: 2-4.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 14. Design Principles (reasoning chain) ────────────────────
+  design_principles: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Generate 4-6 PROJECT-SPECIFIC design principles. Not generic ones like "clarity over cleverness". Each must be defensible against trade-offs.
+
+Return JSON exactly in this shape:
+{
+  "principles": [
+    {
+      "name":         "<short principle name, 2-5 words>",
+      "statement":    "<the principle as a declarative sentence>",
+      "why_exists":   "<the specific reason this principle exists for THIS product, 1 sentence>",
+      "what_it_means":"<concrete what it looks like in design decisions, 1-2 sentences>",
+      "what_it_prevents": "<the specific failure mode it guards against, 1 sentence>",
+      "example":      "<a concrete example of applying it, 1 short line>",
+      "tradeoffs":    "<the cost of holding this principle, 1 short line>",
+      "confidence":   "high | medium | low"
+    }
+  ]
+}
+
+4-6 principles. Each principle must be PROJECT-SPECIFIC, not generic SaaS-design wisdom. "Clarity over cleverness" is rejected. "Lead with price transparency, never bury totals" is good for an ecommerce brief; "Trade visual flourish for sub-second load" is good for a slow-network product. Every principle includes the full reasoning chain.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 15. Visual Direction ───────────────────────────────────────
+  visual_direction: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `Make the visual direction call. Mood + personality + colour + type + spacing + grid + iconography + illustration + photography + elevation + radius + motion + component philosophy + a/c. References must be real and category-appropriate.
+
+Return JSON exactly in this shape:
+{
+  "mood":         "<3-5 words capturing the visual feel>",
+  "personality":  "<3-5 adjectives>",
+  "color_strategy": {
+    "approach":    "<one short line on the colour approach, e.g. 'Restrained editorial with a single signature accent'>",
+    "primary":     "<recommended primary hue family, 1 short line>",
+    "accent":      "<recommended accent hue family, 1 short line>",
+    "tone":        "<light dominant | dark dominant | dual>",
+    "rationale":   "<one short line on why this fits>"
+  },
+  "typography_strategy": {
+    "display": "<recommended display family + rationale>",
+    "body":    "<recommended body family + rationale>",
+    "pairing_rationale": "<why this pairing>"
+  },
+  "spacing":      "<base unit + scale, e.g. '4px base, geometric 4/8/12/16/24/32/48/64'>",
+  "grid":         "<recommended grid, e.g. '12-col fluid, 80px gutter at desktop'>",
+  "iconography":  "<recommended icon style + size + weight>",
+  "illustration": "<recommended illustration style, or 'Not used' if not appropriate>",
+  "photography":  "<recommended photography style, or 'Not used'>",
+  "elevation":    "<recommended elevation approach + shadow tokens, e.g. '3-level: 0/sm/md, soft long shadows'>",
+  "border_radius":"<recommended radius scale, e.g. 'Geometric 0/4/8/12/999'>",
+  "motion":       "<motion philosophy, e.g. 'Quiet defaults (150ms), expressive only for celebratory moments'>",
+  "component_philosophy": "<one short line on how components should compose, e.g. 'Editorial cards over chrome'>",
+  "accessibility_notes": [ "<one short line per consideration>" ],
+  "dark_mode":    "<recommended approach to dark mode + when to deploy>",
+  "light_mode":   "<recommended approach to light mode>",
+  "references": [
+    { "name": "<real product/site/designer>", "url": "<URL if confident, else omit>", "what_to_borrow": "<one short line>" }
+  ]
+}
+
+references: 4-7 entries, project-specific (e.g. for a fashion brand: Margiela, Acne Studios, Telfar; for a fintech: Wise, Mercury, Cash App). Reject the default SaaS shortlist unless this IS a B2B SaaS.
+accessibility_notes: 3-5 specific concerns (not "ensure WCAG AA"). Be specific to the audience and product.
+
+Brief:
+${briefText}`,
+  },
+
+  // ── 16. Component Inventory ────────────────────────────────────
+  component_inventory: {
+    system: BASE_SYSTEM,
+    user: (briefText) => `List every UI component the product needs, grouped by category. For each, mark how heavily it's used + any specific variants required.
+
+Return JSON exactly in this shape:
+{
+  "categories": [
+    {
+      "category": "Navigation | Inputs & forms | Surfaces | Data display | Feedback | Overlay | Media | Utility",
+      "components": [
+        {
+          "name":     "<component name, e.g. 'Top nav', 'Combobox', 'Card', 'Toast'>",
+          "usage":    "Heavy | Moderate | Light",
+          "variants": [ "<variant label, e.g. 'Compact', 'With avatar'>" ],
+          "notes":    "<one short line on a specific requirement or constraint, or empty string>"
+        }
+      ]
+    }
+  ],
+  "build_order": [
+    { "phase": "Foundation | Core | Polish", "components": [ "<component name>" ], "reasoning": "<one short line>" }
+  ]
+}
+
+categories: 4-8 categories that apply. Each category should list 3-8 components. Be CONCRETE; if the brief is for a fashion site, list "Lookbook card", "Variant swatch picker", "Size selector", not just "Card", "Input", "Picker".
+build_order: 3 phases ordering components by build priority.
 
 Brief:
 ${briefText}`,
@@ -369,14 +662,22 @@ export async function translateBriefV3(briefText, { onSection } = {}) {
   // Token budgets per section. Scorecard + priority matrix carry a
   // lot of structured rows so they need more headroom.
   const MAX_TOKENS = {
-    executive_summary:      1800,
-    brief_health:           3500,
-    problem_definition:     3000,
-    business_intelligence:  4000,
-    user_intelligence:      4500,
-    jobs_to_be_done:        3500,
-    user_journey:           4500,
-    user_flows:             4500,
+    executive_summary:           1800,
+    brief_health:                3500,
+    problem_definition:          3000,
+    business_intelligence:       4000,
+    user_intelligence:           4500,
+    jobs_to_be_done:             3500,
+    user_journey:                4500,
+    user_flows:                  4500,
+    information_architecture:    5000,  // tree JSON gets deep
+    functional_requirements:     6000,  // every feature has 6 sub-arrays
+    non_functional_requirements: 3500,
+    content_strategy:            4500,
+    competitive_landscape:       4500,
+    design_principles:           3000,
+    visual_direction:            4500,
+    component_inventory:         3500,
   }
 
   async function runSection(sectionDef, attempt = 0) {

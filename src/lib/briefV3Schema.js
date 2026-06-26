@@ -93,6 +93,14 @@ export const BRIEF_V3_WIRED_KEYS = [
   'jobs_to_be_done',
   'user_journey',
   'user_flows',
+  'information_architecture',
+  'functional_requirements',
+  'non_functional_requirements',
+  'content_strategy',
+  'competitive_landscape',
+  'design_principles',
+  'visual_direction',
+  'component_inventory',
 ]
 
 // Back-compat alias — Dashboard still imports the old name.

@@ -252,14 +252,22 @@ function ErrorBlock({ section }) {
 function ShapeRenderer({ section }) {
   const c = section.content
   switch (section.shape) {
-    case 'snapshot':        return <SnapshotRenderer       content={c} />
-    case 'scorecard':       return <ScorecardRenderer      content={c} />
-    case 'state_diagram':   return <StateDiagramRenderer   content={c} />
-    case 'priority_matrix': return <PriorityMatrixRenderer content={c} />
-    case 'personas':        return <PersonasRenderer       content={c} />
-    case 'jtbd_canvas':     return <JtbdCanvasRenderer     content={c} />
-    case 'journey_map':     return <JourneyMapRenderer     content={c} />
-    case 'flow_chart':      return <FlowChartRenderer      content={c} />
+    case 'snapshot':            return <SnapshotRenderer        content={c} />
+    case 'scorecard':           return <ScorecardRenderer       content={c} />
+    case 'state_diagram':       return <StateDiagramRenderer    content={c} />
+    case 'priority_matrix':     return <PriorityMatrixRenderer  content={c} />
+    case 'personas':            return <PersonasRenderer        content={c} />
+    case 'jtbd_canvas':         return <JtbdCanvasRenderer      content={c} />
+    case 'journey_map':         return <JourneyMapRenderer      content={c} />
+    case 'flow_chart':          return <FlowChartRenderer       content={c} />
+    case 'tree':                return <TreeRenderer            content={c} />
+    case 'requirements':        return <RequirementsRenderer    content={c} />
+    case 'nfr_grid':            return <NfrGridRenderer         content={c} />
+    case 'content_strategy':    return <ContentStrategyRenderer content={c} />
+    case 'competitive':         return <CompetitiveRenderer     content={c} />
+    case 'principles':          return <PrinciplesRenderer      content={c} />
+    case 'visual_direction':    return <VisualDirectionRenderer content={c} />
+    case 'component_inventory': return <ComponentInventoryRenderer content={c} />
     default:
       return (
         <div className="brief-v3-unhandled">
@@ -1040,6 +1048,677 @@ function FlowChartRenderer({ content }) {
       )}
     </div>
   )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 9. TreeRenderer — Information Architecture
+//    Site map rendered as an indented tree with connector lines.
+//    Below: navigation lists (primary / secondary / utility) +
+//    groupings + cross-cutting relationships + taxonomy.
+// ────────────────────────────────────────────────────────────────────
+function TreeRenderer({ content }) {
+  const c = content || {}
+  return (
+    <div className="brief-v3-ia">
+      {c.site_map && (
+        <div className="brief-v3-ia-block">
+          <div className="brief-v3-biz-block-label">Site map</div>
+          <div className="brief-v3-tree">
+            <TreeNode node={c.site_map} depth={0} isLast={true} />
+          </div>
+          {c.depth_warning && (
+            <div className="brief-v3-ia-warning">⚠ {c.depth_warning}</div>
+          )}
+        </div>
+      )}
+      {c.navigation && (
+        <div className="brief-v3-ia-block">
+          <div className="brief-v3-biz-block-label">Navigation</div>
+          <div className="brief-v3-ia-nav-grid">
+            <NavList title="Primary"   items={c.navigation.primary}   tone="accent" />
+            <NavList title="Secondary" items={c.navigation.secondary} tone="slate" />
+            <NavList title="Utility"   items={c.navigation.utility}   tone="slate" />
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.groupings) && c.groupings.length > 0 && (
+        <div className="brief-v3-ia-block">
+          <div className="brief-v3-biz-block-label">Content groupings</div>
+          <div className="brief-v3-ia-groupings">
+            {c.groupings.map((g, i) => (
+              <div key={i} className="brief-v3-ia-grouping">
+                <div className="brief-v3-ia-grouping-name">{g.group}</div>
+                <div className="brief-v3-ia-grouping-members">
+                  {(g.members || []).map((m, mi) => (
+                    <span key={mi} className="brief-v3-pill brief-v3-pill-slate">{m}</span>
+                  ))}
+                </div>
+                {g.rationale && <div className="brief-v3-ia-grouping-rationale">{g.rationale}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.relationships) && c.relationships.length > 0 && (
+        <div className="brief-v3-ia-block">
+          <div className="brief-v3-biz-block-label">Cross-cutting relationships</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>From</th><th></th><th>To</th><th>Type</th><th>Purpose</th></tr></thead>
+            <tbody>
+              {c.relationships.map((r, i) => (
+                <tr key={i}>
+                  <td><strong>{r.from}</strong></td>
+                  <td><span className="brief-v3-ia-arrow">→</span></td>
+                  <td><strong>{r.to}</strong></td>
+                  <td><span className="brief-v3-pill brief-v3-pill-indigo">{r.type}</span></td>
+                  <td>{r.purpose}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {Array.isArray(c.taxonomy) && c.taxonomy.length > 0 && (
+        <div className="brief-v3-ia-block">
+          <div className="brief-v3-biz-block-label">Taxonomy (consistent terms)</div>
+          <dl className="brief-v3-ia-taxonomy">
+            {c.taxonomy.map((t, i) => (
+              <div key={i} className="brief-v3-ia-tax-row">
+                <dt>{t.term}</dt>
+                <dd>
+                  {t.definition}
+                  {Array.isArray(t.synonyms) && t.synonyms.length > 0 && (
+                    <div className="brief-v3-ia-tax-syn">
+                      <span>also:</span>
+                      {t.synonyms.map((s, si) => <span key={si} className="brief-v3-mono">{s}</span>)}
+                    </div>
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </div>
+  )
+}
+function TreeNode({ node, depth, isLast }) {
+  if (!node) return null
+  const children = Array.isArray(node.children) ? node.children : []
+  return (
+    <div className="brief-v3-tree-node">
+      <div className="brief-v3-tree-row" style={{ paddingLeft: depth * 20 }}>
+        {depth > 0 && <span className="brief-v3-tree-bullet" aria-hidden>{isLast ? '└' : '├'}</span>}
+        <span className={`brief-v3-tree-type brief-v3-tree-type-${node.type || 'page'}`}>{node.type || 'page'}</span>
+        <span className="brief-v3-tree-name">{node.name}</span>
+        {node.purpose && <span className="brief-v3-tree-purpose">{node.purpose}</span>}
+      </div>
+      {children.map((child, i) => (
+        <TreeNode key={i} node={child} depth={depth + 1} isLast={i === children.length - 1} />
+      ))}
+    </div>
+  )
+}
+function NavList({ title, items, tone }) {
+  const list = Array.isArray(items) ? items : []
+  if (!list.length) return null
+  return (
+    <div className={`brief-v3-ia-nav brief-v3-tone-${tone === 'accent' ? 'amber' : tone}`}>
+      <div className="brief-v3-ia-nav-head">{title}</div>
+      <ul>
+        {list.map((n, i) => (
+          <li key={i}>
+            <span className="brief-v3-ia-nav-label">{n.label}</span>
+            <span className="brief-v3-ia-nav-dest">{n.destination}</span>
+            {n.rationale && <span className="brief-v3-ia-nav-rationale">{n.rationale}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 10. RequirementsRenderer — Functional Requirements
+//    Core / Supporting / Future feature cards. Each card expands to
+//    show inputs, outputs, business rules, validation, permissions,
+//    and a states grid (empty / loading / error / success / offline).
+// ────────────────────────────────────────────────────────────────────
+function RequirementsRenderer({ content }) {
+  const c = content || {}
+  return (
+    <div className="brief-v3-reqs">
+      <FeatureGroup title="Core features"        items={c.core}       tone="accent" />
+      <FeatureGroup title="Supporting features"  items={c.supporting} tone="slate" />
+      <FutureGroup  title="Future features"      items={c.future} />
+      {Array.isArray(c.dependencies) && c.dependencies.length > 0 && (
+        <div className="brief-v3-reqs-block">
+          <div className="brief-v3-biz-block-label">Dependencies</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>This needs</th><th>To enable</th><th>Type</th></tr></thead>
+            <tbody>
+              {c.dependencies.map((d, i) => (
+                <tr key={i}>
+                  <td><strong>{d.depends_on}</strong></td>
+                  <td>{d.needed_for}</td>
+                  <td><span className={`brief-v3-pill brief-v3-pill-${d.type === 'Hard' ? 'red' : 'amber'}`}>{d.type}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+function FeatureGroup({ title, items, tone }) {
+  const list = Array.isArray(items) ? items : []
+  if (!list.length) return null
+  return (
+    <div className="brief-v3-reqs-block">
+      <div className="brief-v3-biz-block-label">{title}</div>
+      <div className="brief-v3-reqs-list">
+        {list.map((f, i) => <FeatureCard key={i} feature={f} tone={tone} />)}
+      </div>
+    </div>
+  )
+}
+function FeatureCard({ feature: f, tone }) {
+  const [open, setOpen] = useState(false)
+  const subBlocks = [
+    ['Inputs',         f.inputs],
+    ['Outputs',        f.outputs],
+    ['Business rules', f.business_rules],
+    ['Validation',     f.validation],
+    ['Permissions',    f.permissions],
+    ['Edge cases',     f.edge_cases],
+  ].filter(([, v]) => Array.isArray(v) && v.length > 0)
+  return (
+    <div className={`brief-v3-feature brief-v3-feature-${tone === 'accent' ? 'accent' : 'slate'}`}>
+      <button type="button" className="brief-v3-feature-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <div className="brief-v3-feature-head-text">
+          <div className="brief-v3-feature-name">{f.feature}</div>
+          {f.description && <div className="brief-v3-feature-desc">{f.description}</div>}
+        </div>
+        <span className="brief-v3-feature-toggle">{open ? '−' : '+'}</span>
+      </button>
+      {open && (
+        <div className="brief-v3-feature-body">
+          {subBlocks.length > 0 && (
+            <div className="brief-v3-feature-blocks">
+              {subBlocks.map(([label, items]) => (
+                <div key={label} className="brief-v3-feature-block">
+                  <div className="brief-v3-feature-block-label">{label}</div>
+                  <ul>
+                    {items.map((it, i) => <li key={i}>{it}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+          {f.states && (
+            <div className="brief-v3-feature-states">
+              <div className="brief-v3-feature-block-label">States</div>
+              <div className="brief-v3-feature-states-grid">
+                {['empty', 'loading', 'error', 'success', 'offline'].map(s => f.states[s] && (
+                  <div key={s} className={`brief-v3-state-pill brief-v3-state-pill-${s}`}>
+                    <span className="brief-v3-state-pill-label">{s}</span>
+                    <span className="brief-v3-state-pill-body">{f.states[s]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+function FutureGroup({ title, items }) {
+  const list = Array.isArray(items) ? items : []
+  if (!list.length) return null
+  return (
+    <div className="brief-v3-reqs-block">
+      <div className="brief-v3-biz-block-label">{title}</div>
+      <ul className="brief-v3-future-list">
+        {list.map((f, i) => (
+          <li key={i}>
+            <div className="brief-v3-future-head">
+              <strong>{f.feature}</strong>
+              <span className="brief-v3-pill brief-v3-pill-slate">Future</span>
+            </div>
+            {f.description && <div className="brief-v3-future-desc">{f.description}</div>}
+            {f.rationale && <div className="brief-v3-future-rationale">{f.rationale}</div>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 11. NfrGridRenderer — Non-Functional Requirements
+//    Tabular grid with category / target / standard / rationale / priority.
+//    Category pills colour-coded for quick scan.
+// ────────────────────────────────────────────────────────────────────
+function NfrGridRenderer({ content }) {
+  const list = Array.isArray(content?.requirements) ? content.requirements : []
+  if (!list.length) return <div className="brief-v3-empty">No non-functional requirements yet.</div>
+  return (
+    <div className="brief-v3-nfr">
+      <table className="brief-v3-table brief-v3-nfr-table">
+        <thead>
+          <tr><th>Category</th><th>Target</th><th>Standard</th><th>Why</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          {list.map((r, i) => (
+            <tr key={i}>
+              <td><span className={`brief-v3-nfr-cat brief-v3-nfr-cat-${nfrCategoryTone(r.category)}`}>{r.category}</span></td>
+              <td><strong>{r.target}</strong></td>
+              <td><span className="brief-v3-mono">{r.standard}</span></td>
+              <td>{r.rationale}</td>
+              <td><span className={`brief-v3-pill brief-v3-pill-${priorityTone(r.priority)}`}>{r.priority}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+function nfrCategoryTone(cat) {
+  const c = String(cat || '').toLowerCase()
+  if (c.includes('access'))   return 'indigo'
+  if (c.includes('perf'))     return 'amber'
+  if (c.includes('secur') || c.includes('priv') || c.includes('comp')) return 'red'
+  if (c.includes('scal') || c.includes('respons')) return 'emerald'
+  return 'slate'
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 12. ContentStrategyRenderer
+//    Voice card (We are / We are not) + tone adapters table + content
+//    types + microcopy patterns table for each surface.
+// ────────────────────────────────────────────────────────────────────
+function ContentStrategyRenderer({ content }) {
+  const c = content || {}
+  return (
+    <div className="brief-v3-content">
+      {c.voice && (
+        <div className="brief-v3-voice">
+          <div className="brief-v3-voice-personality">
+            <span className="brief-v3-voice-label">Voice</span>
+            <span className="brief-v3-voice-words">{c.voice.personality}</span>
+          </div>
+          <div className="brief-v3-voice-cols">
+            <div className="brief-v3-voice-col brief-v3-tone-emerald">
+              <div className="brief-v3-voice-col-head">We are</div>
+              <ul>{(c.voice.we_are || []).map((v, i) => <li key={i}>{v}</li>)}</ul>
+            </div>
+            <div className="brief-v3-voice-col brief-v3-tone-red">
+              <div className="brief-v3-voice-col-head">We are not</div>
+              <ul>{(c.voice.we_are_not || []).map((v, i) => <li key={i}>{v}</li>)}</ul>
+            </div>
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.content_types) && c.content_types.length > 0 && (
+        <div className="brief-v3-content-block">
+          <div className="brief-v3-biz-block-label">Content types</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Type</th><th>Purpose</th><th>Tone</th></tr></thead>
+            <tbody>
+              {c.content_types.map((t, i) => (
+                <tr key={i}><td><strong>{t.type}</strong></td><td>{t.purpose}</td><td><span className="brief-v3-pill brief-v3-pill-indigo">{t.tone}</span></td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {Array.isArray(c.hierarchy) && c.hierarchy.length > 0 && (
+        <div className="brief-v3-content-block">
+          <div className="brief-v3-biz-block-label">Hierarchy on a screen</div>
+          <ol className="brief-v3-content-hier">
+            {c.hierarchy.map((h, i) => (
+              <li key={i}>
+                <span className="brief-v3-content-hier-num">{h.level}</span>
+                <div>
+                  <strong>{h.label}</strong>
+                  {h.intent && <div className="brief-v3-content-hier-intent">{h.intent}</div>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+      {Array.isArray(c.tone_adapters) && c.tone_adapters.length > 0 && (
+        <div className="brief-v3-content-block">
+          <div className="brief-v3-biz-block-label">Tone adapters by context</div>
+          <table className="brief-v3-table">
+            <thead><tr><th>Context</th><th>Tone</th><th>Example</th></tr></thead>
+            <tbody>
+              {c.tone_adapters.map((t, i) => (
+                <tr key={i}>
+                  <td><strong>{t.context}</strong></td>
+                  <td><span className="brief-v3-pill brief-v3-pill-slate">{t.tone}</span></td>
+                  <td><em>"{t.example}"</em></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {c.microcopy && (
+        <div className="brief-v3-content-block">
+          <div className="brief-v3-biz-block-label">Microcopy patterns</div>
+          <div className="brief-v3-microcopy">
+            {['ctas', 'errors', 'empty_states', 'notifications', 'success'].map(k => {
+              const list = Array.isArray(c.microcopy[k]) ? c.microcopy[k] : []
+              if (!list.length) return null
+              return (
+                <div key={k} className="brief-v3-microcopy-group">
+                  <div className="brief-v3-microcopy-label">{microcopyLabel(k)}</div>
+                  {list.map((m, i) => (
+                    <div key={i} className="brief-v3-microcopy-row">
+                      <div className="brief-v3-microcopy-context">{m.context}</div>
+                      <div className="brief-v3-microcopy-copy">"{m.copy}"</div>
+                      {m.anti_pattern && <div className="brief-v3-microcopy-anti">NOT: "{m.anti_pattern}"</div>}
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      {c.information_density && (
+        <div className="brief-v3-content-density">
+          <span className="brief-v3-content-density-label">Information density</span>
+          <span className="brief-v3-content-density-value">{c.information_density}</span>
+          {c.density_rationale && <span className="brief-v3-content-density-rationale">{c.density_rationale}</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+function microcopyLabel(k) {
+  return ({ ctas: 'CTAs', errors: 'Errors', empty_states: 'Empty states', notifications: 'Notifications', success: 'Success' })[k] || k
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 13. CompetitiveRenderer
+//    Competitor cards + common patterns / standards / differentiators
+//    / anti-patterns / innovation opportunities each in their own block.
+// ────────────────────────────────────────────────────────────────────
+function CompetitiveRenderer({ content }) {
+  const c = content || {}
+  return (
+    <div className="brief-v3-comp">
+      {Array.isArray(c.competitors) && c.competitors.length > 0 && (
+        <div className="brief-v3-comp-block">
+          <div className="brief-v3-biz-block-label">Competitors</div>
+          <div className="brief-v3-comp-grid">
+            {c.competitors.map((co, i) => (
+              <div key={i} className="brief-v3-comp-card">
+                <div className="brief-v3-comp-card-head">
+                  <div className="brief-v3-comp-card-name">{co.name}</div>
+                  {co.url && <a href={co.url} target="_blank" rel="noreferrer" className="brief-v3-comp-card-url">{co.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>}
+                </div>
+                {co.positioning && <p className="brief-v3-comp-card-positioning">{co.positioning}</p>}
+                {co.dominant_pattern && (
+                  <div className="brief-v3-comp-card-row">
+                    <span className="brief-v3-comp-card-tag">Pattern</span>
+                    <span>{co.dominant_pattern}</span>
+                  </div>
+                )}
+                <div className="brief-v3-comp-card-sw">
+                  {co.strength && <div className="brief-v3-tone-emerald"><span className="brief-v3-comp-card-tag">+</span>{co.strength}</div>}
+                  {co.weakness && <div className="brief-v3-tone-red"><span className="brief-v3-comp-card-tag">−</span>{co.weakness}</div>}
+                </div>
+                {co.lesson && (
+                  <div className="brief-v3-comp-card-lesson">
+                    <span className="brief-v3-comp-card-tag">Lesson</span>
+                    <span>{co.lesson}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="brief-v3-comp-cols">
+        <CompList title="Common patterns to follow" items={c.common_patterns}      tone="emerald" labelKey="pattern" extraKey="reasoning" boolKey="should_follow" />
+        <CompList title="Industry standards"        items={c.industry_standards}   tone="indigo" labelKey="standard" extraKey="how_to_meet" />
+        <CompList title="Differentiators"           items={c.differentiators}      tone="accent" labelKey="diff" extraKey="reasoning" badgeKey="leverage" badgeTone={leverageTone} />
+        <CompList title="Anti-patterns to avoid"    items={c.anti_patterns}        tone="red" labelKey="pattern" extraKey="why_avoid" />
+        <CompList title="Innovation opportunities"  items={c.innovation_opportunities} tone="amber" labelKey="opportunity" extraKey="reasoning" badgeKey="risk" badgeTone={(v) => v?.toLowerCase().startsWith('h') ? 'red' : v?.toLowerCase().startsWith('m') ? 'amber' : 'emerald'} />
+      </div>
+    </div>
+  )
+}
+function CompList({ title, items, tone, labelKey, extraKey, badgeKey, badgeTone, boolKey }) {
+  const list = Array.isArray(items) ? items : []
+  if (!list.length) return null
+  const toneClass = tone === 'accent' ? 'amber' : tone
+  return (
+    <div className={`brief-v3-comp-list brief-v3-tone-${toneClass}`}>
+      <div className="brief-v3-comp-list-head">{title}</div>
+      <ul>
+        {list.map((it, i) => (
+          <li key={i}>
+            <div className="brief-v3-comp-list-line">
+              <strong>{it[labelKey]}</strong>
+              {badgeKey && it[badgeKey] && (
+                <span className={`brief-v3-pill brief-v3-pill-${badgeTone ? badgeTone(it[badgeKey]) : 'slate'}`}>{it[badgeKey]}</span>
+              )}
+              {boolKey && it[boolKey] === false && (
+                <span className="brief-v3-pill brief-v3-pill-red">Skip</span>
+              )}
+              {boolKey && it[boolKey] === true && (
+                <span className="brief-v3-pill brief-v3-pill-emerald">Follow</span>
+              )}
+            </div>
+            {it[extraKey] && <div className="brief-v3-comp-list-extra">{it[extraKey]}</div>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 14. PrinciplesRenderer
+//    Each principle as a numbered card with full reasoning chain:
+//    statement → why → means → prevents → example → tradeoffs +
+//    confidence bar at the bottom right.
+// ────────────────────────────────────────────────────────────────────
+function PrinciplesRenderer({ content }) {
+  const list = Array.isArray(content?.principles) ? content.principles : []
+  if (!list.length) return <div className="brief-v3-empty">No principles yet.</div>
+  return (
+    <ol className="brief-v3-principles">
+      {list.map((p, i) => (
+        <li key={i} className="brief-v3-principle">
+          <div className="brief-v3-principle-head">
+            <span className="brief-v3-principle-num">{String(i + 1).padStart(2, '0')}</span>
+            <div className="brief-v3-principle-id">
+              <h3 className="brief-v3-principle-name">{p.name}</h3>
+              <p className="brief-v3-principle-statement">{p.statement}</p>
+            </div>
+          </div>
+          <dl className="brief-v3-principle-chain">
+            {p.why_exists      && (<><dt>Why it exists</dt><dd>{p.why_exists}</dd></>)}
+            {p.what_it_means   && (<><dt>What it means</dt><dd>{p.what_it_means}</dd></>)}
+            {p.what_it_prevents&& (<><dt>What it prevents</dt><dd>{p.what_it_prevents}</dd></>)}
+            {p.example         && (<><dt>Example</dt><dd>{p.example}</dd></>)}
+            {p.tradeoffs       && (<><dt>Trade-offs</dt><dd>{p.tradeoffs}</dd></>)}
+          </dl>
+          {p.confidence && (
+            <div className="brief-v3-principle-conf">
+              <span className="brief-v3-principle-conf-label">Confidence</span>
+              <span className={`brief-v3-pill brief-v3-pill-${confidenceTone(p.confidence)}`}>{p.confidence}</span>
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
+  )
+}
+function confidenceTone(c) {
+  const v = String(c || '').toLowerCase()
+  if (v === 'high')   return 'emerald'
+  if (v === 'medium') return 'amber'
+  return 'red'
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 15. VisualDirectionRenderer
+//    Mood + personality header. Then a grid of trait cards (colour,
+//    type, motion, etc.), each with its strategy text. References at
+//    the bottom as a clickable card grid.
+// ────────────────────────────────────────────────────────────────────
+function VisualDirectionRenderer({ content }) {
+  const c = content || {}
+  const cards = [
+    ['Colour strategy', c.color_strategy && [
+      ['Approach',  c.color_strategy.approach],
+      ['Primary',   c.color_strategy.primary],
+      ['Accent',    c.color_strategy.accent],
+      ['Tone',      c.color_strategy.tone],
+      ['Rationale', c.color_strategy.rationale],
+    ]],
+    ['Typography',    c.typography_strategy && [
+      ['Display',  c.typography_strategy.display],
+      ['Body',     c.typography_strategy.body],
+      ['Pairing',  c.typography_strategy.pairing_rationale],
+    ]],
+    ['Spacing',       c.spacing       && [['', c.spacing]]],
+    ['Grid',          c.grid          && [['', c.grid]]],
+    ['Iconography',   c.iconography   && [['', c.iconography]]],
+    ['Illustration',  c.illustration  && [['', c.illustration]]],
+    ['Photography',   c.photography   && [['', c.photography]]],
+    ['Elevation',     c.elevation     && [['', c.elevation]]],
+    ['Border radius', c.border_radius && [['', c.border_radius]]],
+    ['Motion',        c.motion        && [['', c.motion]]],
+    ['Component philosophy', c.component_philosophy && [['', c.component_philosophy]]],
+    ['Dark mode',     c.dark_mode     && [['', c.dark_mode]]],
+    ['Light mode',    c.light_mode    && [['', c.light_mode]]],
+  ].filter(([, v]) => v)
+  return (
+    <div className="brief-v3-visual">
+      <div className="brief-v3-visual-header">
+        {c.mood && (
+          <div>
+            <span className="brief-v3-visual-header-label">Mood</span>
+            <span className="brief-v3-visual-header-value">{c.mood}</span>
+          </div>
+        )}
+        {c.personality && (
+          <div>
+            <span className="brief-v3-visual-header-label">Personality</span>
+            <span className="brief-v3-visual-header-value">{c.personality}</span>
+          </div>
+        )}
+      </div>
+      <div className="brief-v3-visual-grid">
+        {cards.map(([title, rows], i) => (
+          <div key={i} className="brief-v3-visual-card">
+            <div className="brief-v3-visual-card-title">{title}</div>
+            <dl>
+              {rows.map(([label, value], ri) => (
+                <div key={ri} className="brief-v3-visual-card-row">
+                  {label && <dt>{label}</dt>}
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </div>
+      {Array.isArray(c.accessibility_notes) && c.accessibility_notes.length > 0 && (
+        <div className="brief-v3-visual-a11y">
+          <div className="brief-v3-visual-a11y-label">Accessibility considerations</div>
+          <ul>{c.accessibility_notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+        </div>
+      )}
+      {Array.isArray(c.references) && c.references.length > 0 && (
+        <div className="brief-v3-visual-refs">
+          <div className="brief-v3-biz-block-label">References</div>
+          <div className="brief-v3-visual-refs-grid">
+            {c.references.map((r, i) => (
+              <div key={i} className="brief-v3-visual-ref">
+                <div className="brief-v3-visual-ref-name">{r.name}</div>
+                {r.url && <a href={r.url} target="_blank" rel="noreferrer" className="brief-v3-visual-ref-url">{r.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>}
+                {r.what_to_borrow && <div className="brief-v3-visual-ref-borrow">Borrow: {r.what_to_borrow}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 16. ComponentInventoryRenderer
+//    Categories of components with usage chips + variant tags.
+//    Below: build order timeline (Foundation / Core / Polish).
+// ────────────────────────────────────────────────────────────────────
+function ComponentInventoryRenderer({ content }) {
+  const c = content || {}
+  const cats = Array.isArray(c.categories) ? c.categories : []
+  const buildOrder = Array.isArray(c.build_order) ? c.build_order : []
+  return (
+    <div className="brief-v3-comps">
+      <div className="brief-v3-comps-grid">
+        {cats.map((cat, i) => (
+          <div key={i} className="brief-v3-comps-cat">
+            <div className="brief-v3-comps-cat-head">{cat.category}</div>
+            <div className="brief-v3-comps-list">
+              {(cat.components || []).map((comp, ci) => (
+                <div key={ci} className="brief-v3-comps-item">
+                  <div className="brief-v3-comps-item-head">
+                    <span className="brief-v3-comps-item-name">{comp.name}</span>
+                    <span className={`brief-v3-pill brief-v3-pill-${usageTone(comp.usage)}`}>{comp.usage}</span>
+                  </div>
+                  {Array.isArray(comp.variants) && comp.variants.length > 0 && (
+                    <div className="brief-v3-comps-item-variants">
+                      {comp.variants.map((v, vi) => <span key={vi} className="brief-v3-pill brief-v3-pill-slate">{v}</span>)}
+                    </div>
+                  )}
+                  {comp.notes && <div className="brief-v3-comps-item-notes">{comp.notes}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {buildOrder.length > 0 && (
+        <div className="brief-v3-comps-order">
+          <div className="brief-v3-biz-block-label">Build order</div>
+          <div className="brief-v3-comps-order-grid">
+            {buildOrder.map((phase, i) => (
+              <div key={i} className="brief-v3-comps-phase">
+                <div className="brief-v3-comps-phase-head">
+                  <span className="brief-v3-comps-phase-num">{i + 1}</span>
+                  <span className="brief-v3-comps-phase-name">{phase.phase}</span>
+                </div>
+                <div className="brief-v3-comps-phase-list">
+                  {(phase.components || []).map((c, ci) => <span key={ci} className="brief-v3-pill brief-v3-pill-slate">{c}</span>)}
+                </div>
+                {phase.reasoning && <div className="brief-v3-comps-phase-reasoning">{phase.reasoning}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+function usageTone(u) {
+  const v = String(u || '').toLowerCase()
+  if (v === 'heavy')    return 'red'
+  if (v === 'moderate') return 'amber'
+  return 'emerald'
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -2441,6 +3120,709 @@ function V3Styles() {
         color: var(--v3-ink-soft);
       }
       .brief-v3-flow-edges strong { color: var(--v3-ink); font-weight: 600; }
+
+      /* ── 9. Information Architecture (tree) ───────────────────── */
+      .brief-v3-ia { display: flex; flex-direction: column; gap: 28px; }
+      .brief-v3-ia-block { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-tree {
+        padding: 16px 20px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        font: 500 13px/1.7 'JetBrains Mono', monospace;
+        overflow-x: auto;
+      }
+      .brief-v3-tree-node { display: flex; flex-direction: column; }
+      .brief-v3-tree-row {
+        display: flex; align-items: center; gap: 10px;
+        white-space: nowrap;
+      }
+      .brief-v3-tree-bullet { color: var(--v3-ink-muted); }
+      .brief-v3-tree-type {
+        font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+        padding: 1px 6px; border-radius: 3px;
+        background: var(--v3-bg); color: var(--v3-ink-muted);
+        border: 1px solid var(--v3-line);
+      }
+      .brief-v3-tree-type-root    { background: var(--v3-ink); color: var(--v3-bg); border-color: var(--v3-ink); }
+      .brief-v3-tree-type-page    { background: rgba(59,73,144,0.10); color: var(--v3-indigo); border-color: rgba(59,73,144,0.30); }
+      .brief-v3-tree-type-section { background: rgba(178,107,15,0.10); color: var(--v3-amber); border-color: rgba(178,107,15,0.30); }
+      .brief-v3-tree-type-flow    { background: rgba(47,125,79,0.10);  color: var(--v3-emerald); border-color: rgba(47,125,79,0.30); }
+      .brief-v3-tree-type-external{ background: var(--v3-bg); color: var(--v3-ink-muted); }
+      .brief-v3-tree-name { font-weight: 600; color: var(--v3-ink); }
+      .brief-v3-tree-purpose {
+        font: 500 12px 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-ia-warning {
+        padding: 8px 12px;
+        background: rgba(178,107,15,0.10);
+        border-left: 3px solid var(--v3-amber);
+        font: 500 12px 'Inter', sans-serif;
+        color: var(--v3-amber);
+        border-radius: 4px;
+      }
+      .brief-v3-ia-nav-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 14px;
+      }
+      .brief-v3-ia-nav {
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-top: 3px solid currentColor;
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .brief-v3-ia-nav-head {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink);
+        margin-bottom: 10px;
+      }
+      .brief-v3-ia-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-ia-nav li { display: flex; flex-direction: column; gap: 2px; }
+      .brief-v3-ia-nav-label {
+        font: 600 13px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-ia-nav-dest {
+        font: 500 11px 'JetBrains Mono', monospace;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-ia-nav-rationale {
+        font: 400 11px 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-ia-groupings { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-ia-grouping {
+        padding: 12px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 8px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v3-ia-grouping-name {
+        font: 700 13px 'Fraunces', serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-ia-grouping-members {
+        display: flex; flex-wrap: wrap; gap: 6px;
+      }
+      .brief-v3-ia-grouping-rationale {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-ia-arrow {
+        color: var(--v3-accent); font-weight: 700;
+      }
+      .brief-v3-ia-taxonomy {
+        margin: 0;
+        display: flex; flex-direction: column;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .brief-v3-ia-tax-row {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 16px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--v3-line-soft);
+      }
+      .brief-v3-ia-tax-row:last-child { border-bottom: none; }
+      .brief-v3-ia-tax-row dt {
+        font: 600 13px 'JetBrains Mono', monospace;
+        color: var(--v3-ink);
+      }
+      .brief-v3-ia-tax-row dd {
+        margin: 0;
+        font: 500 13px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-ia-tax-syn {
+        margin-top: 4px;
+        display: flex; flex-wrap: wrap; gap: 6px;
+        font-size: 11px; color: var(--v3-ink-muted);
+        align-items: center;
+      }
+      .brief-v3-ia-tax-syn > span:first-child {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+      }
+
+      /* ── 10. Functional Requirements ──────────────────────────── */
+      .brief-v3-reqs { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-reqs-block { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-reqs-list { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-feature {
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-left: 3px solid var(--v3-slate);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .brief-v3-feature-accent { border-left-color: var(--v3-accent); }
+      .brief-v3-feature-head {
+        display: flex; align-items: center; justify-content: space-between;
+        width: 100%;
+        padding: 14px 18px;
+        background: none; border: none;
+        cursor: pointer;
+        text-align: left;
+        color: var(--v3-ink);
+      }
+      .brief-v3-feature-head-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .brief-v3-feature-name {
+        font: 700 15px 'Fraunces', serif;
+        letter-spacing: -0.01em;
+        color: var(--v3-ink);
+      }
+      .brief-v3-feature-desc {
+        font: 500 13px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-feature-toggle {
+        font: 700 20px 'Fraunces', serif;
+        color: var(--v3-ink-muted);
+        flex-shrink: 0;
+        margin-left: 12px;
+      }
+      .brief-v3-feature-body {
+        padding: 0 18px 18px;
+        display: flex; flex-direction: column; gap: 16px;
+        border-top: 1px solid var(--v3-line-soft);
+      }
+      .brief-v3-feature-blocks {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 14px;
+        padding-top: 14px;
+      }
+      .brief-v3-feature-block { display: flex; flex-direction: column; gap: 5px; }
+      .brief-v3-feature-block-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-feature-block ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+      .brief-v3-feature-block li {
+        font: 500 12px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+        padding-left: 10px; position: relative;
+      }
+      .brief-v3-feature-block li::before {
+        content: '';
+        position: absolute; left: 0; top: 7px;
+        width: 4px; height: 4px;
+        border-radius: 50%;
+        background: var(--v3-line);
+      }
+      .brief-v3-feature-states { display: flex; flex-direction: column; gap: 6px; }
+      .brief-v3-feature-states-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 8px;
+      }
+      .brief-v3-state-pill {
+        padding: 8px 10px;
+        background: var(--v3-bg);
+        border: 1px solid var(--v3-line-soft);
+        border-left: 3px solid currentColor;
+        border-radius: 6px;
+        display: flex; flex-direction: column; gap: 3px;
+      }
+      .brief-v3-state-pill-empty   { color: var(--v3-slate); }
+      .brief-v3-state-pill-loading { color: var(--v3-indigo); }
+      .brief-v3-state-pill-error   { color: var(--v3-red); }
+      .brief-v3-state-pill-success { color: var(--v3-emerald); }
+      .brief-v3-state-pill-offline { color: var(--v3-amber); }
+      .brief-v3-state-pill-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+      }
+      .brief-v3-state-pill-body {
+        font: 500 12px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-future-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+      .brief-v3-future-list li {
+        padding: 12px 14px;
+        background: var(--v3-bg-2);
+        border: 1px dashed var(--v3-line);
+        border-radius: 8px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v3-future-head { display: flex; align-items: center; gap: 8px; }
+      .brief-v3-future-head strong { font: 700 13px 'Inter', sans-serif; color: var(--v3-ink); }
+      .brief-v3-future-desc, .brief-v3-future-rationale {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-future-rationale {
+        color: var(--v3-ink-muted);
+        font-style: italic;
+      }
+
+      /* ── 11. Non-Functional Requirements ──────────────────────── */
+      .brief-v3-nfr-table th, .brief-v3-nfr-table td { font-size: 12px; }
+      .brief-v3-nfr-cat {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      .brief-v3-nfr-cat-indigo  { background: rgba(59,73,144,0.10);  color: var(--v3-indigo); }
+      .brief-v3-nfr-cat-amber   { background: rgba(178,107,15,0.10); color: var(--v3-amber); }
+      .brief-v3-nfr-cat-red     { background: rgba(180,56,56,0.10);  color: var(--v3-red); }
+      .brief-v3-nfr-cat-emerald { background: rgba(47,125,79,0.10);  color: var(--v3-emerald); }
+      .brief-v3-nfr-cat-slate   { background: rgba(71,87,102,0.10);  color: var(--v3-slate); }
+
+      /* ── 12. Content Strategy ─────────────────────────────────── */
+      .brief-v3-content { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-content-block { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-voice {
+        padding: 20px 24px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 12px;
+        display: flex; flex-direction: column; gap: 18px;
+      }
+      .brief-v3-voice-personality { display: flex; flex-direction: column; gap: 4px; }
+      .brief-v3-voice-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-voice-words {
+        font: 700 28px 'Fraunces', serif;
+        color: var(--v3-ink);
+        letter-spacing: -0.02em;
+      }
+      .brief-v3-voice-cols {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      }
+      @media (max-width: 600px) { .brief-v3-voice-cols { grid-template-columns: 1fr; } }
+      .brief-v3-voice-col {
+        padding: 12px 14px;
+        background: var(--v3-bg);
+        border-radius: 8px;
+        border-left: 3px solid currentColor;
+      }
+      .brief-v3-voice-col-head {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .brief-v3-voice-col ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+      .brief-v3-voice-col li {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-content-hier {
+        list-style: none; margin: 0; padding: 0;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v3-content-hier li {
+        display: grid; grid-template-columns: 36px 1fr; gap: 12px;
+        padding: 10px 14px;
+        background: var(--v3-bg-2);
+        border-radius: 8px;
+        border-left: 3px solid var(--v3-accent);
+        align-items: start;
+      }
+      .brief-v3-content-hier-num {
+        font: 700 18px 'Fraunces', serif;
+        color: var(--v3-accent);
+      }
+      .brief-v3-content-hier li strong {
+        font: 700 13px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-content-hier-intent {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+        margin-top: 2px;
+      }
+      .brief-v3-microcopy { display: flex; flex-direction: column; gap: 14px; }
+      .brief-v3-microcopy-group {
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .brief-v3-microcopy-label {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink);
+        margin-bottom: 10px;
+      }
+      .brief-v3-microcopy-row {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 14px;
+        padding: 8px 0;
+        border-top: 1px solid var(--v3-line-soft);
+      }
+      .brief-v3-microcopy-row:first-of-type { border-top: none; padding-top: 0; }
+      .brief-v3-microcopy-context {
+        font: 600 11px 'JetBrains Mono', monospace;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-microcopy-copy {
+        font: 600 13px 'Fraunces', serif;
+        font-style: italic;
+        color: var(--v3-ink);
+      }
+      .brief-v3-microcopy-anti {
+        grid-column: 2;
+        font: 500 11px 'Inter', sans-serif;
+        color: var(--v3-red);
+        margin-top: 4px;
+      }
+      .brief-v3-content-density {
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        padding: 14px 18px;
+        background: var(--v3-ink);
+        color: var(--v3-bg);
+        border-radius: 10px;
+      }
+      .brief-v3-content-density-label {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: #94A3B8;
+      }
+      .brief-v3-content-density-value {
+        font: 700 16px 'Fraunces', serif;
+      }
+      .brief-v3-content-density-rationale {
+        font: 500 12px 'Inter', sans-serif;
+        color: #CBD5E1;
+      }
+
+      /* ── 13. Competitive Landscape ────────────────────────────── */
+      .brief-v3-comp { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-comp-block { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-comp-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
+      }
+      .brief-v3-comp-card {
+        padding: 16px 18px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        display: flex; flex-direction: column; gap: 12px;
+      }
+      .brief-v3-comp-card-head { display: flex; flex-direction: column; gap: 2px; }
+      .brief-v3-comp-card-name {
+        font: 700 16px 'Fraunces', serif;
+        letter-spacing: -0.01em;
+        color: var(--v3-ink);
+      }
+      .brief-v3-comp-card-url {
+        font: 500 11px 'JetBrains Mono', monospace;
+        color: var(--v3-ink-muted);
+        text-decoration: none;
+      }
+      .brief-v3-comp-card-url:hover { color: var(--v3-accent); text-decoration: underline; }
+      .brief-v3-comp-card-positioning {
+        margin: 0;
+        font: 500 13px/1.5 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-comp-card-row {
+        display: grid; grid-template-columns: 60px 1fr; gap: 10px;
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-comp-card-tag {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-comp-card-sw { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--v3-line-soft); }
+      .brief-v3-comp-card-sw > div {
+        display: flex; gap: 8px;
+        font: 500 12px/1.45 'Inter', sans-serif;
+      }
+      .brief-v3-comp-card-sw > div span:first-child {
+        font: 700 14px 'JetBrains Mono', monospace;
+        flex-shrink: 0;
+        line-height: 1.3;
+      }
+      .brief-v3-comp-card-lesson {
+        display: grid; grid-template-columns: 60px 1fr; gap: 10px;
+        padding: 10px 12px;
+        background: rgba(201,123,47,0.08);
+        border-radius: 6px;
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-comp-card-lesson .brief-v3-comp-card-tag {
+        color: var(--v3-accent-ink);
+      }
+      .brief-v3-comp-cols {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      .brief-v3-comp-list {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-top: 3px solid currentColor;
+        border-radius: 10px;
+      }
+      .brief-v3-comp-list-head {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink);
+        margin-bottom: 10px;
+      }
+      .brief-v3-comp-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-comp-list-line {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        font: 500 13px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-comp-list-line strong { font-weight: 600; }
+      .brief-v3-comp-list-extra {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+        margin-top: 2px;
+      }
+
+      /* ── 14. Design Principles ────────────────────────────────── */
+      .brief-v3-principles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+      .brief-v3-principle {
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-left: 4px solid var(--v3-accent);
+        border-radius: 12px;
+        padding: 22px 26px;
+        display: flex; flex-direction: column; gap: 14px;
+      }
+      .brief-v3-principle-head {
+        display: grid; grid-template-columns: 48px 1fr; gap: 16px; align-items: start;
+      }
+      .brief-v3-principle-num {
+        font: 400 36px/1 'Fraunces', serif;
+        color: var(--v3-accent);
+      }
+      .brief-v3-principle-id { display: flex; flex-direction: column; gap: 6px; }
+      .brief-v3-principle-name {
+        margin: 0;
+        font: 700 18px 'Fraunces', serif;
+        letter-spacing: -0.01em;
+        color: var(--v3-ink);
+      }
+      .brief-v3-principle-statement {
+        margin: 0;
+        font: 500 15px/1.5 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-principle-chain {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        column-gap: 16px;
+        row-gap: 8px;
+        padding: 14px 16px;
+        background: var(--v3-bg);
+        border-radius: 8px;
+      }
+      .brief-v3-principle-chain dt {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        padding-top: 3px;
+      }
+      .brief-v3-principle-chain dd {
+        margin: 0;
+        font: 500 13px/1.5 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-principle-conf {
+        display: flex; align-items: center; gap: 10px;
+        align-self: flex-end;
+      }
+      .brief-v3-principle-conf-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+
+      /* ── 15. Visual Direction ─────────────────────────────────── */
+      .brief-v3-visual { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-visual-header {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+        padding: 24px 28px;
+        background: var(--v3-ink);
+        color: var(--v3-bg);
+        border-radius: 12px;
+      }
+      @media (max-width: 600px) { .brief-v3-visual-header { grid-template-columns: 1fr; } }
+      .brief-v3-visual-header > div { display: flex; flex-direction: column; gap: 6px; }
+      .brief-v3-visual-header-label {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: #94A3B8;
+      }
+      .brief-v3-visual-header-value {
+        font: 700 22px 'Fraunces', serif;
+        letter-spacing: -0.01em;
+      }
+      .brief-v3-visual-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      .brief-v3-visual-card {
+        padding: 16px 18px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .brief-v3-visual-card-title {
+        font: 700 12px 'JetBrains Mono', monospace;
+        letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--v3-accent-ink);
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--v3-line-soft);
+      }
+      .brief-v3-visual-card dl { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+      .brief-v3-visual-card-row { display: flex; flex-direction: column; gap: 2px; }
+      .brief-v3-visual-card-row dt {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-visual-card-row dd {
+        margin: 0;
+        font: 500 13px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-visual-a11y {
+        padding: 16px 18px;
+        background: rgba(59,73,144,0.08);
+        border-left: 3px solid var(--v3-indigo);
+        border-radius: 8px;
+      }
+      .brief-v3-visual-a11y-label {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-indigo);
+        margin-bottom: 8px;
+      }
+      .brief-v3-visual-a11y ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+      .brief-v3-visual-a11y li {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink);
+        padding-left: 14px; position: relative;
+      }
+      .brief-v3-visual-a11y li::before { content: '→'; position: absolute; left: 0; color: var(--v3-indigo); }
+      .brief-v3-visual-refs { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-visual-refs-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+      }
+      .brief-v3-visual-ref {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 8px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v3-visual-ref-name {
+        font: 700 14px 'Fraunces', serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-visual-ref-url {
+        font: 500 11px 'JetBrains Mono', monospace;
+        color: var(--v3-ink-muted);
+        text-decoration: none;
+      }
+      .brief-v3-visual-ref-url:hover { color: var(--v3-accent); text-decoration: underline; }
+      .brief-v3-visual-ref-borrow {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+        margin-top: 4px;
+      }
+
+      /* ── 16. Component Inventory ──────────────────────────────── */
+      .brief-v3-comps { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-comps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      .brief-v3-comps-cat {
+        padding: 16px 18px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        border-top: 3px solid var(--v3-accent);
+      }
+      .brief-v3-comps-cat-head {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink);
+        margin-bottom: 10px;
+      }
+      .brief-v3-comps-list { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-comps-item {
+        padding: 8px 10px;
+        background: var(--v3-bg);
+        border-radius: 6px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v3-comps-item-head {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      }
+      .brief-v3-comps-item-name {
+        font: 600 13px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-comps-item-variants {
+        display: flex; flex-wrap: wrap; gap: 4px;
+      }
+      .brief-v3-comps-item-notes {
+        font: 500 11px 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+        font-style: italic;
+      }
+      .brief-v3-comps-order { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-comps-order-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
+      }
+      .brief-v3-comps-phase {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v3-comps-phase-head { display: flex; align-items: center; gap: 10px; }
+      .brief-v3-comps-phase-num {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 24px; height: 24px;
+        border-radius: 50%;
+        background: var(--v3-accent);
+        color: var(--v3-bg);
+        font: 700 12px 'JetBrains Mono', monospace;
+      }
+      .brief-v3-comps-phase-name {
+        font: 700 14px 'Fraunces', serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-comps-phase-list { display: flex; flex-wrap: wrap; gap: 6px; }
+      .brief-v3-comps-phase-reasoning {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
     `}</style>
   )
 }
