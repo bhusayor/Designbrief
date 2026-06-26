@@ -29,6 +29,13 @@ export default function BriefV3View({
   // banner, version tabs). Phase 1A renders the doc only; Phase 1B will
   // wire these into the shell where they belong.
   onRevise,
+  // Phase 2 backlog handoff. When the project has a generated backlog,
+  // hasBacklog=true and clicking the button switches to the backlog
+  // view; otherwise the button runs the generator.
+  onGenerateBacklog,
+  onViewBacklog,
+  hasBacklog = false,
+  isGeneratingBacklog = false,
   versionTabs,
   pendingChangesBanner,
 }) {
@@ -104,6 +111,21 @@ export default function BriefV3View({
                 <span className="brief-v3-topbar-pulse" aria-hidden />
                 {revising ? 'Revising' : 'Generating'}
               </div>
+            )}
+            {hasBacklog && onViewBacklog && (
+              <button className="brief-v3-topbar-backlog" type="button" onClick={onViewBacklog}>
+                View backlog
+              </button>
+            )}
+            {!hasBacklog && onGenerateBacklog && (
+              <button
+                className="brief-v3-topbar-backlog brief-v3-topbar-backlog-generate"
+                type="button"
+                onClick={onGenerateBacklog}
+                disabled={isGeneratingBacklog || isStreaming}
+              >
+                {isGeneratingBacklog ? 'Generating backlog…' : 'Generate backlog'}
+              </button>
             )}
             {onRevise && (
               <button className="brief-v3-topbar-revise" type="button" onClick={onRevise}>
@@ -2523,6 +2545,35 @@ function V3Styles() {
         transition: background 0.15s;
       }
       .brief-v3-topbar-revise:hover { background: var(--v3-accent-ink); }
+
+      .brief-v3-topbar-backlog {
+        padding: 9px 18px;
+        background: transparent;
+        color: var(--v3-ink);
+        border: 1px solid var(--v3-line);
+        border-radius: 999px;
+        font: 700 12px 'Inter', sans-serif;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .brief-v3-topbar-backlog:hover {
+        background: var(--v3-bg-2);
+        border-color: var(--v3-accent);
+      }
+      .brief-v3-topbar-backlog:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .brief-v3-topbar-backlog-generate {
+        background: var(--v3-accent);
+        color: white;
+        border-color: var(--v3-accent);
+      }
+      .brief-v3-topbar-backlog-generate:hover:not(:disabled) {
+        background: var(--v3-accent-ink);
+        border-color: var(--v3-accent-ink);
+      }
 
       /* ── Two-column layout ────────────────────────────────────── */
       .brief-v3-layout {

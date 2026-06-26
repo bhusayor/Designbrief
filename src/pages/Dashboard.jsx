@@ -19,6 +19,7 @@ import {
 } from '../lib/api'
 import { translateBriefV2, reviseBriefV2, snapshotForRevisions, isV2Result, scoreBriefV2 } from '../lib/briefV2Translator'
 import { translateBriefV3, reviseBriefV3, isV3Result } from '../lib/briefV3Translator'
+import { generateBacklogV3, isV3Backlog } from '../lib/briefV3Backlog'
 import BriefV2ReviseModal from '../components/brief/BriefV2ReviseModal'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
 import { BRIEF_V3_SECTIONS, BRIEF_V3_SCHEMA_VERSION, BRIEF_V3_PHASE_1A_KEYS } from '../lib/briefV3Schema'
@@ -27,6 +28,7 @@ import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
 import { exportV2BriefAsPdf } from '../lib/briefV2PdfExport'
 import BriefV2View from '../components/brief/BriefV2View'
 import BriefV3View from '../components/brief/BriefV3View'
+import BacklogView from '../components/backlog/BacklogView'
 import { PHASE_COLORS, ROLE_META } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
 import { supabase } from '../lib/supabase'
@@ -329,6 +331,12 @@ export default function Dashboard() {
   const [inspiSearched, setInspiSearched] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [v2Streaming, setV2Streaming] = useState(false)
+  // Phase 2 backlog state. view: 'brief' | 'backlog'. The actual
+  // backlog payload lives on result.backlog so it persists with the
+  // brief through save/load cycles.
+  const [v3View, setV3View] = useState('brief')
+  const [backlogGenerating, setBacklogGenerating] = useState(false)
+  const [backlogStage, setBacklogStage] = useState(null)
   const [designSystemBuilding, setDesignSystemBuilding] = useState(false)
 
   const textareaRef = useRef(null)
@@ -423,6 +431,57 @@ export default function Dashboard() {
   const [revising, setRevising] = useState(false)
   const [reviseOpen, setReviseOpen] = useState(false)
   const MAX_REVISIONS = 10
+
+  // ── Phase 2 backlog generation ────────────────────────────────
+  // Reads the current V3 result, runs the 3-stage backlog engine
+  // (inventory → epics → stories), persists the backlog on the
+  // result object, and switches the view. Idempotent: clicking
+  // "Regenerate" replays from scratch.
+  async function handleGenerateBacklog() {
+    if (!result || !isV3Result(result)) {
+      showToast?.('Generate the brief first, then the backlog.', 'warning')
+      return
+    }
+    if (backlogGenerating) return
+    setBacklogGenerating(true)
+    setBacklogStage('inventory')
+    // Switch to backlog view immediately so the user sees the
+    // generation progress instead of staying on the brief.
+    setV3View('backlog')
+    try {
+      const finalBacklog = await generateBacklogV3(result, {
+        onStage: (stage, partial) => {
+          setBacklogStage(stage)
+          // Push the partial backlog to the result so BacklogView
+          // can render epics/stories as they stream in.
+          setResult(prev => prev ? { ...prev, backlog: partial } : prev)
+          setActiveProjectBriefResult(prev => prev ? { ...prev, backlog: partial } : prev)
+        },
+      })
+      const merged = { ...result, backlog: finalBacklog }
+      setResult(merged)
+      setActiveProjectBriefResult(merged)
+      // Persist alongside the brief so reload keeps the backlog.
+      if (activeChat) {
+        try {
+          saveHistory({
+            id: activeChat,
+            section: 'translator',
+            title: merged.projectTitle || 'Untitled Brief',
+            ts: Date.now(),
+            pinned: false,
+            data: { brief: storedBriefText || '', result: merged },
+          })
+        } catch (e) { console.warn('[backlog] persist failed', e?.message) }
+      }
+    } catch (e) {
+      console.error('[handleGenerateBacklog] failed', e)
+      showToast?.('Backlog generation failed. Please try again.', 'error')
+    } finally {
+      setBacklogGenerating(false)
+      setBacklogStage(null)
+    }
+  }
 
   async function handleReviseBrief(feedback, { reviewId } = {}) {
     if (!result) {
@@ -1255,14 +1314,30 @@ export default function Dashboard() {
     // through V3. V2 / legacy briefs keep rendering through their
     // own renderers for back-compat.
     if (isV3Result(result)) {
+      const backlog = result.backlog && isV3Backlog(result.backlog) ? result.backlog : null
       return (
         <div className="brief-result-root" style={{ height: '100%', overflowY: 'auto', background: 'var(--color-bg)' }}>
-          <BriefV3View
-            result={result}
-            isStreaming={v2Streaming}
-            revising={revising}
-            onRevise={() => setReviseOpen(true)}
-          />
+          {v3View === 'backlog' ? (
+            <BacklogView
+              backlog={backlog}
+              briefTitle={result.projectTitle}
+              isGenerating={backlogGenerating}
+              generationStage={backlogStage}
+              onBackToBrief={() => setV3View('brief')}
+              onRegenerate={backlogGenerating ? null : handleGenerateBacklog}
+            />
+          ) : (
+            <BriefV3View
+              result={result}
+              isStreaming={v2Streaming}
+              revising={revising}
+              onRevise={() => setReviseOpen(true)}
+              hasBacklog={!!backlog}
+              isGeneratingBacklog={backlogGenerating}
+              onGenerateBacklog={handleGenerateBacklog}
+              onViewBacklog={() => setV3View('backlog')}
+            />
+          )}
           <BriefV2ReviseModal
             open={reviseOpen}
             onClose={() => setReviseOpen(false)}
