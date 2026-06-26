@@ -256,10 +256,14 @@ function ShapeRenderer({ section }) {
     case 'scorecard':       return <ScorecardRenderer      content={c} />
     case 'state_diagram':   return <StateDiagramRenderer   content={c} />
     case 'priority_matrix': return <PriorityMatrixRenderer content={c} />
+    case 'personas':        return <PersonasRenderer       content={c} />
+    case 'jtbd_canvas':     return <JtbdCanvasRenderer     content={c} />
+    case 'journey_map':     return <JourneyMapRenderer     content={c} />
+    case 'flow_chart':      return <FlowChartRenderer      content={c} />
     default:
       return (
         <div className="brief-v3-unhandled">
-          Renderer for shape <code>{section.shape}</code> not yet implemented in Phase 1A.
+          Renderer for shape <code>{section.shape}</code> not yet implemented.
         </div>
       )
   }
@@ -593,6 +597,452 @@ function quadrantLabel(effort, impact) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// 5. PersonasRenderer — User Intelligence
+//    Persona cards in a responsive grid; primary on top, secondary
+//    below. Each card has a tagline pull-quote + needs / motivations /
+//    frustrations / mental models columns + an "at a glance" strip
+//    with digital literacy, device, context, accessibility.
+//    Below: a shared-context band that applies to everyone.
+// ────────────────────────────────────────────────────────────────────
+function PersonasRenderer({ content }) {
+  const c = content || {}
+  const primary   = Array.isArray(c.primary) ? c.primary : []
+  const secondary = Array.isArray(c.secondary) ? c.secondary : []
+  const ctx       = c.shared_context || null
+  return (
+    <div className="brief-v3-personas">
+      {primary.length > 0 && (
+        <>
+          <div className="brief-v3-personas-tier-label">Primary personas</div>
+          <div className="brief-v3-personas-grid">
+            {primary.map((p, i) => <PersonaCard key={i} persona={p} tier="primary" />)}
+          </div>
+        </>
+      )}
+      {secondary.length > 0 && (
+        <>
+          <div className="brief-v3-personas-tier-label">Secondary personas</div>
+          <div className="brief-v3-personas-grid">
+            {secondary.map((p, i) => <PersonaCard key={i} persona={p} tier="secondary" />)}
+          </div>
+        </>
+      )}
+      {ctx && (
+        <div className="brief-v3-personas-context">
+          <div className="brief-v3-personas-context-label">Shared context</div>
+          <div className="brief-v3-personas-context-row">
+            {ctx.time_pressure   && <SharedFact label="Time pressure"   value={ctx.time_pressure} />}
+            {ctx.connectivity    && <SharedFact label="Connectivity"    value={ctx.connectivity} />}
+            {ctx.emotional_state && <SharedFact label="Emotional state" value={ctx.emotional_state} />}
+            {ctx.trust_baseline  && <SharedFact label="Trust baseline"  value={ctx.trust_baseline} />}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+function SharedFact({ label, value }) {
+  return (
+    <div className="brief-v3-personas-context-fact">
+      <span className="brief-v3-personas-context-fact-label">{label}</span>
+      <span className="brief-v3-personas-context-fact-value">{value}</span>
+    </div>
+  )
+}
+function PersonaCard({ persona: p, tier }) {
+  const initials = (p.name || 'P').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  return (
+    <article className={`brief-v3-persona brief-v3-persona-${tier}`}>
+      <header className="brief-v3-persona-head">
+        <div className="brief-v3-persona-avatar">{initials}</div>
+        <div className="brief-v3-persona-id">
+          <div className="brief-v3-persona-name">{p.name || 'Persona'}</div>
+          {p.role && <div className="brief-v3-persona-role">{p.role}</div>}
+        </div>
+      </header>
+      {p.tagline && <blockquote className="brief-v3-persona-tagline">"{p.tagline}"</blockquote>}
+      {p.mindset && (
+        <div className="brief-v3-persona-mindset">
+          <span className="brief-v3-persona-mindset-label">Mindset</span>
+          <p>{p.mindset}</p>
+        </div>
+      )}
+      <div className="brief-v3-persona-cols">
+        <PersonaList title="Motivations" items={p.motivations} tone="emerald" />
+        <PersonaList title="Needs"       items={p.needs}       tone="indigo" />
+        <PersonaList title="Frustrations"items={p.frustrations}tone="red" />
+        <PersonaList title="Mental models" items={p.mental_models} tone="slate" />
+        <PersonaList title="Goals"       items={p.goals}       tone="emerald" />
+        <PersonaList title="Barriers"    items={p.barriers}    tone="amber" />
+      </div>
+      <div className="brief-v3-persona-glance">
+        {p.digital_literacy && <GlanceChip label="Digital literacy" value={p.digital_literacy} />}
+        {p.device_usage     && <GlanceChip label="Devices"          value={p.device_usage} />}
+        {p.context_of_use   && <GlanceChip label="Context"          value={p.context_of_use} />}
+        {p.accessibility    && <GlanceChip label="Accessibility"    value={p.accessibility} />}
+        {p.environment      && <GlanceChip label="Environment"      value={p.environment} />}
+      </div>
+      {p.expected_outcome && (
+        <div className="brief-v3-persona-outcome">
+          <span className="brief-v3-persona-outcome-label">Expected outcome</span>
+          <span>{p.expected_outcome}</span>
+        </div>
+      )}
+    </article>
+  )
+}
+function PersonaList({ title, items, tone }) {
+  const list = Array.isArray(items) ? items : []
+  if (!list.length) return null
+  return (
+    <div className={`brief-v3-persona-list brief-v3-tone-${tone}`}>
+      <div className="brief-v3-persona-list-head">{title}</div>
+      <ul>
+        {list.map((it, i) => <li key={i}>{typeof it === 'string' ? it : (it.text || JSON.stringify(it))}</li>)}
+      </ul>
+    </div>
+  )
+}
+function GlanceChip({ label, value }) {
+  return (
+    <div className="brief-v3-persona-glance-chip">
+      <span className="brief-v3-persona-glance-label">{label}</span>
+      <span className="brief-v3-persona-glance-value">{value}</span>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 6. JtbdCanvasRenderer — Jobs To Be Done
+//    Three vertical columns (Functional / Emotional / Social) of
+//    job cards. Each card shows the full job statement + context +
+//    current solution + success signal. Below the canvas: a 3-row
+//    block for desired outcomes, current alternatives, opportunity
+//    areas — each as a structured row.
+// ────────────────────────────────────────────────────────────────────
+function JtbdCanvasRenderer({ content }) {
+  const c = content || {}
+  const cols = [
+    { id: 'functional', title: 'Functional jobs', jobs: c.functional, tone: 'indigo', desc: 'Rational tasks the user is trying to accomplish' },
+    { id: 'emotional',  title: 'Emotional jobs',  jobs: c.emotional,  tone: 'amber',  desc: 'Feelings the user is chasing or avoiding' },
+    { id: 'social',     title: 'Social jobs',     jobs: c.social,     tone: 'emerald',desc: 'How they want to be perceived by others' },
+  ]
+  return (
+    <div className="brief-v3-jtbd">
+      <div className="brief-v3-jtbd-canvas">
+        {cols.map(col => (
+          <div key={col.id} className={`brief-v3-jtbd-col brief-v3-tone-${col.tone}`}>
+            <div className="brief-v3-jtbd-col-head">
+              <span className="brief-v3-jtbd-col-title">{col.title}</span>
+              <span className="brief-v3-jtbd-col-desc">{col.desc}</span>
+            </div>
+            <div className="brief-v3-jtbd-jobs">
+              {(Array.isArray(col.jobs) ? col.jobs : []).map((j, i) => (
+                <div key={i} className="brief-v3-jtbd-job">
+                  <p className="brief-v3-jtbd-job-statement">"{j.job}"</p>
+                  <dl className="brief-v3-jtbd-job-meta">
+                    {j.context          && (<><dt>When</dt><dd>{j.context}</dd></>)}
+                    {j.current_solution && (<><dt>Today</dt><dd>{j.current_solution}</dd></>)}
+                    {j.success_signal   && (<><dt>Done when</dt><dd>{j.success_signal}</dd></>)}
+                  </dl>
+                </div>
+              ))}
+              {(!Array.isArray(col.jobs) || col.jobs.length === 0) && (
+                <div className="brief-v3-jtbd-empty">No {col.title.toLowerCase()} identified.</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {Array.isArray(c.outcomes) && c.outcomes.length > 0 && (
+        <div className="brief-v3-jtbd-block">
+          <div className="brief-v3-biz-block-label">Desired outcomes</div>
+          <table className="brief-v3-table">
+            <thead>
+              <tr><th>Outcome</th><th>Metric</th><th>Priority</th></tr>
+            </thead>
+            <tbody>
+              {c.outcomes.map((o, i) => (
+                <tr key={i}>
+                  <td>{o.outcome}</td>
+                  <td><span className="brief-v3-mono">{o.metric}</span></td>
+                  <td><span className={`brief-v3-pill brief-v3-pill-${priorityTone(o.priority)}`}>{o.priority}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {Array.isArray(c.alternatives) && c.alternatives.length > 0 && (
+        <div className="brief-v3-jtbd-block">
+          <div className="brief-v3-biz-block-label">Current alternatives</div>
+          <div className="brief-v3-jtbd-alts">
+            {c.alternatives.map((a, i) => (
+              <div key={i} className="brief-v3-jtbd-alt">
+                <div className="brief-v3-jtbd-alt-name">{a.alternative}</div>
+                <div className="brief-v3-jtbd-alt-row">
+                  <div className="brief-v3-jtbd-alt-half brief-v3-tone-emerald">
+                    <span className="brief-v3-jtbd-alt-tag">Works</span>
+                    <span>{a.what_works}</span>
+                  </div>
+                  <div className="brief-v3-jtbd-alt-half brief-v3-tone-red">
+                    <span className="brief-v3-jtbd-alt-tag">Fails</span>
+                    <span>{a.what_fails}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.opportunity_areas) && c.opportunity_areas.length > 0 && (
+        <div className="brief-v3-jtbd-block">
+          <div className="brief-v3-biz-block-label">Opportunity areas</div>
+          <ul className="brief-v3-opp-list">
+            {c.opportunity_areas.map((o, i) => (
+              <li key={i}>
+                <span className="brief-v3-opp-name">{o.area}</span>
+                <span className={`brief-v3-pill brief-v3-pill-${leverageTone(o.leverage)}`}>{o.leverage} leverage</span>
+                {o.reasoning && <span className="brief-v3-opp-reason">{o.reasoning}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 7. JourneyMapRenderer — User Journey
+//    A horizontal stage swimlane with an SVG emotion curve drawn
+//    across the top, then per-stage cards underneath. Each stage
+//    card has goal / actions / touchpoints / pain / opportunities /
+//    delight / friction.
+// ────────────────────────────────────────────────────────────────────
+function JourneyMapRenderer({ content }) {
+  const c = content || {}
+  const stages = Array.isArray(c.stages) ? c.stages : []
+  if (!stages.length) return <div className="brief-v3-empty">No stages yet.</div>
+  return (
+    <div className="brief-v3-journey">
+      {c.persona_ref && (
+        <div className="brief-v3-journey-persona">
+          <span className="brief-v3-journey-persona-label">Persona</span>
+          <span>{c.persona_ref}</span>
+        </div>
+      )}
+      <EmotionCurve stages={stages} />
+      <div className="brief-v3-journey-stages" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
+        {stages.map((s, i) => (
+          <div key={i} className="brief-v3-journey-stage">
+            <div className="brief-v3-journey-stage-head">
+              <span className="brief-v3-journey-stage-num">{String(i + 1).padStart(2, '0')}</span>
+              <span className="brief-v3-journey-stage-name">{s.stage}</span>
+            </div>
+            {s.goal && (
+              <div className="brief-v3-journey-stage-goal">
+                <span className="brief-v3-journey-stage-tag">Goal</span>
+                <span>{s.goal}</span>
+              </div>
+            )}
+            {s.emotion && (
+              <div className={`brief-v3-journey-emotion brief-v3-emotion-${emotionTone(s.emotion.score)}`}>
+                <span className="brief-v3-journey-emotion-label">{s.emotion.label}</span>
+                <span className="brief-v3-journey-emotion-score">{s.emotion.score}/5</span>
+              </div>
+            )}
+            <JourneyList title="Actions"      items={s.actions} />
+            <JourneyList title="Touchpoints"  items={s.touchpoints} />
+            {s.thoughts && (
+              <div className="brief-v3-journey-thoughts">
+                <span className="brief-v3-journey-stage-tag">Thinking</span>
+                <p>{s.thoughts}</p>
+              </div>
+            )}
+            <JourneyList title="Pain"         items={s.pain_points}        tone="red" />
+            <JourneyList title="Opportunity"  items={s.opportunities}      tone="emerald" />
+            <JourneyList title="Delight"      items={s.moments_of_delight} tone="indigo" />
+            <JourneyList title="Friction"     items={s.moments_of_friction}tone="amber" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+function JourneyList({ title, items, tone }) {
+  const list = Array.isArray(items) ? items : []
+  if (!list.length) return null
+  return (
+    <div className={`brief-v3-journey-list ${tone ? 'brief-v3-tone-' + tone : ''}`}>
+      <div className="brief-v3-journey-list-head">{title}</div>
+      <ul>
+        {list.map((it, i) => <li key={i}>{typeof it === 'string' ? it : (it.text || JSON.stringify(it))}</li>)}
+      </ul>
+    </div>
+  )
+}
+// Draws the emotion curve as an SVG line across the stages. Pure
+// SVG, no library. The Y axis spans 1-5; X axis maps evenly across
+// stage count.
+function EmotionCurve({ stages }) {
+  if (!stages.length) return null
+  const W = Math.max(stages.length * 120, 480)
+  const H = 110
+  const pad = { top: 16, right: 24, bottom: 24, left: 32 }
+  const innerW = W - pad.left - pad.right
+  const innerH = H - pad.top - pad.bottom
+  const xs = stages.map((_, i) => pad.left + (innerW * (stages.length === 1 ? 0.5 : i / (stages.length - 1))))
+  const ys = stages.map(s => {
+    const v = Math.max(1, Math.min(5, Number(s.emotion?.score) || 3))
+    return pad.top + innerH - ((v - 1) / 4) * innerH
+  })
+  // Smooth path using a simple bezier between points
+  const d = xs.map((x, i) => {
+    if (i === 0) return `M ${x} ${ys[i]}`
+    const px = xs[i - 1], py = ys[i - 1]
+    const cx = (px + x) / 2
+    return `C ${cx} ${py}, ${cx} ${ys[i]}, ${x} ${ys[i]}`
+  }).join(' ')
+  return (
+    <div className="brief-v3-journey-curve-wrap" style={{ overflowX: 'auto' }}>
+      <svg width={W} height={H} className="brief-v3-journey-curve" role="img" aria-label="Emotion curve across journey stages">
+        {[1, 2, 3, 4, 5].map(v => {
+          const y = pad.top + innerH - ((v - 1) / 4) * innerH
+          return (
+            <g key={v}>
+              <line x1={pad.left} y1={y} x2={W - pad.right} y2={y} stroke="var(--v3-line-soft)" strokeDasharray="3 3" />
+              <text x={pad.left - 8} y={y + 3} textAnchor="end" fontSize="9" fontFamily="JetBrains Mono, monospace" fill="var(--v3-ink-muted)">{v}</text>
+            </g>
+          )
+        })}
+        <path d={d} fill="none" stroke="var(--v3-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {xs.map((x, i) => (
+          <g key={i}>
+            <circle cx={x} cy={ys[i]} r="4" fill="var(--v3-bg)" stroke="var(--v3-accent)" strokeWidth="2" />
+            <text x={x} y={H - 6} textAnchor="middle" fontSize="10" fontFamily="Inter, sans-serif" fontWeight="600" fill="var(--v3-ink-soft)">{stages[i].stage}</text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 8. FlowChartRenderer — User Flows
+//    Happy path as a vertical timeline of step cards. Alternatives
+//    rendered as branching cards next to their fork point. Errors,
+//    edge cases, decision points each get their own block below.
+// ────────────────────────────────────────────────────────────────────
+function FlowChartRenderer({ content }) {
+  const c = content || {}
+  const happy = Array.isArray(c.happy_path) ? c.happy_path : []
+  const alts  = Array.isArray(c.alternatives) ? c.alternatives : []
+  return (
+    <div className="brief-v3-flow">
+      {c.primary_outcome && (
+        <div className="brief-v3-flow-outcome">
+          <span className="brief-v3-flow-outcome-label">Primary outcome</span>
+          <p>{c.primary_outcome}</p>
+        </div>
+      )}
+      {happy.length > 0 && (
+        <div className="brief-v3-flow-block">
+          <div className="brief-v3-flow-block-label">Happy path</div>
+          <ol className="brief-v3-flow-path">
+            {happy.map((step, i) => {
+              const branches = alts.filter(a => Number(a.fork_at) === Number(step.step))
+              return (
+                <li key={i} className="brief-v3-flow-step">
+                  <div className="brief-v3-flow-step-marker">
+                    <span className="brief-v3-flow-step-num">{step.step ?? i + 1}</span>
+                  </div>
+                  <div className="brief-v3-flow-step-card">
+                    <div className="brief-v3-flow-step-node">{step.node}</div>
+                    {step.action && <div className="brief-v3-flow-step-row"><span className="brief-v3-flow-step-tag">User</span><span>{step.action}</span></div>}
+                    {step.system && <div className="brief-v3-flow-step-row"><span className="brief-v3-flow-step-tag brief-v3-flow-step-tag-system">System</span><span>{step.system}</span></div>}
+                  </div>
+                  {branches.length > 0 && (
+                    <div className="brief-v3-flow-branches">
+                      {branches.map((b, bi) => (
+                        <div key={bi} className="brief-v3-flow-branch">
+                          <div className="brief-v3-flow-branch-head">
+                            <span className="brief-v3-pill brief-v3-pill-indigo">Branch</span>
+                            <span>{b.name}</span>
+                            {b.rejoins_at && <span className="brief-v3-flow-branch-rejoin">rejoins at step {b.rejoins_at}</span>}
+                          </div>
+                          <ol className="brief-v3-flow-branch-steps">
+                            {(Array.isArray(b.steps) ? b.steps : []).map((bs, bsi) => (
+                              <li key={bsi}>
+                                <strong>{bs.node}</strong>
+                                {bs.action && <span> — {bs.action}</span>}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+      )}
+      {Array.isArray(c.error_paths) && c.error_paths.length > 0 && (
+        <div className="brief-v3-flow-block">
+          <div className="brief-v3-flow-block-label brief-v3-tone-red">Error paths</div>
+          <div className="brief-v3-flow-errors">
+            {c.error_paths.map((e, i) => (
+              <div key={i} className="brief-v3-flow-error">
+                <div className="brief-v3-flow-error-name">{e.name}</div>
+                <dl>
+                  {e.trigger    && (<><dt>Trigger</dt><dd>{e.trigger}</dd></>)}
+                  {e.recovery   && (<><dt>Recovery</dt><dd>{e.recovery}</dd></>)}
+                  {e.prevention && (<><dt>Prevent</dt><dd>{e.prevention}</dd></>)}
+                </dl>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.decision_points) && c.decision_points.length > 0 && (
+        <div className="brief-v3-flow-block">
+          <div className="brief-v3-flow-block-label">Decision points</div>
+          <div className="brief-v3-flow-decisions">
+            {c.decision_points.map((d, i) => (
+              <div key={i} className="brief-v3-flow-decision">
+                <div className="brief-v3-flow-decision-q">{d.decision}</div>
+                <div className="brief-v3-flow-decision-opts">
+                  {(Array.isArray(d.options) ? d.options : []).map((opt, oi) => (
+                    <span key={oi} className="brief-v3-flow-decision-opt">{opt}</span>
+                  ))}
+                </div>
+                {d.stakes  && <div className="brief-v3-flow-decision-line"><span>Stakes</span><span>{d.stakes}</span></div>}
+                {d.default && <div className="brief-v3-flow-decision-line"><span>Default</span><span>{d.default}</span></div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {Array.isArray(c.edge_cases) && c.edge_cases.length > 0 && (
+        <div className="brief-v3-flow-block">
+          <div className="brief-v3-flow-block-label">Edge cases</div>
+          <ul className="brief-v3-flow-edges">
+            {c.edge_cases.map((e, i) => (
+              <li key={i}>
+                <strong>{e.case}</strong>
+                {e.implication && <span> — {e.implication}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Utility tone helpers
 // ────────────────────────────────────────────────────────────────────
 function scoreTone(n) {
@@ -612,6 +1062,18 @@ function leverageTone(l) {
   if (v.startsWith('h')) return 'emerald'
   if (v.startsWith('m')) return 'amber'
   return 'slate'
+}
+function priorityTone(p) {
+  const v = String(p || '').toLowerCase()
+  if (v.startsWith('m')) return 'red'    // Must
+  if (v.startsWith('s')) return 'amber'  // Should
+  return 'slate'                          // Could
+}
+function emotionTone(score) {
+  const n = Number(score) || 3
+  if (n >= 4) return 'high'
+  if (n <= 2) return 'low'
+  return 'mid'
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -1385,6 +1847,600 @@ function V3Styles() {
       .brief-v3-biz-col-badges {
         display: inline-flex; gap: 6px; flex-wrap: wrap;
       }
+
+      .brief-v3-empty {
+        padding: 16px 20px;
+        background: var(--v3-bg-2);
+        border-radius: 8px;
+        color: var(--v3-ink-muted);
+        font: 500 13px 'Inter', sans-serif;
+      }
+
+      /* ── 5. Personas renderer ─────────────────────────────────── */
+      .brief-v3-personas { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-personas-tier-label {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        margin-bottom: -10px;
+      }
+      .brief-v3-personas-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 20px;
+      }
+      .brief-v3-persona {
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 14px;
+        padding: 22px 24px;
+        display: flex; flex-direction: column; gap: 18px;
+      }
+      .brief-v3-persona-primary   { border-top: 4px solid var(--v3-accent); }
+      .brief-v3-persona-secondary { border-top: 4px solid var(--v3-slate); }
+      .brief-v3-persona-head {
+        display: flex; align-items: center; gap: 14px;
+      }
+      .brief-v3-persona-avatar {
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        background: var(--v3-ink);
+        color: var(--v3-bg);
+        display: flex; align-items: center; justify-content: center;
+        font: 700 16px 'Fraunces', serif;
+        letter-spacing: 0.02em;
+        flex-shrink: 0;
+      }
+      .brief-v3-persona-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .brief-v3-persona-name {
+        font: 700 18px 'Fraunces', serif;
+        color: var(--v3-ink);
+        letter-spacing: -0.01em;
+      }
+      .brief-v3-persona-role {
+        font: 500 12px 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-persona-tagline {
+        margin: 0;
+        padding: 12px 16px;
+        background: var(--v3-bg);
+        border-left: 3px solid var(--v3-accent);
+        font: 500 14px/1.5 'Fraunces', serif;
+        font-style: italic;
+        color: var(--v3-ink);
+      }
+      .brief-v3-persona-mindset {
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v3-persona-mindset-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-persona-mindset p {
+        margin: 0;
+        font: 500 13px/1.5 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-persona-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 700px) {
+        .brief-v3-persona-cols { grid-template-columns: 1fr; }
+      }
+      .brief-v3-persona-list {
+        padding: 12px 14px;
+        background: var(--v3-bg);
+        border-radius: 8px;
+        border-top: 2px solid currentColor;
+      }
+      .brief-v3-persona-list-head {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink);
+        margin-bottom: 8px;
+      }
+      .brief-v3-persona-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+      .brief-v3-persona-list li {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-persona-glance {
+        display: flex; flex-wrap: wrap; gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--v3-line);
+      }
+      .brief-v3-persona-glance-chip {
+        display: flex; flex-direction: column; gap: 2px;
+        padding: 6px 10px;
+        background: var(--v3-bg);
+        border: 1px solid var(--v3-line-soft);
+        border-radius: 6px;
+        max-width: 200px;
+      }
+      .brief-v3-persona-glance-label {
+        font: 700 8px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-persona-glance-value {
+        font: 500 12px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-persona-outcome {
+        display: flex; flex-direction: column; gap: 4px;
+        padding-top: 12px;
+        border-top: 1px solid var(--v3-line);
+      }
+      .brief-v3-persona-outcome-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-accent-ink);
+      }
+      .brief-v3-persona-outcome span:last-child {
+        font: 500 13px/1.5 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-personas-context {
+        padding: 20px 24px;
+        background: var(--v3-ink);
+        color: var(--v3-bg);
+        border-radius: 12px;
+      }
+      .brief-v3-personas-context-label {
+        font: 700 10px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: #CBD5E1;
+        margin-bottom: 12px;
+      }
+      .brief-v3-personas-context-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+      }
+      .brief-v3-personas-context-fact { display: flex; flex-direction: column; gap: 3px; }
+      .brief-v3-personas-context-fact-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: #94A3B8;
+      }
+      .brief-v3-personas-context-fact-value {
+        font: 500 13px 'Inter', sans-serif;
+        color: var(--v3-bg);
+      }
+
+      /* ── 6. JTBD canvas renderer ──────────────────────────────── */
+      .brief-v3-jtbd { display: flex; flex-direction: column; gap: 28px; }
+      .brief-v3-jtbd-canvas {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      @media (max-width: 900px) {
+        .brief-v3-jtbd-canvas { grid-template-columns: 1fr; }
+      }
+      .brief-v3-jtbd-col {
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 12px;
+        padding: 18px 20px;
+        border-top: 4px solid currentColor;
+        display: flex; flex-direction: column; gap: 14px;
+      }
+      .brief-v3-jtbd-col.brief-v3-tone-indigo  { border-top-color: var(--v3-indigo); }
+      .brief-v3-jtbd-col.brief-v3-tone-amber   { border-top-color: var(--v3-amber); }
+      .brief-v3-jtbd-col.brief-v3-tone-emerald { border-top-color: var(--v3-emerald); }
+      .brief-v3-jtbd-col-head { display: flex; flex-direction: column; gap: 4px; }
+      .brief-v3-jtbd-col-title {
+        font: 700 13px 'Fraunces', serif;
+        color: var(--v3-ink);
+        letter-spacing: -0.01em;
+      }
+      .brief-v3-jtbd-col-desc {
+        font: 400 11px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-jtbd-jobs { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-jtbd-job {
+        padding: 12px 14px;
+        background: var(--v3-bg);
+        border: 1px solid var(--v3-line-soft);
+        border-radius: 8px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v3-jtbd-job-statement {
+        margin: 0;
+        font: 500 13px/1.45 'Fraunces', serif;
+        font-style: italic;
+        color: var(--v3-ink);
+      }
+      .brief-v3-jtbd-job-meta {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        column-gap: 10px;
+        row-gap: 4px;
+      }
+      .brief-v3-jtbd-job-meta dt {
+        font: 700 8px 'JetBrains Mono', monospace;
+        letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        padding-top: 2px;
+      }
+      .brief-v3-jtbd-job-meta dd {
+        margin: 0;
+        font: 500 12px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-jtbd-empty {
+        font: 500 12px 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+        font-style: italic;
+      }
+      .brief-v3-jtbd-block { display: flex; flex-direction: column; }
+      .brief-v3-jtbd-alts { display: flex; flex-direction: column; gap: 10px; }
+      .brief-v3-jtbd-alt {
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        padding: 14px 16px;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .brief-v3-jtbd-alt-name {
+        font: 700 14px 'Fraunces', serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-jtbd-alt-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      @media (max-width: 600px) { .brief-v3-jtbd-alt-row { grid-template-columns: 1fr; } }
+      .brief-v3-jtbd-alt-half {
+        padding: 10px 12px;
+        background: var(--v3-bg);
+        border-radius: 6px;
+        border-left: 3px solid currentColor;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v3-jtbd-alt-tag {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+      }
+      .brief-v3-jtbd-alt-half > span:last-child {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-opp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+      .brief-v3-opp-list li {
+        padding: 10px 14px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 8px;
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      }
+      .brief-v3-opp-name {
+        font: 600 13px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-opp-reason {
+        font: 400 12px 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+        flex: 1; min-width: 200px;
+      }
+
+      /* ── 7. Journey map renderer ──────────────────────────────── */
+      .brief-v3-journey { display: flex; flex-direction: column; gap: 20px; }
+      .brief-v3-journey-persona {
+        display: inline-flex; align-items: center; gap: 10px;
+        align-self: flex-start;
+        padding: 6px 12px;
+        background: var(--v3-bg-2);
+        border-radius: 100px;
+        font: 500 12px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-journey-persona-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-journey-curve-wrap {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--v3-line-soft);
+      }
+      .brief-v3-journey-curve { display: block; min-width: 100%; }
+      .brief-v3-journey-stages {
+        display: grid;
+        gap: 14px;
+        overflow-x: auto;
+        padding-bottom: 8px;
+      }
+      .brief-v3-journey-stage {
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        padding: 14px 16px;
+        display: flex; flex-direction: column; gap: 12px;
+        min-width: 0;
+      }
+      .brief-v3-journey-stage-head { display: flex; align-items: baseline; gap: 8px; }
+      .brief-v3-journey-stage-num {
+        font: 700 11px 'JetBrains Mono', monospace;
+        color: var(--v3-accent);
+      }
+      .brief-v3-journey-stage-name {
+        font: 700 15px 'Fraunces', serif;
+        color: var(--v3-ink);
+        letter-spacing: -0.01em;
+      }
+      .brief-v3-journey-stage-tag {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-journey-stage-goal {
+        display: flex; flex-direction: column; gap: 3px;
+        padding: 8px 10px;
+        background: var(--v3-bg);
+        border-radius: 6px;
+        font: 500 12px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-journey-thoughts {
+        display: flex; flex-direction: column; gap: 3px;
+        padding: 8px 10px;
+        background: var(--v3-bg);
+        border-left: 2px solid var(--v3-slate);
+        border-radius: 4px;
+      }
+      .brief-v3-journey-thoughts p {
+        margin: 0;
+        font: 500 12px/1.4 'Inter', sans-serif;
+        font-style: italic;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-journey-emotion {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        padding: 6px 10px;
+        border-radius: 100px;
+        font: 600 11px 'Inter', sans-serif;
+      }
+      .brief-v3-emotion-high { background: rgba(47,125,79,0.12); color: var(--v3-emerald); }
+      .brief-v3-emotion-mid  { background: rgba(178,107,15,0.10); color: var(--v3-amber); }
+      .brief-v3-emotion-low  { background: rgba(180,56,56,0.10); color: var(--v3-red); }
+      .brief-v3-journey-emotion-score {
+        font: 700 11px 'JetBrains Mono', monospace;
+      }
+      .brief-v3-journey-list {
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v3-journey-list-head {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-journey-list.brief-v3-tone-red       .brief-v3-journey-list-head { color: var(--v3-red); }
+      .brief-v3-journey-list.brief-v3-tone-emerald   .brief-v3-journey-list-head { color: var(--v3-emerald); }
+      .brief-v3-journey-list.brief-v3-tone-indigo    .brief-v3-journey-list-head { color: var(--v3-indigo); }
+      .brief-v3-journey-list.brief-v3-tone-amber     .brief-v3-journey-list-head { color: var(--v3-amber); }
+      .brief-v3-journey-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+      .brief-v3-journey-list li {
+        font: 500 12px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+        position: relative;
+        padding-left: 10px;
+      }
+      .brief-v3-journey-list li::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 7px;
+        width: 4px; height: 4px;
+        border-radius: 50%;
+        background: var(--v3-line);
+      }
+
+      /* ── 8. Flow chart renderer ───────────────────────────────── */
+      .brief-v3-flow { display: flex; flex-direction: column; gap: 24px; }
+      .brief-v3-flow-outcome {
+        padding: 14px 18px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        border-left: 3px solid var(--v3-accent);
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .brief-v3-flow-outcome-label {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-accent-ink);
+      }
+      .brief-v3-flow-outcome p {
+        margin: 0;
+        font: 500 14px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-flow-block { display: flex; flex-direction: column; gap: 12px; }
+      .brief-v3-flow-block-label {
+        font: 700 11px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-flow-path {
+        list-style: none; margin: 0; padding: 0;
+        display: flex; flex-direction: column; gap: 0;
+        position: relative;
+      }
+      .brief-v3-flow-step {
+        display: grid;
+        grid-template-columns: 40px 1fr;
+        gap: 16px;
+        position: relative;
+        padding-bottom: 16px;
+      }
+      .brief-v3-flow-step:not(:last-child)::before {
+        content: '';
+        position: absolute;
+        left: 19px; top: 38px; bottom: 0;
+        width: 2px;
+        background: var(--v3-line);
+      }
+      .brief-v3-flow-step-marker {
+        position: relative; z-index: 1;
+      }
+      .brief-v3-flow-step-num {
+        display: flex; align-items: center; justify-content: center;
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        background: var(--v3-bg);
+        border: 2px solid var(--v3-accent);
+        font: 700 13px 'JetBrains Mono', monospace;
+        color: var(--v3-accent);
+      }
+      .brief-v3-flow-step-card {
+        padding: 14px 18px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 10px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .brief-v3-flow-step-node {
+        font: 700 14px 'Fraunces', serif;
+        color: var(--v3-ink);
+        letter-spacing: -0.01em;
+      }
+      .brief-v3-flow-step-row {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        gap: 10px;
+        align-items: baseline;
+        font: 500 13px/1.5 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-flow-step-tag {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-accent-ink);
+      }
+      .brief-v3-flow-step-tag-system { color: var(--v3-indigo); }
+      .brief-v3-flow-branches {
+        grid-column: 2;
+        margin-top: 8px;
+        padding-left: 16px;
+        border-left: 2px dashed var(--v3-line);
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .brief-v3-flow-branch {
+        padding: 12px 14px;
+        background: var(--v3-bg);
+        border: 1px solid var(--v3-line-soft);
+        border-radius: 8px;
+      }
+      .brief-v3-flow-branch-head {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        font: 600 13px 'Inter', sans-serif;
+        color: var(--v3-ink);
+        margin-bottom: 6px;
+      }
+      .brief-v3-flow-branch-rejoin {
+        font: 500 11px 'Inter', sans-serif;
+        color: var(--v3-ink-muted);
+      }
+      .brief-v3-flow-branch-steps {
+        margin: 0; padding-left: 20px;
+        display: flex; flex-direction: column; gap: 3px;
+      }
+      .brief-v3-flow-branch-steps li {
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-flow-branch-steps strong { color: var(--v3-ink); font-weight: 600; }
+      .brief-v3-flow-errors {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 12px;
+      }
+      .brief-v3-flow-error {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid rgba(180,56,56,0.30);
+        border-left: 3px solid var(--v3-red);
+        border-radius: 8px;
+      }
+      .brief-v3-flow-error-name {
+        font: 700 13px 'Fraunces', serif;
+        color: var(--v3-ink);
+        margin-bottom: 8px;
+      }
+      .brief-v3-flow-error dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 60px 1fr;
+        column-gap: 10px;
+        row-gap: 4px;
+      }
+      .brief-v3-flow-error dt {
+        font: 700 8px 'JetBrains Mono', monospace;
+        letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        padding-top: 2px;
+      }
+      .brief-v3-flow-error dd {
+        margin: 0;
+        font: 500 12px/1.4 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-flow-decisions {
+        display: flex; flex-direction: column; gap: 12px;
+      }
+      .brief-v3-flow-decision {
+        padding: 14px 16px;
+        background: var(--v3-bg-2);
+        border: 1px solid var(--v3-line);
+        border-radius: 8px;
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .brief-v3-flow-decision-q {
+        font: 600 14px 'Fraunces', serif;
+        color: var(--v3-ink);
+        font-style: italic;
+      }
+      .brief-v3-flow-decision-opts {
+        display: flex; flex-wrap: wrap; gap: 8px;
+      }
+      .brief-v3-flow-decision-opt {
+        padding: 5px 10px;
+        background: var(--v3-bg);
+        border: 1px solid var(--v3-line);
+        border-radius: 6px;
+        font: 500 12px 'Inter', sans-serif;
+        color: var(--v3-ink);
+      }
+      .brief-v3-flow-decision-line {
+        display: grid;
+        grid-template-columns: 70px 1fr;
+        gap: 10px;
+        font: 500 12px/1.45 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-flow-decision-line > span:first-child {
+        font: 700 9px 'JetBrains Mono', monospace;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--v3-ink-muted);
+        padding-top: 2px;
+      }
+      .brief-v3-flow-edges { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+      .brief-v3-flow-edges li {
+        padding: 8px 12px;
+        background: var(--v3-bg-2);
+        border-radius: 6px;
+        font: 500 13px 'Inter', sans-serif;
+        color: var(--v3-ink-soft);
+      }
+      .brief-v3-flow-edges strong { color: var(--v3-ink); font-weight: 600; }
     `}</style>
   )
 }

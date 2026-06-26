@@ -81,10 +81,22 @@ export const BRIEF_V3_BY_KEY = (() => {
   return map
 })()
 
-// PHASE 1A only ships translator + renderers for sections 1-4. The
-// remaining sections render as a "Coming in next phase" placeholder
-// so we can ship a working slice on real briefs immediately.
-export const BRIEF_V3_PHASE_1A_KEYS = ['executive_summary', 'brief_health', 'problem_definition', 'business_intelligence']
+// Keys of the chapters whose translator + renderer are wired. The
+// rest render as "Coming next" placeholders so we can ship working
+// slices on real briefs incrementally. Phase 1B adds chapters 5-8.
+export const BRIEF_V3_WIRED_KEYS = [
+  'executive_summary',
+  'brief_health',
+  'problem_definition',
+  'business_intelligence',
+  'user_intelligence',
+  'jobs_to_be_done',
+  'user_journey',
+  'user_flows',
+]
+
+// Back-compat alias — Dashboard still imports the old name.
+export const BRIEF_V3_PHASE_1A_KEYS = BRIEF_V3_WIRED_KEYS
 
 // ────────────────────────────────────────────────────────────────────
 // scrubDashes. Same user-mandated rule as V2: NEVER let an em or en

@@ -18,7 +18,7 @@ import {
   generateSubtasks,
 } from '../lib/api'
 import { translateBriefV2, reviseBriefV2, snapshotForRevisions, isV2Result, scoreBriefV2 } from '../lib/briefV2Translator'
-import { translateBriefV3, isV3Result } from '../lib/briefV3Translator'
+import { translateBriefV3, reviseBriefV3, isV3Result } from '../lib/briefV3Translator'
 import BriefV2ReviseModal from '../components/brief/BriefV2ReviseModal'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
 import { BRIEF_V3_SECTIONS, BRIEF_V3_SCHEMA_VERSION, BRIEF_V3_PHASE_1A_KEYS } from '../lib/briefV3Schema'
@@ -425,7 +425,7 @@ export default function Dashboard() {
   const MAX_REVISIONS = 10
 
   async function handleReviseBrief(feedback, { reviewId } = {}) {
-    if (!result || !isV2Result(result)) {
+    if (!result) {
       showToast?.('No brief to revise yet. Translate a brief first.', 'warning')
       return
     }
@@ -434,6 +434,93 @@ export default function Dashboard() {
       return
     }
     if (revising) return
+
+    // ── V3 revise path ────────────────────────────────────────────
+    // V3 has a flatter shape (one content per chapter, not
+    // section/items). Snapshot, rebuild skeleton, stream chapters.
+    if (isV3Result(result)) {
+      setRevising(true)
+      setV2Streaming(true)
+      try {
+        const existingRevisions = Array.isArray(result.revisions) ? result.revisions : []
+        const isFirstRevision = existingRevisions.length === 0
+        const v3Snapshot = {
+          label: isFirstRevision ? 'Original' : `Revision ${existingRevisions.length}`,
+          capturedAt: new Date().toISOString(),
+          schemaVersion: BRIEF_V3_SCHEMA_VERSION,
+          projectTitle: result.projectTitle,
+          sections: JSON.parse(JSON.stringify(result.sections || [])),
+        }
+        let nextRevisions = [...existingRevisions, v3Snapshot]
+        if (nextRevisions.length > MAX_REVISIONS) {
+          nextRevisions = [nextRevisions[0], ...nextRevisions.slice(-(MAX_REVISIONS - 1))]
+        }
+
+        // Seed live with V3 skeleton so every chapter regenerates.
+        const skeleton = buildV3Skeleton(result.projectTitle || 'Revising brief…')
+        const skeletonWithRevisions = {
+          ...skeleton,
+          revisions: nextRevisions,
+          revisionMeta: {
+            revisedAt: new Date().toISOString(),
+            feedback: String(feedback).trim(),
+            reviewId: reviewId || null,
+            status: 'revising',
+          },
+        }
+        setResult(skeletonWithRevisions)
+        setActiveProjectBriefResult(skeletonWithRevisions)
+
+        const originalBrief = storedBriefText || '(no original brief text on record)'
+        const revisedResult = await reviseBriefV3(originalBrief, v3Snapshot, feedback, {
+          onSection: (_key, _content, partial) => {
+            setResult(prev => prev ? { ...prev, sections: partial.sections.map(s => ({ ...s })) } : prev)
+            setActiveProjectBriefResult(prev => prev ? { ...prev, sections: partial.sections.map(s => ({ ...s })) } : prev)
+          },
+        })
+        if (!revisedResult?.sections) throw new Error('Revision returned empty')
+
+        const finalRevised = {
+          ...revisedResult,
+          revisions: nextRevisions,
+          revisionMeta: {
+            revisedAt: new Date().toISOString(),
+            feedback: String(feedback).trim(),
+            reviewId: reviewId || null,
+            status: 'complete',
+          },
+        }
+        setResult(finalRevised)
+        setActiveProjectBriefResult(finalRevised)
+        setV2Streaming(false)
+
+        if (activeChat) {
+          try {
+            saveHistory({
+              id: activeChat,
+              section: 'translator',
+              title: finalRevised.projectTitle || 'Untitled Brief',
+              ts: Date.now(),
+              pinned: false,
+              data: { brief: storedBriefText || '', result: finalRevised },
+            })
+          } catch (e) { console.warn('[revise:v3] persist failed', e?.message) }
+        }
+      } catch (e) {
+        console.error('[revise:v3] failed', e)
+        showToast?.('Revision failed. Please try again.', 'error')
+        setV2Streaming(false)
+      } finally {
+        setRevising(false)
+      }
+      return
+    }
+
+    // ── V2 revise path (legacy, untouched) ───────────────────────
+    if (!isV2Result(result)) {
+      showToast?.('Unrecognised brief format. Cannot revise.', 'warning')
+      return
+    }
     setRevising(true)
     setV2Streaming(true)
 
@@ -1174,7 +1261,17 @@ export default function Dashboard() {
             result={result}
             isStreaming={v2Streaming}
             revising={revising}
-            onRevise={null /* Phase 1B: wire V3 revise modal */}
+            onRevise={() => setReviseOpen(true)}
+          />
+          <BriefV2ReviseModal
+            open={reviseOpen}
+            onClose={() => setReviseOpen(false)}
+            pendingReview={pendingReview}
+            pendingComments={reviewComments.filter(c => c.status !== 'resolved')}
+            onSubmit={async (feedback, meta) => {
+              await handleReviseBrief(feedback, meta)
+              await resolveAllOpenComments()
+            }}
           />
         </div>
       )
