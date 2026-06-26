@@ -32,6 +32,7 @@ function AppRouter() {
     authUser, authLoading,
     workspace, setWorkspace, workspaceLoading, workspaceLoadError, loadWorkspace,
     showToast, refreshAuthUser, refreshUserPlan,
+    activeChat,
   } = useContext(AppContext);
 
   // Handle the Flutterwave redirect (?flw_callback=1&status=…&tx_ref=…&transaction_id=…).
@@ -155,7 +156,12 @@ function AppRouter() {
   }, []);
 
   const pages = {
-    dashboard:       <Dashboard />,
+    // Key Dashboard by activeChat so that switching chats — or
+    // clicking "New Chat" (activeChat=null) — fully remounts the
+    // component with fresh local state. Without the key, Dashboard's
+    // local `result` + `phase` persist across switches and the user
+    // stays stuck on the previously-loaded brief.
+    dashboard:       <Dashboard key={activeChat || 'new-chat'} />,
     translator:      <BriefTranslator />,
     intake:          <IntakeBuilder />,
     'client-intake': <ClientIntakePage />,
