@@ -516,8 +516,21 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
         <NavItem
           icon={PencilSquareIcon}
           label="New Chat"
-          active={activeSection === 'dashboard'}
-          onClick={() => { navigate('dashboard'); setShowSettings(false); if (isMobile) setMobileSidebarOpen(false) }}
+          active={activeSection === 'dashboard' && !activeChat}
+          onClick={() => {
+            // "New chat" must FULLY reset the dashboard, otherwise a
+            // user viewing a project's brief just stays on that brief
+            // when they click New Chat. Clear the active project +
+            // chat + cached brief result so Dashboard renders its
+            // empty input state.
+            setActiveChat(null)
+            setActiveProject(null)
+            setActiveProjectBriefResult?.(null)
+            setActiveProjectScoring?.(null)
+            navigate('dashboard')
+            setShowSettings(false)
+            if (isMobile) setMobileSidebarOpen(false)
+          }}
           collapsed={collapsed}
         />
         <NavItem
@@ -779,7 +792,7 @@ export default function Sidebar({ isMobile = false, mobileSidebarOpen = false, s
             >
               <button
                 onClick={() => { setShowSettings(true); setShowProfileMenu(false); if (isMobile) setMobileSidebarOpen(false) }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface)')}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 style={{
                   display: 'flex', gap: '8px', alignItems: 'center', width: '100%',

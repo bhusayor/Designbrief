@@ -21,6 +21,50 @@ function upsert(list, item, key = 'id') {
   return updated;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// History cache. Persisted per-workspace in localStorage so the sidebar
+// shows recents the instant the app boots, before the Supabase fetch
+// returns. We store only fields the sidebar needs (slim summary) to
+// keep the cache small. The network result always wins; the cache is
+// only a paint-acceleration layer.
+// ─────────────────────────────────────────────────────────────────────
+const HISTORY_CACHE_MAX = 60;
+const HISTORY_CACHE_KEY = (wsId) => `db-history-cache:${wsId || 'none'}`;
+
+function loadHistoryCacheFromLS() {
+  try {
+    const wsRaw = localStorage.getItem('db-workspace');
+    const ws = wsRaw ? JSON.parse(wsRaw) : null;
+    if (!ws?.id) return [];
+    const raw = localStorage.getItem(HISTORY_CACHE_KEY(ws.id));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveHistoryCacheToLS(workspaceId, list) {
+  if (!workspaceId || !Array.isArray(list)) return;
+  try {
+    // Slim the rows. Sidebar only needs identity + display fields;
+    // skipping result/brief/kanban keeps the cache well under 100KB
+    // even with 60 projects.
+    const slim = list.slice(0, HISTORY_CACHE_MAX).map(p => ({
+      id: p.id,
+      title: p.title,
+      section: p.section,
+      source: p.source,
+      ts: p.ts,
+      pinned: p.pinned,
+      isShared: p.isShared,
+      status: p.status,
+      currentUserRole: p.currentUserRole,
+      branding: p.branding,
+    }));
+    localStorage.setItem(HISTORY_CACHE_KEY(workspaceId), JSON.stringify(slim));
+  } catch {}
+}
+
 function generateShareId() {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -77,7 +121,11 @@ export function AppProvider({ children }) {
     } catch {}
     return 'dashboard';
   });
-  const [history, setHistory] = useState([]);
+  // History is seeded from a per-workspace localStorage cache so the
+  // sidebar paints recents instantly on refresh, before the Supabase
+  // fetch returns. The cache stores only fields the sidebar needs
+  // (id/title/section/ts/pinned/etc), kept small and disposable.
+  const [history, setHistory] = useState(() => loadHistoryCacheFromLS());
   const [activeChat, setActiveChat] = useState(null);
   const [notification, setNotification] = useState(null);
   // AI error banner, distinct from regular toast because it carries an
@@ -628,6 +676,10 @@ export function AppProvider({ children }) {
       };
       setProjects(prev => sameAsPrev(prev) ? prev : allFormatted);
       setHistory(prev => sameAsPrev(prev) ? prev : allFormatted);
+      // Persist a slim copy for next-boot paint. Writes on every
+      // poll are cheap (JSON of 60 small rows) but we could throttle
+      // if it ever showed up in profiling.
+      saveHistoryCacheToLS(workspaceId, allFormatted);
 
       // Also refresh activeProject so consumers watching it
       // (TeamCollab's customCols / projectTitle / brief sync) pick up
