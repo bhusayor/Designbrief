@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { setCors } from '../server-lib/cors.js'
 import { createClient } from '@supabase/supabase-js'
 import { WEBSITE_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
 import { mapClaudeError } from '../server-lib/claudeError.js'
@@ -10,14 +11,10 @@ const supabase = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 )
 
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-}
+// CORS now goes through the shared origin-checked helper.
 
 export default async function handler(req, res) {
-  setCors(res)
+  setCors(req, res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).end()
 

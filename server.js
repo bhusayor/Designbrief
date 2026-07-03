@@ -146,7 +146,9 @@ app.post('/api/claude', async (req, res) => {
     stream: shouldStream,
   } = body
 
-  const finalMaxTokens = Math.min(maxTokens ?? max_tokens ?? 2000, 8096)
+  // 16384 ceiling: the old 8096 clamp silently truncated the V2
+  // colour/typography sections that budget 8500 tokens.
+  const finalMaxTokens = Math.min(maxTokens ?? max_tokens ?? 2000, 16384)
   const model = pickModel(task_type, requestedModel)
 
   const isTools = Array.isArray(messages) && messages.length > 0

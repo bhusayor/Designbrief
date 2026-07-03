@@ -3,8 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-// Daily request limit per user, generous for now, tighten when billing exists
-const DAILY_LIMIT = 50
 
 export async function requireAuth(req, res) {
   const authHeader = req.headers.authorization
@@ -37,28 +35,55 @@ export async function requireAuth(req, res) {
   return { user, supabase }
 }
 
+// Per-plan daily API-call backstops. Credits are the real usage cap;
+// this limiter exists to stop runaway scripts. Budgets sized so
+// legitimate use never hits them: a V3 brief translation alone makes
+// ~22 calls, plus scoring + backlog generation.
+const DAILY_LIMIT_FOR_PLAN = {
+  free: 120,
+  starter: 600,
+  pro: 1500,
+}
+
 export async function checkRateLimit(supabase, userId, res) {
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
 
-  const { count, error } = await supabase
-    .from('ai_usage')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('created_at', startOfDay.toISOString())
+  const [{ count, error }, planRes] = await Promise.all([
+    supabase
+      .from('ai_usage')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', startOfDay.toISOString()),
+    supabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', userId)
+      .single(),
+  ])
 
   if (error) {
     console.error('[rate limit check]', error)
-    // Fail open, don't block on DB error
-    return true
+    // Fail CLOSED. A limiter that fails open turns a DB outage into
+    // an unlimited AI endpoint on our bill. Blocking one request
+    // during a Supabase blip is the cheaper failure.
+    res.status(503).json({
+      error: 'service_unavailable',
+      code: 'RATE_CHECK_FAILED',
+      message: 'Could not verify usage limits. Try again in a moment.',
+    })
+    return false
   }
 
-  if (count >= DAILY_LIMIT) {
+  const plan = planRes?.data?.plan || 'free'
+  const limit = DAILY_LIMIT_FOR_PLAN[plan] ?? DAILY_LIMIT_FOR_PLAN.free
+
+  if (count >= limit) {
     res.status(429).json({
       error: 'Daily limit reached',
       code: 'RATE_LIMITED',
-      limit: DAILY_LIMIT,
-      message: 'You have used all ' + DAILY_LIMIT + ' AI requests for today. Resets at midnight.',
+      limit,
+      message: 'You have used all ' + limit + ' AI requests for today. Resets at midnight.',
     })
     return false
   }

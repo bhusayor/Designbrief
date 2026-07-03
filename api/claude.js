@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAuth, checkRateLimit, logUsage } from '../server-lib/authMiddleware.js'
 import { mapClaudeError } from '../server-lib/claudeError.js'
-import { pickModel, ALLOWED_MODELS, DEFAULT_MODEL } from '../src/lib/models.js'
+import { setCors } from '../server-lib/cors.js'
+import { pickModel, MODEL_FOR } from '../src/lib/models.js'
 
 // ────────────────────────────────────────────────────────────────────
 // Unified Claude proxy. Five things in one file:
@@ -26,14 +27,20 @@ import { pickModel, ALLOWED_MODELS, DEFAULT_MODEL } from '../src/lib/models.js'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-}
+// Abuse guards. Prompts still travel from the client today (moving
+// the prompt library server-side is tracked in docs/backend-plan.md),
+// so the proxy at least pins WHAT can be asked for:
+//   - task_type, when present, must be a known key (else 400)
+//   - payload sizes are capped so nobody streams a book through us
+//   - maxTokens is clamped per request (16384 covers every budget the
+//     app uses; the old 8096 clamp silently truncated the 8500-token
+//     V2 colour/typography sections)
+const MAX_TOKENS_CEILING = 16384
+const MAX_SYSTEM_CHARS = 60_000
+const MAX_MESSAGE_CHARS = 250_000
 
 export default async function handler(req, res) {
-  setCors(res)
+  setCors(req, res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -69,7 +76,29 @@ export default async function handler(req, res) {
     stream: shouldStream,
   } = body
 
-  const finalMaxTokens = Math.min(maxTokens ?? max_tokens ?? 2000, 8096)
+  // Unknown task_type = reject. Missing task_type = allow but log,
+  // for back-compat with older client code paths that never set it.
+  if (task_type && !MODEL_FOR[task_type]) {
+    return res.status(400).json({
+      error: 'bad_request',
+      message: 'Unknown task_type.',
+    })
+  }
+  if (!task_type) console.warn('[claude] request without task_type')
+
+  // Size caps so the endpoint can't be scripted as a bulk-text pipe.
+  const systemLen = typeof system === 'string' ? system.length : 0
+  const msgLen = typeof message === 'string'
+    ? message.length
+    : JSON.stringify(messages || '').length
+  if (systemLen > MAX_SYSTEM_CHARS || msgLen > MAX_MESSAGE_CHARS) {
+    return res.status(413).json({
+      error: 'payload_too_large',
+      message: 'Prompt too large.',
+    })
+  }
+
+  const finalMaxTokens = Math.min(maxTokens ?? max_tokens ?? 2000, MAX_TOKENS_CEILING)
   const model = pickModel(task_type, requestedModel)
 
   // Detect call shape.
@@ -186,5 +215,3 @@ export default async function handler(req, res) {
   }
 }
 
-// Re-export for any caller that wants to introspect the whitelist.
-export { ALLOWED_MODELS, DEFAULT_MODEL }
