@@ -21,6 +21,7 @@ import { translateBriefV2, reviseBriefV2, snapshotForRevisions, isV2Result, scor
 import { translateBriefV3, reviseBriefV3, isV3Result } from '../lib/briefV3Translator'
 import { generateBacklogV3, isV3Backlog } from '../lib/briefV3Backlog'
 import BriefV2ReviseModal from '../components/brief/BriefV2ReviseModal'
+import BriefV2ShareModal from '../components/brief/BriefV2ShareModal'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
 import { BRIEF_V3_SECTIONS, BRIEF_V3_SCHEMA_VERSION, BRIEF_V3_PHASE_1A_KEYS } from '../lib/briefV3Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
@@ -337,6 +338,9 @@ export default function Dashboard() {
   const [v3View, setV3View] = useState('brief')
   const [backlogGenerating, setBacklogGenerating] = useState(false)
   const [backlogStage, setBacklogStage] = useState(null)
+  // Send-to-client modal for V3 (V2 renders its own modal inside
+  // BriefV2View; V3 keeps the shell lean and lets Dashboard own it).
+  const [v3ShareOpen, setV3ShareOpen] = useState(false)
   const [designSystemBuilding, setDesignSystemBuilding] = useState(false)
 
   const textareaRef = useRef(null)
@@ -1336,8 +1340,14 @@ export default function Dashboard() {
               isGeneratingBacklog={backlogGenerating}
               onGenerateBacklog={handleGenerateBacklog}
               onViewBacklog={() => setV3View('backlog')}
+              onShareReview={activeChat ? () => setV3ShareOpen(true) : null}
             />
           )}
+          <BriefV2ShareModal
+            open={v3ShareOpen}
+            onClose={() => setV3ShareOpen(false)}
+            projectId={activeChat}
+          />
           <BriefV2ReviseModal
             open={reviseOpen}
             onClose={() => setReviseOpen(false)}

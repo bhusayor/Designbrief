@@ -36,6 +36,8 @@ export default function BriefV3View({
   onViewBacklog,
   hasBacklog = false,
   isGeneratingBacklog = false,
+  // Send-for-client-review modal trigger (Dashboard renders the modal).
+  onShareReview,
   versionTabs,
   pendingChangesBanner,
 }) {
@@ -111,6 +113,21 @@ export default function BriefV3View({
                 <span className="brief-v3-topbar-pulse" aria-hidden />
                 {revising ? 'Revising' : 'Generating'}
               </div>
+            )}
+            {!isStreaming && (
+              <button
+                className="brief-v3-topbar-backlog"
+                type="button"
+                onClick={() => window.print()}
+                title="Print or save the document as PDF"
+              >
+                Export PDF
+              </button>
+            )}
+            {onShareReview && !isStreaming && (
+              <button className="brief-v3-topbar-backlog" type="button" onClick={onShareReview}>
+                Send to client
+              </button>
             )}
             {hasBacklog && onViewBacklog && (
               <button className="brief-v3-topbar-backlog" type="button" onClick={onViewBacklog}>
@@ -5021,6 +5038,33 @@ function V3Styles() {
         position: absolute; left: 0;
         color: var(--v3-accent);
         font-weight: 700;
+      }
+
+      /* ── Print / Save-as-PDF ──────────────────────────────────── */
+      /* Export PDF in the topbar calls window.print(); this sheet
+         turns the two-column app shell into a clean single-column
+         paginated document. */
+      @media print {
+        .brief-v3-topbar, .brief-v3-nav { display: none !important; }
+        .brief-v3-root { background: white; }
+        .brief-v3-layout {
+          display: block;
+          max-width: none;
+          padding: 0;
+        }
+        .brief-v3-doc { padding: 0; }
+        .brief-v3-chapter { padding: 24px 0 32px; }
+        /* Keep chapter headers attached to their first block, but let
+           long chapters flow across pages naturally. */
+        .brief-v3-chapter-head {
+          margin-bottom: 20px;
+          break-after: avoid-page;
+          break-inside: avoid-page;
+        }
+        /* Long tables + matrices can exceed one page; let them flow */
+        .brief-v3-table, .brief-v3-matrix { break-inside: auto; page-break-inside: auto; }
+        /* Kill sticky/scroll behaviours that confuse print layout */
+        .brief-v3-flow-wrap, .brief-v3-journey-stages { overflow: visible; }
       }
     `}</style>
   )
