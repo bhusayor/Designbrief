@@ -838,11 +838,16 @@ export function AppProvider({ children }) {
       loadProjectsFromDB(authUser.id, workspace.id);
     };
 
-    // Fire once immediately so switching workspaces shows the new contents
-    // before the next 5s tick.
+    // Fire once immediately so switching workspaces shows the new
+    // contents before the next tick.
     poll();
 
-    const interval = setInterval(poll, 5000);
+    // 30s fallback poll. Realtime subscriptions (above) are the
+    // primary update channel; this only catches events realtime
+    // missed. The previous 5s cadence hammered Supabase 12x/min per
+    // open tab and re-serialised the history cache each time, for
+    // updates the subscription had usually already delivered.
+    const interval = setInterval(poll, 30000);
     const onVisibility = () => { if (!document.hidden) poll(); };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', poll);
