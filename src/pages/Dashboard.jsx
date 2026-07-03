@@ -446,6 +446,20 @@ export default function Dashboard() {
       return
     }
     if (backlogGenerating) return
+
+    // Credit gate: 8 credits, same price as the legacy kanban
+    // generation. consumeCredits shows its own insufficient-credits
+    // toast + upgrade modal; other failures get a generic retry.
+    if (consumeCredits) {
+      const r = await consumeCredits('backlog_generation')
+      if (!r.ok) {
+        if (r.reason && r.reason !== 'insufficient_credits') {
+          showToast?.('Could not start backlog generation. Try again in a moment.', 'error')
+        }
+        return
+      }
+    }
+
     setBacklogGenerating(true)
     setBacklogStage('inventory')
     // Switch to backlog view immediately so the user sees the

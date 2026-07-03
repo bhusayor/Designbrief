@@ -20,6 +20,7 @@ export const CREDIT_COSTS = {
   // analysis up-front and never hit this charge.
   deep_analysis: 4,
   kanban_generation: 8,
+  backlog_generation: 8,
   ai_task_prompt: 3,
   moodboard_refresh: 3,
   red_flag_analysis: 3,
