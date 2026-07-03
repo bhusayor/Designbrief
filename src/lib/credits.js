@@ -43,70 +43,61 @@ function withTimeout(promise, ms, label) {
   ])
 }
 
+// Deduction now goes through the deduct_credits(p_action) Postgres RPC
+// (migrations/0012_credit_lockdown.sql):
+//   - ATOMIC: one conditional UPDATE, no read-then-write race. Two
+//     parallel translations can no longer share one deduction.
+//   - SERVER-PRICED: the cost table lives in the function, so a
+//     tampered client can't undercharge. CREDIT_COSTS above is only
+//     used for UI display (modals, tooltips).
+//   - GUARDED: a BEFORE UPDATE trigger on profiles rejects any direct
+//     client write to credits / credits_used / plan, so the old
+//     console exploit (update({ credits: 99999 })) is dead.
 export async function deductCredits(supabase, userId, action) {
-  const cost = CREDIT_COSTS[action]
-  if (!cost) return { success: false, reason: 'unknown' }
+  if (!CREDIT_COSTS[action]) return { success: false, reason: 'unknown' }
   if (!userId) return { success: false, reason: 'no_user' }
 
-  console.log('[deductCredits] start. user:', userId, 'action:', action, 'cost:', cost)
-
+  console.log('[deductCredits] rpc start. action:', action)
   try {
-    console.log('[deductCredits] reading profile...')
-    const readPromise = supabase
-      .from('profiles')
-      .select('credits, credits_used, plan')
-      .eq('id', userId)
-      .single()
-    // 8s ceiling on the profile read. A healthy Supabase round-trip
-    // is ~150-400ms; anything past 8s is hanging, not slow.
-    const readResult = await withTimeout(readPromise, 8000, 'profile_read')
-    if (readResult.__timeout) {
-      // Profile read hung. Most common cause: RLS policy issue or
-      // Supabase row lock. We BYPASS the credit gate so the user
-      // can still translate; usage tracking just skips this call.
-      console.warn('[deductCredits] profile read hung — bypassing credit gate so translation can proceed')
-      return { success: true, creditsRemaining: 999, used: 0, __bypassed: true }
-    }
-    const { data: profile, error: readErr } = readResult
-    console.log('[deductCredits] profile:', profile, 'error:', readErr)
-
-    if (readErr || !profile) {
-      return { success: false, reason: 'profile_not_found' }
+    const rpcPromise = supabase.rpc('deduct_credits', { p_action: action })
+    // 8s ceiling. A healthy round-trip is ~150-400ms; past 8s it is
+    // hanging, not slow. On hang we fail OPEN so a Supabase hiccup
+    // never blocks a translation, an availability call made after
+    // the earlier silent-hang incidents. The RPC itself is atomic,
+    // so the open-fail can no longer double-spend, worst case is one
+    // uncharged action.
+    const result = await withTimeout(rpcPromise, 8000, 'deduct_rpc')
+    if (result.__timeout) {
+      console.warn('[deductCredits] rpc hung — bypassing credit gate so the action can proceed')
+      return { success: true, creditsRemaining: 999, __bypassed: true }
     }
 
-    // Paid plans with unlimited / refreshed credits still go through
-    // this path so we record usage, but never block them on shortage.
-    if ((profile.credits ?? 0) < cost && profile.plan === 'free') {
+    const { data, error } = result
+    if (error) {
+      // Function not deployed yet (migration 0012 not run) → fall
+      // open with a loud warning rather than dead-ending every user.
+      console.error('[deductCredits] rpc error:', error.message)
+      if (/function .*deduct_credits/i.test(error.message || '')) {
+        console.warn('[deductCredits] deduct_credits RPC missing — run migrations/0012_credit_lockdown.sql. Bypassing gate.')
+        return { success: true, creditsRemaining: 999, __bypassed: true }
+      }
+      return { success: false, reason: 'update_failed' }
+    }
+
+    const row = Array.isArray(data) ? data[0] : data
+    if (!row) return { success: false, reason: 'unknown' }
+    if (row.ok) {
+      return { success: true, creditsRemaining: row.credits_remaining }
+    }
+    if (row.reason === 'insufficient_credits') {
       return {
         success: false,
         reason: 'insufficient_credits',
-        credits: profile.credits ?? 0,
-        required: cost,
+        credits: row.credits_remaining ?? 0,
+        required: CREDIT_COSTS[action],
       }
     }
-
-    const newCredits = Math.max(0, (profile.credits ?? 0) - cost)
-    const newUsed = (profile.credits_used ?? 0) + cost
-
-    console.log('[deductCredits] updating profile...')
-    const writePromise = supabase
-      .from('profiles')
-      .update({ credits: newCredits, credits_used: newUsed })
-      .eq('id', userId)
-    const writeResult = await withTimeout(writePromise, 8000, 'profile_update')
-    if (writeResult.__timeout) {
-      // Update hung. Treat the same as the read timeout — proceed
-      // optimistically. The credit gets effectively used (because
-      // we already returned success) without being deducted.
-      console.warn('[deductCredits] profile update hung — proceeding with translation anyway')
-      return { success: true, creditsRemaining: newCredits, used: newUsed, __bypassed: true }
-    }
-    const { error: writeErr } = writeResult
-    console.log('[deductCredits] update done. error:', writeErr)
-
-    if (writeErr) return { success: false, reason: 'update_failed' }
-
-    return { success: true, creditsRemaining: newCredits, used: newUsed }
+    return { success: false, reason: row.reason || 'unknown' }
   } catch (e) {
     console.error('[deductCredits]', e)
     return { success: false, reason: 'unknown' }
