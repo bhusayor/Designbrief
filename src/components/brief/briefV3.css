@@ -64,7 +64,7 @@
         color: var(--v3-accent-ink);
       }
       .brief-v3-topbar-score-label {
-        font: 600 8px 'JetBrains Mono', monospace;
+        font: 600 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--v3-ink-muted);
@@ -151,7 +151,7 @@
         padding: 32px 0 80px;
       }
       .brief-v3-nav-eyebrow {
-        font: 600 9px 'JetBrains Mono', monospace;
+        font: 600 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--v3-ink-muted);
@@ -246,7 +246,7 @@
         max-width: 60ch;
       }
       .brief-v3-chapter-badge {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         padding: 4px 8px;
@@ -355,7 +355,7 @@
       .brief-v3-inferred {
         display: inline-block;
         margin-left: 6px;
-        font: 700 8px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         padding: 1px 5px;
@@ -382,7 +382,7 @@
       .brief-v3-snapshot-chip-slate   { border-top: 3px solid var(--v3-slate); }
       .brief-v3-snapshot-chip-emerald { border-top: 3px solid var(--v3-emerald); }
       .brief-v3-snapshot-chip-label {
-        font: 600 9px 'JetBrains Mono', monospace;
+        font: 600 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--v3-ink-muted);
@@ -508,7 +508,7 @@
         display: inline-block;
         padding: 2px 7px;
         border-radius: 3px;
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
@@ -723,7 +723,7 @@
       }
       .brief-v3-matrix-cell:last-child { border-right: none; }
       .brief-v3-matrix-cell-tag {
-        font: 700 8px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--v3-ink-muted);
@@ -855,7 +855,7 @@
         display: flex; flex-direction: column; gap: 4px;
       }
       .brief-v3-persona-mindset-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -879,7 +879,7 @@
         border-top: 2px solid currentColor;
       }
       .brief-v3-persona-list-head {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink);
         margin-bottom: 8px;
@@ -903,7 +903,7 @@
         max-width: 200px;
       }
       .brief-v3-persona-glance-label {
-        font: 700 8px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -917,7 +917,7 @@
         border-top: 1px solid var(--v3-line);
       }
       .brief-v3-persona-outcome-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-accent-ink);
       }
@@ -944,7 +944,7 @@
       }
       .brief-v3-personas-context-fact { display: flex; flex-direction: column; gap: 3px; }
       .brief-v3-personas-context-fact-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: #94A3B8;
       }
@@ -1006,7 +1006,7 @@
         row-gap: 4px;
       }
       .brief-v3-jtbd-job-meta dt {
-        font: 700 8px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.12em; text-transform: uppercase;
         color: var(--v3-ink-muted);
         padding-top: 2px;
@@ -1048,7 +1048,7 @@
         display: flex; flex-direction: column; gap: 4px;
       }
       .brief-v3-jtbd-alt-tag {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
       }
       .brief-v3-jtbd-alt-half > span:last-child {
@@ -1085,7 +1085,7 @@
         color: var(--v3-ink);
       }
       .brief-v3-journey-persona-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -1119,7 +1119,7 @@
         letter-spacing: -0.01em;
       }
       .brief-v3-journey-stage-tag {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -1160,7 +1160,7 @@
         display: flex; flex-direction: column; gap: 4px;
       }
       .brief-v3-journey-list-head {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -1195,7 +1195,7 @@
         display: flex; flex-direction: column; gap: 4px;
       }
       .brief-v3-flow-outcome-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-accent-ink);
       }
@@ -1262,7 +1262,7 @@
         color: var(--v3-ink-soft);
       }
       .brief-v3-flow-step-tag {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-accent-ink);
       }
@@ -1324,7 +1324,7 @@
         row-gap: 4px;
       }
       .brief-v3-flow-error dt {
-        font: 700 8px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.12em; text-transform: uppercase;
         color: var(--v3-ink-muted);
         padding-top: 2px;
@@ -1368,7 +1368,7 @@
         color: var(--v3-ink-soft);
       }
       .brief-v3-flow-decision-line > span:first-child {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
         padding-top: 2px;
@@ -1509,7 +1509,7 @@
         align-items: center;
       }
       .brief-v3-ia-tax-syn > span:first-child {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
       }
 
@@ -1563,7 +1563,7 @@
       }
       .brief-v3-feature-block { display: flex; flex-direction: column; gap: 5px; }
       .brief-v3-feature-block-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -1600,7 +1600,7 @@
       .brief-v3-state-pill-success { color: var(--v3-emerald); }
       .brief-v3-state-pill-offline { color: var(--v3-amber); }
       .brief-v3-state-pill-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
       }
       .brief-v3-state-pill-body {
@@ -1653,7 +1653,7 @@
       }
       .brief-v3-voice-personality { display: flex; flex-direction: column; gap: 4px; }
       .brief-v3-voice-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -1801,7 +1801,7 @@
         color: var(--v3-ink-soft);
       }
       .brief-v3-comp-card-tag {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -1897,7 +1897,7 @@
         border-radius: 8px;
       }
       .brief-v3-principle-chain dt {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
         padding-top: 3px;
@@ -1912,7 +1912,7 @@
         align-self: flex-end;
       }
       .brief-v3-principle-conf-label {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -1959,7 +1959,7 @@
       .brief-v3-visual-card dl { margin: 0; display: flex; flex-direction: column; gap: 6px; }
       .brief-v3-visual-card-row { display: flex; flex-direction: column; gap: 2px; }
       .brief-v3-visual-card-row dt {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.12em; text-transform: uppercase;
         color: var(--v3-ink-muted);
       }
@@ -2145,7 +2145,7 @@
         display: flex; flex-direction: column; gap: 3px;
       }
       .brief-v3-dodont-tag {
-        font: 700 8px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
       }
       .brief-v3-dodont-half > span:last-child {
@@ -2274,7 +2274,7 @@
         column-gap: 14px; row-gap: 6px;
       }
       .brief-v3-tokens-kv dt {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
         padding-top: 2px;
@@ -2355,7 +2355,7 @@
         color: var(--v3-ink-soft);
       }
       .brief-v3-tech-item-row > span:first-child {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
         padding-top: 2px;
@@ -2380,7 +2380,7 @@
         color: var(--v3-ink);
       }
       .brief-v3-tech-card-line > span:first-child {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
         padding-top: 2px;
@@ -2409,7 +2409,7 @@
         border-left: 3px solid currentColor;
       }
       .brief-v3-tech-perm-tag {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         margin-bottom: 4px;
         display: block;
@@ -2479,7 +2479,7 @@
         border-top: 1px solid var(--v3-line-soft);
       }
       .brief-v3-metric-meta dt {
-        font: 700 9px 'JetBrains Mono', monospace;
+        font: 700 10px 'JetBrains Mono', monospace;
         letter-spacing: 0.14em; text-transform: uppercase;
         color: var(--v3-ink-muted);
         padding-top: 2px;
@@ -2602,3 +2602,59 @@
         /* Kill sticky/scroll behaviours that confuse print layout */
         .brief-v3-flow-wrap, .brief-v3-journey-stages { overflow: visible; }
       }
+
+
+/* ── Dark theme ──────────────────────────────────────────────────────
+   The app defaults to data-theme="dark"; before this block the V3
+   document rendered its light cream palette regardless, blinding
+   dark-mode users. Warm dark editorial equivalents of every token.
+   Inverted band cards (personas context, visual header, etc.) use
+   var(--v3-ink) as background, so they flip to light-on-dark
+   automatically; only their hardcoded slate-gray children need the
+   overrides at the bottom. */
+:root[data-theme='dark'] {
+  --v3-bg:           #16130F;
+  --v3-bg-2:         #1F1B16;
+  --v3-ink:          #EDE7DC;
+  --v3-ink-soft:     #C7BFB1;
+  --v3-ink-muted:    #938B7D;
+  --v3-line:         #37312A;
+  --v3-line-soft:    #2A2520;
+  --v3-accent:       #D98E45;
+  --v3-accent-ink:   #E4AE72;
+  --v3-emerald:      #57B183;
+  --v3-amber:        #D9A244;
+  --v3-red:          #E07C74;
+  --v3-orange:       #DD8552;
+  --v3-slate:        #9AA9B8;
+  --v3-indigo:       #97A5DE;
+}
+
+/* Inverted bands become light in dark mode; their light-gray literal
+   children (#CBD5E1 / #94A3B8) would wash out, so darken them. */
+[data-theme='dark'] .brief-v3-personas-context-label,
+[data-theme='dark'] .brief-v3-uxw-reading-meta p,
+[data-theme='dark'] .brief-v3-content-density-rationale {
+  color: #57503F;
+}
+[data-theme='dark'] .brief-v3-personas-context-fact-label,
+[data-theme='dark'] .brief-v3-visual-header-label,
+[data-theme='dark'] .brief-v3-uxw-reading-spec,
+[data-theme='dark'] .brief-v3-content-density-label,
+[data-theme='dark'] .brief-v3-aip-eyebrow,
+[data-theme='dark'] .brief-v3-verdict-final-label {
+  color: #6E6553;
+}
+
+/* Print always renders on paper: force the light palette. */
+@media print {
+  :root[data-theme='dark'] {
+    --v3-bg: #FFFFFF;
+    --v3-bg-2: #F3EFE7;
+    --v3-ink: #1A1A1A;
+    --v3-ink-soft: #3F3F3F;
+    --v3-ink-muted: #8A8580;
+    --v3-line: #E2DCCF;
+    --v3-line-soft: #EFEAE0;
+  }
+}
