@@ -196,33 +196,6 @@ export const BRIEF_V2_ALL_KEYS = Object.keys(BRIEF_V2_ITEM_BY_KEY)
 export function itemsForSection(sectionId) {
   return BRIEF_V2_SECTIONS.find(s => s.id === sectionId)?.items || []
 }
-
-// ────────────────────────────────────────────────────────────────────
-// scrubDashes. User-mandated: NEVER let an em (U+2014) or en (U+2013)
-// dash appear in AI-generated output. Walk every string in the shape
-// and replace. Numbers / booleans / null pass through.
-//
-// Regexes use \u escapes so the bytes can't be mass-replaced by a
-// codebase-wide dash purge.
-// ────────────────────────────────────────────────────────────────────
-export function scrubDashes(v) {
-  if (v == null) return v
-  if (typeof v === 'string') {
-    return v
-      .replace(/\s*—\s*/g, ' ')
-      .replace(/\s*–\s*/g, ' ')
-      .replace(/—/g, '-')
-      .replace(/–/g, '-')
-  }
-  if (Array.isArray(v)) return v.map(scrubDashes)
-  if (typeof v === 'object') {
-    const out = {}
-    for (const k of Object.keys(v)) out[k] = scrubDashes(v[k])
-    return out
-  }
-  return v
-}
-
 // ────────────────────────────────────────────────────────────────────
 // Empty content factories, used by the renderer to stub items that
 // haven't streamed in yet so the layout doesn't jump when they land.
@@ -256,3 +229,7 @@ export function emptyContentForShape(shape) {
 }
 
 export const BRIEF_V2_SCHEMA_VERSION = 'v2'
+
+// scrubDashes moved to textUtils.js; re-exported so existing
+// import paths keep working.
+export { scrubDashes } from './textUtils.js'

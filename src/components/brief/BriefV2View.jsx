@@ -22,6 +22,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { parseBundledComment } from '../../lib/textUtils.js'
 import {
   ArrowDownTrayIcon,
   ArrowRightIcon,
@@ -3322,50 +3323,6 @@ function VersionTabStrip({ revisions, viewedVersion, onSelect, onRestore }) {
     </div>
   )
 }
-
-// ── Pending changes banner ────────────────────────────────────────
-// Amber prompt when there's an outstanding client review with
-// status='changes_requested'. The Revise button triggers the modal
-// which auto-prefills the note.
-// Parses the ANSWERED: / CHANGES: protocol the client review page
-// uses to bundle question answers + free-text change requests into
-// one comment body. Returns { answers: [{q, a}], changes: string }
-// for structured comments, or null when the body is plain text.
-function parseBundledComment(body) {
-  const text = String(body || '')
-  if (!text.includes('ANSWERED:') && !text.includes('CHANGES:')) return null
-  const result = { answers: [], changes: '' }
-  // Pull the ANSWERED block (everything between ANSWERED: and the
-  // next CHANGES: marker or end-of-string).
-  const ansMatch = text.match(/ANSWERED:\s*([\s\S]*?)(?:\n\s*CHANGES:|$)/i)
-  if (ansMatch) {
-    const ansBlock = ansMatch[1].trim()
-    // Each Q/A is two lines: "Q1. ..." then "A1. ..."
-    const lines = ansBlock.split('\n')
-    let currentQ = null
-    for (const line of lines) {
-      const qMatch = line.match(/^Q\d+\.\s*(.+)$/)
-      const aMatch = line.match(/^A\d+\.\s*(.+)$/)
-      if (qMatch) {
-        if (currentQ) result.answers.push({ q: currentQ, a: '' })
-        currentQ = qMatch[1].trim()
-      } else if (aMatch && currentQ) {
-        result.answers.push({ q: currentQ, a: aMatch[1].trim() })
-        currentQ = null
-      } else if (line.trim() && currentQ) {
-        // Multi-line answer continuation
-        const last = result.answers[result.answers.length - 1]
-        if (last) last.a += '\n' + line.trim()
-        else currentQ += ' ' + line.trim()
-      }
-    }
-    if (currentQ) result.answers.push({ q: currentQ, a: '' })
-  }
-  const chgMatch = text.match(/CHANGES:\s*([\s\S]*)$/i)
-  if (chgMatch) result.changes = chgMatch[1].trim()
-  return result
-}
-
 // Renders a comment body either as a Q→A structured list (when the
 // body matches the ANSWERED:/CHANGES: protocol) or as plain text.
 function CommentBody({ body }) {

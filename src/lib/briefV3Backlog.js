@@ -22,6 +22,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { callClaude } from './claudeApi.js'
+import { scrubDashes as scrubDashesV3, safeJsonParse } from './textUtils.js'
 
 export const BACKLOG_VERSION = 'v1'
 
@@ -287,40 +288,6 @@ function serializeBriefForBacklog(brief) {
   }
   return lines.join('\n')
 }
-
-function scrubDashesV3(v) {
-  if (v == null) return v
-  if (typeof v === 'string') {
-    return v
-      .replace(/\s*—\s*/g, ' ')
-      .replace(/\s*–\s*/g, ' ')
-      .replace(/—/g, '-')
-      .replace(/–/g, '-')
-  }
-  if (Array.isArray(v)) return v.map(scrubDashesV3)
-  if (typeof v === 'object') {
-    const out = {}
-    for (const k of Object.keys(v)) out[k] = scrubDashesV3(v[k])
-    return out
-  }
-  return v
-}
-
-function safeJsonParse(text) {
-  if (!text) return {}
-  let s = String(text).trim()
-  if (s.startsWith('```')) {
-    s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
-  }
-  try { return JSON.parse(s) } catch {}
-  const first = s.indexOf('{')
-  const last = s.lastIndexOf('}')
-  if (first >= 0 && last > first) {
-    try { return JSON.parse(s.slice(first, last + 1)) } catch {}
-  }
-  return {}
-}
-
 // Helper: is this object a valid V3 backlog payload?
 export function isV3Backlog(b) {
   return b && b.backlogVersion === BACKLOG_VERSION && Array.isArray(b.epics)

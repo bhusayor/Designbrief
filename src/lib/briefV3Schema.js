@@ -111,29 +111,6 @@ export const BRIEF_V3_WIRED_KEYS = [
 
 // Back-compat alias — Dashboard still imports the old name.
 export const BRIEF_V3_PHASE_1A_KEYS = BRIEF_V3_WIRED_KEYS
-
-// ────────────────────────────────────────────────────────────────────
-// scrubDashes. Same user-mandated rule as V2: NEVER let an em or en
-// dash appear in AI output. Walk every string in the shape.
-// ────────────────────────────────────────────────────────────────────
-export function scrubDashesV3(v) {
-  if (v == null) return v
-  if (typeof v === 'string') {
-    return v
-      .replace(/\s*—\s*/g, ' ')
-      .replace(/\s*–\s*/g, ' ')
-      .replace(/—/g, '-')
-      .replace(/–/g, '-')
-  }
-  if (Array.isArray(v)) return v.map(scrubDashesV3)
-  if (typeof v === 'object') {
-    const out = {}
-    for (const k of Object.keys(v)) out[k] = scrubDashesV3(v[k])
-    return out
-  }
-  return v
-}
-
 // Empty content factory so the renderer never crashes on an in-
 // progress section. Returns the shape's expected skeleton.
 export function emptyV3ContentForShape(shape) {
@@ -151,3 +128,6 @@ export function emptyV3ContentForShape(shape) {
 }
 
 export const BRIEF_V3_SCHEMA_VERSION = 'v3'
+
+// Dash scrubbing shared with V2 via textUtils.
+export { scrubDashes as scrubDashesV3 } from './textUtils.js'

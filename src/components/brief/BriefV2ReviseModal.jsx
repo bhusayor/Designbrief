@@ -7,6 +7,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useState } from 'react'
+import { parseBundledComment } from '../../lib/textUtils.js'
 import { XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline'
 
 export default function BriefV2ReviseModal({
@@ -74,37 +75,6 @@ export default function BriefV2ReviseModal({
       setTimeout(() => taRef.current?.focus(), 30)
     }
   }, [open, pendingReview?.id, pendingComments?.length])
-
-  // Local copy of the parser so the modal stays self-contained.
-  // Same format used by ClientBriefReview when bundling answers
-  // and by the PendingChangesBanner when rendering Q→A pairs.
-  function parseBundledComment(body) {
-    const text = String(body || '')
-    if (!text.includes('ANSWERED:') && !text.includes('CHANGES:')) return null
-    const result = { answers: [], changes: '' }
-    const ansMatch = text.match(/ANSWERED:\s*([\s\S]*?)(?:\n\s*CHANGES:|$)/i)
-    if (ansMatch) {
-      const ansBlock = ansMatch[1].trim()
-      const lines = ansBlock.split('\n')
-      let currentQ = null
-      for (const line of lines) {
-        const qMatch = line.match(/^Q\d+\.\s*(.+)$/)
-        const aMatch = line.match(/^A\d+\.\s*(.+)$/)
-        if (qMatch) {
-          if (currentQ) result.answers.push({ q: currentQ, a: '' })
-          currentQ = qMatch[1].trim()
-        } else if (aMatch && currentQ) {
-          result.answers.push({ q: currentQ, a: aMatch[1].trim() })
-          currentQ = null
-        }
-      }
-      if (currentQ) result.answers.push({ q: currentQ, a: '' })
-    }
-    const chgMatch = text.match(/CHANGES:\s*([\s\S]*)$/i)
-    if (chgMatch) result.changes = chgMatch[1].trim()
-    return result
-  }
-
   useEffect(() => {
     if (!open) return
     function onKey(e) { if (e.key === 'Escape' && !submitting) onClose?.() }

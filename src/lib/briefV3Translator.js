@@ -14,6 +14,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { callClaude } from './claudeApi.js'
+import { safeJsonParse, structuredCloneSafe } from './textUtils.js'
 import {
   BRIEF_V3_SECTIONS,
   BRIEF_V3_WIRED_KEYS,
@@ -1009,31 +1010,6 @@ export function snapshotForRevisionsV3(result, { label } = {}) {
     sections: structuredCloneSafe(result?.sections) || [],
   }
 }
-
-function structuredCloneSafe(v) {
-  if (v == null) return v
-  try {
-    if (typeof structuredClone === 'function') return structuredClone(v)
-  } catch {}
-  try { return JSON.parse(JSON.stringify(v)) } catch {}
-  return v
-}
-
-function safeJsonParse(text) {
-  if (!text) return {}
-  let s = String(text).trim()
-  if (s.startsWith('```')) {
-    s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
-  }
-  try { return JSON.parse(s) } catch {}
-  const first = s.indexOf('{')
-  const last = s.lastIndexOf('}')
-  if (first >= 0 && last > first) {
-    try { return JSON.parse(s.slice(first, last + 1)) } catch {}
-  }
-  return {}
-}
-
 // Detection helper used by Dashboard to route to the V3 renderer.
 export function isV3Result(r) {
   return r?.schemaVersion === BRIEF_V3_SCHEMA_VERSION && Array.isArray(r?.sections)

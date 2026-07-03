@@ -21,6 +21,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import { callClaude } from './claudeApi.js'
+import { safeJsonParse, structuredCloneSafe } from './textUtils.js'
 import {
   BRIEF_V2_SECTIONS,
   BRIEF_V2_SCHEMA_VERSION,
@@ -843,12 +844,6 @@ export function snapshotForRevisions(result, { label } = {}) {
     revisionMeta: result.revisionMeta ? structuredCloneSafe(result.revisionMeta) : null,
   }
 }
-
-function structuredCloneSafe(v) {
-  try { return typeof structuredClone === 'function' ? structuredClone(v) : JSON.parse(JSON.stringify(v)) }
-  catch { return JSON.parse(JSON.stringify(v)) }
-}
-
 // ────────────────────────────────────────────────────────────────────
 // enrichCompetitorUrls, for each competitor without a URL, fire a
 // /api/web-search query against Brave and adopt the top result's
@@ -956,25 +951,6 @@ ${JSON.stringify(slim).slice(0, 1500)}`,
     return null
   }
 }
-
-// Resilient JSON parsing: AI sometimes wraps in code fences despite
-// being told not to. Strip and parse; on hard failure return {}.
-function safeJsonParse(text) {
-  if (!text) return {}
-  let s = String(text).trim()
-  if (s.startsWith('```')) {
-    s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
-  }
-  try { return JSON.parse(s) } catch {}
-  // Last-resort: extract the first balanced { ... } block
-  const first = s.indexOf('{')
-  const last = s.lastIndexOf('}')
-  if (first >= 0 && last > first) {
-    try { return JSON.parse(s.slice(first, last + 1)) } catch {}
-  }
-  return {}
-}
-
 // Detection helper used by routing code to decide which renderer to
 // mount: V2 layout if schemaVersion === 'v2' AND a sections array is
 // present, else legacy.

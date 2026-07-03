@@ -1,3 +1,5 @@
+import { withTimeout } from './textUtils.js'
+
 // ────────────────────────────────────────────────────────────────────
 // Credit costs per AI action + a small server-side-style deduction
 // helper that callers run before invoking the action.
@@ -24,25 +26,6 @@ export const CREDIT_COSTS = {
   questions_generation: 3,
   client_intake: 5,
 }
-
-// Returns one of:
-//   { success: true,  creditsRemaining: number }
-//   { success: false, reason: 'insufficient_credits', credits, required }
-//   { success: false, reason: 'profile_not_found' | 'update_failed' | 'unknown' }
-// Race a promise against a timer. Used to escape silent Supabase
-// hangs (RLS deadlock, network drop, suspended row lock). When the
-// timer fires first, the original promise is abandoned and we
-// return null so the caller knows to fall through.
-function withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise(resolve => setTimeout(() => {
-      console.warn('[deductCredits] timeout after', ms, 'ms at', label)
-      resolve({ __timeout: true })
-    }, ms)),
-  ])
-}
-
 // Deduction now goes through the deduct_credits(p_action) Postgres RPC
 // (migrations/0012_credit_lockdown.sql):
 //   - ATOMIC: one conditional UPDATE, no read-then-write race. Two
