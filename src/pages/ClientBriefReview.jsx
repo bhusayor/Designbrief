@@ -23,6 +23,7 @@ import { useContext, useEffect, useState } from 'react'
 import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import AppContext from '../context/AppContext'
 import BriefV2View from '../components/brief/BriefV2View'
+import BriefV3View from '../components/brief/BriefV3View'
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
@@ -45,9 +46,21 @@ export default function ClientBriefReview() {
     setAnswers(prev => ({ ...prev, [idx]: text }))
   }
 
+  // Schema routing. V3 briefs (Design Intelligence Document) have
+  // sections with .content; V2 briefs have sections with .items.
+  const isV3 = data?.brief?.schemaVersion === 'v3' && Array.isArray(data?.brief?.sections)
+
   // Extract the questions list so we can pair index → question text
-  // when posting the answers. Reads from the brief content.
+  // when posting the answers.
+  //   V2: interrogate section → questions item.
+  //   V3: Brief Health chapter → questions array ("questions to send
+  //       the client" — exactly what this page exists to answer).
   const questions = (() => {
+    if (isV3) {
+      const health = data?.brief?.sections?.find(s => s.key === 'brief_health')
+      const qs = health?.content?.questions
+      return Array.isArray(qs) ? qs.filter(q => typeof q === 'string' && q.trim()) : []
+    }
     const interrogate = data?.brief?.sections?.find(s => s.id === 'interrogate')
     const qItem = interrogate?.items?.find(i => i.key === 'questions')
     return Array.isArray(qItem?.content) ? qItem.content : []
@@ -227,20 +240,40 @@ export default function ClientBriefReview() {
         </section>
       </div>
 
-      {/* The brief, read-only. Per-section approve/changes UI was
-          intentionally removed in favour of a single decision at
-          the bottom of the page; most clients won't engage with
-          section-by-section ceremony, a simple Approve all + free-
-          text changes note is enough. */}
+      {/* The brief, read-only. Routed by schemaVersion: V3 renders
+          the Design Intelligence Document; V2 keeps the legacy view
+          with its in-brief question inputs. Per-section approve UI
+          was intentionally removed in favour of a single decision at
+          the bottom of the page. */}
       <div style={{ background: 'var(--color-bg)' }}>
-        <BriefV2View
-          result={brief}
-          isStreaming={false}
-          showCompletionBanner={false}
-          clientAnswers={answers}
-          onClientAnswer={handleAnswer}
-        />
+        {isV3 ? (
+          <BriefV3View result={brief} isStreaming={false} />
+        ) : (
+          <BriefV2View
+            result={brief}
+            isStreaming={false}
+            showCompletionBanner={false}
+            clientAnswers={answers}
+            onClientAnswer={handleAnswer}
+          />
+        )}
       </div>
+
+      {/* V3 briefs show the designer's questions HERE, right above
+          the feedback composer, instead of inline in the document
+          (the V3 view is read-only; V2 embeds inputs in its
+          questions card). Same answers state + bundling protocol
+          either way. */}
+      {isV3 && questions.length > 0 && (
+        <div style={container}>
+          <QuestionsCard
+            questions={questions}
+            answers={answers}
+            onAnswer={handleAnswer}
+            designerPrimary={designer.primary}
+          />
+        </div>
+      )}
 
       {/* Feedback thread + composer. Always visible regardless of
           decision state so the client can keep iterating, change
@@ -305,6 +338,68 @@ export default function ClientBriefReview() {
         />
       </div>
     </div>
+  )
+}
+
+// ── Questions card (V3) ─────────────────────────────────────────────
+// The designer's open questions from the Brief Health chapter, each
+// with an optional answer box. Answers ride the same ANSWERED:/
+// CHANGES: bundle protocol as V2 when the client hits Send/Approve.
+function QuestionsCard({ questions, answers, onAnswer, designerPrimary }) {
+  return (
+    <section style={{
+      margin: '32px 0 0',
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderLeft: `3px solid ${designerPrimary}`,
+      borderRadius: 14,
+      padding: '20px 22px',
+    }}>
+      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
+        Questions for you
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16 }}>
+        Your designer needs these answered to close the gaps in the brief.
+        All optional; answers are sent with your note or approval.
+      </div>
+      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {questions.map((q, i) => (
+          <li key={i}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 8 }}>
+              <span style={{
+                fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+                color: designerPrimary, flexShrink: 0,
+              }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.5 }}>
+                {q}
+              </span>
+            </div>
+            <textarea
+              value={answers?.[i] || ''}
+              onChange={e => onAnswer(i, e.target.value)}
+              placeholder="Type your answer here (optional)"
+              rows={2}
+              style={{
+                width: '100%',
+                marginLeft: 0,
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8,
+                padding: '10px 12px',
+                fontFamily: 'inherit',
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: 'var(--color-text)',
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
+          </li>
+        ))}
+      </ol>
+    </section>
   )
 }
 
