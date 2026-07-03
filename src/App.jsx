@@ -1,27 +1,53 @@
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, lazy, Suspense } from 'react';
 import { AppProvider } from './context/AppContext';
 import AppContext from './context/AppContext';
 import { AppShell } from './components/layout';
+// Dashboard + Auth stay eager: they are the two first-paint routes
+// (returning users land on Dashboard, logged-out users on Auth) and
+// lazy-loading them would just add a spinner to every session start.
 import Dashboard from './pages/Dashboard';
-import BriefTranslator from './pages/BriefTranslator';
-import IntakeBuilder from './pages/IntakeBuilder';
-import ClientIntakePage from './pages/ClientIntakePage';
-import JoinPage from './pages/JoinPage';
-import ProjectDocument from './pages/ProjectDocument';
-import ProjectOverview from './pages/ProjectOverview';
-import TeamCollab from './pages/TeamCollab';
-import ProjectLibrary from './pages/ProjectLibrary';
+import Auth from './pages/Auth';
+// Everything else is code-split. Before this, the app shipped one
+// 2.3MB chunk containing TeamCollab (5.9k lines), IntakeBuilder,
+// Billing-adjacent settings, the PDF stack, and every page a user
+// might never open.
+const BriefTranslator    = lazy(() => import('./pages/BriefTranslator'));
+const IntakeBuilder      = lazy(() => import('./pages/IntakeBuilder'));
+const ClientIntakePage   = lazy(() => import('./pages/ClientIntakePage'));
+const JoinPage           = lazy(() => import('./pages/JoinPage'));
+const ProjectDocument    = lazy(() => import('./pages/ProjectDocument'));
+const ProjectOverview    = lazy(() => import('./pages/ProjectOverview'));
+const TeamCollab         = lazy(() => import('./pages/TeamCollab'));
+const ProjectLibrary     = lazy(() => import('./pages/ProjectLibrary'));
 // Connectors hidden from the live site for now, re-enable by
 // uncommenting this import + the route entry below.
-// import Connectors from './pages/Connectors';
-import ProjectBuilder from './pages/ProjectBuilder';
-import Auth from './pages/Auth';
-import WorkspaceSetup from './pages/WorkspaceSetup';
-import AcceptInvite from './pages/AcceptInvite';
-import SharedBrief from './pages/SharedBrief';
-import IntakeBriefReview from './pages/IntakeBriefReview';
-import ClientFollowupPage from './pages/ClientFollowupPage';
-import ClientBriefReview from './pages/ClientBriefReview';
+// const Connectors      = lazy(() => import('./pages/Connectors'));
+const ProjectBuilder     = lazy(() => import('./pages/ProjectBuilder'));
+const WorkspaceSetup     = lazy(() => import('./pages/WorkspaceSetup'));
+const AcceptInvite       = lazy(() => import('./pages/AcceptInvite'));
+const SharedBrief        = lazy(() => import('./pages/SharedBrief'));
+const IntakeBriefReview  = lazy(() => import('./pages/IntakeBriefReview'));
+const ClientFollowupPage = lazy(() => import('./pages/ClientFollowupPage'));
+const ClientBriefReview  = lazy(() => import('./pages/ClientBriefReview'));
+
+// Shared suspense fallback: minimal centered spinner matching the
+// app shell so route transitions don't flash white.
+function RouteFallback() {
+  return (
+    <div style={{
+      height: '100%', minHeight: 200,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        width: 28, height: 28, borderRadius: '50%',
+        border: '3px solid var(--color-border)',
+        borderTopColor: 'var(--color-accent)',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  );
+}
 import UpgradeModal from './components/UpgradeModal';
 import { supabase } from './lib/supabase';
 import PageTransition from './components/PageTransition';
@@ -346,7 +372,12 @@ function GlobalUpgradeModal() {
 export default function App() {
   return (
     <AppProvider>
-      <AppRouter />
+      {/* One Suspense above the router covers every lazy page,
+          including the bare public routes that return early without
+          the AppShell (client intake, review, join, etc). */}
+      <Suspense fallback={<RouteFallback />}>
+        <AppRouter />
+      </Suspense>
     </AppProvider>
   );
 }

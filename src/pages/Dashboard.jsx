@@ -26,7 +26,6 @@ import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema
 import { BRIEF_V3_SECTIONS, BRIEF_V3_SCHEMA_VERSION, BRIEF_V3_PHASE_1A_KEYS } from '../lib/briefV3Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
 import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
-import { exportV2BriefAsPdf } from '../lib/briefV2PdfExport'
 import BriefV2View from '../components/brief/BriefV2View'
 import BriefV3View from '../components/brief/BriefV3View'
 import BacklogView from '../components/backlog/BacklogView'
@@ -1232,6 +1231,9 @@ export default function Dashboard() {
       setDownloadingPdf(true)
       showToast?.('Building PDF…', 'success')
       try {
+        // Dynamic import keeps jspdf + html2canvas (~600KB) out of
+        // the main bundle; they load on first export click only.
+        const { exportV2BriefAsPdf } = await import('../lib/briefV2PdfExport')
         await exportV2BriefAsPdf(result, result.projectTitle)
         showToast?.('PDF downloaded', 'success')
       } catch (e) {
