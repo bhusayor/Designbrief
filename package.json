@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.28.0",
+    "@anthropic-ai/sdk": "^0.110.0",
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.101.1",
     "cors": "^2.8.5",
