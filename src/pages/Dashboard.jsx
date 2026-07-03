@@ -299,7 +299,7 @@ function useWindowWidth() {
 
 export default function Dashboard() {
   const {
-    user, authUser, navigate, saveHistory, showToast, setCreditsUsed,
+    user, authUser, navigate, saveHistory, saveProject, showToast, setCreditsUsed,
     selectedWebsiteTemplate, setSelectedWebsiteTemplate,
     setActiveProjectBriefResult,
     activeProjectBriefResult,
@@ -484,6 +484,51 @@ export default function Dashboard() {
     } finally {
       setBacklogGenerating(false)
       setBacklogStage(null)
+    }
+  }
+
+  // ── Backlog → TeamCollab bridge ───────────────────────────────
+  // Converts the generated backlog's stories into flat kanban tasks
+  // (epic name rides in the title prefix, acceptance signal + labels
+  // in the description) and saves them on the project so the board
+  // page picks them up. Closes the "backlog is orphaned from the
+  // board" gap without forcing TeamCollab to learn the hierarchy.
+  function handleSendBacklogToBoard() {
+    const backlog = result?.backlog
+    if (!backlog || !Array.isArray(backlog.stories) || !backlog.stories.length) {
+      showToast?.('Generate the backlog first.', 'warning')
+      return
+    }
+    const epicName = (id) => backlog.epics?.find(e => e.id === id)?.name || ''
+    const tasks = backlog.stories.map((s, i) => {
+      const lines = []
+      lines.push(`As ${s.as || 'a user'}, I want to ${s.want || ''}${s.so_that ? `, so that ${s.so_that}` : ''}.`)
+      if (s.acceptance_signal) lines.push('', `**Acceptance:** ${s.acceptance_signal}`)
+      if (Array.isArray(s.labels) && s.labels.length) lines.push('', `Labels: ${s.labels.join(', ')}`)
+      const epic = epicName(s.epic_id)
+      return {
+        id: s.id || `story_${i}`,
+        title: epic ? `[${epic}] ${s.want || 'Story'}` : (s.want || 'Story'),
+        description: lines.join('\n'),
+        column_name: 'todo',
+        column: 'todo',
+        position: i,
+        estimated_days: ({ XS: 0.5, S: 1, M: 2, L: 4, XL: 8 })[s.complexity] || 2,
+        status: 'todo',
+        priority: (s.priority || 'Medium').toLowerCase(),
+      }
+    })
+    try {
+      saveProject?.({
+        id: activeChat || undefined,
+        title: result.projectTitle || 'Untitled Brief',
+        kanban: { tasks },
+      })
+      showToast?.(`${tasks.length} stories sent to the board.`, 'success')
+      navigate('team')
+    } catch (e) {
+      console.error('[backlog→board]', e)
+      showToast?.('Could not send stories to the board.', 'error')
     }
   }
 
@@ -1329,6 +1374,7 @@ export default function Dashboard() {
               generationStage={backlogStage}
               onBackToBrief={() => setV3View('brief')}
               onRegenerate={backlogGenerating ? null : handleGenerateBacklog}
+              onSendToBoard={backlogGenerating ? null : handleSendBacklogToBoard}
             />
           ) : (
             <BriefV3View

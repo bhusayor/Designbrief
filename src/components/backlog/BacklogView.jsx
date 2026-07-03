@@ -20,6 +20,7 @@ export default function BacklogView({
   generationStage = null, // 'inventory' | 'epics' | 'stories' | null
   onBackToBrief,
   onRegenerate,
+  onSendToBoard,
 }) {
   const epics = Array.isArray(backlog?.epics) ? backlog.epics : []
   const stories = Array.isArray(backlog?.stories) ? backlog.stories : []
@@ -67,6 +68,11 @@ export default function BacklogView({
           {onBackToBrief && (
             <button type="button" className="bl-topbar-back" onClick={onBackToBrief}>
               Back to brief
+            </button>
+          )}
+          {onSendToBoard && !isGenerating && stories.length > 0 && (
+            <button type="button" className="bl-topbar-back" onClick={onSendToBoard}>
+              Send to board
             </button>
           )}
           {onRegenerate && !isGenerating && (
