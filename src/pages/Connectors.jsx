@@ -689,10 +689,6 @@ export default function Connectors({ embedded = false }) {
   const [search, setSearch] = useState('')
   const [selectedConnector, setSelectedConnector] = useState(null)
 
-  useEffect(() => {
-    if (workspace?.id && authUser?.id) loadStatus()
-  }, [workspace?.id, authUser?.id])
-
   async function loadStatus() {
     if (!workspace?.id) return
     try {
@@ -705,6 +701,10 @@ export default function Connectors({ embedded = false }) {
       console.warn('[connectors]', e.message)
     }
   }
+
+  useEffect(() => {
+    if (workspace?.id && authUser?.id) loadStatus()
+  }, [workspace?.id, authUser?.id])
 
   const filtered = CONNECTORS.filter(c =>
     !search.trim() ||

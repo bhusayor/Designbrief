@@ -1153,7 +1153,7 @@ export default function ProjectLibrary() {
   useEffect(() => {
     if (activeTab !== 'intakes') return
     if (!intakeForms?.length) return
-    const apiUrl = import.meta.env.VITE_API_URL
+    const apiUrl = import.meta.env.VITE_API_BASE_URL
     if (!apiUrl) return // no Render endpoint configured; nothing to kick
     const STALE_MS = 60 * 1000
     const now = Date.now()
@@ -1385,9 +1385,9 @@ export default function ProjectLibrary() {
       showToast('No submission on this form yet.', 'error');
       return;
     }
-    const apiUrl = (import.meta.env.VITE_API_URL || '') + '/api/process-intake';
-    if (!import.meta.env.VITE_API_URL) {
-      showToast('Set VITE_API_URL on Vercel to your Render URL first.', 'error');
+    const apiUrl = (import.meta.env.VITE_API_BASE_URL || '') + '/api/process-intake';
+    if (!import.meta.env.VITE_API_BASE_URL) {
+      showToast('Set VITE_API_BASE_URL on Vercel to your Render URL first.', 'error');
       return;
     }
     try {

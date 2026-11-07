@@ -1,23 +1,17 @@
 // Build engine, routes Phase 1 React-component generation through the
-// central /api/claude proxy. Tags task_type so the server picks Opus
-// for the highest-quality code output.
+// dedicated Pro-only managed Codex agent endpoint.
 
-import { WEBSITE_BUILDER_SYSTEM } from './aiSystemPrompts.js'
-
-const BUILD_SYSTEM = WEBSITE_BUILDER_SYSTEM
+import { apiUrl } from './runtimeConfig.js'
 
 export async function buildWithProxy(prompt, onToken, authHeader) {
-  const res = await fetch('/api/claude', {
+  const res = await fetch(apiUrl('/api/build-component'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(authHeader ? { Authorization: authHeader } : {}),
     },
     body: JSON.stringify({
-      task_type: 'component_builder',
-      system: BUILD_SYSTEM,
-      message: prompt,
-      maxTokens: 3000,
+      prompt,
     }),
   })
 
@@ -31,13 +25,26 @@ export async function buildWithProxy(prompt, onToken, authHeader) {
     throw wrapped
   }
 
-  const data = await res.json()
-  const text = data.text ?? ''
-
-  // Simulate streaming by chunking the completed response
-  const chunkSize = 40
-  for (let i = 0; i < text.length; i += chunkSize) {
-    onToken(text.slice(i, i + chunkSize))
-    await new Promise(r => setTimeout(r, 12))
+  if (!res.body) throw new Error('Builder stream was unavailable.')
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let fullText = ''
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const payload = JSON.parse(line.slice(6))
+      if (payload.error) throw new Error(payload.message || payload.error)
+      if (payload.text) {
+        fullText += payload.text
+        onToken(payload.text)
+      }
+    }
   }
+  return fullText
 }

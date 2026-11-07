@@ -21,7 +21,7 @@
 // downstream consumers (PDF export, Jira/Linear sync) can ingest.
 // ────────────────────────────────────────────────────────────────────
 
-import { callClaude } from './claudeApi.js'
+import { callOpenAI, createAIOperationId } from './openaiApi.js'
 import { scrubDashes as scrubDashesV3, safeJsonParse } from './textUtils.js'
 
 export const BACKLOG_VERSION = 'v1'
@@ -194,11 +194,12 @@ ${brief}`
 // onStage(stageName, result) fires after each call resolves so the
 // UI can render partial state.
 // ────────────────────────────────────────────────────────────────────
-export async function generateBacklogV3(briefResult, { onStage } = {}) {
+export async function generateBacklogV3(briefResult, { onStage, operationId } = {}) {
   if (!briefResult || !Array.isArray(briefResult.sections)) {
     throw new Error('generateBacklogV3: invalid brief result, expected V3 sections array')
   }
   const briefText = serializeBriefForBacklog(briefResult)
+  const aiOperationId = operationId || createAIOperationId()
   console.log('[generateBacklogV3] start. brief text length:', briefText.length)
 
   const startedAt = new Date().toISOString()
@@ -213,7 +214,7 @@ export async function generateBacklogV3(briefResult, { onStage } = {}) {
 
   // Stage 1: inventory
   console.log('[generateBacklogV3] stage 1/3 inventory firing')
-  const inventoryRaw = await callOnce('inventory', INVENTORY_PROMPT(briefText), 6000)
+  const inventoryRaw = await callOnce('inventory', INVENTORY_PROMPT(briefText), 6000, 0, aiOperationId)
   out.inventory = inventoryRaw
   console.log('[generateBacklogV3] inventory:', {
     pages: inventoryRaw?.pages?.length || 0,
@@ -225,14 +226,14 @@ export async function generateBacklogV3(briefResult, { onStage } = {}) {
 
   // Stage 2: epics
   console.log('[generateBacklogV3] stage 2/3 epics firing')
-  const epicsRaw = await callOnce('epics', EPICS_PROMPT(briefText, out.inventory), 5000)
+  const epicsRaw = await callOnce('epics', EPICS_PROMPT(briefText, out.inventory), 5000, 0, aiOperationId)
   out.epics = Array.isArray(epicsRaw?.epics) ? epicsRaw.epics : []
   console.log('[generateBacklogV3] epics:', out.epics.length)
   try { onStage?.('epics', out) } catch {}
 
   // Stage 3: stories
   console.log('[generateBacklogV3] stage 3/3 stories firing')
-  const storiesRaw = await callOnce('stories', STORIES_PROMPT(briefText, out.inventory, out.epics), 7000)
+  const storiesRaw = await callOnce('stories', STORIES_PROMPT(briefText, out.inventory, out.epics), 7000, 0, aiOperationId)
   out.stories = Array.isArray(storiesRaw?.stories) ? storiesRaw.stories : []
   console.log('[generateBacklogV3] stories:', out.stories.length)
   try { onStage?.('stories', out) } catch {}
@@ -242,13 +243,14 @@ export async function generateBacklogV3(briefResult, { onStage } = {}) {
   return out
 }
 
-async function callOnce(stage, userPrompt, maxTokens, attempt = 0) {
+async function callOnce(stage, userPrompt, maxTokens, attempt = 0, operationId) {
   try {
-    const { text } = await callClaude({
-      taskType: 'kanban_generation',
+    const { text } = await callOpenAI({
+      taskType: 'backlog_generation',
       system: BASE_SYSTEM,
       userMessage: userPrompt,
       maxTokens,
+      operationId,
     })
     const parsed = safeJsonParse(text)
     if (!parsed || Object.keys(parsed).length === 0) {
@@ -262,7 +264,7 @@ async function callOnce(stage, userPrompt, maxTokens, attempt = 0) {
     if (isRateLimit && attempt === 0) {
       console.warn('[generateBacklogV3]', stage, 'rate-limited, retrying after 1500ms')
       await new Promise(r => setTimeout(r, 1500))
-      return callOnce(stage, userPrompt, maxTokens, 1)
+      return callOnce(stage, userPrompt, maxTokens, 1, operationId)
     }
     throw e
   }

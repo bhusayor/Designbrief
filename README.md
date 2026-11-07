@@ -2,7 +2,7 @@
 
 Turns messy client briefs into a 22-chapter Design Intelligence
 Document, a client review loop, and an implementation backlog —
-powered by Claude.
+powered by OpenAI.
 
 ## Stack
 
@@ -14,7 +14,7 @@ powered by Claude.
 - **Data:** Supabase (auth, Postgres + RLS, storage). Schema lives in
   `supabase/*.sql` (historical, run-once files) and `migrations/`
   (numbered, run in order in the SQL editor).
-- **AI:** Anthropic API via the server-side proxy. Model routing per
+- **AI:** OpenAI Responses API plus a managed Codex builder workflow. Model routing per
   task in `src/lib/models.js`.
 - **Email:** Resend. **Payments:** Flutterwave.
 
@@ -31,12 +31,14 @@ npm run dev:full       # Express API on :3001 + Vite on :5173
 | Var | Where | Purpose |
 |---|---|---|
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | client | Supabase client |
-| `VITE_API_URL` | client | API origin (Render URL in prod, `http://localhost:3001` in dev) |
+| `VITE_API_BASE_URL` | client | The single API origin (Render URL in prod, `http://localhost:3001` in dev) |
 | `VITE_APP_URL` | client + server | public app origin (share links, CORS allowlist) |
 | `SUPABASE_SERVICE_ROLE_KEY` | server only | privileged Supabase access |
-| `ANTHROPIC_API_KEY` | server only | Claude |
+| `OPENAI_API_KEY` | server only | OpenAI Responses and Agents APIs |
 | `PEXELS_API_KEY` | server only | moodboard imagery |
-| `APP_ORIGIN_EXTRA` | server, optional | comma-separated extra CORS origins (previews) |
+| `BRAVE_API_KEY` / `RESEND_API_KEY` | server only | web search and transactional email |
+| `CORS_ORIGINS` | server, optional | comma-separated extra browser origins |
+| `FLW_SECRET_KEY` / `FLW_HASH` | server only | Flutterwave verification and webhooks |
 
 Never prefix a secret with `VITE_` — those are compiled into the
 public JS bundle.
@@ -57,8 +59,9 @@ docs/backend-plan.md          backend consolidation plan
 
 ## Deploying
 
-1. **Migrations first:** run any new `migrations/NNNN_*.sql` in the
-   Supabase SQL editor.
+1. **Migrations first:** run `npm run db:status`, then `npm run db:push`.
+   On `main`, CI does this automatically when
+   `SUPABASE_MIGRATIONS_ENABLED=true` is configured.
 2. **Frontend:** push to `main`; Vercel builds `dist/` and serves the
    SPA with rewrites from `vercel.json`.
 3. **API:** Render auto-deploys `server.js` from `main`.
@@ -69,6 +72,7 @@ docs/backend-plan.md          backend consolidation plan
   the translators).
 - Vercel Hobby plan: max 12 serverless functions (`api/` has 10; do
   not add more — new endpoints go in `server.js`).
-- Credits are deducted via the `deduct_credits` Postgres RPC; the
-  cost table lives in `migrations/0012_credit_lockdown.sql`, and the
-  client-side `CREDIT_COSTS` map is display-only.
+- AI credits are enforced inside `/api/ai` through idempotent logical
+  operations. The server RPC lives in
+  `migrations/0013_server_ai_credit_operations.sql`; the browser
+  `CREDIT_COSTS` map is display-only.

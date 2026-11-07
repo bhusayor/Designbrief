@@ -1,9 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { setCors } from '../server-lib/cors.js'
 import { createClient } from '@supabase/supabase-js'
 import { WEBSITE_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
-import { mapClaudeError } from '../server-lib/claudeError.js'
+import { mapOpenAIError } from '../server-lib/openaiError.js'
+import { streamCodexAgent } from '../server-lib/openai.js'
 import { MODEL_FOR } from '../src/lib/models.js'
+import { checkRateLimit, logUsage, requireProPlan } from '../server-lib/authMiddleware.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -25,16 +26,25 @@ export default async function handler(req, res) {
 
   const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
   if (authErr || !user) return res.status(401).json({ error: 'Invalid session' })
+  if (!await requireProPlan(supabase, user.id, res)) return
+  if (!await checkRateLimit(supabase, user.id, res)) return
 
-  const { userApiKey, taskTitle, taskDescription, projectName, taskIndex, totalTasks } = req.body
-  if (!userApiKey) return res.status(400).json({ error: 'userApiKey required' })
-  if (!taskTitle) return res.status(400).json({ error: 'taskTitle required' })
-
-  const client = new Anthropic({ apiKey: userApiKey })
+  const { prompt, taskTitle, taskDescription, projectName, taskIndex = 0, totalTasks = 1 } = req.body || {}
+  if (!prompt && !taskTitle) return res.status(400).json({ error: 'prompt or taskTitle required' })
+  if (
+    String(prompt || '').length > 120000
+    || String(taskTitle || '').length > 500
+    || String(taskDescription || '').length > 30000
+    || String(projectName || '').length > 500
+  ) {
+    return res.status(413).json({ error: 'Builder prompt is too large' })
+  }
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return res.status(503).json({ error: 'AI builder is not configured' })
 
   const systemPrompt = WEBSITE_BUILDER_SYSTEM
 
-  const userPrompt = `Project: ${projectName || 'My Project'}
+  const userPrompt = prompt ? String(prompt) : `Project: ${projectName || 'My Project'}
 Task ${taskIndex + 1} of ${totalTasks}: ${taskTitle}
 ${taskDescription ? `Description: ${taskDescription}` : ''}
 
@@ -46,51 +56,22 @@ Generate a complete, polished React component for this task. The component shoul
     res.setHeader('Connection', 'keep-alive')
     res.flushHeaders()
 
-    const stream = client.messages.stream({
+    const result = await streamCodexAgent({
+      apiKey,
       model: MODEL_FOR.component_builder,
-      max_tokens: 3000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+      instructions: systemPrompt,
+      input: userPrompt,
+      reasoningEffort: 'medium',
+      spendLimitCents: 50,
+      onText: text => res.write(`data: ${JSON.stringify({ text })}\n\n`),
     })
-
-    stream.on('text', (text) => {
-      res.write(`data: ${JSON.stringify({ text })}\n\n`)
-    })
-
-    stream.on('finalMessage', () => {
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
-      res.end()
-    })
-
-    stream.on('error', (err) => {
-      const body = byokError(err) || mapClaudeError(err, '[build-component]').body
-      res.write(`data: ${JSON.stringify(body)}\n\n`)
-      res.end()
-    })
+    await logUsage(supabase, user.id, 'component_builder', result.text.length)
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
+    res.end()
   } catch (e) {
-    const byok = byokError(e)
-    if (byok) {
-      if (!res.headersSent) return res.status(401).json(byok)
-      res.write(`data: ${JSON.stringify(byok)}\n\n`)
-      return res.end()
-    }
-    const { status, body } = mapClaudeError(e, '[build-component]')
+    const { status, body } = mapOpenAIError(e, '[build-component]')
     if (!res.headersSent) return res.status(status).json(body)
     res.write(`data: ${JSON.stringify(body)}\n\n`)
     res.end()
   }
-}
-
-// build-component is bring-your-own-key, the user pasted their own key in
-// Project Builder. A 401 means THEIR key is bad, so we tell them that
-// instead of falling through to mapClaudeError's "temporarily unavailable"
-// (which is for platform-key failures).
-function byokError(err) {
-  if (err?.status === 401) {
-    return {
-      error: 'invalid_user_key',
-      message: 'That key was rejected. Double-check the value you pasted on Project Builder and try again.',
-    }
-  }
-  return null
 }

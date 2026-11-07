@@ -3,12 +3,12 @@
  *
  * All AI calls route through our backend proxy. Errors that come back
  * from the server are already mapped to user-safe codes/messages by
- * api/lib/claudeError.js, we just surface them verbatim.
+ * server-lib/openaiError.js, we just surface them verbatim.
  */
 
 import { supabase } from './supabase.js'
 import { KANBAN_TASK_SYSTEM, buildBriefChatSystem } from './aiSystemPrompts.js'
-import { callClaude as centralCallClaude } from './claudeApi.js'
+import { callOpenAI as centralCallOpenAI, createAIOperationId } from './openaiApi.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -33,7 +33,7 @@ async function post(path, body, timeoutMs = 25000) {
     })
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}))
-      // The server-side error mapper (api/lib/claudeError.js) gives us:
+      // The server-side error mapper gives us:
       //   { error: <code>, message: <user-safe text>, retry_after?: number }
       // We just surface that. No provider-specific language reaches here.
       const message = errData.message || 'Something interrupted the AI. Your work is safe, please try again.'
@@ -138,15 +138,15 @@ function extractJSON(text) {
 // ─── Base callers ─────────────────────────────────────────────────────────────
 
 /**
- * callClaudeTools, sends a full conversation with optional tools.
+ * callAITools, sends a full conversation with optional tools.
  * Returns { content, stop_reason }.
  *
  * Accepts optional taskType so the server picks the right model
- * (defaults to chat_refinement → Haiku, the in-board chat is the
+ * (defaults to chat_refinement → Terra, the in-board chat is the
  * primary user of this entry point).
  */
-export async function callClaudeTools({ messages, system = '', maxTokens = 2000, tools, taskType = 'chat_refinement' } = {}) {
-  const data = await centralCallClaude({
+export async function callAITools({ messages, system = '', maxTokens = 2000, tools, taskType = 'chat_refinement' } = {}) {
+  const data = await centralCallOpenAI({
     taskType,
     system,
     messages,
@@ -157,12 +157,12 @@ export async function callClaudeTools({ messages, system = '', maxTokens = 2000,
 }
 
 /**
- * callClaude, returns the raw text string. Positional signature kept
+ * callOpenAI, returns the raw text string. Positional signature kept
  * for backward compat; pass taskType as the 4th arg to opt into a
- * non-default model. Without taskType the server falls back to Sonnet.
+ * non-default model. Without taskType the server falls back to Sol.
  */
-export async function callClaude(systemPrompt, userMessage, maxTokens = 2000, taskType) {
-  const data = await centralCallClaude({
+export async function callOpenAI(systemPrompt, userMessage, maxTokens = 2000, taskType) {
+  const data = await centralCallOpenAI({
     taskType,
     system: systemPrompt,
     userMessage,
@@ -172,30 +172,31 @@ export async function callClaude(systemPrompt, userMessage, maxTokens = 2000, ta
 }
 
 /**
- * callJSON, same as callClaude but parses the response as JSON.
+ * callJSON, same as callOpenAI but parses the response as JSON.
  */
 export async function callJSON(systemPrompt, userMessage, maxTokens = 4000, taskType) {
-  const text = await callClaude(systemPrompt, userMessage, maxTokens, taskType)
+  const text = await callOpenAI(systemPrompt, userMessage, maxTokens, taskType)
   return extractJSON(text)
 }
 
 /**
- * callClaudeWithSearch, Claude with web_search injected. Default
- * model = competitors_search (still Sonnet), the inspirations/
+ * callAIWithSearch, OpenAI with web_search injected. Default
+ * model = competitors_search (still Sol), the inspirations/
  * competitors lookups are the primary user.
  */
-export async function callClaudeWithSearch(systemPrompt, userMessage, maxTokens = 2000, taskType = 'competitors_search') {
+export async function callAIWithSearch(systemPrompt, userMessage, maxTokens = 2000, taskType = 'competitors_search') {
   // The new helper handles search mode via the userMessage path; we
   // surface it by sending mode='search' on a hand-built request.
   const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: {} }))
   const authHeaderObj = session?.access_token
     ? { Authorization: 'Bearer ' + session.access_token }
     : {}
-  const res = await fetch(`${API_BASE_URL}/api/claude`, {
+  const res = await fetch(`${API_BASE_URL}/api/ai`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaderObj },
     body: JSON.stringify({
       task_type: taskType,
+      operation_id: createAIOperationId(),
       system: systemPrompt,
       message: userMessage,
       maxTokens,
@@ -243,16 +244,16 @@ ${briefText}`;
 
 // ─── Brief translation, parallel-split architecture ─────────────────────────
 //
-// PROBLEM:  Single Sonnet call generating the full 17-field schema +
+// PROBLEM:  Single Sol call generating the full 17-field schema +
 //           a 290-line system prompt was hitting Vercel's 60s function
-//           ceiling on slow Anthropic windows. Token tweaking
+//           ceiling on slow OpenAI windows. Token tweaking
 //           (8000 → 5500 → 4000 → 3000 → 6000 → 4500) couldn't both
 //           fit the schema AND beat the timeout.
 //
 // FIX:      Two parallel calls, translateBriefCore (visual/strategic)
 //           and translateBriefPlanning (budget/team/voice), each with
 //           a tight focused system prompt and a 2200-token output cap.
-//           Sonnet emits each in 12-20s; running them in parallel via
+//           Sol emits each in 12-20s; running them in parallel via
 //           Promise.all means total wall time is bounded by the slower
 //           half (~20s), with enormous margin under the 60s cap on
 //           BOTH function invocations.
@@ -966,7 +967,7 @@ ${briefText}`;
   // 6000 was pushing past the 60s Vercel cap on busy windows.
   // Schema trimmed to drop typography.scale (~700 tokens, the
   // renderer falls back to default scales when absent) and
-  // maxTokens dropped to 4500. Sonnet now lands the complete
+  // maxTokens dropped to 4500. Sol now lands the complete
   // remaining schema in 22-38s with comfortable margin under 60s.
   return callJSON(system, user, 4500, 'brief_translation');
 }
@@ -1109,7 +1110,7 @@ Return a JSON array of objects:
 
 Return 6-8 high-quality, real references.`;
 
-  const text = await callClaudeWithSearch(system, user, 1500, 'inspirations_search');
+  const text = await callAIWithSearch(system, user, 1500, 'inspirations_search');
   return extractJSON(text) ?? [];
 }
 
@@ -1270,7 +1271,7 @@ export async function generateKanban(briefText, projectTitle, teamMembers = [], 
     schema,
   ].join('\n');
 
-  const raw = await callClaude(
+  const raw = await callOpenAI(
     KANBAN_TASK_SYSTEM,
     prompt,
     3500,
@@ -1367,9 +1368,9 @@ export async function handleFollowUp(message, kanban, teamMembers, projectTitle,
   let boardUpdate = null;
 
   try {
-    // brief_chat → Haiku for snappy turn-around. Routes through the
+    // brief_chat → Terra for snappy turn-around. Routes through the
     // central client helper so retry + error mapping kick in.
-    const rawReply = await callClaude(
+    const rawReply = await callOpenAI(
       system,
       historyToSend[historyToSend.length - 1].content,
       1200,
@@ -1391,7 +1392,7 @@ export async function handleFollowUp(message, kanban, teamMembers, projectTitle,
 }
 
 /**
- * analyseCompetitors, analyses competitors using Claude (no web search).
+ * analyseCompetitors, analyses competitors using OpenAI (no web search).
  * Returns: [{ name, url, category, description, strengths[], weakness, differentiator, marketShare, pricing, rating, userBase }]
  */
 export async function analyseCompetitors(projectTitle, industry, toneWords = [], briefText = '') {

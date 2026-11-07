@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useContext } from 'react'
 import AppContext from '../context/AppContext'
 import { loadTasksFromDB } from '../lib/taskService'
 import { getAuthHeader } from '../lib/getAuthHeader'
+import { apiUrl } from '../lib/runtimeConfig'
 import JSZip from 'jszip'
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
   ArrowDownTrayIcon,
-  KeyIcon,
-  EyeIcon,
-  EyeSlashIcon,
   BoltIcon,
 } from '@heroicons/react/24/outline'
 
@@ -49,7 +47,7 @@ function buildPreviewHtml(code) {
 </html>`
 }
 
-// ── Sanitise streamed code (strip markdown fences if Claude adds them) ─────────
+// ── Sanitise streamed code (strip markdown fences if the agent adds them) ─────
 function cleanCode(raw) {
   return raw
     .replace(/^```(?:jsx?|tsx?|javascript|typescript)?\n?/im, '')
@@ -68,7 +66,7 @@ function toFileName(title) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ProjectBuilder() {
-  const { activeProject, navigate } = useContext(AppContext)
+  const { activeProject, navigate, userPlan, openUpgradeModal } = useContext(AppContext)
 
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -79,12 +77,6 @@ export default function ProjectBuilder() {
   const [streamedCode, setStreamedCode] = useState('')
   const [completedComponents, setCompletedComponents] = useState([]) // { taskTitle, code }
   const [error, setError] = useState('')
-
-  // API key
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('db-anthropic-key') || '')
-  const [showKey, setShowKey] = useState(false)
-  const [keyDraft, setKeyDraft] = useState('')
-  const [editingKey, setEditingKey] = useState(false)
 
   // Preview
   const iframeRef = useRef(null)
@@ -127,8 +119,11 @@ export default function ProjectBuilder() {
   const isComplete = currentIndex >= tasks.length
 
   async function buildCurrentTask() {
-    if (!apiKey.trim()) { setError('Add your access key on the right to start building.'); return }
     if (!currentTask) return
+    if (userPlan !== 'pro') {
+      openUpgradeModal?.('ai_builder')
+      return
+    }
     setError('')
     setStreamedCode('')
     setPhase('building')
@@ -137,11 +132,10 @@ export default function ProjectBuilder() {
       const headers = await getAuthHeader()
       if (!headers) { setError('Session expired, please refresh.'); setPhase('idle'); return }
 
-      const res = await fetch('/api/build-component', {
+      const res = await fetch(apiUrl('/api/build-component'), {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          userApiKey: apiKey.trim(),
           taskTitle: currentTask.title,
           taskDescription: currentTask.description || '',
           projectName: activeProject?.name || 'My Project',
@@ -152,7 +146,10 @@ export default function ProjectBuilder() {
 
       if (!res.ok) {
         const d = await res.json()
-        throw new Error(d.error || 'Build failed')
+        if (res.status === 403 && (d.code === 'PRO_PLAN_REQUIRED' || d.error === 'pro_plan_required')) {
+          openUpgradeModal?.('ai_builder')
+        }
+        throw new Error(d.message || d.error || 'Build failed')
       }
 
       const reader = res.body.getReader()
@@ -220,15 +217,6 @@ export default function ProjectBuilder() {
     a.click()
     URL.revokeObjectURL(url)
   }
-
-  function saveKey() {
-    const k = keyDraft.trim()
-    if (k) { localStorage.setItem('db-anthropic-key', k); setApiKey(k) }
-    setEditingKey(false)
-    setKeyDraft('')
-  }
-
-  const hasKey = !!apiKey
 
   // ── Layout ────────────────────────────────────────────────────────────────
   return (
@@ -408,9 +396,7 @@ export default function ProjectBuilder() {
               <div style={{ fontSize: 13, textAlign: 'center', maxWidth: 300, lineHeight: 1.6 }}>
                 {tasks.length === 0
                   ? 'Add tasks in Team Collab, then come back to build them.'
-                  : hasKey
-                    ? 'Click "Build task" to generate the first component.'
-                    : 'Add your access key on the right to get started.'}
+                  : 'Click "Build task" to generate the first component.'}
               </div>
             </div>
           ) : phase === 'building' ? (
@@ -462,73 +448,13 @@ export default function ProjectBuilder() {
           padding: '20px 16px', gap: 20, overflowY: 'auto',
         }}>
 
-          {/* Access key section */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <KeyIcon style={{ width: 14, height: 14, color: hasKey ? '#7C3AED' : 'var(--color-text-muted)' }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)', fontFamily: "'Urbanist', sans-serif", textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Access Key
-              </span>
+          {/* Builder model */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 10 }}>
+            <BoltIcon style={{ width: 16, height: 16, color: '#7C3AED', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>Codex Builder</div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>GPT-6.1 Sol · managed agent</div>
             </div>
-
-            {!hasKey || editingKey ? (
-              <div>
-                {!hasKey && (
-                  <div style={{ marginBottom: 8, padding: '8px 10px', background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 8, fontSize: 11, color: '#dc2626', lineHeight: 1.5 }}>
-                    Paste your access key to start building. It's stored locally and never sent to our servers.
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <input
-                      type={showKey ? 'text' : 'password'}
-                      value={keyDraft}
-                      onChange={e => setKeyDraft(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') saveKey() }}
-                      placeholder="sk-ant-..."
-                      autoFocus
-                      style={{
-                        width: '100%', padding: '8px 32px 8px 10px',
-                        borderRadius: 8, border: '1.5px solid var(--color-border)',
-                        background: 'var(--color-surface)', color: 'var(--color-text)',
-                        fontFamily: "'Urbanist', sans-serif", fontSize: 11,
-                        outline: 'none', boxSizing: 'border-box', transition: 'all 0.15s',
-                      }}
-                      onFocus={e => { e.target.style.borderColor = '#7C3AED'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.12)' }}
-                      onBlur={e => { e.target.style.borderColor = 'var(--color-border)'; e.target.style.boxShadow = 'none' }}
-                    />
-                    <button
-                      onClick={() => setShowKey(p => !p)}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 0, display: 'flex' }}
-                    >
-                      {showKey ? <EyeSlashIcon style={{ width: 13, height: 13 }} /> : <EyeIcon style={{ width: 13, height: 13 }} />}
-                    </button>
-                  </div>
-                  <button
-                    onClick={saveKey}
-                    disabled={!keyDraft.trim()}
-                    style={{ padding: '8px 12px', borderRadius: 8, background: keyDraft.trim() ? '#7C3AED' : 'var(--color-border)', color: keyDraft.trim() ? '#fff' : 'var(--color-text-muted)', border: 'none', cursor: keyDraft.trim() ? 'pointer' : 'not-allowed', fontFamily: "'Urbanist', sans-serif", fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}
-                  >
-                    Save
-                  </button>
-                </div>
-                {editingKey && (
-                  <button onClick={() => { setEditingKey(false); setKeyDraft('') }} style={{ marginTop: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--color-text-muted)' }}>
-                    Cancel
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 8 }}>
-                <CheckCircleIcon style={{ width: 14, height: 14, color: '#7C3AED', flexShrink: 0 }} />
-                <span style={{ flex: 1, fontFamily: "'Urbanist', sans-serif", fontSize: 11, color: 'var(--color-text)' }}>
-                  ••••••{apiKey.slice(-4)}
-                </span>
-                <button onClick={() => { setEditingKey(true); setKeyDraft('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>
-                  Edit
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Divider */}
@@ -566,16 +492,16 @@ export default function ProjectBuilder() {
               ) : (
                 <button
                   onClick={buildCurrentTask}
-                  disabled={phase === 'building' || !hasKey || tasks.length === 0}
+                  disabled={phase === 'building' || tasks.length === 0}
                   style={{
                     padding: '11px 0', borderRadius: 10, border: 'none',
-                    background: phase === 'building' || !hasKey ? 'var(--color-border)' : '#7C3AED',
-                    color: phase === 'building' || !hasKey ? 'var(--color-text-muted)' : '#fff',
-                    cursor: phase === 'building' || !hasKey ? 'not-allowed' : 'pointer',
+                    background: phase === 'building' ? 'var(--color-border)' : '#7C3AED',
+                    color: phase === 'building' ? 'var(--color-text-muted)' : '#fff',
+                    cursor: phase === 'building' ? 'not-allowed' : 'pointer',
                     fontFamily: "'Urbanist', sans-serif", fontSize: 14, fontWeight: 700,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                     transition: 'all 0.15s',
-                    boxShadow: phase === 'building' || !hasKey ? 'none' : '0 2px 8px rgba(124,58,237,0.3)',
+                    boxShadow: phase === 'building' ? 'none' : '0 2px 8px rgba(124,58,237,0.3)',
                   }}
                 >
                   <BoltIcon style={{ width: 16, height: 16 }} />

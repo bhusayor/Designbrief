@@ -3,16 +3,16 @@
 //
 // Deployment target: Render (https://render.com). The Vercel deploy
 // continues to host the frontend; this server handles the AI proxy
-// + Pexels proxy and is reached via VITE_API_URL on the frontend.
+// + Pexels proxy and is reached via VITE_API_BASE_URL on the frontend.
 //
 // Routes:
 //   GET  /health     → { status: 'ok' }     liveness check
-//   POST /api/claude  → unified Claude proxy (ports api/claude.js)
+//   POST /api/ai      → unified OpenAI Responses proxy
 //   POST /api/pexels  → media search proxy   (ports api/pexels.js)
 //
 // Env required:
 //   PORT                      , Render injects; falls back to 3001
-//   ANTHROPIC_API_KEY         , Anthropic key
+//   OPENAI_API_KEY            , OpenAI project key
 //   PEXELS_API_KEY            , Pexels free-tier key
 //   VITE_SUPABASE_URL         , used by requireAuth in api/lib/
 //   SUPABASE_SERVICE_ROLE_KEY , used by requireAuth in api/lib/
@@ -26,14 +26,18 @@
 // /api folder is retired.
 // ────────────────────────────────────────────────────────────────────
 
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import dotenv from 'dotenv'
-import Anthropic from '@anthropic-ai/sdk'
-
-import { requireAuth, checkRateLimit, logUsage } from './server-lib/authMiddleware.js'
-import { mapClaudeError } from './server-lib/claudeError.js'
-import { pickModel } from './src/lib/models.js'
+import aiHandler from './api/ai.js'
+import buildComponentHandler from './api/build-component.js'
+import buildSectionHandler from './api/build-section.js'
+import createWorkspaceHandler from './api/create-workspace.js'
+import intakeFollowupHandler from './api/intake-followup.js'
+import inviteHandler from './api/invite.js'
+import publishBuildHandler from './api/publish-build.js'
+import sendIntakeEmailHandler from './api/send-intake-email.js'
+import settingsHandler from './api/settings.js'
 import { runIntakePipeline } from './intake-pipeline.js'
 import {
   createBriefReview,
@@ -46,8 +50,6 @@ import {
   resolveAllProjectComments,
   getBriefReviewByProject,
 } from './server-lib/briefReviews.js'
-
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -95,178 +97,24 @@ app.use(cors({
 
 app.use(express.json({ limit: '2mb' }))
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 // ── /health ────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
-// ────────────────────────────────────────────────────────────────────
-// POST /api/claude, full port of api/claude.js
-//
-// Unified Claude proxy. One endpoint, four call shapes:
-//   - simple non-streaming (message)
-//   - tools mode (messages[] + tools[])
-//   - search mode (web_search auto-injected)
-//   - streaming SSE (stream: true)
-//
-// Model selection is task_type-driven via pickModel; the explicit
-// client model is accepted but validated against ALLOWED_MODELS so a
-// malformed request can never escalate cost or hit an unintended model.
-// ────────────────────────────────────────────────────────────────────
-app.post('/api/claude', async (req, res) => {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('[claude] ANTHROPIC_API_KEY missing in env')
-    return res.status(503).json({
-      error: 'service_unavailable',
-      message: 'AI features are temporarily unavailable. Try again shortly.',
-    })
-  }
+app.post('/api/ai', aiHandler)
 
-  const auth = await requireAuth(req, res)
-  if (!auth) return
-  const { user, supabase } = auth
-
-  const allowed = await checkRateLimit(supabase, user.id, res)
-  if (!allowed) return
-
-  const body = req.body || {}
-  const {
-    message,
-    messages,
-    system = '',
-    maxTokens,
-    max_tokens,
-    tools,
-    mode,
-    webSearch,
-    model: requestedModel,
-    task_type,
-    stream: shouldStream,
-  } = body
-
-  // 16384 ceiling: the old 8096 clamp silently truncated the V2
-  // colour/typography sections that budget 8500 tokens.
-  const finalMaxTokens = Math.min(maxTokens ?? max_tokens ?? 2000, 16384)
-  const model = pickModel(task_type, requestedModel)
-
-  const isTools = Array.isArray(messages) && messages.length > 0
-  const isSearch = !isTools && (mode === 'search' || webSearch === true)
-
-  if (!isTools && !message) {
-    return res.status(400).json({
-      error: 'bad_request',
-      message: 'Missing message in request.',
-    })
-  }
-
-  try {
-    console.log('[claude]', JSON.stringify({
-      task: task_type || 'unspecified',
-      model,
-      stream: !!shouldStream,
-      mode: isTools ? 'tools' : isSearch ? 'search' : 'simple',
-    }))
-  } catch {}
-
-  // ── Streaming path (SSE) ─────────────────────────────────────────
-  if (shouldStream) {
-    res.setHeader('Content-Type', 'text/event-stream')
-    res.setHeader('Cache-Control', 'no-cache')
-    res.setHeader('Connection', 'keep-alive')
-    if (typeof res.flushHeaders === 'function') res.flushHeaders()
-
-    try {
-      const stream = client.messages.stream({
-        model,
-        max_tokens: finalMaxTokens,
-        ...(system && { system }),
-        messages: isTools ? messages : [{ role: 'user', content: message }],
-        ...(isTools && Array.isArray(tools) && tools.length ? { tools } : {}),
-        ...(isSearch ? { tools: [{ type: 'web_search_20250305', name: 'web_search' }] } : {}),
-      })
-
-      let total = 0
-      stream.on('text', (text) => {
-        total += text.length
-        res.write(`data: ${JSON.stringify({ text })}\n\n`)
-      })
-      stream.on('finalMessage', () => {
-        try {
-          logUsage(supabase, user.id, task_type || 'claude-stream', total)
-        } catch {}
-        res.write('data: [DONE]\n\n')
-        res.end()
-      })
-      stream.on('error', (err) => {
-        const { body: errBody } = mapClaudeError(err, '[claude-stream]')
-        res.write(`data: ${JSON.stringify(errBody)}\n\n`)
-        res.end()
-      })
-    } catch (e) {
-      const { status, body: errBody } = mapClaudeError(e, '[claude-stream]')
-      if (!res.headersSent) return res.status(status).json(errBody)
-      res.write(`data: ${JSON.stringify(errBody)}\n\n`)
-      res.end()
-    }
-    return
-  }
-
-  // ── Non-streaming path ───────────────────────────────────────────
-  try {
-    const params = {
-      model,
-      max_tokens: finalMaxTokens,
-      ...(system && { system }),
-    }
-    if (isTools) {
-      params.messages = messages
-      if (Array.isArray(tools) && tools.length) params.tools = tools
-    } else {
-      params.messages = [{ role: 'user', content: message }]
-      if (isSearch) {
-        params.tools = [{ type: 'web_search_20250305', name: 'web_search' }]
-      }
-    }
-
-    const response = await client.messages.create(params)
-
-    const tokensUsed =
-      (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0)
-    logUsage(
-      supabase,
-      user.id,
-      task_type || (isTools ? 'claude-tools' : isSearch ? 'claude-search' : 'claude'),
-      tokensUsed,
-    )
-
-    if (isTools) {
-      return res.json({
-        content: response.content,
-        stop_reason: response.stop_reason,
-        usage: response.usage,
-        model_used: model,
-      })
-    }
-
-    const content = Array.isArray(response.content) ? response.content : []
-    const text = content
-      .filter(b => b && b.type === 'text')
-      .map(b => b.text)
-      .join('\n')
-
-    return res.json({
-      content,
-      text,
-      usage: response.usage,
-      model_used: model,
-    })
-  } catch (error) {
-    const { status, body: errBody } = mapClaudeError(error, '[claude]')
-    return res.status(status).json(errBody)
-  }
-})
+// Vercel-compatible handlers are also mounted here so the Render API is
+// the complete backend. Keeping one handler implementation per route lets
+// Vercel remain a short-term fallback without maintaining two code paths.
+app.all('/api/build-component', buildComponentHandler)
+app.all('/api/build-section', buildSectionHandler)
+app.all('/api/create-workspace', createWorkspaceHandler)
+app.all('/api/intake-followup', intakeFollowupHandler)
+app.all('/api/invite', inviteHandler)
+app.all('/api/publish-build', publishBuildHandler)
+app.all('/api/send-intake-email', sendIntakeEmailHandler)
+app.all('/api/settings', settingsHandler)
 
 // ────────────────────────────────────────────────────────────────────
 // POST /api/pexels, full port of api/pexels.js
@@ -493,7 +341,7 @@ app.use((err, _req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`DesignBrief API server listening on http://localhost:${PORT}`)
   console.log('  GET  /health')
-  console.log('  POST /api/claude')
+  console.log('  POST /api/ai')
   console.log('  POST /api/pexels')
   console.log('  POST /api/process-intake')
   console.log('CORS origins:', allowedOrigins.join(', '))

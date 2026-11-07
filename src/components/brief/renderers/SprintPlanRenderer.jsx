@@ -7,10 +7,10 @@ import {
 import { ArrowRightIcon, ClockIcon } from '@heroicons/react/24/outline'
 
 export default function SprintPlanRenderer({ result }) {
+  const [openSprint, setOpenSprint] = useState(0)
   if (!result) return null
   const r = result
   const accent = '#16a34a'
-  const [openSprint, setOpenSprint] = useState(0)
 
   // Build sprint weeks from timeframe.taskDays
   const taskDays = r.timeframe?.taskDays || {}

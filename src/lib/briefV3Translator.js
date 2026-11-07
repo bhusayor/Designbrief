@@ -8,12 +8,11 @@
 // slices on real briefs while remaining chapters land in later
 // phases (2: chapters 9-16, 3: chapters 17-22).
 //
-// Pattern mirrors briefV2Translator: each section is one Claude
+// Pattern mirrors briefV2Translator: each section is one OpenAI
 // call, calls run in throttled waves of WAVE_SIZE to respect tier
 // rate limits, rate-limit detection triggers one retry with backoff.
 // ────────────────────────────────────────────────────────────────────
 
-import { callClaude } from './claudeApi.js'
 import { safeJsonParse, structuredCloneSafe } from './textUtils.js'
 import {
   BRIEF_V3_SECTIONS,
@@ -23,7 +22,7 @@ import {
 } from './briefV3Schema.js'
 
 // ────────────────────────────────────────────────────────────────────
-// BASE_SYSTEM — voice + rules every section call inherits.
+// BRIEF_V3_BASE_SYSTEM — voice + rules every section call inherits.
 //
 // V3 demands a different posture vs V2: the AI is acting as a
 // Principal Product Designer + UX Strategist + Design Director + IA
@@ -33,7 +32,7 @@ import {
 // client forgot, detect contradictions, surface assumptions, and
 // reason like a consultant.
 // ────────────────────────────────────────────────────────────────────
-const BASE_SYSTEM = `You are a Principal Product Designer, UX Strategist, Design Director, Information Architect, Product Manager, Systems Thinker, Researcher, Creative Director, and AI Design Translator with 20+ years of experience.
+export const BRIEF_V3_BASE_SYSTEM = `You are a Principal Product Designer, UX Strategist, Design Director, Information Architect, Product Manager, Systems Thinker, Researcher, Creative Director, and AI Design Translator with 20+ years of experience.
 
 Your role: transform any brief (complete, incomplete, messy, verbal, AI-generated, client-written) into a world-class Design Intelligence Document section that another senior designer, PM, dev, or AI could act on without further clarification.
 
@@ -62,10 +61,10 @@ VISUAL THINKING: the renderer turns your JSON into tables, matrices, journey map
 // ────────────────────────────────────────────────────────────────────
 // Section prompts (Phase 1A: 1-4 only).
 // ────────────────────────────────────────────────────────────────────
-const SECTION_PROMPTS = {
+export const BRIEF_V3_SECTION_PROMPTS = {
   // ── 1. Executive Summary ───────────────────────────────────────
   executive_summary: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Write the Executive Summary for this brief. Two parts: (a) summary, 2-3 punchy sentences that any stakeholder could read in 15 seconds; (b) a structured snapshot.
 
 Return JSON exactly in this shape:
@@ -94,7 +93,7 @@ ${briefText}`,
 
   // ── 2. Brief Health Assessment ─────────────────────────────────
   brief_health: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Score the QUALITY of this brief on 10 dimensions (0-100 each), then list strengths / weaknesses / missing information / risks / questions for the designer to send the client.
 
 Return JSON exactly in this shape:
@@ -128,7 +127,7 @@ ${briefText}`,
 
   // ── 3. Problem Definition ──────────────────────────────────────
   problem_definition: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Translate the brief into the ACTUAL problem being solved. The brief usually describes the surface; your job is to find the underlying problem.
 
 Return JSON exactly in this shape:
@@ -157,7 +156,7 @@ ${briefText}`,
 
   // ── 4. Business Intelligence ───────────────────────────────────
   business_intelligence: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Surface the BUSINESS context: goals, KPIs, constraints, opportunities, risks. Then place initiatives on an Effort × Impact matrix.
 
 Return JSON exactly in this shape:
@@ -187,7 +186,7 @@ ${briefText}`,
 
   // ── 5. User Intelligence ───────────────────────────────────────
   user_intelligence: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Build deep user understanding: 1-2 primary personas + 1-2 secondary personas, plus the shared context that applies to everyone.
 
 Return JSON exactly in this shape:
@@ -229,7 +228,7 @@ ${briefText}`,
 
   // ── 6. Jobs To Be Done ─────────────────────────────────────────
   jobs_to_be_done: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Frame the work as Jobs To Be Done. Three categories (functional, emotional, social), plus desired outcomes, current alternatives, and opportunity areas.
 
 Return JSON exactly in this shape:
@@ -263,7 +262,7 @@ ${briefText}`,
 
   // ── 7. User Journey ────────────────────────────────────────────
   user_journey: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Map the user journey for the primary persona, end-to-end. Multiple stages with full structure per stage + an emotion curve (1-5 scale per stage).
 
 Return JSON exactly in this shape:
@@ -293,7 +292,7 @@ ${briefText}`,
 
   // ── 8. User Flows ──────────────────────────────────────────────
   user_flows: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Define the core user flows. ONE happy path through the primary outcome, plus alternative paths, error paths, edge cases, and key decision points.
 
 Return JSON exactly in this shape:
@@ -339,7 +338,7 @@ ${briefText}`,
 
   // ── 9. Information Architecture ────────────────────────────────
   information_architecture: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Define the Information Architecture. A site map tree + primary/secondary/utility navigation + content groupings + cross-cutting relationships + taxonomy.
 
 Return JSON exactly in this shape:
@@ -385,7 +384,7 @@ ${briefText}`,
 
   // ── 10. Functional Requirements ────────────────────────────────
   functional_requirements: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `List the functional requirements. Group features as core / supporting / future. For each feature, specify inputs / outputs / business rules / validation / permissions / all UI states.
 
 Return JSON exactly in this shape:
@@ -424,7 +423,7 @@ ${briefText}`,
 
   // ── 11. Non-Functional Requirements ────────────────────────────
   non_functional_requirements: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Define the non-functional requirements. For each dimension that applies, name a specific target + the standard + a one-line reasoning.
 
 Return JSON exactly in this shape:
@@ -448,7 +447,7 @@ ${briefText}`,
 
   // ── 12. Content Strategy ───────────────────────────────────────
   content_strategy: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Define the content strategy. Content types + hierarchy + voice + tone + microcopy patterns for each surface.
 
 Return JSON exactly in this shape:
@@ -487,7 +486,7 @@ ${briefText}`,
 
   // ── 13. Competitive Landscape ──────────────────────────────────
   competitive_landscape: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Analyse the competitive landscape. 3-5 direct competitors + common patterns we should follow + standards we should meet + how to differentiate + anti-patterns to avoid + innovation opportunities.
 
 Return JSON exactly in this shape:
@@ -528,7 +527,7 @@ ${briefText}`,
 
   // ── 14. Design Principles (reasoning chain) ────────────────────
   design_principles: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Generate 4-6 PROJECT-SPECIFIC design principles. Not generic ones like "clarity over cleverness". Each must be defensible against trade-offs.
 
 Return JSON exactly in this shape:
@@ -555,7 +554,7 @@ ${briefText}`,
 
   // ── 15. Visual Direction ───────────────────────────────────────
   visual_direction: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Make the visual direction call. Mood + personality + colour + type + spacing + grid + iconography + illustration + photography + elevation + radius + motion + component philosophy + a/c. References must be real and category-appropriate.
 
 Return JSON exactly in this shape:
@@ -600,7 +599,7 @@ ${briefText}`,
 
   // ── 16. Component Inventory ────────────────────────────────────
   component_inventory: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `List every UI component the product needs, grouped by category. For each, mark how heavily it's used + any specific variants required.
 
 Return JSON exactly in this shape:
@@ -632,7 +631,7 @@ ${briefText}`,
 
   // ── 17. UX Writing Guidelines ──────────────────────────────────
   ux_writing: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Define the UX writing guidelines. This is the RULES layer that sits above the content strategy: imperative copy rules + reading level + surface-by-surface writing patterns.
 
 Return JSON exactly in this shape:
@@ -669,7 +668,7 @@ ${briefText}`,
 
   // ── 18. Design System Foundations (tokens) ─────────────────────
   design_tokens: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Specify the Design System Foundations: design tokens + layout rules + breakpoints + grid + icon sizes + naming convention.
 
 Return JSON exactly in this shape:
@@ -713,7 +712,7 @@ ${briefText}`,
 
   // ── 19. Technical Considerations ───────────────────────────────
   tech_considerations: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Surface the technical considerations a senior dev would need to plan this build. APIs, backend, CMS, auth, permissions, perf risks, caching, offline, integrations, analytics, search.
 
 Return JSON exactly in this shape:
@@ -761,7 +760,7 @@ ${briefText}`,
 
   // ── 20. Risk Assessment ────────────────────────────────────────
   risk_assessment: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Build the risk register. Every risk gets likelihood + impact + mitigation + owner.
 
 Return JSON exactly in this shape:
@@ -786,7 +785,7 @@ ${briefText}`,
 
   // ── 21. Success Metrics ────────────────────────────────────────
   success_metrics: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Define measurable success metrics. Each metric has a SPECIFIC target, a measurement method, a baseline if knowable, and a check cadence.
 
 Return JSON exactly in this shape:
@@ -812,7 +811,7 @@ ${briefText}`,
 
   // ── 22. AI Design Package ──────────────────────────────────────
   ai_package: {
-    system: BASE_SYSTEM,
+    system: BRIEF_V3_BASE_SYSTEM,
     user: (briefText) => `Produce the final AI Design Package: a concise, structured summary another AI could ingest to start designing or building immediately. No fluff; structured data.
 
 Return JSON exactly in this shape:
@@ -844,7 +843,37 @@ ${briefText}`,
 // section's call resolves so the renderer can stream chapters into
 // the document progressively.
 // ────────────────────────────────────────────────────────────────────
-export async function translateBriefV3(briefText, { onSection } = {}) {
+export const BRIEF_V3_MAX_TOKENS = {
+  executive_summary:           1800,
+  brief_health:                3500,
+  problem_definition:          3000,
+  business_intelligence:       4000,
+  user_intelligence:           4500,
+  jobs_to_be_done:             3500,
+  user_journey:                4500,
+  user_flows:                  4500,
+  information_architecture:    5000,
+  functional_requirements:     6000,
+  non_functional_requirements: 3500,
+  content_strategy:            4500,
+  competitive_landscape:       4500,
+  design_principles:           3000,
+  visual_direction:            4500,
+  component_inventory:         3500,
+  ux_writing:                  4500,
+  design_tokens:               6500,
+  tech_considerations:         4500,
+  risk_assessment:             3500,
+  success_metrics:             3500,
+  ai_package:                  3000,
+}
+
+export async function translateBriefV3(briefText, { onSection, operationId } = {}) {
+  // Keep the prompt registry importable by the server without pulling the
+  // browser Supabase client into Node. Only interactive browser translation
+  // needs the API client.
+  const { callOpenAI, createAIOperationId } = await import('./openaiApi.js')
+  const aiOperationId = operationId || createAIOperationId()
   console.log('[translateBriefV3] start. brief length:', briefText?.length || 0, 'sections:', BRIEF_V3_SECTIONS.length, 'wired:', BRIEF_V3_WIRED_KEYS.length)
 
   // Initialise result with every section's content set to null. The
@@ -866,36 +895,9 @@ export async function translateBriefV3(briefText, { onSection } = {}) {
     })),
   }
 
-  // Token budgets per section. Scorecard + priority matrix carry a
-  // lot of structured rows so they need more headroom.
-  const MAX_TOKENS = {
-    executive_summary:           1800,
-    brief_health:                3500,
-    problem_definition:          3000,
-    business_intelligence:       4000,
-    user_intelligence:           4500,
-    jobs_to_be_done:             3500,
-    user_journey:                4500,
-    user_flows:                  4500,
-    information_architecture:    5000,  // tree JSON gets deep
-    functional_requirements:     6000,  // every feature has 6 sub-arrays
-    non_functional_requirements: 3500,
-    content_strategy:            4500,
-    competitive_landscape:       4500,
-    design_principles:           3000,
-    visual_direction:            4500,
-    component_inventory:         3500,
-    ux_writing:                  4500,
-    design_tokens:               6500,  // token tables are wide
-    tech_considerations:         4500,
-    risk_assessment:             3500,
-    success_metrics:             3500,
-    ai_package:                  3000,
-  }
-
   async function runSection(sectionDef, attempt = 0) {
     const key = sectionDef.key
-    const prompt = SECTION_PROMPTS[key]
+    const prompt = BRIEF_V3_SECTION_PROMPTS[key]
     if (!prompt) {
       // Not wired in this phase. Skip silently, the renderer surfaces
       // it as "Coming in next phase".
@@ -903,11 +905,12 @@ export async function translateBriefV3(briefText, { onSection } = {}) {
     }
     console.log('[translateBriefV3]', key, attempt > 0 ? `retry ${attempt}` : 'firing')
     try {
-      const { text } = await callClaude({
+      const { text } = await callOpenAI({
         taskType: 'brief_translation',
         system: prompt.system,
         userMessage: prompt.user(briefText),
-        maxTokens: MAX_TOKENS[key] || 3500,
+        maxTokens: BRIEF_V3_MAX_TOKENS[key] || 3500,
+        operationId: aiOperationId,
       })
       console.log('[translateBriefV3]', key, 'returned. length:', text?.length || 0)
       const parsed = safeJsonParse(text)
@@ -930,6 +933,9 @@ export async function translateBriefV3(briefText, { onSection } = {}) {
       }
       return { key, ok: true }
     } catch (e) {
+      if (['insufficient_credits', 'operation_required', 'credit_service_unavailable'].includes(e?.code)) {
+        throw e
+      }
       const msg = String(e?.message || '').toLowerCase()
       const isRateLimit = msg.includes('429') || msg.includes('rate') || msg.includes('overloaded')
       if (isRateLimit && attempt === 0) {
@@ -947,7 +953,7 @@ export async function translateBriefV3(briefText, { onSection } = {}) {
     }
   }
 
-  // Throttled waves of 4. Same reasoning as V2: Sonnet Tier 1 = 50 RPM
+  // Throttled waves of 4. Same reasoning as V2: Sol Tier 1 = 50 RPM
   // and we want to leave headroom for any post-translation passes.
   const WAVE_SIZE = 4
   const wiredSections = BRIEF_V3_SECTIONS.filter(s => BRIEF_V3_WIRED_KEYS.includes(s.key))

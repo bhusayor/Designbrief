@@ -22,7 +22,7 @@
 //   node scripts/trigger-pipeline.mjs sub_abc123     # specific id
 //   node scripts/trigger-pipeline.mjs --dry-run      # list only
 //
-// Render URL is read from RENDER_URL env var first, then VITE_API_URL
+// Render URL is read from RENDER_URL env var first, then VITE_API_BASE_URL
 // as a fallback, then the user is prompted on the CLI.
 // ────────────────────────────────────────────────────────────────────
 
@@ -67,12 +67,12 @@ async function main() {
 
   const renderUrl = (
     process.env.RENDER_URL
-    || process.env.VITE_API_URL
+    || process.env.VITE_API_BASE_URL
     || ''
   ).replace(/\/$/, '')
   if (!renderUrl) {
     console.error([
-      'No RENDER_URL or VITE_API_URL configured.',
+      'No RENDER_URL or VITE_API_BASE_URL configured.',
       'Set one and re-run, e.g.',
       '  RENDER_URL=https://your-service.onrender.com node scripts/trigger-pipeline.mjs',
     ].join('\n'))

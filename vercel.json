@@ -3,8 +3,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/claude.js":             { "maxDuration": 60 },
-    "api/build-component.js":    { "maxDuration": 30 },
+    "api/ai.js":                 { "maxDuration": 60 },
+    "api/build-component.js":    { "maxDuration": 60 },
     "api/build-section.js":      { "maxDuration": 60 },
     "api/publish-build.js":      { "maxDuration": 30 },
     "api/pexels.js":             { "maxDuration": 15 },

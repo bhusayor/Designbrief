@@ -118,6 +118,9 @@ export default function BriefV2View({
 
   // Active section for sticky nav highlight + tab bar selection.
   const sectionRefs = useRef({})
+  const registerSectionRef = (id, element) => {
+    sectionRefs.current[id] = element
+  }
   const [activeSectionId, setActiveSectionId] = useState(sections[0]?.id)
   const [shareOpen, setShareOpen] = useState(false)
 
@@ -297,7 +300,7 @@ export default function BriefV2View({
                   <SectionBlock
                     key={section.id}
                     section={section}
-                    sectionRefs={sectionRefs}
+                    registerSectionRef={registerSectionRef}
                     sectionDecisions={sectionDecisions}
                     onSectionDecision={onSectionDecision}
                     clientAnswers={clientAnswers}
@@ -323,7 +326,7 @@ export default function BriefV2View({
                 />
                 <SectionBlock
                   section={verdict}
-                  sectionRefs={sectionRefs}
+                  registerSectionRef={registerSectionRef}
                   sectionDecisions={sectionDecisions}
                   onSectionDecision={onSectionDecision}
                   clientAnswers={clientAnswers}
@@ -346,7 +349,7 @@ export default function BriefV2View({
                   <SectionBlock
                     key={section.id}
                     section={section}
-                    sectionRefs={sectionRefs}
+                    registerSectionRef={registerSectionRef}
                     sectionDecisions={sectionDecisions}
                     onSectionDecision={onSectionDecision}
                     clientAnswers={clientAnswers}
@@ -715,7 +718,7 @@ function ChapterHeader({ number, label, tagline, loading }) {
 // inside a chapter or standalone (for the verdict / orphan groups).
 // Uses the same SECTION_LAYOUT config as before for ordering + cell
 // widths.
-function SectionBlock({ section, sectionRefs, sectionDecisions, onSectionDecision, clientAnswers, onClientAnswer }) {
+function SectionBlock({ section, registerSectionRef, sectionDecisions, onSectionDecision, clientAnswers, onClientAnswer }) {
   const decision = sectionDecisions?.[section.id] || null
   const showReview = !!onSectionDecision
   const cfg = SECTION_LAYOUT[section.id]
@@ -729,7 +732,7 @@ function SectionBlock({ section, sectionRefs, sectionDecisions, onSectionDecisio
   return (
     <section
       id={`brief-v2-${section.id}`}
-      ref={el => { if (sectionRefs?.current) sectionRefs.current[section.id] = el }}
+      ref={el => registerSectionRef?.(section.id, el)}
       className={`brief-v2-section ${decision?.status ? `brief-v2-section-${decision.status}` : ''}`}
     >
       <SectionHeader

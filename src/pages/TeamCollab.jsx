@@ -21,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { ROLE_META, KANBAN_COLS, COL_COLORS, PRIORITY_COLORS } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
-import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callClaude, callClaudeTools } from '../lib/api'
+import { generateKanban, generateTeamRoles, handleFollowUp, callJSON, callOpenAI, callAITools } from '../lib/api'
 import { PER_TASK_PROMPT_SYSTEM, SENIOR_CREATIVE_DIRECTOR } from '../lib/aiSystemPrompts'
 import { getProjectInvites } from '../lib/teamService'
 import {
@@ -43,6 +43,7 @@ import { supabase } from '../lib/supabase'
 import { createBuild } from '../lib/aiBuildEngine'
 import useProximity from '../hooks/useProximity'
 import TaskDetailModal from '../components/TaskDetailModal'
+import { useWindowWidth } from '../hooks/useWindowWidth'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -371,16 +372,6 @@ function TypingBubble({ userMessage }) {
 
 // ─── TeamCollab ───────────────────────────────────────────────────────────────
 
-function useWindowWidth() {
-  const [width, setWidth] = React.useState(() => window.innerWidth)
-  React.useEffect(() => {
-    function onResize() { setWidth(window.innerWidth) }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  return width
-}
-
 // AddTaskModal lives at module scope so React keeps the same component
 // identity across TeamCollab re-renders. When it was declared *inside*
 // TeamCollab, every parent render created a new function reference and
@@ -613,7 +604,7 @@ function AddTaskModal({ open, onClose, onSave, teamMembers: modalTeamMembers, in
 
 
 export default function TeamCollab() {
-  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, user, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB, touchProject, userPlan, openUpgradeModal, consumeCredits } = useContext(AppContext)
+  const { activeProject, openProject, setActiveProject, projects: ctxProjects, showToast, navigate, authUser, user, saveProject, setCreditsUsed, selectedWebsiteTemplate, connectorData, workspace, renameProject: renameProjectInDB, deleteProject: deleteProjectInDB, touchProject, userPlan, openUpgradeModal } = useContext(AppContext)
 
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth <= 480
@@ -1916,6 +1907,11 @@ Return JSON:
   // ── Phase 2 AI Builder: confirm mode → create build → open overlay ──
   async function handleAiBuildModeConfirm(mode) {
     if (aiBuildLoading) return
+    if (userPlan !== 'pro') {
+      setAiBuildModeOpen(false)
+      openUpgradeModal?.('ai_builder')
+      return
+    }
 
     // Source of truth for "which project is the kanban showing" is the
     // local activeProjectId, NOT context.activeProject, TeamCollab
@@ -1999,11 +1995,6 @@ Return JSON:
   }
 
   async function handleGeneratePrompt(task) {
-    // Free-plan credit gate (3 credits per AI task prompt)
-    if (consumeCredits) {
-      const r = await consumeCredits('ai_task_prompt')
-      if (!r.ok) return
-    }
     setPromptModalTask(task)
     setPromptModalOpen(true)
     setGeneratedPrompt('')
@@ -2045,7 +2036,7 @@ Return JSON:
       const sections = (pattern.sections || pattern.screens || []).slice(0, 6).join(', ')
       const icons = taskIcons.slice(0, 5).map(i => i.icon).join(', ')
 
-      const promptText = await callClaude(
+      const promptText = await callOpenAI(
         PER_TASK_PROMPT_SYSTEM,
         `Generate the structured prompt for this kanban task.
 
@@ -2079,7 +2070,12 @@ Produce the prompt using the exact 7 section labels from the system instructions
       }
     } catch (e) {
       console.error('[generate prompt]', e)
-      const msg = e?.code === 'TIMEOUT'
+      if (e?.code === 'insufficient_credits') {
+        openUpgradeModal?.('credits')
+      }
+      const msg = e?.code === 'insufficient_credits'
+        ? 'No credits remaining. Upgrade to generate another task prompt.'
+        : e?.code === 'TIMEOUT'
         ? 'Request timed out, the server took too long. Showing template prompt instead.'
         : e?.data?.code === 'RATE_LIMITED'
         ? 'Daily AI limit reached. Resets at midnight.'
@@ -3451,7 +3447,7 @@ STYLE:
     ]
 
     try {
-      const data = await callClaudeTools({
+      const data = await callAITools({
         system: systemPrompt,
         messages: newHistory,
         tools: BOARD_TOOLS,
@@ -3478,7 +3474,7 @@ STYLE:
           { role: 'user', content: toolResults },
         ]
 
-        const followUpData = await callClaudeTools({
+        const followUpData = await callAITools({
           system: systemPrompt,
           messages: historyWithTool,
           maxTokens: 500,
@@ -3605,11 +3601,6 @@ STYLE:
     }
 
     // ── Legacy path (V1 briefs) ──────────────────────────────────
-    // Free-plan credit gate (8 credits per kanban generation)
-    if (consumeCredits) {
-      const r = await consumeCredits('kanban_generation')
-      if (!r.ok) return
-    }
     setLoading(true)
     addMessage('ai', 'Building your kanban board and assigning tasks...')
     const contextualBrief = projectTitle ? '# ' + projectTitle + '\n\n' + briefText : briefText
@@ -4994,6 +4985,10 @@ STYLE:
                       : 'Build your website with AI'
                   const handleClick = async () => {
                     if (disabled || aiBuildLoading) return
+                    if (userPlan !== 'pro') {
+                      openUpgradeModal?.('ai_builder')
+                      return
+                    }
                     if (inProgress) {
                       setAiBuilderOpen(true)
                       return
@@ -5721,7 +5716,7 @@ STYLE:
                 </div>
                 <div>
                   <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 17, color: 'var(--color-text)', letterSpacing: '-0.01em', lineHeight: 1.2 }}>Implementation Prompt</div>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2, fontWeight: 500 }}>Senior-level brief · Claude Code · Cursor · v0</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2, fontWeight: 500 }}>Senior-level brief · OpenAI Code · Cursor · v0</div>
                 </div>
               </div>
               <button

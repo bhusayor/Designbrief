@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { PER_TASK_PROMPT_SYSTEM, ENHANCE_DESCRIPTION_SYSTEM } from '../src/lib/aiSystemPrompts.js'
-import { mapHttpAnthropicError, mapClaudeError } from '../server-lib/claudeError.js'
+import { mapOpenAIError } from '../server-lib/openaiError.js'
+import { createOpenAIResponse } from '../server-lib/openai.js'
 import { MODEL_FOR } from '../src/lib/models.js'
 
 /*
@@ -619,8 +620,8 @@ export default async function handler(req, res) {
     if (!user) return
     const { text, title, briefContext, designSystemContext } = req.body
     try {
-      const apiKey = process.env.ANTHROPIC_API_KEY
-      if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY not configured' })
 
       const briefBlock = briefContext
         ? `\n\nPROJECT CONTEXT (use to sharpen the description, reference brand or audience where it helps):
@@ -644,30 +645,18 @@ ${text || '(empty)'}
 
 Rewrite this as a clear, precise, actionable description. 2-4 sentences max. Start with an action verb. Return only the description prose, no quotes, no labels, no preamble.`
 
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: MODEL_FOR.enhance_description,
-          max_tokens: 400,
-          system: ENHANCE_DESCRIPTION_SYSTEM,
-          messages: [{ role: 'user', content: userMsg }],
-        }),
+      const response = await createOpenAIResponse({
+        apiKey,
+        model: MODEL_FOR.enhance_description,
+        instructions: ENHANCE_DESCRIPTION_SYSTEM,
+        message: userMsg,
+        maxOutputTokens: 400,
+        reasoningEffort: 'low',
       })
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => '')
-        const { status, body } = mapHttpAnthropicError(resp.status, errText, '[enhance-description]')
-        return res.status(status).json(body)
-      }
-      const data = await resp.json()
-      const enhanced = data?.content?.[0]?.text?.trim() || ''
+      const enhanced = response.output_text?.trim() || ''
       return res.json({ description: enhanced })
     } catch (e) {
-      const { status, body } = mapClaudeError(e, '[enhance-description]')
+      const { status, body } = mapOpenAIError(e, '[enhance-description]')
       return res.status(status).json(body)
     }
   }
@@ -682,8 +671,8 @@ Rewrite this as a clear, precise, actionable description. 2-4 sentences max. Sta
     if (!user) return
     const { title, description, briefContext, designSystemContext } = req.body
     try {
-      const apiKey = process.env.ANTHROPIC_API_KEY
-      if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY not configured' })
 
       const briefBlock = briefContext
         ? `
@@ -714,30 +703,18 @@ ${description || '(empty)'}
 
 Use the EXACT section structure from the system instructions, the ━ dividers around TASK, the 7 section labels (CREATIVE DIRECTION, DESIGN APPROACH, INTERACTIONS & MOTION, COPY DIRECTION, TECHNICAL APPROACH, SUCCESS METRIC, INSPIRATION) in that order. Every section must be specific to THIS task and THIS brief. No generic advice.`
 
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: MODEL_FOR.ai_task_prompt,
-          max_tokens: 1800,
-          system: PER_TASK_PROMPT_SYSTEM,
-          messages: [{ role: 'user', content: userMsg }],
-        }),
+      const response = await createOpenAIResponse({
+        apiKey,
+        model: MODEL_FOR.ai_task_prompt,
+        instructions: PER_TASK_PROMPT_SYSTEM,
+        message: userMsg,
+        maxOutputTokens: 1800,
+        reasoningEffort: 'medium',
       })
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => '')
-        const { status, body } = mapHttpAnthropicError(resp.status, errText, '[generate-ai-prompt]')
-        return res.status(status).json(body)
-      }
-      const data = await resp.json()
-      const prompt = data?.content?.[0]?.text?.trim() || ''
+      const prompt = response.output_text?.trim() || ''
       return res.json({ prompt })
     } catch (e) {
-      const { status, body } = mapClaudeError(e, '[generate-ai-prompt]')
+      const { status, body } = mapOpenAIError(e, '[generate-ai-prompt]')
       return res.status(status).json(body)
     }
   }

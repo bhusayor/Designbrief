@@ -676,7 +676,7 @@ export function InspirationsCard({ r, inspirations, loadingInspi, onFetch }) {
             fontFamily: "'Urbanist', sans-serif", fontSize: '13px',
             color: 'var(--color-text-soft)', marginBottom: '14px', lineHeight: 1.7,
           }}>
-            Let Claude search the web for real design references that match your brief's tone and keywords.
+            Let AI search the web for real design references that match your brief's tone and keywords.
           </p>
           <Button variant="primary" onClick={onFetch}>
             Search for Inspirations

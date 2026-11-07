@@ -57,7 +57,7 @@ export default function BriefV2ShareModal({
           const { data: { session } } = await supabase.auth.getSession()
           const tok = session?.access_token
           if (!tok) return
-          const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+          const apiUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
           const res = await fetch(`${apiUrl}/api/brief-reviews/quick-link`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
@@ -102,7 +102,7 @@ export default function BriefV2ShareModal({
         return
       }
 
-      const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      const apiUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
       const res = await fetch(`${apiUrl}/api/brief-reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -150,7 +150,7 @@ export default function BriefV2ShareModal({
           setCopyingLink(false)
           return
         }
-        const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+        const apiUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
         const res = await fetch(`${apiUrl}/api/brief-reviews/quick-link`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },

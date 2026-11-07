@@ -1,68 +1,63 @@
-# Backend consolidation plan
+# Backend runtime and consolidation status
 
-## Current state (July 2026)
+## Decision
 
-Two backends serve overlapping surfaces:
+Render/Express (`server.js`) is the primary API. Vercel hosts the React
+bundle and temporarily continues to execute compatibility functions from
+`api/*` for browser calls that still use relative `/api/...` URLs.
 
-| Surface | `server.js` (Render/Express) | `api/*` (Vercel functions) |
+There is one implementation per shared route: `server.js` mounts the same
+handlers from `api/*`. This prevents behavior drift while client call sites
+are moved to `VITE_API_BASE_URL`.
+
+## Current routing (November 2026)
+
+| Route group | Current browser destination | Handler source |
 |---|---|---|
-| Claude proxy | `/api/claude` | `api/claude.js` |
-| Pexels | `/api/pexels` | `api/pexels.js` |
-| Brief reviews (client review flow) | `/api/brief-reviews/*` | ❌ none |
-| Web search | `/api/web-search` | ❌ none |
-| Intake processing | `/api/process-intake` | partial (`intake-followup.js`, `send-intake-email.js`) |
-| Invites / workspaces / settings / builds | ❌ none | `invite.js`, `create-workspace.js`, `settings.js`, `build-*.js`, `publish-build.js` |
+| `/api/ai`, Pexels, web search | Render | `api/ai.js`; inline Express proxies |
+| Intake processing and follow-up | Render | `intake-pipeline.js`, `api/intake-followup.js` |
+| Brief review/share flow | Render | `server-lib/briefReviews.js` |
+| Component/section builders and most publish calls | Render | `api/build-component.js`, `api/build-section.js`, `api/publish-build.js` |
+| Settings and billing webhook | Vercel compatibility route | `api/settings.js` |
+| Workspace/task persistence | Vercel compatibility route | `api/create-workspace.js` |
+| Invites and team membership | Mixed; relative calls still use Vercel | `api/invite.js` |
+| Intake email delivery | Vercel compatibility route | `api/send-intake-email.js` |
 
-The client sends everything to `VITE_API_URL`, which points at the
-Render server in production. That means **the Vercel functions that
-duplicate server.js routes are mostly dead in production**, yet they
-still get maintained (and drift: the 8096-token clamp was fixed in
-both places in July 2026 because they had already diverged).
+All compatibility handlers above are also mounted on Render. Moving a caller
+therefore requires only prefixing the request with `VITE_API_BASE_URL`; it does
+not require another server implementation.
 
-## Risks of the split
+Connector calls (`/api/connectors/*`) currently have client code but no checked-in
+server handler. Treat them as unavailable until a connector backend is added;
+do not mistake them for a Vercel-owned implementation.
 
-1. **Drift.** Any fix applied to one proxy silently misses the other.
-2. **Auth inconsistency.** `server-lib/authMiddleware.js` is shared,
-   but the Express routes and the Vercel handlers wire it slightly
-   differently.
-3. **Vercel Hobby 12-function cap.** api/ has 10 functions; adding
-   brief-reviews there is impossible without dropping something.
-4. **Two deploy pipelines** to keep in sync for every release.
+## Environment contract
 
-## Target state
+`VITE_API_BASE_URL` is the only browser API-origin variable. It is the Render
+origin in production and `http://localhost:3001` for `npm run dev:full`.
+`VITE_API_URL` is retired and must not be reintroduced.
 
-**Consolidate on the Render Express server** (server.js), because:
-- It already hosts the routes Vercel can't fit (brief-reviews).
-- No 60s timeout ceiling (matters for Opus builds + long briefs).
-- No function-count cap.
-- One deploy, one log stream, one place to patch.
+## Builder entitlement and spend boundary
 
-Vercel keeps ONLY static hosting of the SPA (dist/) + rewrites.
+The component and website-section builders are Pro-only. Both handlers verify
+the authenticated user's `profiles.plan` on the server before rate-limit checks
+or any managed Codex agent call. Client-side upgrade prompts are only the user
+experience layer and are not treated as authorization.
 
-## Migration steps
+Every managed builder turn also has a 50-cent agent spend ceiling and is covered
+by the per-plan daily request backstop. Builder calls do not consume the normal
+direct-AI credit ledger; changing that requires an explicit product price and a
+new server-owned billing policy rather than a client-supplied cost.
 
-1. Port the Vercel-only handlers into Express routes:
-   `invite`, `create-workspace`, `settings`, `build-component`,
-   `build-section`, `publish-build`, `send-intake-email`,
-   `intake-followup`. Each is already a `(req, res)` handler, so the
-   port is `app.post('/api/x', handler)` plus removing the per-file
-   CORS boilerplate in favour of one Express-level `setCors`.
-2. Point `VITE_API_URL` at the Render origin everywhere (it already
-   is in prod; align dev via `npm run dev:full`).
-3. Delete `api/` and the `functions` block from vercel.json.
-4. Move the prompt library server-side while we're in there:
-   `/api/claude` accepts `{ task_type, variables }` and the server
-   assembles the prompt. Kills the "generic Claude proxy" abuse
-   vector completely and takes the prompt IP out of the JS bundle.
+## Remaining consolidation work
 
-## Interim guardrails (already shipped)
+1. Prefix the remaining relative settings, workspace, invite, intake-email,
+   and legacy builder calls with the shared API base helper.
+2. Verify those flows against a Render preview deployment.
+3. Remove the `functions` block from `vercel.json`, then delete the Vercel
+   compatibility deployment without deleting the shared handler modules.
+4. Move handler modules from `api/` to `server-lib/handlers/` after Vercel no
+   longer imports them.
 
-- Shared `server-lib/cors.js` origin allowlist.
-- Fail-closed, plan-aware rate limiting in `authMiddleware.js`.
-- task_type allowlist + payload caps + 16384 clamp in both proxies.
-
-## Effort estimate
-
-Steps 1-3: one focused day + a deploy dry-run.
-Step 4 (prompts server-side): 2-3 days, riskier; do it after 1-3 are
-stable in production.
+Until step 3 is complete, changes to a compatibility route must be made in its
+single `api/*.js` handler, never duplicated in `server.js`.

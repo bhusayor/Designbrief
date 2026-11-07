@@ -109,7 +109,7 @@ function AnswerView({ row }) {
 
       // Fire-and-forget designer notification. We don't wait so the
       // client sees their thank-you screen immediately.
-      const apiUrl = (import.meta.env.VITE_API_URL || '') + '/api/intake-followup'
+      const apiUrl = (import.meta.env.VITE_API_BASE_URL || '') + '/api/intake-followup'
       fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

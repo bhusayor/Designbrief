@@ -10,10 +10,14 @@
     "preview": "vite preview",
     "server": "node server.js",
     "dev:full": "concurrently \"node server.js\" \"vite\" --names \"server,vite\" --prefix-colors \"cyan,green\"",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:list": "playwright test --list",
+    "db:prepare": "node scripts/sync-supabase-migrations.mjs",
+    "db:status": "npm run db:prepare && supabase migration list",
+    "db:push": "npm run db:prepare && supabase db push --include-all"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.110.0",
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.101.1",
     "cors": "^2.8.5",
@@ -23,6 +27,7 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
+    "openai": "^7.53.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -30,6 +35,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

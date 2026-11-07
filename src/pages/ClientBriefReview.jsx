@@ -25,7 +25,7 @@ import AppContext from '../context/AppContext'
 import BriefV2View from '../components/brief/BriefV2View'
 import BriefV3View from '../components/brief/BriefV3View'
 
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
 export default function ClientBriefReview() {
   const { activeReviewToken } = useContext(AppContext)

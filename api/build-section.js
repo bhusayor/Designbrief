@@ -1,6 +1,6 @@
 // ────────────────────────────────────────────────────────────────────
 // /api/build-section, streams ONE HTML section for the AI Builder
-// (Phase 2). Server-side so the platform Anthropic API key never
+// (Phase 2). Server-side so the platform OpenAI API key never
 // reaches the browser. Streams SSE events; the client appends each
 // delta into a srcDoc iframe for the typewriter live preview.
 //
@@ -25,9 +25,11 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { SECTION_BUILDER_SYSTEM } from '../src/lib/aiSystemPrompts.js'
-import { mapHttpAnthropicError, mapClaudeError } from '../server-lib/claudeError.js'
+import { mapOpenAIError } from '../server-lib/openaiError.js'
+import { streamCodexAgent } from '../server-lib/openai.js'
 import { setCors } from '../server-lib/cors.js'
 import { MODEL_FOR } from '../src/lib/models.js'
+import { checkRateLimit, logUsage, requireProPlan } from '../server-lib/authMiddleware.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
@@ -47,9 +49,11 @@ export default async function handler(req, res) {
   if (!token) return res.status(401).json({ error: 'Missing Authorization header' })
   const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
   if (authErr || !user) return res.status(401).json({ error: 'Invalid session' })
+  if (!await requireProPlan(supabase, user.id, res)) return
+  if (!await checkRateLimit(supabase, user.id, res)) return
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY not configured' })
 
   const {
     build_id,
@@ -71,6 +75,25 @@ export default async function handler(req, res) {
 
   if (!build_id || !section_id || !task_title) {
     return res.status(400).json({ error: 'build_id, section_id, task_title required' })
+  }
+  const payloadChars = JSON.stringify({
+    task_description,
+    task_ai_prompt,
+    brief_context,
+    design_system_context,
+    v2_card_context,
+    blocked_reasons,
+    previous_titles,
+    change_request,
+    media_html,
+    gsap_html,
+  }).length
+  if (
+    String(task_title).length > 500
+    || payloadChars > 600000
+    || (Array.isArray(previous_titles) && previous_titles.length > 50)
+  ) {
+    return res.status(413).json({ error: 'builder_payload_too_large', message: 'Builder input is too large.' })
   }
 
   // Phase 4, refuse blocked cards before billing tokens. The V2
@@ -172,8 +195,8 @@ export default async function handler(req, res) {
     'Return ONLY the HTML for this section per the output contract above. Start with the root element, end with its closing tag, inline all CSS in a single scoped <style> at the top.',
   ].filter(Boolean).join('\n')
 
-  // ── Stream from Anthropic via SSE. We pipe text deltas back to the
-  // client AND accumulate the full body so we can persist it on done.
+  // The website builder is intentionally isolated on the managed Codex
+  // harness. Everything else in the product uses direct Responses calls.
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
@@ -183,77 +206,23 @@ export default async function handler(req, res) {
   let errored = false
 
   try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+    const result = await streamCodexAgent({
+      apiKey,
+      model: MODEL_FOR.website_builder,
+      instructions: SECTION_BUILDER_SYSTEM,
+      input: userPrompt,
+      reasoningEffort: 'medium',
+      spendLimitCents: 50,
+      onText: delta => {
+        fullText += delta
+        res.write(`data: ${JSON.stringify({ text: delta })}\n\n`)
       },
-      body: JSON.stringify({
-        model: MODEL_FOR.website_builder,
-        max_tokens: 4000,
-        stream: true,
-        system: SECTION_BUILDER_SYSTEM,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
     })
-
-    if (!upstream.ok) {
-      const errBody = await upstream.text().catch(() => '')
-      const { body } = mapHttpAnthropicError(upstream.status, errBody, '[build-section]')
-      res.write(`data: ${JSON.stringify(body)}\n\n`)
-      res.end()
-      await supabase
-        .from('build_sections')
-        .update({ status: 'queued' })
-        .eq('id', section_id)
-      return
-    }
-
-    const reader = upstream.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-
-      // SSE messages are separated by blank lines.
-      let idx
-      while ((idx = buffer.indexOf('\n\n')) !== -1) {
-        const event = buffer.slice(0, idx)
-        buffer = buffer.slice(idx + 2)
-
-        for (const line of event.split('\n')) {
-          if (!line.startsWith('data: ')) continue
-          const payload = line.slice(6).trim()
-          if (payload === '[DONE]') continue
-          try {
-            const json = JSON.parse(payload)
-            if (json.type === 'content_block_delta' && json.delta?.text) {
-              fullText += json.delta.text
-              res.write(`data: ${JSON.stringify({ text: json.delta.text })}\n\n`)
-            } else if (json.type === 'message_stop') {
-              // Drain to end naturally.
-            } else if (json.type === 'error') {
-              errored = true
-              const { body } = mapClaudeError(
-                { status: json.error?.status || 500, message: json.error?.message || 'AI error', error: json.error },
-                '[build-section]'
-              )
-              res.write(`data: ${JSON.stringify(body)}\n\n`)
-            }
-          } catch (e) {
-            // Non-JSON SSE comment line, ignore.
-          }
-        }
-      }
-    }
+    if (!fullText) fullText = result.text
+    await logUsage(supabase, user.id, 'website_builder', fullText.length)
   } catch (e) {
     errored = true
-    const { body } = mapClaudeError(e, '[build-section]')
+    const { body } = mapOpenAIError(e, '[build-section]')
     res.write(`data: ${JSON.stringify(body)}\n\n`)
   }
 

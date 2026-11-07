@@ -23,88 +23,29 @@ import { generateBacklogV3, isV3Backlog } from '../lib/briefV3Backlog'
 import BriefV2ReviseModal from '../components/brief/BriefV2ReviseModal'
 import BriefV2ShareModal from '../components/brief/BriefV2ShareModal'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_SCHEMA_VERSION } from '../lib/briefV2Schema'
-import { BRIEF_V3_SECTIONS, BRIEF_V3_SCHEMA_VERSION, BRIEF_V3_PHASE_1A_KEYS } from '../lib/briefV3Schema'
+import { BRIEF_V3_SCHEMA_VERSION } from '../lib/briefV3Schema'
 import { extractDesignSystem } from '../lib/briefV2DesignSystem'
 import { buildKanbanFromV2 } from '../lib/briefV2Kanban'
 import BriefV2View from '../components/brief/BriefV2View'
 import BriefV3View from '../components/brief/BriefV3View'
 import BacklogView from '../components/backlog/BacklogView'
-import { PHASE_COLORS, ROLE_META } from '../lib/constants'
+import { ROLE_META } from '../lib/constants'
 import { getWebsiteTemplate } from '../lib/templates'
 import { supabase } from '../lib/supabase'
+import { createAIOperationId } from '../lib/openaiApi'
+import {
+  buildPhasesLocal,
+  buildV3Skeleton,
+  extractColors,
+  getSectionLabel,
+  safeTypoStr,
+  verdictBadge,
+} from '../lib/dashboardBriefUtils'
+import { useWindowWidth } from '../hooks/useWindowWidth'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const uid = () => Math.random().toString(36).slice(2, 9)
-
-// V3 skeleton factory. Each section starts null (renders as
-// streaming) for wired keys, or marked __pending_phase for the
-// chapters Phase 1A doesn't ship yet (renderer surfaces them as
-// "Coming next").
-function buildV3Skeleton(title) {
-  return {
-    schemaVersion: BRIEF_V3_SCHEMA_VERSION,
-    projectTitle: title || 'Translating brief…',
-    sections: BRIEF_V3_SECTIONS.map(s => ({
-      key: s.key,
-      id: s.id,
-      title: s.title,
-      shape: s.shape,
-      tier: s.tier,
-      description: s.description,
-      content: BRIEF_V3_PHASE_1A_KEYS.includes(s.key) ? null : { __pending_phase: true },
-    })),
-  }
-}
-
-function buildPhasesLocal(taskDays) {
-  if (!taskDays || typeof taskDays !== 'object') return []
-  const tasks = Object.entries(taskDays).map(([name, days]) => ({ name, days: Number(days) || 1 }))
-  if (!tasks.length) return []
-  const buckets = { Discovery: [], Design: [], Development: [], Launch: [] }
-  const kw = {
-    Discovery:   ['research', 'discover', 'audit', 'analys', 'planning', 'plan', 'strateg', 'kickoff', 'requirement', 'brief'],
-    Design:      ['design', 'wireframe', 'prototype', 'ui', 'ux', 'visual', 'brand', 'style', 'mockup', 'figma', 'colour', 'color', 'typograph'],
-    Development: ['develop', 'build', 'code', 'implement', 'frontend', 'backend', 'api', 'database', 'integrat', 'program', 'engineer'],
-    Launch:      ['launch', 'deploy', 'release', 'go-live', 'handoff', 'qa', 'quality', 'review', 'feedback', 'test'],
-  }
-  tasks.forEach(t => {
-    const low = t.name.toLowerCase()
-    let placed = false
-    for (const [phase, words] of Object.entries(kw)) {
-      if (words.some(w => low.includes(w))) { buckets[phase].push(t); placed = true; break }
-    }
-    if (!placed) buckets.Development.push(t)
-  })
-  return Object.entries(buckets)
-    .filter(([, ts]) => ts.length > 0)
-    .map(([name, ts], i) => ({
-      name, tasks: ts,
-      totalDays: ts.reduce((s, t) => s + t.days, 0),
-      color: PHASE_COLORS[i % PHASE_COLORS.length],
-    }))
-}
-
-function extractHexColors(text) {
-  const raw = (text || '').match(/#[0-9A-Fa-f]{6}/g) ?? []
-  return [...new Set(raw)].slice(0, 5)
-}
-
-function verdictBadge(verdict) {
-  const map = {
-    GOOD:  { bg: '#dcfce7', color: '#15803d' },
-    FAIR:  { bg: '#fef9c3', color: '#a16207' },
-    POOR:  { bg: '#fee2e2', color: '#dc2626' },
-    CHAOS: { bg: '#f3e8ff', color: '#7c3aed' },
-  }
-  return map[verdict] ?? { bg: 'var(--color-surface)', color: 'var(--color-text-muted)' }
-}
-
-function scoreColor(n) {
-  if (n >= 7) return '#16a34a'
-  if (n >= 4) return '#d97706'
-  return '#dc2626'
-}
 
 const PRIORITY_GROUPS = [
   { key: 'HIGH',   label: 'MUST HAVE',    color: '#FF4D6A' },
@@ -143,78 +84,6 @@ function getRoleIcon(role) {
     'Project Manager':  ClipboardDocumentListIcon,
   }
   return map[role] || SparklesIcon
-}
-
-function safeTypoStr(val) {
-  if (!val) return ''
-  if (typeof val === 'string') return val
-  if (typeof val === 'object') {
-    return val.name || val.family || val.font ||
-           val.value || val.label ||
-           Object.values(val)
-             .filter(v => typeof v === 'string')
-             .join(' · ') ||
-           ''
-  }
-  return String(val)
-}
-
-function extractColors(result) {
-  if (result?.colorPalette?.length >= 2) {
-    const valid = result.colorPalette.map(c => ({ hex: c.hex || c, name: c.name || 'Colour', usage: c.usage || '' })).filter(c => c.hex && /^#[0-9A-Fa-f]{6}$/.test(c.hex))
-    if (valid.length >= 2) return valid
-  }
-  if (result?.colorDirection?.palette?.length >= 2) {
-    const valid = result.colorDirection.palette.map((item, i) => {
-      const hex = typeof item === 'string' ? item : item.hex
-      if (!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return null
-      return { hex, name: typeof item === 'object' ? item.name : ['Primary','Accent','Background','Secondary','Neutral'][i] || 'Colour '+(i+1), usage: typeof item === 'object' ? item.usage : '' }
-    }).filter(Boolean)
-    if (valid.length >= 2) return valid
-  }
-  if (typeof result?.colorDirection === 'string') {
-    const matches = [...new Set(result.colorDirection.match(/#[0-9A-Fa-f]{6}/g) || [])]
-    if (matches.length >= 2) return matches.slice(0, 5).map((hex, i) => ({ hex, name: ['Primary','Accent','Background','Secondary','Neutral'][i] || 'Colour '+(i+1), usage: '' }))
-  }
-  if (result?.colorDirection?.colors?.length >= 2) return result.colorDirection.colors
-  return [{ hex: '#1E1E1E', name: 'Dark', usage: '' }, { hex: '#FFFFFF', name: 'Light', usage: '' }]
-}
-
-// ─── getSectionLabel ──────────────────────────────────────────────────────────
-
-function getSectionLabel(defaultLabel, result) {
-  const discipline = result?.discipline?.type
-  const map = {
-    'Tech Stack': {
-      'brand':        'Production Tools',
-      'photography':  'Production Setup',
-      'video':        'Production Tools',
-      'motion':       'Production Tools',
-      'social-media': 'Tools & Platforms',
-      'print':        'Production Tools',
-      'illustration': 'Creative Tools',
-      'game':         'Game Stack',
-    },
-    'User Flow': {
-      'brand':        'Brand Journey',
-      'campaign':     'Campaign Journey',
-      'photography':  'Production Flow',
-      'video':        'Production Flow',
-      'motion':       'Production Flow',
-      'social-media': 'Content Journey',
-      'print':        'Production Flow',
-    },
-    'Feature Analysis': {
-      'brand':        'Brand Elements',
-      'campaign':     'Campaign Elements',
-      'photography':  'Shot Priority',
-      'video':        'Scene Priority',
-      'social-media': 'Content Priority',
-      'print':        'Design Elements',
-      'illustration': 'Artwork Priority',
-    },
-  }
-  return map[defaultLabel]?.[discipline] || defaultLabel
 }
 
 // ─── TypewriterHeading ────────────────────────────────────────────────────────
@@ -284,21 +153,11 @@ function TypewriterHeading() {
 
 // ─── Responsive hook ─────────────────────────────────────────────────────────
 
-function useWindowWidth() {
-  const [width, setWidth] = useState(() => window.innerWidth)
-  useEffect(() => {
-    function onResize() { setWidth(window.innerWidth) }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  return width
-}
-
 // ─── Dashboard (main) ─────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const {
-    user, authUser, navigate, saveHistory, saveProject, showToast, setCreditsUsed,
+    user, authUser, navigate, saveHistory, saveProject, showToast,
     selectedWebsiteTemplate, setSelectedWebsiteTemplate,
     setActiveProjectBriefResult,
     activeProjectBriefResult,
@@ -307,7 +166,6 @@ export default function Dashboard() {
     activeChat,
     connectorData,
     workspace,
-    consumeCredits,
     userPlan, openUpgradeModal,
   } = useContext(AppContext)
 
@@ -447,19 +305,6 @@ export default function Dashboard() {
     }
     if (backlogGenerating) return
 
-    // Credit gate: 8 credits, same price as the legacy kanban
-    // generation. consumeCredits shows its own insufficient-credits
-    // toast + upgrade modal; other failures get a generic retry.
-    if (consumeCredits) {
-      const r = await consumeCredits('backlog_generation')
-      if (!r.ok) {
-        if (r.reason && r.reason !== 'insufficient_credits') {
-          showToast?.('Could not start backlog generation. Try again in a moment.', 'error')
-        }
-        return
-      }
-    }
-
     setBacklogGenerating(true)
     setBacklogStage('inventory')
     // Switch to backlog view immediately so the user sees the
@@ -493,7 +338,12 @@ export default function Dashboard() {
       }
     } catch (e) {
       console.error('[handleGenerateBacklog] failed', e)
-      showToast?.('Backlog generation failed. Please try again.', 'error')
+      if (e?.code === 'insufficient_credits') {
+        openUpgradeModal?.('credits')
+        showToast?.('No credits remaining. Upgrade to generate a backlog.', 'error')
+      } else {
+        showToast?.('Backlog generation failed. Please try again.', 'error')
+      }
     } finally {
       setBacklogGenerating(false)
       setBacklogStage(null)
@@ -826,7 +676,7 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession()
       const tok = session?.access_token
       if (!tok) return
-      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
       if (!apiBase) return
       const r = await fetch(`${apiBase}/api/brief-reviews/by-project/${activeChat}`, {
         headers: { Authorization: `Bearer ${tok}` },
@@ -865,7 +715,7 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession()
       const tok = session?.access_token
       if (!tok) return
-      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
       if (!apiBase) return
       const r = await fetch(`${apiBase}/api/brief-reviews/comments/${commentId}/status`, {
         method: 'PATCH',
@@ -892,7 +742,7 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession()
       const tok = session?.access_token
       if (!tok) return
-      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
       if (!apiBase) return
       await fetch(`${apiBase}/api/brief-reviews/by-project/${activeChat}/comments/resolve-all`, {
         method: 'POST',
@@ -945,26 +795,6 @@ export default function Dashboard() {
     setPhase('result')
     setV2Streaming(true)  // shared streaming flag, reused for V3
 
-    // Free-plan credit gate (10 credits per translation). On insufficient
-    // credits consumeCredits shows its own toast + opens the upgrade
-    // modal. For any OTHER failure reason it just console.errors -
-    // we surface a generic retry toast so the click is always
-    // acknowledged.
-    if (consumeCredits) {
-      console.log('[handleTranslate] checking credits...')
-      const r = await consumeCredits('brief_translation')
-      console.log('[handleTranslate] credits result:', r)
-      if (!r.ok) {
-        console.warn('[handleTranslate] BLOCKED — credit check failed:', r.reason)
-        if (r.reason && r.reason !== 'insufficient_credits') {
-          showToast?.('Could not start translation. Try again in a moment.', 'error')
-        }
-        setPhase('input')
-        setV2Streaming(false)
-        return
-      }
-    }
-
     // The previous "first impressions" commentary stream that fed
     // the analysing-brief screen is gone, designers see the
     // section skeleton populate live now, which is the same
@@ -1015,14 +845,14 @@ export default function Dashboard() {
       // returns. The skeleton + setPhase('result') happened at the
       // top of handleTranslate so the user is already looking at
       // the streaming view by the time we get here.
-      setCreditsUsed(prev => prev + 1)
-
       const fullBrief = fullContext + templateContext + connectorContext
+      const operationId = createAIOperationId()
       console.log('[handleTranslate] calling translateBriefV3. fullBrief length:', fullBrief.length)
 
       // V3 streaming: onSection fires per chapter with (key, content,
       // partialResult). Push a new sections array so React re-renders.
       const finalResult = await translateBriefV3(fullBrief, {
+        operationId,
         onSection: (_key, _content, partialResult) => {
           setResult({
             ...partialResult,
@@ -1051,7 +881,7 @@ export default function Dashboard() {
       // hero badge in BriefV2View reads result.score and hides
       // itself if score is null.
       console.log('[handleTranslate] firing scoreBriefV2...')
-      scoreBriefV2(fullBrief, finalResult).then(score => {
+      scoreBriefV2(fullBrief, finalResult, { operationId }).then(score => {
         console.log('[handleTranslate] scoreBriefV2 result:', score)
         if (!score) {
           console.warn('[handleTranslate] score is null/undefined — badge will not render')
@@ -1064,9 +894,9 @@ export default function Dashboard() {
       })
 
       // Competitor URL enrichment was previously a second pass that
-      // hit /api/web-search to verify Claude's URL guesses. Pulled
+      // hit /api/web-search to verify the model's URL guesses. Pulled
       // because the underlying search APIs are no longer free at
-      // any usable tier. The brief still gets URLs, Claude's
+      // any usable tier. The brief still gets URLs, the model's
       // first-pass output includes them, they're just not
       // verified against a live search index. The server route
       // stays mounted in case a paid key gets added later.
@@ -1087,7 +917,7 @@ export default function Dashboard() {
 
       let designSystem = null
       try {
-        designSystem = await extractDesignSystem(finalResult)
+        designSystem = await extractDesignSystem(finalResult, { operationId })
       } catch (e) {
         console.warn('[translate v2] design-system extraction failed:', e?.message)
       }
@@ -1132,6 +962,7 @@ export default function Dashboard() {
         err?.code === 'timeout' ||
         err?.status === 504 ||
         /504|timeout|taking longer/i.test(err?.message || '')
+      if (err?.code === 'insufficient_credits') openUpgradeModal?.('credits')
       showToast(
         isTimeout
           ? 'Your brief is quite detailed. Try trimming it a bit and translating again.'
@@ -2673,6 +2504,8 @@ function TypographyMoodboardSection({ r }) {
 // ─── Section 4b: Typography Showcase ─────────────────────────────────────────
 
 function TypographySection({ typography, discipline }) {
+  const initialPlatform = typography?.platform || 'web'
+  const [scaleView, setScaleView] = useState(initialPlatform === 'mobile' ? 'mobile' : 'web')
   if (!typography || typeof typography !== 'object') return null
 
   const displayFont = safeTypoStr(typography.displayFont || typography.display).split('-')[0].trim() || 'Urbanist'
@@ -2745,7 +2578,6 @@ function TypographySection({ typography, discipline }) {
   ]
   if (!webScale.length && !mobileScale.length) webScale = defaultScale
 
-  const [scaleView, setScaleView] = useState(hasWeb ? 'web' : 'mobile')
   const activeScale = scaleView === 'web' ? webScale : mobileScale
 
   // Granular product types detected on the brief. Falls back to the
@@ -2937,12 +2769,13 @@ function GanttSection({ phases, timeframe, projectTitle }) {
   const totalWeeks = Math.max(Math.ceil(totalDays / 7), 1)
   const weeks = Array.from({ length: totalWeeks }, (_, i) => i + 1)
 
-  let cumDays = 0
-  const phasesWithPos = phases.map(p => {
-    const start = cumDays
-    cumDays += p.totalDays
-    return { ...p, startPct: (start / totalDays) * 100, widthPct: (p.totalDays / totalDays) * 100 }
-  })
+  const phasesWithPos = phases.reduce((positioned, p) => {
+    const start = positioned.reduce((sum, phase) => sum + phase.totalDays, 0)
+    return [
+      ...positioned,
+      { ...p, startPct: (start / totalDays) * 100, widthPct: (p.totalDays / totalDays) * 100 },
+    ]
+  }, [])
 
   return (
     <div style={{ padding: '40px 48px', borderBottom: '1px solid var(--color-border)' }}>
@@ -3580,8 +3413,7 @@ function UserFlowSection({ userFlow, discipline }) {
   }
 
   // Build node descriptors with exact geometry
-  let curX = 0
-  const nodes = steps.map((step, i) => {
+  const nodes = steps.reduce((positioned, step, i) => {
     const isStart = i === 0
     const isEnd = i === steps.length - 1
     const isTerm = isStart || isEnd
@@ -3589,7 +3421,8 @@ function UserFlowSection({ userFlow, discipline }) {
 
     const w = isTerm ? FC.TERM_W : FC.NODE_W
     const h = isTerm ? FC.TERM_H : (isDecision ? FC.DEC_H : FC.NODE_H)
-    const x = curX
+    const previous = positioned[positioned.length - 1]
+    const x = previous ? previous.x + previous.w + FC.GAP_X : 0
     const y = FC.CENTER_Y - h / 2
     const cx = x + w / 2
     const cy = FC.CENTER_Y
@@ -3601,9 +3434,7 @@ function UserFlowSection({ userFlow, discipline }) {
     const entryX = isTerm ? x : x
     const entryY = cy
 
-    curX += w + FC.GAP_X
-
-    return {
+    return [...positioned, {
       i, x, y, w, h, cx, cy,
       exitX, exitY, entryX, entryY,
       isStart, isEnd, isTerm, isDecision,
@@ -3612,8 +3443,8 @@ function UserFlowSection({ userFlow, discipline }) {
       outcome: step.outcome || step.result || '',
       branch: step.branch || '',
       stepNum: step.step || step.number || (i + 1),
-    }
-  })
+    }]
+  }, [])
 
   const TOTAL_W = curX + 40
   const CANVAS_H = FC.CENTER_Y + FC.BRANCH_DROP + 60

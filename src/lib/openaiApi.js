@@ -1,14 +1,14 @@
 // ────────────────────────────────────────────────────────────────────
-// claudeApi.js, the SINGLE client-side entry point for /api/claude.
+// openaiApi.js, the SINGLE client-side entry point for /api/ai.
 //
-// Every AI call in the app routes through callClaude / callClaudeStream
+// Every AI call in the app routes through callOpenAI / callOpenAIStream
 // here (directly or via one of the convenience wrappers below). The
 // task type is the source of truth for model selection: never hard-code
 // a model id at the call site.
 //
-// Built on top of the unified /api/claude endpoint which already:
+// Built on top of the unified /api/ai endpoint which already:
 //   - validates the model id against ALLOWED_MODELS
-//   - maps Anthropic errors via api/lib/claudeError.js so the messages
+//   - maps OpenAI errors via server-lib/openaiError.js so the messages
 //     that reach this file are already user-safe
 //   - supports streaming (SSE) when stream:true is set
 //
@@ -21,21 +21,40 @@
 import { supabase } from './supabase.js'
 import { MODELS, MODEL_FOR, pickModel } from './models.js'
 import { designSystemToContext } from './designSystem.js'
+import { buildWithProxy } from './buildEngine.js'
 
 // API base, points at the standalone Express API server (Render in
-// production, localhost:3001 in dev). Set VITE_API_URL on Vercel to
+// production, localhost:3001 in dev). Set VITE_API_BASE_URL on Vercel to
 // the Render URL. Fetches below already template-string this base
-// into every /api/claude call, so swapping deployments is one env
+// into every /api/ai call, so swapping deployments is one env
 // var change away.
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 const MAX_RETRIES = 2
 const BASE_DELAY_MS = 1500
 const DEFAULT_TIMEOUT_MS = 60000
 
+export function createAIOperationId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  return '00000000-0000-4000-8000-' + Math.random().toString(16).slice(2).padEnd(12, '0').slice(0, 12)
+}
+
+function publishCreditState(payload) {
+  if (typeof window === 'undefined') return
+  const remaining = payload?.credits_remaining ?? payload?.meta?.credits_remaining
+  if (typeof remaining !== 'number') return
+  window.dispatchEvent(new CustomEvent('designbrief:credits-updated', {
+    detail: {
+      creditsRemaining: remaining,
+      charged: payload?.charged ?? payload?.meta?.charged ?? false,
+      creditCost: payload?.credit_cost ?? payload?.meta?.credit_cost ?? 0,
+    },
+  }))
+}
+
 // Per-taskType timeout overrides. Heavy operations (brief_translation
-// hits Sonnet with up to 8000 output tokens + a 290-line system
+// hits Sol with up to 8000 output tokens + a 290-line system
 // prompt + a complex 17-field JSON schema) routinely run past 60s on
-// busy Anthropic windows, which produced the "taking longer than
+// busy OpenAI windows, which produced the "taking longer than
 // expected" error even when the API was working fine.
 const TIMEOUT_BY_TASK = {
   brief_translation: 180000, // 3 minutes
@@ -60,19 +79,21 @@ function shouldRetry(status) {
 }
 
 function toError(body, status) {
+  publishCreditState(body)
   const err = new Error(body?.message || 'Something interrupted the AI. Your work is safe, please try again.')
   err.status = status
   err.code = body?.error || null
   err.data = body || null
   if (body?.retry_after) err.retryAfter = body.retry_after
+  if (typeof body?.credits_remaining === 'number') err.creditsRemaining = body.credits_remaining
   return err
 }
 
 // ────────────────────────────────────────────────────────────────────
-// callClaude, non-streaming.
+// callOpenAI, non-streaming.
 // Returns { text, content, usage, model_used }.
 // ────────────────────────────────────────────────────────────────────
-export async function callClaude({
+export async function callOpenAI({
   taskType,
   system = '',
   userMessage,
@@ -82,13 +103,14 @@ export async function callClaude({
   maxTokens = 4000,
   retries = MAX_RETRIES,
   timeoutMs,
+  operationId = createAIOperationId(),
 } = {}) {
   // Resolve per-task timeout if the caller didn't pass one explicitly.
   if (timeoutMs == null) {
     timeoutMs = TIMEOUT_BY_TASK[taskType] ?? DEFAULT_TIMEOUT_MS
   }
   if (!userMessage && !(Array.isArray(messages) && messages.length)) {
-    throw new Error('callClaude needs either userMessage or messages[].')
+    throw new Error('callOpenAI needs either userMessage or messages[].')
   }
 
   const model = pickModel(taskType)
@@ -99,11 +121,12 @@ export async function callClaude({
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      const res = await fetch(`${API_BASE}/api/claude`, {
+      const res = await fetch(`${API_BASE}/api/ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...auth },
         body: JSON.stringify({
           task_type: taskType,
+          operation_id: operationId,
           model,
           system,
           ...(Array.isArray(messages) && messages.length
@@ -120,6 +143,7 @@ export async function callClaude({
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}))
+        publishCreditState(data)
         const text = data.text
           || (Array.isArray(data.content)
               ? data.content.filter(b => b?.type === 'text').map(b => b.text).join('\n')
@@ -154,13 +178,13 @@ export async function callClaude({
 }
 
 // ────────────────────────────────────────────────────────────────────
-// callClaudeStream, SSE streaming.
+// callOpenAIStream, SSE streaming.
 // onChunk(text, accumulated) fires per delta.
 // onComplete(fullText) fires when the stream ends successfully.
 // onError(err) fires once on failure.
 // Returns the accumulated full text.
 // ────────────────────────────────────────────────────────────────────
-export async function callClaudeStream({
+export async function callOpenAIStream({
   taskType,
   system = '',
   userMessage,
@@ -170,9 +194,10 @@ export async function callClaudeStream({
   onComplete,
   onError,
   signal,
+  operationId = createAIOperationId(),
 } = {}) {
   if (!userMessage && !(Array.isArray(messages) && messages.length)) {
-    const err = new Error('callClaudeStream needs userMessage or messages[].')
+    const err = new Error('callOpenAIStream needs userMessage or messages[].')
     onError?.(err)
     throw err
   }
@@ -181,11 +206,12 @@ export async function callClaudeStream({
   const auth = await authHeader()
 
   try {
-    const res = await fetch(`${API_BASE}/api/claude`, {
+    const res = await fetch(`${API_BASE}/api/ai`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...auth },
       body: JSON.stringify({
         task_type: taskType,
+        operation_id: operationId,
         model,
         system,
         ...(Array.isArray(messages) && messages.length
@@ -199,7 +225,9 @@ export async function callClaudeStream({
 
     if (!res.ok || !res.body) {
       let errBody = {}
-      try { errBody = await res.json() } catch {}
+      try { errBody = await res.json() } catch {
+        // A failed proxy may return an empty body.
+      }
       const err = toError(errBody, res.status)
       onError?.(err)
       throw err
@@ -230,9 +258,12 @@ export async function callClaudeStream({
           }
           try {
             const json = JSON.parse(payload)
+            publishCreditState(json)
             if (typeof json.text === 'string') {
               acc += json.text
-              try { onChunk?.(json.text, acc) } catch {}
+              try { onChunk?.(json.text, acc) } catch {
+                // Consumer rendering errors must not corrupt the stream.
+              }
             } else if (json.error && json.message) {
               const err = toError(json, 500)
               onError?.(err)
@@ -265,11 +296,11 @@ export async function callClaudeStream({
 // Convenience wrappers, pre-configured per task type.
 // ────────────────────────────────────────────────────────────────────
 
-// JSON-only Sonnet helpers.
+// JSON-only Sol helpers.
 const JSON_RULES = 'You respond with valid JSON only. No markdown, no code fences, no commentary. Start with { or [ and end with the matching close brace/bracket.'
 
 export function translateBrief(briefText, templateFormat = 'agency-deck') {
-  return callClaude({
+  return callOpenAI({
     taskType: 'brief_translation',
     maxTokens: 4000,
     system: `You are an expert design strategist and brand consultant. Translate client briefs into structured, actionable design briefs with precision and creative intelligence. ${JSON_RULES}`,
@@ -278,7 +309,7 @@ export function translateBrief(briefText, templateFormat = 'agency-deck') {
 }
 
 export function generateKanban(briefResult, projectName) {
-  return callClaude({
+  return callOpenAI({
     taskType: 'kanban_generation',
     maxTokens: 2000,
     system: `You are a senior project manager and creative director who creates precise, actionable task lists from design briefs. ${JSON_RULES}`,
@@ -287,7 +318,7 @@ export function generateKanban(briefResult, projectName) {
 }
 
 export function generateTaskPrompt(task, briefContext) {
-  return callClaude({
+  return callOpenAI({
     taskType: 'ai_task_prompt',
     maxTokens: 1200,
     system: `You are a senior creative director who writes precise, inspiring creative briefs for individual design tasks. Output plain text, no markdown headers.`,
@@ -295,7 +326,7 @@ export function generateTaskPrompt(task, briefContext) {
   })
 }
 
-// Streaming Opus helper used by the AI website builder (Phase 2). For
+// Streaming Codex agent helper used by the AI website builder (Phase 2). For
 // the canonical Phase 2 site builder pipeline (with persistence into
 // build_sections), use src/lib/aiBuildEngine.js#buildSection, that
 // hits /api/build-section which writes to Supabase as it streams.
@@ -323,22 +354,31 @@ export function buildWebsiteSection({ task, briefContext, previousSections = [],
     'Return ONLY the HTML for this section. Start with <section> or <div>. No explanation, no markdown, no ```html fences.',
   ].filter(Boolean).join('\n')
 
-  return callClaudeStream({
-    taskType: 'website_builder',
-    system: system || '',
-    userMessage,
-    maxTokens,
-    onChunk,
-    onComplete,
-    onError,
-    signal,
+  // Builder tasks must use the managed Codex endpoint, never /api/ai.
+  // maxTokens and signal remain in the public signature for compatibility;
+  // the server owns the agent spend ceiling and session lifecycle.
+  void maxTokens
+  return (async () => {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    const auth = await authHeader()
+    const prompt = [system, userMessage].filter(Boolean).join('\n\n')
+    let accumulated = ''
+    const text = await buildWithProxy(prompt, delta => {
+      accumulated += delta
+      onChunk?.(delta, accumulated)
+    }, auth.Authorization)
+    onComplete?.(text)
+    return text
+  })().catch(error => {
+    onError?.(error)
+    throw error
   })
 }
 
-// Haiku helper for short interactive turns. `designSystem` is the
+// Terra helper for short interactive turns. `designSystem` is the
 // camelCase output of fetchDesignSystem(projectId), when present its
 // designSystemToContext() rendering is spliced into the system prompt
-// so Haiku honours the saved tokens (colors, type, button shape,
+// so Terra honours the saved tokens (colors, type, button shape,
 // motion, shadow language) on every refinement, not just the brand
 // scraps from briefContext.
 export function chatRefinement({ userMessage, currentHTML, briefContext = {}, designSystem = null, conversationHistory = [], maxTokens = 3000 } = {}) {
@@ -368,7 +408,7 @@ export function chatRefinement({ userMessage, currentHTML, briefContext = {}, de
     dsBlock || null,
   ].filter(Boolean).join('\n\n')
 
-  return callClaude({
+  return callOpenAI({
     taskType: 'chat_refinement',
     maxTokens,
     system,

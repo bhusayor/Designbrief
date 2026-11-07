@@ -2,7 +2,7 @@
 // briefV2Translator.js, produces the 21-item brief framework.
 //
 // One translateBriefV2(briefText, { onSection }) call spawns 5
-// parallel callClaude calls, one per section. Each call returns its
+// parallel callOpenAI calls, one per section. Each call returns its
 // 4-7 items at once with the JSON shapes defined in
 // briefV2Schema.js. As each section resolves, the onSection callback
 // fires so the UI can paint the section's cards progressively. Total
@@ -20,7 +20,7 @@
 //   - All output is JSON only; no markdown, no preamble.
 // ────────────────────────────────────────────────────────────────────
 
-import { callClaude } from './claudeApi.js'
+import { callOpenAI, createAIOperationId } from './openaiApi.js'
 import { safeJsonParse, structuredCloneSafe } from './textUtils.js'
 import {
   BRIEF_V2_SECTIONS,
@@ -640,7 +640,8 @@ ${briefText}`,
 // resolves so the UI can render cards progressively.
 // Returns the full v2 result object with schemaVersion stamped.
 // ────────────────────────────────────────────────────────────────────
-export async function translateBriefV2(briefText, { onSection } = {}) {
+export async function translateBriefV2(briefText, { onSection, operationId } = {}) {
+  const aiOperationId = operationId || createAIOperationId()
   console.log('[translateBriefV2] start. brief length:', briefText?.length || 0, 'sections:', BRIEF_V2_SECTIONS.length)
   const result = {
     schemaVersion: BRIEF_V2_SCHEMA_VERSION,
@@ -681,8 +682,8 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
 
   // Section call worker, extracted so we can run the full set in
   // throttled batches instead of all 15 at once. 15 parallel
-  // Sonnet calls reliably trip Anthropic Tier 1 rate limits (50 RPM
-  // for Sonnet) AND were causing the heaviest two sections
+  // Sol calls reliably trip OpenAI Tier 1 rate limits (50 RPM
+  // for Sol) AND were causing the heaviest two sections
   // (color_strategy + typography_system) to silently fail when
   // their response landed near a rate-limit window edge.
   async function runSection(sectionDef, attempt = 0) {
@@ -694,11 +695,12 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
     }
     console.log('[translateBriefV2]', sectionId, attempt > 0 ? `retry attempt ${attempt}` : 'firing')
     try {
-      const { text } = await callClaude({
+      const { text } = await callOpenAI({
         taskType: 'brief_translation',
         system: prompt.system,
         userMessage: prompt.user(briefText),
         maxTokens: MAX_TOKENS[sectionId] || 3500,
+        operationId: aiOperationId,
       })
       console.log('[translateBriefV2]', sectionId, 'returned. text length:', text?.length || 0)
       const parsed = safeJsonParse(text)
@@ -728,6 +730,9 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
       }
       return { sectionId, ok: true }
     } catch (e) {
+      if (['insufficient_credits', 'operation_required', 'credit_service_unavailable'].includes(e?.code)) {
+        throw e
+      }
       // Rate-limit detection, retry once with a short backoff
       // before giving up. Most "section failed" reports trace back
       // to a 429 on the first burst of parallel calls.
@@ -753,7 +758,7 @@ export async function translateBriefV2(briefText, { onSection } = {}) {
     }
   }
 
-  // Run sections in waves of WAVE_SIZE. Sonnet's Tier 1 limit is
+  // Run sections in waves of WAVE_SIZE. Sol's Tier 1 limit is
   // 50 RPM; 15 simultaneous bursts plus the post-translation
   // scoring + design-system extraction calls were tripping 429s
   // and cascading. Waves of 4 keep us safely under any tier.
@@ -859,7 +864,7 @@ export async function enrichCompetitorUrls(result) {
     const compItem = landscapeSection.items.find(i => i.key === 'competitor_analysis')
     if (!compItem || !Array.isArray(compItem.content)) return result
 
-    const apiBase = (import.meta.env?.VITE_API_URL || import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/, '')
+    const apiBase = (import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/, '')
     if (!apiBase) return result // no Render endpoint configured
 
     const list = compItem.content
@@ -907,7 +912,7 @@ export async function enrichCompetitorUrls(result) {
 // so the model doesn't have to re-do the strategic reading itself.
 // Returns null on failure (UI just hides the badge).
 // ────────────────────────────────────────────────────────────────────
-export async function scoreBriefV2(briefText, translatedResult) {
+export async function scoreBriefV2(briefText, translatedResult, { operationId } = {}) {
   try {
     const slim = {
       projectTitle: translatedResult?.projectTitle,
@@ -915,7 +920,7 @@ export async function scoreBriefV2(briefText, translatedResult) {
         (s.items || []).map(it => ({ key: it.key, hasContent: it.content != null }))
       ),
     }
-    const { text } = await callClaude({
+    const { text } = await callOpenAI({
       taskType: 'brief_translation',
       system: `${BASE_SYSTEM}\n\nYou are scoring a design brief on how well it sets the designer up to do good work. Be calibrated, not flattering. A 100 is rare. A vague brief with no success metric is at most a 50.`,
       userMessage: `Score this design brief.
@@ -942,6 +947,7 @@ ${briefText.slice(0, 4000)}
 Translated coverage (which fields the translator could fill):
 ${JSON.stringify(slim).slice(0, 1500)}`,
       maxTokens: 700,
+      operationId,
     })
     const parsed = safeJsonParse(text)
     if (!parsed || typeof parsed.overall !== 'number') return null

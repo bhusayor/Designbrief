@@ -317,7 +317,7 @@ function FormShell({ form }) {
       // the response; the client sees the completion screen
       // immediately while the pipeline runs in the background and
       // updates the submission row's status as each step lands.
-      const pipelineUrl = (import.meta.env.VITE_API_URL || '') + '/api/process-intake'
+      const pipelineUrl = (import.meta.env.VITE_API_BASE_URL || '') + '/api/process-intake'
       if (pipelineUrl) {
         fetch(pipelineUrl, {
           method: 'POST',

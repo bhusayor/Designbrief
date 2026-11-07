@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import AppContext from '../../context/AppContext'
-import { chatRefinement } from '../../lib/claudeApi'
+import { chatRefinement } from '../../lib/openaiApi'
 import {
   searchPexelsVideo,
   searchPexelsImage,

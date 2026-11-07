@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest'
 import { scrubDashes, emptyContentForShape } from '../briefV2Schema.js'
 import { scrubDashesV3, BRIEF_V3_SECTIONS, BRIEF_V3_WIRED_KEYS } from '../briefV3Schema.js'
 import { buildKanbanFromV2 } from '../briefV2Kanban.js'
-import { pickModel, MODEL_FOR, DEFAULT_MODEL, ALLOWED_MODELS } from '../models.js'
+import { pickModel, MODEL_FOR, DEFAULT_MODEL, ALLOWED_MODELS, MODELS, AGENT_TASKS } from '../models.js'
 import { CREDIT_COSTS } from '../credits.js'
 
 describe('scrubDashes (V2)', () => {
@@ -101,6 +101,23 @@ describe('pickModel', () => {
   })
   it('accepts whitelisted model overrides', () => {
     expect(pickModel('brief_translation', ALLOWED_MODELS[0])).toBe(ALLOWED_MODELS[0])
+  })
+  it('routes strategic and structured work to Sol', () => {
+    expect(MODEL_FOR.brief_translation).toBe(MODELS.SOL)
+    expect(MODEL_FOR.kanban_generation).toBe(MODELS.SOL)
+    expect(MODEL_FOR.backlog_generation).toBe(MODELS.SOL)
+  })
+  it('routes fast interactive work to Terra', () => {
+    expect(MODEL_FOR.chat_refinement).toBe(MODELS.TERRA)
+    expect(MODEL_FOR.intake_processing).toBe(MODELS.TERRA)
+    expect(MODEL_FOR.inline_edit).toBe(MODELS.TERRA)
+  })
+  it('isolates the Codex agent workflow to builder tasks', () => {
+    expect([...AGENT_TASKS].sort()).toEqual([
+      'component_builder',
+      'section_rebuild',
+      'website_builder',
+    ])
   })
 })
 

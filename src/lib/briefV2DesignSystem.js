@@ -23,7 +23,7 @@
 // hydration picks it up for free.
 // ────────────────────────────────────────────────────────────────────
 
-import { callClaude } from './claudeApi.js'
+import { callOpenAI } from './openaiApi.js'
 import { scrubDashes } from './briefV2Schema.js'
 
 const SYSTEM_PROMPT = `You are a senior design systems architect. You read the brand-and-direction items from a translated brief and compile a single design-system object the team will hand to every kanban card and every AI builder run.
@@ -139,11 +139,11 @@ function formatItems(items) {
 
 // ────────────────────────────────────────────────────────────────────
 // extractDesignSystem, main entry point. Takes the V2 result,
-// extracts items 12-17, sends them to Claude, returns the parsed
+// extracts items 12-17, sends them to OpenAI, returns the parsed
 // design-system object. Errors return null so the caller can decide
 // whether to retry or surface the failure.
 // ────────────────────────────────────────────────────────────────────
-export async function extractDesignSystem(v2Result) {
+export async function extractDesignSystem(v2Result, { operationId } = {}) {
   if (!v2Result?.sections) return null
 
   const items = {}
@@ -164,11 +164,12 @@ export async function extractDesignSystem(v2Result) {
   if (!hasAnything) return null
 
   try {
-    const { text } = await callClaude({
+    const { text } = await callOpenAI({
       taskType: 'brief_translation',
       system: SYSTEM_PROMPT,
       userMessage: USER_PROMPT(items),
       maxTokens: 2000,
+      operationId,
     })
     const parsed = safeJsonParse(text)
     return scrubDashes(parsed)

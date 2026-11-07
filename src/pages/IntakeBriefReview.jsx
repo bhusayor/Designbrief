@@ -3,7 +3,7 @@
 //
 // The designer lands here from the notification email link or from
 // IntakeDelivery's View Brief button on a submission row. Shows the
-// full V2 translation in an editable layout, with three companion
+// full V2 or V3 translation, with three companion
 // panels (Flags / Design System / Kanban Preview) and an Approve
 // flow that locks the brief.
 //
@@ -23,6 +23,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import AppContext from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { BRIEF_V2_SECTIONS, BRIEF_V2_ITEM_BY_KEY } from '../lib/briefV2Schema'
+import BriefV3View from '../components/brief/BriefV3View'
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -291,7 +292,7 @@ function ReviewShell({ submission, form, onBack, showToast }) {
     if (!question?.trim()) return
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const apiUrl = (import.meta.env.VITE_API_URL || '') + '/api/intake-followup'
+      const apiUrl = (import.meta.env.VITE_API_BASE_URL || '') + '/api/intake-followup'
       const res = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -571,7 +572,7 @@ function SectionNav({ result, activeId, onPick }) {
               className={`br-sidenav-link ${activeId === s.id ? 'is-active' : ''}`}
             >
               <span className="br-sidenav-step">0{i + 1}</span>
-              <span>{s.label}</span>
+              <span>{s.title || s.label}</span>
             </button>
           </li>
         ))}
@@ -621,6 +622,10 @@ function TranslationPanel({ result, locked, onChangeItem, onChangeAssumption, en
     }
     return out
   }, [enrichmentMap])
+
+  if (result?.schemaVersion === 'v3') {
+    return <BriefV3View result={result} />
+  }
 
   return (
     <div className="br-translation">
@@ -1612,8 +1617,25 @@ function aggregateFlags(result) {
   const assumptions = []
   const questions = []
   if (!result?.sections) return { red, assumptions, questions }
+  if (result.schemaVersion === 'v3') {
+    const health = result.sections.find(section => section.key === 'brief_health')?.content || {}
+    const riskRegister = result.sections.find(section => section.key === 'risk_assessment')?.content?.risks || []
+    for (const risk of health.risks || []) {
+      red.push({ text: risk.risk || String(risk), severity: risk.severity || 'Medium' })
+    }
+    for (const risk of riskRegister) {
+      if (risk.likelihood === 'High' || risk.impact === 'High') {
+        red.push({ text: risk.risk || '', severity: risk.impact || 'Medium' })
+      }
+    }
+    for (const text of health.missing || []) {
+      assumptions.push({ text: String(text), status: 'Needs Clarification' })
+    }
+    for (const text of health.questions || []) questions.push({ text: String(text) })
+    return { red, assumptions, questions }
+  }
   for (const s of result.sections) {
-    for (const it of s.items) {
+    for (const it of s.items || []) {
       if (it.key === 'red_flags' && Array.isArray(it.content?.items)) {
         for (const f of it.content.items) red.push({ ...f })
       }

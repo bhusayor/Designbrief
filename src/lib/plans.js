@@ -115,6 +115,7 @@ export function canDo(user, action) {
     export_docx: () => limits.docxExport,
     use_intake: () => limits.clientIntake,
     use_custom_templates: () => limits.customTemplates,
+    use_ai_builder: () => limits.aiFeatures.includes('all'),
     use_credits: (usage = {}) => (usage.credits ?? 0) > 0,
   }
   return checks[action] || (() => false)

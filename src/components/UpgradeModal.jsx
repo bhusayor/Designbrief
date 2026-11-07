@@ -73,6 +73,12 @@ const REASONS = {
     message: 'Build your own brief structure. The AI will follow your exact format every time.',
     proOnly: true,
   },
+  ai_builder: {
+    Icon: SparklesIcon,
+    headline: 'Codex Builder is Pro only',
+    message: 'Upgrade to Pro to turn your project backlog into production-ready website sections with the Codex agent workflow.',
+    proOnly: true,
+  },
   white_label: {
     Icon: DocumentArrowDownIcon,
     headline: 'White-label export is Pro only',
@@ -113,6 +119,7 @@ const PRO_FEATURES = [
   'White-label exports',
   'Client intake forms',
   'Custom templates',
+  'Codex website builder',
 ]
 
 // Single source for both the modal trigger (from any page via

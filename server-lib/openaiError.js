@@ -1,6 +1,6 @@
 // ────────────────────────────────────────────────────────────────────
-// mapClaudeError, turn an Anthropic SDK exception (or any thrown
-// error from a Claude proxy) into a user-safe { status, body } response.
+// mapOpenAIError, turn an OpenAI SDK or HTTP exception into a user-safe
+// { status, body } response.
 //
 // Goals:
 //   - Never leak the AI provider's identity to end users.
@@ -12,29 +12,30 @@
 //
 // Use:
 //   try { ... } catch (e) {
-//     const { status, body } = mapClaudeError(e, '[claude]')
+//     const { status, body } = mapOpenAIError(e, '[openai]')
 //     return res.status(status).json(body)
 //   }
 // ────────────────────────────────────────────────────────────────────
 
 const LOW_BALANCE_RX = /credit balance is too low|insufficient.*credit|billing/i
 
-export function mapClaudeError(error, tag = '[ai]') {
+export function mapOpenAIError(error, tag = '[ai]') {
   // Log the raw error for our own debugging, NEVER returned to the user.
   try {
     console.error(tag, 'AI proxy error:', {
       message: error?.message,
       status: error?.status,
       type: error?.constructor?.name,
-      anthropic: error?.error || null,
+      provider_error: error?.error || null,
     })
-  } catch {}
+  } catch {
+    // Error logging must never mask the original failure.
+  }
 
   const raw = String(error?.message || '') + ' ' +
     String(error?.error?.error?.message || error?.error?.message || '')
 
-  // Out of credits / billing issue, Anthropic returns 400 with a
-  // specific message. Surface as 503 high demand so the user just
+  // Out of credits / billing issues are surfaced as 503 so the user
   // tries again later (and never sees billing language).
   if (error?.status === 402 || LOW_BALANCE_RX.test(raw)) {
     return {
@@ -69,8 +70,8 @@ export function mapClaudeError(error, tag = '[ai]') {
     }
   }
 
-  // Overloaded (529 from Anthropic).
-  if (error?.status === 529) {
+  // Provider overload / temporary unavailability.
+  if (error?.status === 529 || error?.status === 503) {
     return {
       status: 503,
       body: {
@@ -108,15 +109,17 @@ export function mapClaudeError(error, tag = '[ai]') {
 // Convenience: same idea but for streaming endpoints where we've
 // already started sending SSE and want to write an error frame.
 export function streamErrorFrame(error, tag = '[ai-stream]') {
-  const { body } = mapClaudeError(error, tag)
+  const { body } = mapOpenAIError(error, tag)
   return body
 }
 
-// For Anthropic HTTP responses that aren't OK, turn the body into an
+// For raw HTTP responses that aren't OK, turn the body into an
 // SDK-shaped error before mapping.
-export function mapHttpAnthropicError(status, bodyText, tag = '[ai]') {
+export function mapHttpOpenAIError(status, bodyText, tag = '[ai]') {
   let parsed = null
-  try { parsed = JSON.parse(bodyText) } catch {}
+  try { parsed = JSON.parse(bodyText) } catch {
+    // Plain-text error bodies are valid and handled below.
+  }
   const fakeErr = { status, message: parsed?.error?.message || bodyText, error: parsed }
-  return mapClaudeError(fakeErr, tag)
+  return mapOpenAIError(fakeErr, tag)
 }

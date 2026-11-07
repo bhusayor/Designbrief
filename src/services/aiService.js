@@ -1,5 +1,5 @@
 /**
- * AI Service - Handles all API calls to Claude
+ * AI Service - Handles all OpenAI API calls
  * Uses streaming so results appear word-by-word instantly
  */
 

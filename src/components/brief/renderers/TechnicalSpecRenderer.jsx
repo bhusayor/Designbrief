@@ -5,29 +5,31 @@ import {
   GanttSection, BudgetSection, TeamRolesSection,
 } from './shared'
 
+const TECHNICAL_ACCENT = '#0EA5E9'
+
+function SpecSection({ title, children }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 10, fontWeight: 700,
+        letterSpacing: '0.1em', textTransform: 'uppercase',
+        color: TECHNICAL_ACCENT,
+        marginBottom: 10,
+        paddingBottom: 6,
+        borderBottom: '2px solid ' + TECHNICAL_ACCENT + '30',
+      }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  )
+}
+
 export default function TechnicalSpecRenderer({ result }) {
   if (!result) return null
   const r = result
-  const accent = '#0EA5E9'
-
-  function SpecSection({ title, children }) {
-    return (
-      <div style={{ marginBottom: 24 }}>
-        <div style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 10, fontWeight: 700,
-          letterSpacing: '0.1em', textTransform: 'uppercase',
-          color: accent,
-          marginBottom: 10,
-          paddingBottom: 6,
-          borderBottom: '2px solid ' + accent + '30',
-        }}>
-          {title}
-        </div>
-        {children}
-      </div>
-    )
-  }
+  const accent = TECHNICAL_ACCENT
 
   return (
     <div style={{

@@ -11,10 +11,9 @@
 //        extract implicit signals.
 //   4c — brief assembly: rewrite the enriched answers as continuous
 //        prose organised by section.
-//   4d — V2 translator: 21 items × 5 sections, parallel call set.
-//   4e — design system extraction from items 12-17.
-//   4f — kanban population: parse item 4 + item 6 into one card per
-//        deliverable.
+//   4d — V3 translator: 22 Design Intelligence chapters.
+//   4e — design-system adapter from the V3 visual/tokens chapters.
+//   4f — kanban population from the V3 IA and requirements chapters.
 //   4g — block detection: flag cards affected by High red flags,
 //        unconfirmed assumptions, unanswered blocking questions.
 //   4h — notification email to the designer + an in-app flag count.
@@ -23,18 +22,26 @@
 // completes so the designer review screen can poll progress.
 // ────────────────────────────────────────────────────────────────────
 
-import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import { createHash } from 'node:crypto'
 import { sendEmail } from './server-lib/sendEmail.js'
+import { createOpenAIResponse } from './server-lib/openai.js'
+import { pickModel, reasoningEffortFor } from './src/lib/models.js'
+import {
+  BRIEF_V3_MAX_TOKENS,
+  BRIEF_V3_SECTION_PROMPTS,
+} from './src/lib/briefV3Translator.js'
+import {
+  BRIEF_V3_SCHEMA_VERSION,
+  BRIEF_V3_SECTIONS,
+  BRIEF_V3_WIRED_KEYS,
+} from './src/lib/briefV3Schema.js'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   { auth: { persistSession: false } },
 )
-
-const MODEL = 'claude-sonnet-4-5'
 
 // ────────────────────────────────────────────────────────────────────
 // Public entry point — main pipeline orchestrator
@@ -44,8 +51,12 @@ export async function runIntakePipeline(submissionId) {
   try {
     submission = await loadSubmission(submissionId)
     if (!submission) throw new Error('submission_not_found')
+    if (!['pending', 'failed'].includes(submission.status)) {
+      return { ok: true, skipped: true, status: submission.status }
+    }
     form = await loadForm(submission.intake_form_id)
     if (!form) throw new Error('form_not_found')
+    await reserveIntakeCredits(form.user_id, submissionId)
   } catch (e) {
     await markFailed(submissionId, 'load', e.message)
     return { ok: false, step: 'load', error: e.message }
@@ -73,25 +84,18 @@ export async function runIntakePipeline(submissionId) {
     return finishFailed(submissionId, 'assembling', e)
   }
 
-  // ── 4d: V2 translation ────────────────────────────────────────
-  let v2Result
+  // ── 4d: V3 translation ────────────────────────────────────────
+  let v3Result
   try {
     await setStatus(submissionId, 'translating')
-    v2Result = await translateBriefV2Server(briefText)
+    v3Result = await translateBriefV3Server(briefText)
   } catch (e) {
     return finishFailed(submissionId, 'translating', e)
   }
 
   // ── 4e: design system extraction ──────────────────────────────
-  let designSystem = null
-  try {
-    await setStatus(submissionId, 'extracting_design_system')
-    designSystem = await extractDesignSystemServer(v2Result)
-  } catch (e) {
-    // non-fatal — translation already useful without the design system
-    console.warn('[pipeline] design-system failed (non-fatal)', e?.message)
-  }
-  v2Result.designSystem = designSystem
+  await setStatus(submissionId, 'extracting_design_system')
+  v3Result.designSystem = extractDesignSystemFromV3(v3Result)
 
   // ── Project title override ────────────────────────────────────
   // When the client supplied a business name on Page 0, surface it
@@ -102,30 +106,30 @@ export async function runIntakePipeline(submissionId) {
   const bizName = String(submission?.business_name || '').trim()
   if (bizName) {
     const typeLabel = labelForType(form.project_type)
-    v2Result.projectTitle = `${bizName} - ${typeLabel}`
+    v3Result.projectTitle = `${bizName} - ${typeLabel}`
   }
 
   // ── 4f + 4g: kanban + block detection ─────────────────────────
   try {
     await setStatus(submissionId, 'building_kanban')
-    const kanban = buildKanbanFromV2(v2Result)
-    v2Result.kanbanCards = kanban
+    const kanban = buildKanbanFromV3(v3Result)
+    v3Result.kanbanCards = kanban
   } catch (e) {
     console.warn('[pipeline] kanban derivation failed (non-fatal)', e?.message)
   }
 
   // ── Persist the full result ───────────────────────────────────
   try {
-    const flags = aggregateFlags(v2Result)
+    const flags = aggregateFlagsV3(v3Result)
     await update(submissionId, {
-      translated_result: v2Result,
+      translated_result: v3Result,
       flags,
       status: 'notifying',
       completed_at: new Date().toISOString(),
     })
 
     // ── 4h: notification ────────────────────────────────────────
-    await notifyDesigner(form, submission, v2Result, flags).catch(e => {
+    await notifyDesigner(form, submission, v3Result, flags).catch(e => {
       console.warn('[pipeline] notification failed (non-fatal)', e?.message)
     })
 
@@ -181,7 +185,7 @@ Counts:
 - contradictions: 0-5 entries, only real conflicts. Don't manufacture.
 - implicit_signals: 3-8 observations.`
 
-  const text = await callClaudeJson({ system, user, maxTokens: 2500 })
+  const text = await callAIJson({ system, user, maxTokens: 2500, taskType: 'intake_processing' })
   const parsed = safeJson(text) || { expansions: [], contradictions: [], implicit_signals: [] }
   return scrubDashes(parsed)
 }
@@ -239,12 +243,228 @@ ${signalsBlock || '(none)'}
 
 Now write the brief. Around 400-700 words. Section headers as plain text on their own line in capital letters, with a blank line above and below. No # marks.`
 
-  const text = await callClaudeText({ system, user, maxTokens: 2000 })
+  const text = await callAIText({ system, user, maxTokens: 2000, taskType: 'intake_processing' })
   return scrubDashes(text)
 }
 
+async function reserveIntakeCredits(userId, submissionId) {
+  if (!userId) throw new Error('form_owner_not_found')
+  const { data, error } = await supabase.rpc('consume_ai_credit_operation', {
+    p_user_id: userId,
+    p_operation_id: operationUuidFromText(`intake:${submissionId}`),
+    p_action: 'client_intake',
+  })
+  if (error) throw new Error('credit_service_unavailable')
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row?.ok) throw new Error(row?.reason || 'credit_operation_rejected')
+}
+
+function operationUuidFromText(value) {
+  const hex = createHash('sha256').update(String(value)).digest('hex').slice(0, 32).split('')
+  hex[12] = '5'
+  hex[16] = ['8', '9', 'a', 'b'][parseInt(hex[16], 16) % 4]
+  const joined = hex.join('')
+  return `${joined.slice(0, 8)}-${joined.slice(8, 12)}-${joined.slice(12, 16)}-${joined.slice(16, 20)}-${joined.slice(20)}`
+}
+
 // ────────────────────────────────────────────────────────────────────
-// 4d — V2 translator (server-side port of src/lib/briefV2Translator.js)
+// 4d — V3 translator, backed by the shared prompt registry
+// ────────────────────────────────────────────────────────────────────
+async function translateBriefV3Server(briefText) {
+  const result = {
+    schemaVersion: BRIEF_V3_SCHEMA_VERSION,
+    projectTitle: 'Untitled brief',
+    sections: BRIEF_V3_SECTIONS.map(section => ({
+      ...section,
+      content: BRIEF_V3_WIRED_KEYS.includes(section.key)
+        ? null
+        : { __pending_phase: true },
+    })),
+  }
+
+  async function runSection(section, attempt = 0) {
+    const prompt = BRIEF_V3_SECTION_PROMPTS[section.key]
+    if (!prompt) return
+    try {
+      const text = await callAIJson({
+        system: prompt.system,
+        user: prompt.user(briefText),
+        maxTokens: BRIEF_V3_MAX_TOKENS[section.key] || 3500,
+        taskType: 'brief_translation',
+      })
+      const content = scrubDashes(safeJson(text))
+      if (!content || typeof content !== 'object') throw new Error('parse_empty')
+      const target = result.sections.find(item => item.key === section.key)
+      if (target) target.content = content
+      if (section.key === 'executive_summary') {
+        const title = content?.snapshot?.project?.value
+        if (typeof title === 'string' && title.trim()) result.projectTitle = title.trim()
+      }
+    } catch (error) {
+      const message = String(error?.message || '').toLowerCase()
+      if (attempt === 0 && (message.includes('429') || message.includes('rate') || message.includes('overloaded'))) {
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        return runSection(section, 1)
+      }
+      const target = result.sections.find(item => item.key === section.key)
+      if (target) target.content = { __error: true, reason: error?.message || 'failed' }
+      console.warn('[v3-intake]', section.key, 'failed:', error?.message)
+    }
+  }
+
+  const sections = BRIEF_V3_SECTIONS.filter(section => BRIEF_V3_WIRED_KEYS.includes(section.key))
+  for (let index = 0; index < sections.length; index += 4) {
+    await Promise.all(sections.slice(index, index + 4).map(section => runSection(section)))
+  }
+  return result
+}
+
+function v3Content(result, key) {
+  const content = result?.sections?.find(section => section.key === key)?.content
+  return content && !content.__error && !content.__pending_phase ? content : null
+}
+
+function firstToken(tokens, patterns) {
+  return (tokens || []).find(token => patterns.some(pattern => pattern.test(`${token.name || ''} ${token.role || ''}`)))
+}
+
+function extractDesignSystemFromV3(result) {
+  const foundations = v3Content(result, 'design_tokens') || {}
+  const visual = v3Content(result, 'visual_direction') || {}
+  const tokens = foundations.tokens || {}
+  const primary = firstToken(tokens.color, [/primary/i, /accent/i])
+  const secondary = firstToken(tokens.color, [/secondary/i, /surface/i])
+  const accent = firstToken(tokens.color, [/accent/i, /brand/i])
+  const background = firstToken(tokens.color, [/background/i, /\bbg\b/i])
+  const surface = firstToken(tokens.color, [/surface/i, /card/i])
+  const display = firstToken(tokens.typography, [/display/i, /heading/i])
+  const body = firstToken(tokens.typography, [/body/i, /paragraph/i])
+  const label = firstToken(tokens.typography, [/label/i, /caption/i])
+  const radius = tokens.radius?.[Math.min(1, Math.max(0, (tokens.radius?.length || 1) - 1))]
+  const motion = tokens.motion?.[0]
+
+  return {
+    color: {
+      primary: primary?.value || '',
+      secondary: secondary?.value || '',
+      accent: accent?.value || '',
+      background: background?.value || '',
+      surface: surface?.value || '',
+    },
+    typography: {
+      display: display?.family || '',
+      body: body?.family || '',
+      label: label?.family || body?.family || '',
+    },
+    spacing: {
+      density: foundations.layout?.stack_default || '',
+      scale: foundations.layout?.column_padding || '',
+      rationale: foundations.grid?.rationale || '',
+    },
+    component: {
+      corner_radius: radius?.value || '',
+      radius_reason: radius?.role || '',
+      density: visual.component_style || '',
+      borders: firstToken(tokens.color, [/border/i])?.value || '',
+    },
+    motion: {
+      speed: motion?.duration || '',
+      transition: motion?.easing || '',
+      speed_reason: motion?.role || '',
+    },
+    visual_language: {
+      imagery_type: visual.imagery?.type || visual.imagery_type || '',
+      ui_style: visual.mood || visual.style || '',
+      imagery_treatment: visual.imagery?.treatment || '',
+    },
+    foundations,
+  }
+}
+
+function buildKanbanFromV3(result) {
+  const ia = v3Content(result, 'information_architecture') || {}
+  const requirements = v3Content(result, 'functional_requirements') || {}
+  const aiPackage = v3Content(result, 'ai_package') || {}
+  const risks = v3Content(result, 'risk_assessment')?.risks || []
+  const coreFeatures = Array.isArray(requirements.core) ? requirements.core : []
+
+  let deliverables = Array.isArray(ia.site_map?.children)
+    ? ia.site_map.children.map(page => ({
+        title: page.name,
+        purpose: page.purpose,
+        children: page.children || [],
+      }))
+    : []
+  if (!deliverables.length) {
+    deliverables = (aiPackage.components || []).map(component => ({ title: String(component), purpose: '' }))
+  }
+  if (!deliverables.length) {
+    deliverables = coreFeatures.map(feature => ({
+      title: feature.feature,
+      purpose: feature.description,
+    }))
+  }
+
+  const tasks = deliverables.filter(item => item.title).slice(0, 20).map((item, index) => {
+    const title = String(item.title)
+    const normalizedTitle = normalizeName(title)
+    const related = coreFeatures.filter(feature => {
+      const haystack = normalizeName(`${feature.feature || ''} ${feature.description || ''}`)
+      return normalizedTitle && (haystack.includes(normalizedTitle) || normalizedTitle.includes(haystack))
+    })
+    const blockedReasons = risks
+      .filter(risk => risk.likelihood === 'High' && risk.impact === 'High')
+      .filter(risk => {
+        const text = `${risk.risk || ''} ${risk.mitigation || ''}`
+        const normalized = normalizeName(text)
+        return normalized.includes(normalizedTitle) || /all|every|across|product wide/i.test(text)
+      })
+      .map(risk => ({ type: 'risk', severity: 'High', text: risk.risk }))
+    const description = [
+      '**Purpose**',
+      item.purpose || aiPackage.project_summary || 'Deliver this product surface from the approved intelligence document.',
+      item.children?.length ? `\n**Included areas**\n${item.children.map(child => `- ${child.name}`).join('\n')}` : '',
+      related.length ? `\n**Core requirements**\n${related.map(feature => `- ${feature.feature}: ${feature.description || ''}`).join('\n')}` : '',
+      aiPackage.visual_direction ? `\n**Visual direction**\n${aiPackage.visual_direction}` : '',
+    ].filter(Boolean).join('\n')
+    return {
+      id: `task_${Math.random().toString(36).slice(2, 10)}`,
+      title,
+      description,
+      column_name: 'todo',
+      column: 'todo',
+      position: index,
+      estimated_days: 2,
+      status: blockedReasons.length ? 'blocked' : 'todo',
+      blocked: blockedReasons.length > 0,
+      blocked_reasons: blockedReasons,
+      design_system: result.designSystem || null,
+      schemaVersion: BRIEF_V3_SCHEMA_VERSION,
+      v3: { page: item, relatedRequirements: related },
+    }
+  })
+  return { tasks, projectTimeline: 'Derived from V3 information architecture', designSystem: result.designSystem || null }
+}
+
+function aggregateFlagsV3(result) {
+  const health = v3Content(result, 'brief_health') || {}
+  const riskRegister = v3Content(result, 'risk_assessment')?.risks || []
+  return [
+    ...(health.risks || []).map(item => ({
+      type: 'red_flag',
+      severity: item.severity || 'Medium',
+      text: item.risk || String(item),
+    })),
+    ...riskRegister
+      .filter(item => item.likelihood === 'High' || item.impact === 'High')
+      .map(item => ({ type: 'red_flag', severity: item.impact || 'Medium', text: item.risk || '' })),
+    ...(health.missing || []).map(text => ({ type: 'assumption', status: 'Needs Clarification', text: String(text) })),
+    ...(health.questions || []).map(text => ({ type: 'question', text: String(text) })),
+  ]
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Legacy V2 adapters remain below for already-saved V2 submissions.
 // ────────────────────────────────────────────────────────────────────
 const BRIEF_V2_SECTIONS = [
   { id: 'understand',  label: 'Understand the problem first',
@@ -402,10 +622,11 @@ async function translateBriefV2Server(briefText) {
   const promises = BRIEF_V2_SECTIONS.map(async (def) => {
     const prompt = SECTION_PROMPTS[def.id](briefText)
     try {
-      const text = await callClaudeJson({
+      const text = await callAIJson({
         system: SHARED_SYSTEM,
         user: prompt.user,
         maxTokens: 3500,
+        taskType: 'brief_translation',
       })
       const parsed = scrubDashes(safeJson(text) || {})
       if (def.id === 'understand' && parsed.projectTitle) result.projectTitle = parsed.projectTitle
@@ -463,7 +684,7 @@ Return JSON in this shape:
 }`
 
   try {
-    const text = await callClaudeJson({ system, user, maxTokens: 2000 })
+    const text = await callAIJson({ system, user, maxTokens: 2000, taskType: 'brief_translation' })
     return scrubDashes(safeJson(text))
   } catch (e) {
     console.warn('[design-system]', e?.message)
@@ -646,7 +867,7 @@ function aggregateFlags(v2) {
 // ────────────────────────────────────────────────────────────────────
 // 4h — notification
 // ────────────────────────────────────────────────────────────────────
-async function notifyDesigner(form, submission, v2Result, flags) {
+async function notifyDesigner(form, submission, result, flags) {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[pipeline] RESEND_API_KEY missing; skipping notification')
     return
@@ -660,7 +881,7 @@ async function notifyDesigner(form, submission, v2Result, flags) {
 
   const appUrl = process.env.VITE_APP_URL || 'https://designbrief.ai'
   const reviewUrl = `${appUrl.replace(/\/$/, '')}/intake/${form.id}` // delivery view
-  const projectTitle = v2Result?.projectTitle || form.project_name || 'New brief'
+  const projectTitle = result?.projectTitle || form.project_name || 'New brief'
 
   // Page 0 fields. When both are present the subject + heading get
   // a much warmer "Amaka Okafor (Nestiq) just completed your intake
@@ -677,7 +898,7 @@ async function notifyDesigner(form, submission, v2Result, flags) {
     ? `${clientName} (${businessName}) just completed your intake form`
     : `New brief: ${projectTitle}`
 
-  const summary = summaryFromV2(v2Result)
+  const summary = summaryFromResult(result)
   const flagCount = flags.length
   const highRedFlags = flags.filter(f => f.type === 'red_flag' && f.severity === 'High').length
 
@@ -700,10 +921,14 @@ async function notifyDesigner(form, submission, v2Result, flags) {
   if (sendErr) console.warn('[pipeline] notification email failed', sendErr)
 }
 
-function summaryFromV2(v2) {
-  if (!v2?.sections) return 'A new client submission is ready for review.'
+function summaryFromResult(result) {
+  if (result?.schemaVersion === BRIEF_V3_SCHEMA_VERSION) {
+    return v3Content(result, 'executive_summary')?.summary
+      || 'A new client submission is ready for review.'
+  }
+  if (!result?.sections) return 'A new client submission is ready for review.'
   let core = '', intent = ''
-  for (const s of v2.sections) {
+  for (const s of result.sections) {
     for (const it of s.items) {
       if (it.key === 'core_problem_clarity' && typeof it.content === 'string') core = it.content
       if (it.key === 'project_intent' && typeof it.content === 'string') intent = it.content
@@ -740,20 +965,20 @@ function finishFailed(id, step, e) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Claude SDK helpers (server-side; uses Anthropic SDK directly)
+// OpenAI Responses helpers (server-side)
 // ────────────────────────────────────────────────────────────────────
-async function callClaudeJson({ system, user, maxTokens }) {
-  const resp = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: Math.min(maxTokens || 2000, 8096),
-    system,
-    messages: [{ role: 'user', content: user }],
+async function callAIJson({ system, user, maxTokens, taskType = 'brief_translation' }) {
+  const response = await createOpenAIResponse({
+    model: pickModel(taskType),
+    instructions: system,
+    message: user,
+    maxOutputTokens: Math.min(maxTokens || 2000, 8096),
+    reasoningEffort: reasoningEffortFor(taskType),
   })
-  const text = (resp.content || []).filter(b => b?.type === 'text').map(b => b.text).join('\n')
-  return text
+  return response.output_text || ''
 }
-async function callClaudeText({ system, user, maxTokens }) {
-  return callClaudeJson({ system, user, maxTokens })
+async function callAIText({ system, user, maxTokens, taskType }) {
+  return callAIJson({ system, user, maxTokens, taskType })
 }
 function safeJson(text) {
   if (!text) return null

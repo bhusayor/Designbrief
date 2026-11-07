@@ -1,5 +1,13 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useServerCreditBalance } from '../hooks/useServerCreditBalance';
+import {
+  formatProjectRow,
+  generateShareId,
+  loadHistoryCache,
+  saveHistoryCache,
+  upsertByKey,
+} from '../lib/appContextUtils';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -9,92 +17,6 @@ export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be used within AppProvider');
   return ctx;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function upsert(list, item, key = 'id') {
-  const idx = list.findIndex(i => i[key] === item[key]);
-  if (idx === -1) return [item, ...list];
-  const updated = [...list];
-  updated[idx] = { ...updated[idx], ...item };
-  return updated;
-}
-
-// ─────────────────────────────────────────────────────────────────────
-// History cache. Persisted per-workspace in localStorage so the sidebar
-// shows recents the instant the app boots, before the Supabase fetch
-// returns. We store only fields the sidebar needs (slim summary) to
-// keep the cache small. The network result always wins; the cache is
-// only a paint-acceleration layer.
-// ─────────────────────────────────────────────────────────────────────
-const HISTORY_CACHE_MAX = 60;
-const HISTORY_CACHE_KEY = (wsId) => `db-history-cache:${wsId || 'none'}`;
-
-function loadHistoryCacheFromLS() {
-  try {
-    const wsRaw = localStorage.getItem('db-workspace');
-    const ws = wsRaw ? JSON.parse(wsRaw) : null;
-    if (!ws?.id) return [];
-    const raw = localStorage.getItem(HISTORY_CACHE_KEY(ws.id));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
-}
-
-function saveHistoryCacheToLS(workspaceId, list) {
-  if (!workspaceId || !Array.isArray(list)) return;
-  try {
-    // Slim the rows. Sidebar only needs identity + display fields;
-    // skipping result/brief/kanban keeps the cache well under 100KB
-    // even with 60 projects.
-    const slim = list.slice(0, HISTORY_CACHE_MAX).map(p => ({
-      id: p.id,
-      title: p.title,
-      section: p.section,
-      source: p.source,
-      ts: p.ts,
-      pinned: p.pinned,
-      isShared: p.isShared,
-      status: p.status,
-      currentUserRole: p.currentUserRole,
-      branding: p.branding,
-    }));
-    localStorage.setItem(HISTORY_CACHE_KEY(workspaceId), JSON.stringify(slim));
-  } catch {}
-}
-
-function generateShareId() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-// Maps a raw Supabase projects row → app project shape used in state.
-// Shared with realtime payload.new rows so INSERT/UPDATE produce the same
-// object structure as the initial fetch.
-function formatProjectRow(p, extra = {}) {
-  return {
-    id: p.id,
-    workspace_id: p.workspace_id || null,
-    title: p.title,
-    section: p.section,
-    ts: new Date(p.updated_at).getTime(),
-    pinned: p.pinned || false,
-    data: {
-      brief: p.brief_text,
-      projectName: p.title,
-      scoring: p.scoring,
-      result: p.result,
-    },
-    teamMembers: p.team_members || [],
-    kanban: p.kanban,
-    kanbanColumns: p.kanban_columns || null,
-    approvalStatus: p.approval_status || {},
-    comments: p.comments || {},
-    locked: p.locked || false,
-    shareId: p.share_id,
-    ...extra,
-  };
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -125,7 +47,7 @@ export function AppProvider({ children }) {
   // sidebar paints recents instantly on refresh, before the Supabase
   // fetch returns. The cache stores only fields the sidebar needs
   // (id/title/section/ts/pinned/etc), kept small and disposable.
-  const [history, setHistory] = useState(() => loadHistoryCacheFromLS());
+  const [history, setHistory] = useState(() => loadHistoryCache());
   const [activeChat, setActiveChat] = useState(null);
   const [notification, setNotification] = useState(null);
   // AI error banner, distinct from regular toast because it carries an
@@ -219,6 +141,7 @@ export function AppProvider({ children }) {
   const [planStatus, setPlanStatus] = useState(cachedPlanState?.planStatus || 'active');
   const [accessUntil, setAccessUntil] = useState(cachedPlanState?.accessUntil || null);
   const [planStartedAt, setPlanStartedAt] = useState(cachedPlanState?.planStartedAt || null);
+  useServerCreditBalance({ setUserCredits, setCreditsUsed });
 
   // ── Upgrade modal global trigger ──────────────────────────────────────────
   // Any page can call openUpgradeModal('projects' | 'credits' | …) and the
@@ -226,12 +149,6 @@ export function AppProvider({ children }) {
   const [upgradeReason, setUpgradeReason] = useState(null);
   const openUpgradeModal = useCallback((reason) => setUpgradeReason(reason || 'general'), []);
   const closeUpgradeModal = useCallback(() => setUpgradeReason(null), []);
-
-  // consumeCredits is declared further down, AFTER showToast so its deps
-  // array can reference it without a temporal-dead-zone error. We hold a
-  // ref here so anything that closes over the context object on the very
-  // first render still gets a stable reference. The assignment happens
-  // in a useEffect below once the real callback is built.
 
   // ── Template state ────────────────────────────────────────────────────────
   const [selectedBriefTemplate, setSelectedBriefTemplate] = useState('agency-deck');
@@ -679,7 +596,7 @@ export function AppProvider({ children }) {
       // Persist a slim copy for next-boot paint. Writes on every
       // poll are cheap (JSON of 60 small rows) but we could throttle
       // if it ever showed up in profiling.
-      saveHistoryCacheToLS(workspaceId, allFormatted);
+      saveHistoryCache(workspaceId, allFormatted);
 
       // Also refresh activeProject so consumers watching it
       // (TeamCollab's customCols / projectTitle / brief sync) pick up
@@ -1107,7 +1024,7 @@ export function AppProvider({ children }) {
   // The error object must come from our client wrappers (post() in
   // src/lib/api.js or aiBuildEngine.buildSection) so the .code and
   // .message fields are already mapped to user-safe values by the
-  // server-side mapClaudeError helper.
+  // server-side AI error mapper.
   const showAIError = useCallback((error, onRetry) => {
     const code = (error && error.code) || 'unexpected';
     const message = (error && error.message)
@@ -1248,68 +1165,6 @@ export function AppProvider({ children }) {
     return true;
   }, [workspaces]);
 
-  // ── consumeCredits ────────────────────────────────────────────────────────
-  // Centralised credit-deduction wrapper that every AI action calls before
-  // firing. Declared AFTER showToast so its deps array can read showToast
-  // without hitting TDZ.
-  const consumeCredits = useCallback(async (action) => {
-    try {
-      const mod = await import('../lib/credits.js')
-      const { deductCredits } = mod
-      const r = await deductCredits(supabase, authUser?.id, action)
-      if (!r.success) {
-        if (r.reason === 'insufficient_credits') {
-          setUpgradeReason('credits')
-          showToast?.('No credits remaining. Upgrade to continue.', 'error')
-        } else {
-          console.error('[consumeCredits] failed:', r.reason)
-        }
-        return { ok: false, reason: r.reason }
-      }
-      const remaining = r.creditsRemaining ?? 0
-      setUserCredits(remaining)
-      setCreditsUsed(prev => {
-        const next = r.used ?? prev
-        try {
-          const cur = JSON.parse(localStorage.getItem('db-plan-state') || '{}')
-          localStorage.setItem('db-plan-state', JSON.stringify({ ...cur, credits: remaining, creditsUsed: next }))
-        } catch {}
-        return next
-      })
-      // Log into credit_usage_log so the Billing page can group by action.
-      // RLS lets the user insert their own rows; failures here must NOT
-      // block the AI action that just succeeded. Wrapped in a 5s
-      // timeout race because we've seen Supabase hang on these calls
-      // — same root cause as the profile read timeout in credits.js.
-      try {
-        const { CREDIT_COSTS } = mod
-        await Promise.race([
-          supabase.from('credit_usage_log').insert({
-            user_id: authUser?.id,
-            action,
-            credits: CREDIT_COSTS?.[action] || 0,
-          }),
-          new Promise(resolve => setTimeout(() => {
-            console.warn('[consumeCredits] credit_usage_log insert hung after 5s, continuing anyway')
-            resolve(null)
-          }, 5000)),
-        ])
-      } catch {}
-      if (remaining === 0) {
-        showToast?.('No credits remaining. Upgrade to continue.', 'error')
-        setUpgradeReason('credits')
-      } else if (remaining === 5) {
-        showToast?.('Only 5 credits left.', 'warning')
-      } else if (remaining === 10) {
-        showToast?.('10 credits remaining, upgrade to get more.', 'warning')
-      }
-      return { ok: true, creditsRemaining: remaining }
-    } catch (e) {
-      console.error('[consumeCredits]', e)
-      return { ok: false, reason: 'unknown' }
-    }
-  }, [authUser?.id, showToast]);
-
   // ── Navigation ────────────────────────────────────────────────────────────
 
   const setActiveSection = useCallback((section) => {
@@ -1429,7 +1284,7 @@ export function AppProvider({ children }) {
       shareId: project.shareId ?? generateShareId(),
       ...project,
     };
-    setProjects(prev => upsert(prev, item));
+    setProjects(prev => upsertByKey(prev, item));
     setActiveProjectState(item);
     // Fire-and-forget Supabase update for team + kanban
     if (authUser && item.id) {
@@ -1631,7 +1486,7 @@ export function AppProvider({ children }) {
     };
 
     // Update local state immediately (instant UI)
-    setHistory(prev => upsert(prev, entry));
+    setHistory(prev => upsertByKey(prev, entry));
     setActiveChat(entry.id);
 
     // Persist to Supabase if logged in
@@ -1838,7 +1693,6 @@ export function AppProvider({ children }) {
     upgradeReason,
     openUpgradeModal,
     closeUpgradeModal,
-    consumeCredits,
 
     // Templates
     selectedBriefTemplate,
